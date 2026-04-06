@@ -5,7 +5,7 @@
 	ignorecase = true
 	precomposeunicode = true
 [remote "origin"]
-	url = https://github.com/Keystone-planb/Keystone.git
+	url = git@github.com:Keystone-planb/plan-b-client.git
 	tagOpt = --no-tags
 	fetch = +refs/*:refs/*
 	mirror = true
