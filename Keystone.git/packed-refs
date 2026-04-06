@@ -1,0 +1,5 @@
+# pack-refs with: peeled fully-peeled sorted 
+a434c0f9924260af08e04803582a0af5d25c8a74 refs/heads/KB-20-환경구축-AWS
+5340d913fffb77ef3014a6ad5f50b3634055273d refs/heads/KB-22-초기-개발-환경-구축
+a595a295bcee0b5229d0874c2777aa69ee282f50 refs/heads/main
+5340d913fffb77ef3014a6ad5f50b3634055273d refs/pull/3/head
