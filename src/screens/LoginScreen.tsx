@@ -1,3 +1,19 @@
+/**
+ * src/screens/LoginScreen.tsx
+ *
+ * 로그인 화면
+ *
+ * [플로우]
+ * 1. 이메일 / 비밀번호 입력
+ * 2. 로그인 버튼 클릭 → requestLogin() 호출
+ * 3. 성공 시 메인 화면 이동
+ *
+ * [TODO]
+ * - 서버 열리면 api/config.ts의 USE_MOCK=false로 변경
+ * - 로그인 성공 후 access_token / refresh_token 저장
+ * - 자동 로그인 처리
+ */
+
 import React, { useState, useRef, useEffect } from "react";
 import {
   View,
@@ -10,30 +26,19 @@ import {
   KeyboardAvoidingView,
   Platform,
   Animated,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
+import GoogleIcon from "../assets/google.svg";
+import { requestLogin } from "../../api/auth/login";
 
 const { width } = Dimensions.get("window");
 
-// 하단 파도 애니메이션 컴포넌트
-interface WaveLayerProps {
-  color: string;
-  opacity: number;
-  duration: number;
-  offsetY: number;
-  bCurveAmp: number;
-}
-
-/** 애니메이션 파도 컴포넌트 */
-const WaveLayer = ({
-  color,
-  opacity,
-  duration,
-  offsetY,
-  bCurveAmp,
-}: WaveLayerProps) => {
+/** 파도 레이어 */
+const WaveLayer = ({ color, opacity, duration, offsetY, bCurveAmp }: any) => {
   const translateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -50,8 +55,12 @@ const WaveLayer = ({
 
   const d = `
     M 0 ${offsetY}
-    C ${width * 0.15} ${offsetY - bCurveAmp}, ${width * 0.35} ${offsetY - bCurveAmp * 0.5}, ${width * 0.5} ${offsetY}
-    C ${width * 0.65} ${offsetY + bCurveAmp * 0.5}, ${width * 0.85} ${offsetY + bCurveAmp}, ${width} ${offsetY}
+    C ${width * 0.15} ${offsetY - bCurveAmp}, ${width * 0.35} ${
+      offsetY - bCurveAmp * 0.5
+    }, ${width * 0.5} ${offsetY}
+    C ${width * 0.65} ${offsetY + bCurveAmp * 0.5}, ${width * 0.85} ${
+      offsetY + bCurveAmp
+    }, ${width} ${offsetY}
     L ${width} ${waveHeight}
     L 0 ${waveHeight}
     Z
@@ -68,12 +77,7 @@ const WaveLayer = ({
       }}
     >
       {[0, 1].map((i) => (
-        <Svg
-          key={i}
-          width={width}
-          height={waveHeight}
-          preserveAspectRatio="none"
-        >
+        <Svg key={i} width={width} height={waveHeight}>
           <Path d={d} fill={color} opacity={opacity} />
         </Svg>
       ))}
@@ -81,9 +85,9 @@ const WaveLayer = ({
   );
 };
 
-/** 바다 푸터 컴포넌트 */
+/** 파도 전체 */
 const OceanWaveFooter = () => (
-  <View style={styles.waveContainer}>
+  <View style={styles.waveContainer} pointerEvents="none">
     <WaveLayer
       color="#93C5FD"
       opacity={0.4}
@@ -111,6 +115,45 @@ const OceanWaveFooter = () => (
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  /** 로그인 처리 */
+  const handleLogin = async () => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert("알림", "이메일과 비밀번호를 입력해주세요.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const result = await requestLogin({
+        email: email.trim(),
+        password,
+      });
+
+      console.log("로그인 성공:", result);
+
+      Alert.alert("성공", "로그인되었습니다.", [
+        {
+          text: "확인",
+          onPress: () => navigation.replace("Main"),
+        },
+      ]);
+    } catch (error: any) {
+      Alert.alert("로그인 실패", error.message || "로그인에 실패했습니다.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKakaoLogin = () => {
+    Alert.alert("안내", "카카오 로그인은 추후 연결 예정입니다.");
+  };
+
+  const handleGoogleLogin = () => {
+    Alert.alert("안내", "구글 로그인은 추후 연결 예정입니다.");
+  };
 
   return (
     <SafeAreaView style={styles.container} edges={["top", "left", "right"]}>
@@ -121,24 +164,27 @@ export default function LoginScreen({ navigation }: any) {
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           bounces={false}
-          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           <View style={styles.topSection}>
-            {/* 로고 영역 */}
+            {/* 로고 */}
             <View style={styles.logoContainer}>
               <Text style={styles.logoText}>Plan.B</Text>
               <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
             </View>
 
-            {/* 입력 폼 영역 */}
+            {/* 입력 영역 */}
             <View style={styles.formContainer}>
               <Text style={styles.inputLabel}>이메일</Text>
               <TextInput
                 placeholder="example@planb.com"
+                placeholderTextColor="#8C9BB1"
                 style={styles.input}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+                keyboardType="email-address"
+                editable={!loading}
               />
 
               <Text style={[styles.inputLabel, { marginTop: 15 }]}>
@@ -146,18 +192,27 @@ export default function LoginScreen({ navigation }: any) {
               </Text>
               <TextInput
                 placeholder="비밀번호를 입력하세요"
+                placeholderTextColor="#8C9BB1"
                 secureTextEntry
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
+                editable={!loading}
               />
 
-              <TouchableOpacity style={styles.loginButton} activeOpacity={0.9}>
-                <Text style={styles.loginButtonText}>로그인</Text>
+              <TouchableOpacity
+                style={[styles.loginButton, loading && styles.disabledButton]}
+                onPress={handleLogin}
+                activeOpacity={0.85}
+                disabled={loading}
+              >
+                {loading ?
+                  <ActivityIndicator color="#FFFFFF" />
+                : <Text style={styles.loginButtonText}>로그인</Text>}
               </TouchableOpacity>
             </View>
 
-            {/* 소셜 로그인 영역 */}
+            {/* 소셜 로그인 */}
             <View style={styles.socialSection}>
               <View style={styles.divider}>
                 <View style={styles.line} />
@@ -165,24 +220,35 @@ export default function LoginScreen({ navigation }: any) {
                 <View style={styles.line} />
               </View>
 
-              <TouchableOpacity style={styles.kakaoButton} activeOpacity={0.8}>
+              <TouchableOpacity
+                style={styles.kakaoButton}
+                activeOpacity={0.85}
+                onPress={handleKakaoLogin}
+                disabled={loading}
+              >
                 <Ionicons name="chatbubble" size={18} color="#3C1E1E" />
                 <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.googleButton} activeOpacity={0.8}>
-                <Ionicons name="logo-google" size={18} color="#EA4335" />
+              <TouchableOpacity
+                style={styles.googleButton}
+                activeOpacity={0.85}
+                onPress={handleGoogleLogin}
+                disabled={loading}
+              >
+                <GoogleIcon width={18} height={18} />
                 <Text style={styles.googleButtonText}>Google 로그인</Text>
               </TouchableOpacity>
             </View>
 
-            {/* 회원가입 섹션 */}
+            {/* 회원가입 */}
             <View style={styles.signupContainer}>
               <Text style={styles.signupNotice}>계정이 없으신가요?</Text>
               <TouchableOpacity
                 style={styles.signupBox}
                 onPress={() => navigation.navigate("SignUp")}
-                activeOpacity={0.7}
+                activeOpacity={0.8}
+                disabled={loading}
               >
                 <Text style={styles.signupText}>지금 바로 가입하기</Text>
                 <Ionicons name="chevron-forward" size={14} color="#2563EB" />
@@ -190,7 +256,6 @@ export default function LoginScreen({ navigation }: any) {
             </View>
           </View>
 
-          {/* 하단 애니메이션 파도 */}
           <OceanWaveFooter />
         </ScrollView>
       </KeyboardAvoidingView>
@@ -198,10 +263,11 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
+/** 스타일 */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F7F9FB",
   },
   scrollContent: {
     flexGrow: 1,
@@ -244,21 +310,27 @@ const styles = StyleSheet.create({
     padding: 16,
     fontSize: 16,
     color: "#1E293B",
+    fontWeight: "500",
   },
   loginButton: {
-    backgroundColor: "#2563EB",
-    padding: 18,
-    borderRadius: 16,
+    width: "100%",
+    height: 50,
+    justifyContent: "center",
     alignItems: "center",
-    marginTop: 24,
-    shadowColor: "#2563EB",
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    shadowColor: "#2158E8",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
-    elevation: 2,
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 5,
+    marginTop: 24,
+  },
+  disabledButton: {
+    opacity: 0.7,
   },
   loginButtonText: {
-    color: "#fff",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
@@ -315,7 +387,6 @@ const styles = StyleSheet.create({
   signupContainer: {
     marginTop: 30,
     alignItems: "center",
-    zIndex: 1,
   },
   signupNotice: {
     fontSize: 14,
@@ -325,7 +396,7 @@ const styles = StyleSheet.create({
   signupBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#E9F3FF",
     paddingVertical: 10,
     paddingHorizontal: 20,
     borderRadius: 25,
@@ -339,7 +410,5 @@ const styles = StyleSheet.create({
   waveContainer: {
     height: 180,
     width: width,
-    backgroundColor: "transparent",
-    position: "relative",
   },
 });

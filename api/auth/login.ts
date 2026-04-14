@@ -1,30 +1,66 @@
+import apiClient from "../client";
 import axios from "axios";
+import { API_CONFIG } from "../config";
 
-// 1. 서버 주소 설정
-const BASE_URL = "http://api.planb-travel.cloud/v1";
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface LoginResponse {
+  access_token: string;
+  refresh_token: string;
+  expires_in: number;
+}
+
+const mockRequestLogin = async ({
+  email,
+  password,
+}: LoginRequest): Promise<LoginResponse> => {
+  console.log("로그인 요청 (mock):", email);
+
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (!email || !password) {
+        reject(new Error("이메일과 비밀번호를 입력해주세요."));
+        return;
+      }
+
+      resolve({
+        access_token: "mock_access_token_123456",
+        refresh_token: "mock_refresh_token_abcdef",
+        expires_in: 3600,
+      });
+    }, 800);
+  });
+};
 
 /**
- * [POST] 이메일 로그인 API
- * @param email 사용자 아이디(이메일)
- * @param password 사용자 비밀번호
- * @returns { message: string, access_token: string, refresh_token: string }
+ * 로그인 API
+ * POST /api/auth/login
  */
-export const requestLogin = async (email: string, password: string) => {
+export const requestLogin = async ({
+  email,
+  password,
+}: LoginRequest): Promise<LoginResponse> => {
+  if (API_CONFIG.USE_MOCK) {
+    return mockRequestLogin({ email, password });
+  }
+
   try {
-    // 2. 명세서에 명시된 Endpoint(/api/auth/login)로 요청을 보냅니다.
-    const response = await axios.post(`${BASE_URL}/api/auth/login`, {
-      email: email,
-      password: password,
+    const response = await apiClient.post<LoginResponse>("/api/auth/login", {
+      email,
+      password,
     });
 
-    // 3. 성공 시 서버에서 받은 데이터를 반환합니다.
     return response.data;
-  } catch (error: any) {
-    // 4. 에러 발생 시 로그를 찍고 에러를 밖으로 던집니다.
-    console.error(
-      "로그인 API 상세 에러:",
-      error.response?.data || error.message,
-    );
-    throw error;
+  } catch (error: unknown) {
+    if (axios.isAxiosError(error)) {
+      const errorMessage =
+        error.response?.data?.message || "로그인에 실패했습니다.";
+      throw new Error(errorMessage);
+    }
+
+    throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };
