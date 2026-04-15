@@ -1,0 +1,22 @@
+#!/bin/sh
+
+echo "🔍 보안 체크 중..."
+
+MATCH=$(git diff --cached -- . ':!package-lock.json' ':!.husky/*' | grep -nE "API_KEY|SECRET|sk-|Bearer " || true)
+
+if [ -n "$MATCH" ]; then
+  echo "❌ 민감 정보 발견!"
+  printf '%s\n' "$MATCH"
+  exit 1
+fi
+
+ENV_MATCH=$(git diff --cached --name-only -- . ':!.husky/*' | grep -E '^\.env($|\.)' || true)
+
+if [ -n "$ENV_MATCH" ]; then
+  echo "❌ .env 파일 감지!"
+  printf '%s\n' "$ENV_MATCH"
+  exit 1
+fi
+
+echo "✅ 통과"
+exit 0
