@@ -2,37 +2,25 @@
 
 echo "🔍 보안 체크 중..."
 
-# 🔥 staged된 변경 내용 가져오기 (lock 파일, husky 제외)
 DIFF_CONTENT=$(git diff --cached -- . ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml' ':!.husky/*')
 
-# 🔍 민감 정보 패턴 탐지
-MATCH=$(printf '%s\n' "$DIFF_CONTENT" | grep -nE '
-(sk-[A-Za-z0-9]{20,})|                         # OpenAI API Key (sk-로 시작, 충분히 긴 문자열)
-(Bearer[[:space:]]+[A-Za-z0-9._=-]{20,})|      # Authorization 헤더용 Bearer 토큰 (실제 토큰 형태)
-(API_KEY[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})|   # API_KEY = "실제 키값"
-(SECRET_KEY[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})| # SECRET_KEY = "실제 키값"
-(CLIENT_SECRET[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})| # OAuth client secret
-(AWS_SECRET_ACCESS_KEY)|                      # AWS Secret Access Key 키 이름
-(BEGIN[[:space:]]+(RSA|DSA|EC|OPENSSH|PGP)[[:space:]]+PRIVATE[[:space:]]+KEY) # 개인 키 파일 헤더
-' || true)
+PATTERN='(sk-[A-Za-z0-9]{20,})|(Bearer[[:space:]]+[A-Za-z0-9._=-]{20,})|(API_KEY[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._-]{12,})|(SECRET_KEY[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._-]{12,})|(CLIENT_SECRET[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9._-]{12,})|(AWS_SECRET_ACCESS_KEY)|(BEGIN[[:space:]]+(RSA|DSA|EC|OPENSSH|PGP)[[:space:]]+PRIVATE[[:space:]]+KEY)'
 
-# 🔍 .env 파일 커밋 시도 탐지 (절대 금지)
+MATCH=$(printf '%s\n' "$DIFF_CONTENT" | grep -nE "$PATTERN" || true)
+
 ENV_MATCH=$(git diff --cached --name-only -- . ':!.husky/*' | grep -E '^\.env($|\.)' || true)
 
-# ❌ .env 파일 발견 시 차단
 if [ -n "$ENV_MATCH" ]; then
   echo "❌ .env 파일 감지!"
   printf '%s\n' "$ENV_MATCH"
   exit 1
 fi
 
-# ❌ 민감 정보 발견 시 차단
 if [ -n "$MATCH" ]; then
   echo "❌ 민감 정보 발견!"
   printf '%s\n' "$MATCH"
   exit 1
 fi
 
-# ✅ 아무 문제 없으면 통과
 echo "✅ 통과"
 exit 0
