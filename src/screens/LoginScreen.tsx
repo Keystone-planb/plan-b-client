@@ -6,12 +6,9 @@
  * [플로우]
  * 1. 이메일 / 비밀번호 입력
  * 2. 로그인 버튼 클릭 → requestLogin() 호출
- * 3. 성공 시 메인 화면 이동
- *
- * [TODO]
- * - 서버 열리면 api/config.ts의 USE_MOCK=false로 변경
- * - 로그인 성공 후 access_token / refresh_token 저장
- * - 자동 로그인 처리
+ * 3. access_token / refresh_token 저장
+ * 4. 성공 시 메인 화면 이동
+ * 5. 카카오 / 구글 로그인 버튼 클릭 → mock 소셜 로그인 API 호출
  */
 
 import React, { useState, useRef, useEffect } from "react";
@@ -32,8 +29,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import GoogleIcon from "../assets/google.svg";
 import { requestLogin } from "../../api/auth/login";
+import { requestKakaoLogin } from "../../api/auth/kakao";
+import { requestGoogleLogin } from "../../api/auth/google";
 
 const { width } = Dimensions.get("window");
 
@@ -117,7 +117,23 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  /** 로그인 처리 */
+  const saveTokensAndMoveMain = async (
+    accessToken: string,
+    refreshToken: string,
+    successMessage: string,
+  ) => {
+    await AsyncStorage.setItem("access_token", accessToken);
+    await AsyncStorage.setItem("refresh_token", refreshToken);
+
+    Alert.alert("성공", successMessage, [
+      {
+        text: "확인",
+        onPress: () => navigation.replace("Main"),
+      },
+    ]);
+  };
+
+  /** 일반 로그인 처리 */
   const handleLogin = async () => {
     if (!email.trim() || !password.trim()) {
       Alert.alert("알림", "이메일과 비밀번호를 입력해주세요.");
@@ -134,25 +150,71 @@ export default function LoginScreen({ navigation }: any) {
 
       console.log("로그인 성공:", result);
 
-      Alert.alert("성공", "로그인되었습니다.", [
-        {
-          text: "확인",
-          onPress: () => navigation.replace("Main"),
-        },
-      ]);
+      await saveTokensAndMoveMain(
+        result.access_token,
+        result.refresh_token,
+        "로그인되었습니다.",
+      );
     } catch (error: any) {
+      console.log("로그인 실패:", error);
       Alert.alert("로그인 실패", error.message || "로그인에 실패했습니다.");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKakaoLogin = () => {
-    Alert.alert("안내", "카카오 로그인은 추후 연결 예정입니다.");
+  /** 카카오 로그인 처리 (mock 기준) */
+  const handleKakaoLogin = async () => {
+    try {
+      setLoading(true);
+
+      const result = await requestKakaoLogin({
+        oauth_token: "mock_kakao_oauth_token",
+      });
+
+      console.log("카카오 로그인 성공:", result);
+
+      await saveTokensAndMoveMain(
+        result.access_token,
+        result.refresh_token,
+        "카카오 로그인되었습니다.",
+      );
+    } catch (error: any) {
+      console.log("카카오 로그인 실패:", error);
+      Alert.alert(
+        "카카오 로그인 실패",
+        error.message || "카카오 로그인에 실패했습니다.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleGoogleLogin = () => {
-    Alert.alert("안내", "구글 로그인은 추후 연결 예정입니다.");
+  /** 구글 로그인 처리 (mock 기준) */
+  const handleGoogleLogin = async () => {
+    try {
+      setLoading(true);
+
+      const result = await requestGoogleLogin({
+        oauth_token: "mock_google_oauth_token",
+      });
+
+      console.log("구글 로그인 성공:", result);
+
+      await saveTokensAndMoveMain(
+        result.access_token,
+        result.refresh_token,
+        "구글 로그인되었습니다.",
+      );
+    } catch (error: any) {
+      console.log("구글 로그인 실패:", error);
+      Alert.alert(
+        "구글 로그인 실패",
+        error.message || "구글 로그인에 실패했습니다.",
+      );
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -167,13 +229,11 @@ export default function LoginScreen({ navigation }: any) {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.topSection}>
-            {/* 로고 */}
             <View style={styles.logoContainer}>
               <Text style={styles.logoText}>Plan.B</Text>
               <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
             </View>
 
-            {/* 입력 영역 */}
             <View style={styles.formContainer}>
               <Text style={styles.inputLabel}>이메일</Text>
               <TextInput
@@ -184,6 +244,7 @@ export default function LoginScreen({ navigation }: any) {
                 onChangeText={setEmail}
                 autoCapitalize="none"
                 keyboardType="email-address"
+                textContentType="emailAddress"
                 editable={!loading}
               />
 
@@ -197,6 +258,7 @@ export default function LoginScreen({ navigation }: any) {
                 style={styles.input}
                 value={password}
                 onChangeText={setPassword}
+                textContentType="password"
                 editable={!loading}
               />
 
@@ -212,7 +274,6 @@ export default function LoginScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* 소셜 로그인 */}
             <View style={styles.socialSection}>
               <View style={styles.divider}>
                 <View style={styles.line} />
@@ -241,7 +302,6 @@ export default function LoginScreen({ navigation }: any) {
               </TouchableOpacity>
             </View>
 
-            {/* 회원가입 */}
             <View style={styles.signupContainer}>
               <Text style={styles.signupNotice}>계정이 없으신가요?</Text>
               <TouchableOpacity
@@ -263,7 +323,7 @@ export default function LoginScreen({ navigation }: any) {
   );
 }
 
-/** 스타일 */
+/* 스타일 */
 const styles = StyleSheet.create({
   container: {
     flex: 1,

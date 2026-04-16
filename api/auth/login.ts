@@ -48,19 +48,28 @@ export const requestLogin = async ({
   }
 
   try {
+    console.log("로그인 요청 (server):", { email, password });
+
     const response = await apiClient.post<LoginResponse>("/api/auth/login", {
       email,
       password,
     });
 
+    console.log("로그인 응답:", response.status, response.data);
+
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
+      console.log("로그인 실패 status:", error.response?.status);
+      console.log("로그인 실패 data:", error.response?.data);
+      console.log("로그인 실패 message:", error.message);
+
       const errorMessage =
         error.response?.data?.message || "로그인에 실패했습니다.";
       throw new Error(errorMessage);
     }
 
+    console.log("로그인 알 수 없는 에러:", error);
     throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };

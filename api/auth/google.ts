@@ -2,12 +2,10 @@ import apiClient from "../client";
 import axios from "axios";
 import { API_CONFIG } from "../config";
 
-/** 요청 타입 */
 export interface GoogleLoginRequest {
   oauth_token: string;
 }
 
-/** 응답 타입 */
 export interface GoogleLoginResponse {
   access_token: string;
   refresh_token: string;
@@ -15,8 +13,21 @@ export interface GoogleLoginResponse {
   is_new_user?: boolean;
 }
 
-/** mock */
-const mockGoogleLogin = async ({
+interface GoogleLoginErrorResponse {
+  message?: string;
+}
+
+export class GoogleLoginError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "GoogleLoginError";
+    this.status = status;
+  }
+}
+
+const mockRequestGoogleLogin = async ({
   oauth_token,
 }: GoogleLoginRequest): Promise<GoogleLoginResponse> => {
   console.log("구글 로그인 요청 (mock):", oauth_token);
@@ -24,7 +35,7 @@ const mockGoogleLogin = async ({
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!oauth_token) {
-        reject(new Error("구글 인증 토큰이 필요합니다."));
+        reject(new GoogleLoginError("구글 oauth 토큰이 없습니다."));
         return;
       }
 
@@ -39,30 +50,43 @@ const mockGoogleLogin = async ({
 };
 
 /**
- * 구글 소셜 로그인 API
+ * 구글 로그인 API
  * POST /api/auth/google
  */
 export const requestGoogleLogin = async ({
   oauth_token,
 }: GoogleLoginRequest): Promise<GoogleLoginResponse> => {
   if (API_CONFIG.USE_MOCK) {
-    return mockGoogleLogin({ oauth_token });
+    return mockRequestGoogleLogin({ oauth_token });
   }
 
   try {
+    console.log("구글 로그인 요청 (server):", { oauth_token });
+
     const response = await apiClient.post<GoogleLoginResponse>(
       "/api/auth/google",
       { oauth_token },
     );
 
+    console.log("구글 로그인 응답:", response.status, response.data);
+
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      const errorMessage =
-        error.response?.data?.message || "구글 로그인에 실패했습니다.";
-      throw new Error(errorMessage);
+      console.log("구글 로그인 실패 status:", error.response?.status);
+      console.log("구글 로그인 실패 data:", error.response?.data);
+      console.log("구글 로그인 실패 message:", error.message);
+
+      const errorData = error.response?.data as
+        | GoogleLoginErrorResponse
+        | undefined;
+
+      const message = errorData?.message || "구글 로그인에 실패했습니다.";
+
+      throw new GoogleLoginError(message, error.response?.status);
     }
 
-    throw new Error("알 수 없는 오류가 발생했습니다.");
+    console.log("구글 로그인 알 수 없는 에러:", error);
+    throw new GoogleLoginError("알 수 없는 오류가 발생했습니다.");
   }
 };
