@@ -2,19 +2,29 @@
 
 echo "🔍 보안 체크 중..."
 
-MATCH=$(git diff --cached -- . ':!package-lock.json' ':!.husky/*' | grep -nE "API_KEY|SECRET|sk-|Bearer " || true)
+DIFF_CONTENT=$(git diff --cached -- . ':!package-lock.json' ':!yarn.lock' ':!pnpm-lock.yaml' ':!.husky/*')
 
-if [ -n "$MATCH" ]; then
-  echo "❌ 민감 정보 발견!"
-  printf '%s\n' "$MATCH"
-  exit 1
-fi
+MATCH=$(printf '%s\n' "$DIFF_CONTENT" | grep -nE '
+(sk-[A-Za-z0-9]{20,})|
+(Bearer[[:space:]]+[A-Za-z0-9._=-]{20,})|
+(API_KEY[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})|
+(SECRET_KEY[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})|
+(CLIENT_SECRET[[:space:]]*[:=][[:space:]]*["'\'']?[A-Za-z0-9._-]{12,})|
+(AWS_SECRET_ACCESS_KEY)|
+(BEGIN[[:space:]]+(RSA|DSA|EC|OPENSSH|PGP)[[:space:]]+PRIVATE[[:space:]]+KEY)
+' || true)
 
 ENV_MATCH=$(git diff --cached --name-only -- . ':!.husky/*' | grep -E '^\.env($|\.)' || true)
 
 if [ -n "$ENV_MATCH" ]; then
   echo "❌ .env 파일 감지!"
   printf '%s\n' "$ENV_MATCH"
+  exit 1
+fi
+
+if [ -n "$MATCH" ]; then
+  echo "❌ 민감 정보 발견!"
+  printf '%s\n' "$MATCH"
   exit 1
 fi
 
