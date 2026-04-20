@@ -1,17 +1,8 @@
 /**
  * src/screens/LoginScreen.tsx
- *
- * 로그인 화면
- *
- * [플로우]
- * 1. 이메일 / 비밀번호 입력
- * 2. 로그인 버튼 클릭 → requestLogin() 호출
- * 3. access_token / refresh_token 저장
- * 4. 성공 시 메인 화면 이동
- * 5. 카카오 / 구글 로그인 버튼 클릭 → mock 소셜 로그인 API 호출
  */
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -25,30 +16,76 @@ import {
   Animated,
   Alert,
   ActivityIndicator,
+  Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { WebView } from "react-native-webview";
+
 import GoogleIcon from "../assets/google.svg";
 import { requestLogin } from "../../api/auth/login";
-import { requestKakaoLogin } from "../../api/auth/kakao";
-import { requestGoogleLogin } from "../../api/auth/google";
 
 const { width } = Dimensions.get("window");
 
-/** 파도 레이어 */
-const WaveLayer = ({ color, opacity, duration, offsetY, bCurveAmp }: any) => {
+type SocialLoginResult = {
+  access_token: string;
+  refresh_token: string;
+  expires_in?: number;
+  is_new_user?: boolean;
+};
+
+type WaveLayerProps = {
+  color: string;
+  opacity: number;
+  duration: number;
+  offsetY: number;
+  bCurveAmp: number;
+};
+
+type SocialProvider = "kakao" | "google" | null;
+
+/**
+ * 백엔드가 실제로 제공하는 시작 URL로 바꾸기
+ * http://127.0.0.1:8080/oauth2/authorization/kakao
+ * http://127.0.0.1:8080/oauth2/authorization/google
+ */
+
+const SOCIAL_AUTH_URL = {
+  kakao: "http://127.0.0.1:8080/oauth2/authorization/kakao",
+  google: "http://127.0.0.1:8080/oauth2/authorization/google",
+};
+
+/**
+ * 백엔드가 로그인 완료 후 리다이렉트하는 URL 규칙으로 바꾸기
+ */
+const SOCIAL_SUCCESS_URL_PREFIX = "http://127.0.0.1:8080/oauth/success";
+const SOCIAL_FAIL_URL_PREFIX = "http://127.0.0.1:8080/oauth/fail";
+
+const WaveLayer = ({
+  color,
+  opacity,
+  duration,
+  offsetY,
+  bCurveAmp,
+}: WaveLayerProps) => {
   const translateX = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    Animated.loop(
+    const animation = Animated.loop(
       Animated.timing(translateX, {
         toValue: -width,
         duration,
         useNativeDriver: true,
       }),
-    ).start();
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
   }, [duration, translateX]);
 
   const waveHeight = 250;
@@ -85,7 +122,6 @@ const WaveLayer = ({ color, opacity, duration, offsetY, bCurveAmp }: any) => {
   );
 };
 
-/** 파도 전체 */
 const OceanWaveFooter = () => (
   <View style={styles.waveContainer} pointerEvents="none">
     <WaveLayer
@@ -117,15 +153,29 @@ export default function LoginScreen({ navigation }: any) {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const saveTokensAndMoveMain = async (
-    accessToken: string,
-    refreshToken: string,
-    successMessage: string,
-  ) => {
-    await AsyncStorage.setItem("access_token", accessToken);
-    await AsyncStorage.setItem("refresh_token", refreshToken);
+  const [webViewVisible, setWebViewVisible] = useState(false);
+  const [currentProvider, setCurrentProvider] = useState<SocialProvider>(null);
+  const [currentAuthUrl, setCurrentAuthUrl] = useState("");
 
-    Alert.alert("성공", successMessage, [
+  const saveTokens = async (accessToken: string, refreshToken: string) => {
+    if (!accessToken || !refreshToken) {
+      throw new Error("저장할 토큰이 없습니다.");
+    }
+
+    await AsyncStorage.multiSet([
+      ["access_token", accessToken],
+      ["refresh_token", refreshToken],
+    ]);
+  };
+
+  const validateTokens = (result: Partial<SocialLoginResult>) => {
+    if (!result?.access_token || !result?.refresh_token) {
+      throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
+    }
+  };
+
+  const moveToMainWithSuccessAlert = (message: string) => {
+    Alert.alert("성공", message, [
       {
         text: "확인",
         onPress: () => navigation.replace("Main"),
@@ -133,8 +183,35 @@ export default function LoginScreen({ navigation }: any) {
     ]);
   };
 
-  /** 일반 로그인 처리 */
+  const handleLoginSuccess = async (
+    result: SocialLoginResult,
+    successMessage: string,
+  ) => {
+    validateTokens(result);
+    await saveTokens(result.access_token, result.refresh_token);
+
+    if (result.is_new_user) {
+      moveToMainWithSuccessAlert(
+        `${successMessage}\n회원가입이 완료되었습니다.`,
+      );
+      return;
+    }
+
+    moveToMainWithSuccessAlert(successMessage);
+  };
+
+  const handleLoginError = (title: string, error: unknown) => {
+    console.log(`${title} 에러:`, error);
+
+    const message =
+      error instanceof Error ? error.message : "로그인에 실패했습니다.";
+
+    Alert.alert(title, message);
+  };
+
   const handleLogin = async () => {
+    if (loading) return;
+
     if (!email.trim() || !password.trim()) {
       Alert.alert("알림", "이메일과 비밀번호를 입력해주세요.");
       return;
@@ -148,72 +225,79 @@ export default function LoginScreen({ navigation }: any) {
         password,
       });
 
-      console.log("로그인 성공:", result);
+      console.log("🔥 로그인 응답 전체:", result);
 
-      await saveTokensAndMoveMain(
-        result.access_token,
-        result.refresh_token,
-        "로그인되었습니다.",
-      );
-    } catch (error: any) {
-      console.log("로그인 실패:", error);
-      Alert.alert("로그인 실패", error.message || "로그인에 실패했습니다.");
+      await handleLoginSuccess(result, "로그인되었습니다.");
+    } catch (error) {
+      handleLoginError("로그인 실패", error);
     } finally {
       setLoading(false);
     }
   };
 
-  /** 카카오 로그인 처리 (mock 기준) */
-  const handleKakaoLogin = async () => {
+  const openSocialWebView = (provider: Exclude<SocialProvider, null>) => {
+    if (loading) return;
+
+    setCurrentProvider(provider);
+    setCurrentAuthUrl(SOCIAL_AUTH_URL[provider]);
+    setWebViewVisible(true);
+  };
+
+  const closeSocialWebView = () => {
+    setWebViewVisible(false);
+    setCurrentProvider(null);
+    setCurrentAuthUrl("");
+  };
+
+  const parseQueryParams = (url: string) => {
     try {
-      setLoading(true);
-
-      const result = await requestKakaoLogin({
-        oauth_token: "mock_kakao_oauth_token",
-      });
-
-      console.log("카카오 로그인 성공:", result);
-
-      await saveTokensAndMoveMain(
-        result.access_token,
-        result.refresh_token,
-        "카카오 로그인되었습니다.",
+      const parsedUrl = new URL(url);
+      const access_token = parsedUrl.searchParams.get("access_token") ?? "";
+      const refresh_token = parsedUrl.searchParams.get("refresh_token") ?? "";
+      const expires_in = Number(
+        parsedUrl.searchParams.get("expires_in") ?? "0",
       );
-    } catch (error: any) {
-      console.log("카카오 로그인 실패:", error);
-      Alert.alert(
-        "카카오 로그인 실패",
-        error.message || "카카오 로그인에 실패했습니다.",
-      );
-    } finally {
-      setLoading(false);
+      const is_new_user = parsedUrl.searchParams.get("is_new_user") === "true";
+
+      return {
+        access_token,
+        refresh_token,
+        expires_in,
+        is_new_user,
+      };
+    } catch {
+      return {
+        access_token: "",
+        refresh_token: "",
+        expires_in: 0,
+        is_new_user: false,
+      };
     }
   };
 
-  /** 구글 로그인 처리 (mock 기준) */
-  const handleGoogleLogin = async () => {
-    try {
-      setLoading(true);
+  const handleWebViewNavigationChange = async (navState: { url: string }) => {
+    const { url } = navState;
+    console.log("WebView 현재 URL:", url);
 
-      const result = await requestGoogleLogin({
-        oauth_token: "mock_google_oauth_token",
-      });
+    if (!url) return;
 
-      console.log("구글 로그인 성공:", result);
+    if (url.startsWith(SOCIAL_FAIL_URL_PREFIX)) {
+      closeSocialWebView();
 
-      await saveTokensAndMoveMain(
-        result.access_token,
-        result.refresh_token,
-        "구글 로그인되었습니다.",
+      let failMessage = "소셜 로그인에 실패했습니다.";
+
+      try {
+        const parsedUrl = new URL(url);
+        failMessage = parsedUrl.searchParams.get("message") ?? failMessage;
+        console.log("소셜 로그인 실패 URL:", url);
+        console.log("소셜 로그인 실패 메시지:", failMessage);
+      } catch {}
+
+      handleLoginError(
+        currentProvider === "kakao" ? "카카오 로그인 실패" : "구글 로그인 실패",
+        new Error(failMessage),
       );
-    } catch (error: any) {
-      console.log("구글 로그인 실패:", error);
-      Alert.alert(
-        "구글 로그인 실패",
-        error.message || "구글 로그인에 실패했습니다.",
-      );
-    } finally {
-      setLoading(false);
+      return;
     }
   };
 
@@ -243,6 +327,7 @@ export default function LoginScreen({ navigation }: any) {
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
+                autoCorrect={false}
                 keyboardType="email-address"
                 textContentType="emailAddress"
                 editable={!loading}
@@ -282,9 +367,9 @@ export default function LoginScreen({ navigation }: any) {
               </View>
 
               <TouchableOpacity
-                style={styles.kakaoButton}
+                style={[styles.kakaoButton, loading && styles.disabledButton]}
                 activeOpacity={0.85}
-                onPress={handleKakaoLogin}
+                onPress={() => openSocialWebView("kakao")}
                 disabled={loading}
               >
                 <Ionicons name="chatbubble" size={18} color="#3C1E1E" />
@@ -292,9 +377,9 @@ export default function LoginScreen({ navigation }: any) {
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.googleButton}
+                style={[styles.googleButton, loading && styles.disabledButton]}
                 activeOpacity={0.85}
-                onPress={handleGoogleLogin}
+                onPress={() => openSocialWebView("google")}
                 disabled={loading}
               >
                 <GoogleIcon width={18} height={18} />
@@ -319,11 +404,46 @@ export default function LoginScreen({ navigation }: any) {
           <OceanWaveFooter />
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={webViewVisible} animationType="slide">
+        <SafeAreaView style={styles.webViewContainer}>
+          <View style={styles.webViewHeader}>
+            <TouchableOpacity
+              onPress={closeSocialWebView}
+              style={styles.webViewCloseButton}
+            >
+              <Ionicons name="close" size={24} color="#1E293B" />
+            </TouchableOpacity>
+
+            <Text style={styles.webViewTitle}>
+              {currentProvider === "kakao" ?
+                "카카오 로그인"
+              : currentProvider === "google" ?
+                "구글 로그인"
+              : "소셜 로그인"}
+            </Text>
+
+            <View style={{ width: 24 }} />
+          </View>
+
+          {currentAuthUrl ?
+            <WebView
+              source={{ uri: currentAuthUrl }}
+              onNavigationStateChange={handleWebViewNavigationChange}
+              startInLoadingState
+              renderLoading={() => (
+                <View style={styles.webViewLoading}>
+                  <ActivityIndicator size="large" color="#2158E8" />
+                </View>
+              )}
+            />
+          : null}
+        </SafeAreaView>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-/* 스타일 */
 const styles = StyleSheet.create({
   container: {
     flex: 1,
@@ -470,5 +590,31 @@ const styles = StyleSheet.create({
   waveContainer: {
     height: 180,
     width: width,
+  },
+  webViewContainer: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+  webViewHeader: {
+    height: 56,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E2E8F0",
+  },
+  webViewCloseButton: {
+    padding: 4,
+  },
+  webViewTitle: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#1E293B",
+  },
+  webViewLoading: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

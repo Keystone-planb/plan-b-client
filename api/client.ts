@@ -1,39 +1,37 @@
 import axios, {
   AxiosError,
-  AxiosHeaders,
   InternalAxiosRequestConfig,
+  AxiosRequestHeaders,
 } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { requestRefresh } from "./auth/refresh";
-
-const BASE_URL = "https://api.planb-travel.cloud/v1";
+import { API_CONFIG } from "./config";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
 
 const apiClient = axios.create({
-  baseURL: BASE_URL,
+  baseURL: API_CONFIG.BASE_URL,
   timeout: 5000,
   headers: {
     "Content-Type": "application/json",
   },
 });
 
-/**
- * 요청 인터셉터
- * - access_token이 있으면 Authorization 헤더 자동 첨부
- */
 apiClient.interceptors.request.use(
   async (config) => {
-    const token = await AsyncStorage.getItem("access_token");
+    const accessToken = await AsyncStorage.getItem("access_token");
 
-    if (token) {
-      if (!config.headers) {
-        config.headers = new AxiosHeaders();
-      }
+    console.log("🌐 요청 baseURL:", config.baseURL);
+    console.log("🌐 요청 url:", config.url);
+    console.log("🌐 최종 요청 URL:", `${config.baseURL}${config.url}`);
+    console.log("🌐 요청 method:", config.method);
+    console.log("🌐 요청 data:", config.data);
 
-      config.headers.Authorization = `Bearer ${token}`;
+    if (accessToken) {
+      const headers = (config.headers ?? {}) as AxiosRequestHeaders;
+      headers.Authorization = `Bearer ${accessToken}`;
+      config.headers = headers;
     }
 
     return config;
@@ -41,49 +39,62 @@ apiClient.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-/**
- * 응답 인터셉터
- * - 401 발생 시 refresh_token으로 access_token 재발급
- * - 성공 시 원래 요청 재시도
- * - 실패 시 저장된 토큰 삭제
- */
 apiClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    console.log("✅ 응답 status:", response.status);
+    console.log("✅ 응답 data:", response.data);
+    return response;
+  },
   async (error: AxiosError) => {
-    const originalRequest = error.config as RetryableRequestConfig | undefined;
+    const originalRequest = error.config as RetryableRequestConfig;
 
-    if (!originalRequest) {
-      return Promise.reject(error);
-    }
+    console.log("❌ 응답 에러 status:", error.response?.status);
+    console.log("❌ 응답 에러 data:", error.response?.data);
+    console.log("❌ 응답 에러 message:", error.message);
 
-    if (error.response?.status === 401 && !originalRequest._retry) {
+    if (
+      error.response?.status === 401 &&
+      originalRequest &&
+      !originalRequest._retry
+    ) {
       originalRequest._retry = true;
 
       try {
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
         if (!refreshToken) {
-          throw new Error("리프레시 토큰이 없습니다.");
+          throw new Error("refresh_token이 없습니다.");
         }
 
-        const refreshResponse = await requestRefresh({
-          refresh_token: refreshToken,
-        });
+        const refreshResponse = await axios.post(
+          `${API_CONFIG.BASE_URL}/api/auth/refresh`,
+          {
+            refresh_token: refreshToken,
+          },
+          {
+            headers: {
+              "Content-Type": "application/json",
+            },
+          },
+        );
 
-        const newAccessToken = refreshResponse.access_token;
+        const newAccessToken = refreshResponse.data?.access_token;
+
+        if (!newAccessToken) {
+          throw new Error("새 access_token이 없습니다.");
+        }
 
         await AsyncStorage.setItem("access_token", newAccessToken);
 
-        if (!originalRequest.headers) {
-          originalRequest.headers = new AxiosHeaders();
-        }
-
-        originalRequest.headers.Authorization = `Bearer ${newAccessToken}`;
+        const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
+        headers.Authorization = `Bearer ${newAccessToken}`;
+        originalRequest.headers = headers;
 
         return apiClient(originalRequest);
       } catch (refreshError) {
-        await AsyncStorage.removeItem("access_token");
-        await AsyncStorage.removeItem("refresh_token");
+        console.log("❌ 토큰 재발급 실패:", refreshError);
+
+        await AsyncStorage.multiRemove(["access_token", "refresh_token"]);
 
         return Promise.reject(refreshError);
       }

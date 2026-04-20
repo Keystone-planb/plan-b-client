@@ -18,14 +18,17 @@
     "react-native-svg": "^15.15.4",
     "react-native-svg-transformer": "^1.5.3",
     "react-native-web": "^0.21.0",
+    "react-native-webview": "13.16.0",
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@secretlint/secretlint-rule-preset-recommend": "^12.0.1",
     "@types/axios": "^0.9.36",
     "@types/react": "^19.2.14",
     "@types/react-native": "^0.72.8",
     "husky": "^9.1.7",
     "lint-staged": "^16.4.0",
+    "secretlint": "^12.0.1",
     "typescript": "~5.9.2"
   },
   "scripts": {

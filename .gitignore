@@ -141,3 +141,7 @@ vite.config.ts.timestamp-*
 ## Expo files
 .expo/
 .expo-shared/
+
+# Expo prebuild native folders
+ios/
+android/
