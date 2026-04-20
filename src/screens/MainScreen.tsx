@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import CalendarIcon from "../components/CalendarIcon";
 import RadialBackground from "../components/RadialBackground";
@@ -37,9 +38,15 @@ export default function MainScreen({ navigation }: Props) {
         setLoadingUser(true);
         const result = await getMe();
         setUser(result);
-      } catch (error: any) {
+      } catch (error: unknown) {
         console.log("내 정보 조회 실패:", error);
-        Alert.alert("오류", error.message || "내 정보 조회에 실패했습니다.");
+
+        const message =
+          error instanceof Error ?
+            error.message
+          : "내 정보 조회에 실패했습니다.";
+
+        Alert.alert("오류", message);
       } finally {
         setLoadingUser(false);
       }
@@ -49,8 +56,11 @@ export default function MainScreen({ navigation }: Props) {
   }, []);
 
   const handleLogout = async () => {
+    if (logoutLoading) return;
+
     try {
       setLogoutLoading(true);
+
       const result = await requestLogout();
 
       Alert.alert("로그아웃", result.message, [
@@ -59,10 +69,13 @@ export default function MainScreen({ navigation }: Props) {
           onPress: () => navigation.replace("Login"),
         },
       ]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.log("로그아웃 실패:", error);
 
-      Alert.alert("로그아웃", error.message || "로그아웃 처리되었습니다.", [
+      const message =
+        error instanceof Error ? error.message : "로그아웃 처리되었습니다.";
+
+      Alert.alert("로그아웃", message, [
         {
           text: "확인",
           onPress: () => navigation.replace("Login"),
@@ -71,6 +84,25 @@ export default function MainScreen({ navigation }: Props) {
     } finally {
       setLogoutLoading(false);
     }
+  };
+
+  const renderUserSection = () => {
+    if (loadingUser) {
+      return <Text style={styles.userText}>사용자 정보를 불러오는 중...</Text>;
+    }
+
+    if (user) {
+      return (
+        <>
+          <Text style={styles.userText}>{user.nickname}님, 반가워요</Text>
+          <Text style={styles.userSubText}>{user.email}</Text>
+        </>
+      );
+    }
+
+    return (
+      <Text style={styles.userText}>사용자 정보를 불러오지 못했습니다.</Text>
+    );
   };
 
   return (
@@ -83,65 +115,53 @@ export default function MainScreen({ navigation }: Props) {
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
-          <Text style={styles.logoText}>Plan.A</Text>
+          <Text style={styles.logoText}>Plan.B</Text>
           <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
         </View>
 
-        <View style={styles.topRightActions}>
-          <TouchableOpacity
-            style={[
-              styles.logoutButton,
-              logoutLoading && styles.disabledButton,
-            ]}
-            onPress={handleLogout}
-            activeOpacity={0.85}
-            disabled={logoutLoading}
-          >
-            {logoutLoading ?
-              <ActivityIndicator color="#fff" size="small" />
-            : <Text style={styles.logoutButtonText}>로그아웃</Text>}
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.emptyStateContainer}>
+        <View style={styles.contentArea}>
           <View style={styles.iconArea}>
             <RadialBackground />
 
             <View style={styles.iconWrapper}>
               <CalendarIcon size={120} />
             </View>
-
-            <View style={styles.textGroup}>
-              <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-              <Text style={styles.subText}>
-                새로운 여행 일정을 추가해보세요
-              </Text>
-
-              {loadingUser ?
-                <Text style={styles.userText}>
-                  사용자 정보를 불러오는 중...
-                </Text>
-              : user ?
-                <>
-                  <Text style={styles.userText}>
-                    {user.nickname}님, 반가워요
-                  </Text>
-                  <Text style={styles.userSubText}>{user.email}</Text>
-                </>
-              : <Text style={styles.userText}>
-                  사용자 정보를 불러오지 못했습니다.
-                </Text>
-              }
-            </View>
           </View>
 
-          <TouchableOpacity
-            style={styles.addButton}
-            activeOpacity={0.85}
-            onPress={() => navigation.navigate("AddSchedule")}
-          >
-            <Text style={styles.addButtonText}>일정 추가하기</Text>
-          </TouchableOpacity>
+          <View style={styles.textGroup}>
+            <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
+            <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
+
+            <View style={styles.userInfoBox}>{renderUserSection()}</View>
+          </View>
+
+          <View style={styles.bottomActionGroup}>
+            <TouchableOpacity
+              style={styles.addButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate("AddSchedule")}
+            >
+              <Text style={styles.addButtonText}>일정 추가하기</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.logoutButton,
+                logoutLoading && styles.disabledButton,
+              ]}
+              onPress={handleLogout}
+              activeOpacity={0.85}
+              disabled={logoutLoading}
+            >
+              {logoutLoading ?
+                <ActivityIndicator color="#2158E8" size="small" />
+              : <>
+                  <Ionicons name="log-out-outline" size={16} color="#2158E8" />
+                  <Text style={styles.logoutButtonText}>로그아웃</Text>
+                </>
+              }
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -160,21 +180,16 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
-    justifyContent: "center",
-    alignItems: "center",
+    paddingHorizontal: 24,
+    paddingTop: 36,
     paddingBottom: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   header: {
-    position: "absolute",
-    top: 60,
     alignItems: "center",
-  },
-
-  topRightActions: {
-    position: "absolute",
-    top: 60,
-    right: 24,
+    marginBottom: 28,
   },
 
   logoText: {
@@ -190,36 +205,38 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
 
-  emptyStateContainer: {
-    alignItems: "center",
+  contentArea: {
     width: "100%",
-    paddingHorizontal: 40,
+    maxWidth: 380,
+    alignItems: "center",
   },
 
   iconArea: {
-    width: 350,
-    height: 300,
+    width: 260,
+    height: 210,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 32,
+    marginBottom: 8,
   },
 
   iconWrapper: {
     justifyContent: "center",
     alignItems: "center",
-    transform: [{ translateY: -10 }],
+    transform: [{ translateY: -8 }],
   },
 
   textGroup: {
+    width: "100%",
     alignItems: "center",
-    marginTop: 12,
+    marginTop: 4,
   },
 
   mainText: {
-    fontSize: 18,
-    fontWeight: "700",
+    fontSize: 20,
+    fontWeight: "800",
     color: "#252D3C",
     marginBottom: 8,
+    textAlign: "center",
   },
 
   subText: {
@@ -229,30 +246,49 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
+  userInfoBox: {
+    width: "100%",
+    marginTop: 22,
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#E6EEF9",
+    alignItems: "center",
+  },
+
   userText: {
-    marginTop: 16,
     fontSize: 15,
     fontWeight: "700",
     color: "#1E293B",
+    textAlign: "center",
   },
 
   userSubText: {
     marginTop: 6,
     fontSize: 13,
     color: "#64748B",
+    textAlign: "center",
+  },
+
+  bottomActionGroup: {
+    width: "100%",
+    alignItems: "center",
+    gap: 12,
+    marginTop: 26,
   },
 
   addButton: {
-    width: "40%",
-    height: 50,
+    width: "45%",
+    height: 52,
     justifyContent: "center",
     alignItems: "center",
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: "#2158E8",
-
     shadowColor: "#2158E8",
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.25,
     shadowRadius: 10,
     elevation: 5,
   },
@@ -264,15 +300,22 @@ const styles = StyleSheet.create({
   },
 
   logoutButton: {
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: "#1E293B",
+    minWidth: 132,
+    height: 46,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCE7F7",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
 
   logoutButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
+    color: "#2158E8",
+    fontSize: 14,
     fontWeight: "700",
   },
 

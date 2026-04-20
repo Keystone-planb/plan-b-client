@@ -1,7 +1,7 @@
 import axios from "axios";
 import { API_CONFIG } from "../config";
 
-const BASE_URL = "https://api.planb-travel.cloud/v1";
+const BASE_URL = API_CONFIG.BASE_URL;
 
 export interface RefreshRequest {
   refresh_token: string;
