@@ -25,6 +25,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WebView } from "react-native-webview";
 
 import GoogleIcon from "../assets/google.svg";
+import KakaoIcon from "../components/KakaoIcon";
 import { requestLogin } from "../../api/auth/login";
 
 const { width } = Dimensions.get("window");
@@ -46,20 +47,11 @@ type WaveLayerProps = {
 
 type SocialProvider = "kakao" | "google" | null;
 
-/**
- * 백엔드가 실제로 제공하는 시작 URL로 바꾸기
- * http://127.0.0.1:8080/oauth2/authorization/kakao
- * http://127.0.0.1:8080/oauth2/authorization/google
- */
-
 const SOCIAL_AUTH_URL = {
   kakao: "http://127.0.0.1:8080/oauth2/authorization/kakao",
   google: "http://127.0.0.1:8080/oauth2/authorization/google",
 };
 
-/**
- * 백엔드가 로그인 완료 후 리다이렉트하는 URL 규칙으로 바꾸기
- */
 const SOCIAL_SUCCESS_URL_PREFIX = "http://127.0.0.1:8080/oauth/success";
 const SOCIAL_FAIL_URL_PREFIX = "http://127.0.0.1:8080/oauth/fail";
 
@@ -299,6 +291,29 @@ export default function LoginScreen({ navigation }: any) {
       );
       return;
     }
+
+    if (url.startsWith(SOCIAL_SUCCESS_URL_PREFIX)) {
+      try {
+        const result = parseQueryParams(url);
+
+        closeSocialWebView();
+
+        await handleLoginSuccess(
+          result,
+          currentProvider === "kakao" ? "카카오 로그인되었습니다." : (
+            "구글 로그인되었습니다."
+          ),
+        );
+      } catch (error) {
+        closeSocialWebView();
+        handleLoginError(
+          currentProvider === "kakao" ? "카카오 로그인 실패" : (
+            "구글 로그인 실패"
+          ),
+          error,
+        );
+      }
+    }
   };
 
   return (
@@ -372,7 +387,7 @@ export default function LoginScreen({ navigation }: any) {
                 onPress={() => openSocialWebView("kakao")}
                 disabled={loading}
               >
-                <Ionicons name="chatbubble" size={18} color="#3C1E1E" />
+                <KakaoIcon size={18} color="#3C1E1E" />
                 <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
               </TouchableOpacity>
 

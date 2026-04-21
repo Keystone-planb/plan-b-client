@@ -37,11 +37,9 @@ export default function RadialBackground() {
 
 const styles = StyleSheet.create({
   container: {
-    position: "absolute",
     width: 350,
     height: 350,
     justifyContent: "center",
     alignItems: "center",
-    zIndex: -1,
   },
 });
