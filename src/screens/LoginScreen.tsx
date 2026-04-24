@@ -151,6 +151,7 @@ const OceanWaveFooter = () => (
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const [webViewVisible, setWebViewVisible] = useState(false);
@@ -336,16 +337,31 @@ export default function LoginScreen({ navigation }: any) {
               <Text style={[styles.inputLabel, { marginTop: 15 }]}>
                 비밀번호
               </Text>
-              <TextInput
-                placeholder="비밀번호를 입력하세요"
-                placeholderTextColor="#8C9BB1"
-                secureTextEntry
-                style={styles.input}
-                value={password}
-                onChangeText={setPassword}
-                textContentType="password"
-                editable={!loading}
-              />
+              <View style={styles.passwordInputWrapper}>
+                <TextInput
+                  placeholder="비밀번호를 입력하세요"
+                  placeholderTextColor="#8C9BB1"
+                  secureTextEntry={!showPassword}
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  textContentType="password"
+                  editable={!loading}
+                />
+
+                <TouchableOpacity
+                  onPress={() => setShowPassword((prev) => !prev)}
+                  style={styles.eyeButton}
+                  activeOpacity={0.7}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    size={22}
+                    color="#8C9BB1"
+                  />
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity
                 style={[styles.loginButton, loading && styles.disabledButton]}
@@ -492,6 +508,33 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontWeight: "500",
   },
+
+  passwordInputWrapper: {
+    backgroundColor: "#FFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  passwordInput: {
+    flex: 1,
+    height: 54,
+    fontSize: 16,
+    color: "#1E293B",
+    fontWeight: "500",
+    paddingVertical: 0,
+  },
+
+  eyeButton: {
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   loginButton: {
     width: "100%",
     height: 50,
