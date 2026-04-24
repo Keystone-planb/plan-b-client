@@ -11,18 +11,21 @@ import OnboardingFourthScreen from "./src/screens/OnboardingFourthScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
+import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
+import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 
 const Stack = createNativeStackNavigator();
 
 type InitialRoute = "OnboardingFirst" | "Login" | "Main";
 
 export default function App() {
-  type InitialRoute = "OnboardingFirst" | "Login" | "Main";
-
   const [initialRoute, setInitialRoute] = useState<InitialRoute | null>(null);
 
   useEffect(() => {
     const bootstrapAuth = async () => {
+      setInitialRoute("OnboardingFirst");
+      return;
+
       try {
         const accessToken = await AsyncStorage.getItem("access_token");
         const onboardingSeen = await AsyncStorage.getItem("onboarding_seen");
@@ -66,7 +69,10 @@ export default function App() {
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          animation: "slide_from_right",
+        }}
       >
         <Stack.Screen
           name="OnboardingFirst"
@@ -87,6 +93,11 @@ export default function App() {
         <Stack.Screen name="Login" component={LoginScreen} />
         <Stack.Screen name="SignUp" component={SignUpScreen} />
         <Stack.Screen name="Main" component={MainScreen} />
+        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        <Stack.Screen
+          name="AddScheduleDate"
+          component={AddScheduleDateScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );

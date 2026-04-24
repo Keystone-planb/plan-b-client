@@ -1,29 +1,30 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   View,
+  ScrollView,
   Text,
   TouchableOpacity,
+  TextInput,
   StyleSheet,
-  ScrollView,
 } from "react-native";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
-
-import OnboardingSecondSvg from "../assets/onboarding-second.svg";
-
+import { Ionicons } from "@expo/vector-icons";
+import AddScheduleNameSvg from "../assets/add-schedule-name.svg";
 type Props = {
   navigation: any;
 };
 
-export default function OnboardingSecondScreen({ navigation }: Props) {
-  const handleSkip = async () => {
-    await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.replace("Login");
+export default function AddScheduleNameScreen({ navigation }: Props) {
+  const [tripName, setTripName] = useState("");
+
+  const handleBack = () => {
+    navigation.goBack();
   };
 
-  const handleNext = async () => {
-    navigation.navigate("OnboardingThird");
+  const handleNext = () => {
+    navigation.navigate("AddScheduleDate", {
+      tripName,
+    });
   };
 
   return (
@@ -36,39 +37,40 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
       >
         <View style={styles.headerRow}>
           <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
+            style={styles.iconButton}
+            onPress={handleBack}
             activeOpacity={0.8}
           >
-            <Text style={styles.skipText}>건너뛰기</Text>
+            <Ionicons name="chevron-back" size={24} color="#1C2534" />
           </TouchableOpacity>
-        </View>
 
-        <View style={styles.logoSection}>
-          <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.logoSubText}>더 스마트한 여행의 시작</Text>
+          <Text style={styles.headerTitle}>Plan.A</Text>
+
+          <View style={styles.iconPlaceholder} />
         </View>
 
         <View style={styles.centerSection}>
-          <View style={styles.illustrationContainer}>
-            <OnboardingSecondSvg width={108} height={108} />
+          <View style={styles.illustrationWrapper}>
+            <AddScheduleNameSvg width={108} height={108} />
           </View>
 
-          <Text style={styles.title}>
-            예상치 못한 상황에도{"\n"}대안을 찾을 수 있어요
-          </Text>
+          <Text style={styles.title}>여행의 이름을{"\n"}정해주세요</Text>
 
-          <Text style={styles.description}>
-            여행 중 문제가 생겨도{"\n"}Plan.B가 새로운 선택지를 제안해드려요
-          </Text>
+          <Text style={styles.description}>이 여행을 어떻게 부를까요?</Text>
         </View>
+
+        <TextInput
+          placeholder="신나는 제주도 여행"
+          placeholderTextColor="#8C9BB1"
+          value={tripName}
+          onChangeText={setTripName}
+          style={styles.input}
+        />
 
         <View style={styles.footerSection}>
           <View style={styles.pagination}>
-            <View style={styles.dot} />
             <View style={styles.activeDot} />
             <View style={styles.dot} />
-            <View style={styles.dotNoMargin} />
           </View>
 
           <TouchableOpacity
@@ -97,57 +99,59 @@ const styles = StyleSheet.create({
 
   scrollContent: {
     flexGrow: 1,
-    paddingHorizontal: 21,
     paddingTop: 18,
-    paddingBottom: 48,
+    paddingBottom: 72,
+    paddingHorizontal: 21,
   },
 
   headerRow: {
-    alignItems: "flex-end",
-    marginBottom: 40,
-  },
-
-  skipButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-
-  skipText: {
-    color: "#8C9BB1",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  logoSection: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 30,
+    justifyContent: "space-between",
+    marginBottom: 56,
+    paddingHorizontal: 4,
   },
 
-  logoText: {
+  iconButton: {
+    width: 30,
+    height: 30,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  iconPlaceholder: {
+    width: 30,
+    height: 30,
+  },
+
+  headerTitle: {
     color: "#1C2534",
-    fontSize: 50,
+    fontSize: 40,
     fontWeight: "900",
-    lineHeight: 58,
-    marginBottom: 8,
-  },
-
-  logoSubText: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "500",
+    textAlign: "center",
   },
 
   centerSection: {
     alignItems: "center",
-    marginBottom: 48,
+    marginBottom: 50,
   },
 
-  illustrationContainer: {
+  illustrationWrapper: {
     width: 214,
     height: 214,
+    borderRadius: 999,
+    backgroundColor: "#D5EBFC",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 28,
+    marginBottom: 40,
+    shadowColor: "#000000",
+    shadowOpacity: 0.12,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowRadius: 15,
+    elevation: 12,
   },
 
   title: {
@@ -156,15 +160,26 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
     lineHeight: 40,
-    marginBottom: 24,
+    marginBottom: 20,
   },
 
   description: {
     color: "#627187",
     fontSize: 16,
-    fontWeight: "500",
     textAlign: "center",
-    lineHeight: 24,
+  },
+
+  input: {
+    alignSelf: "stretch",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E1E7EF",
+    borderWidth: 1,
+    borderRadius: 14,
+    paddingVertical: 17,
+    paddingHorizontal: 20,
+    fontSize: 16,
+    color: "#1C2534",
+    marginBottom: 48,
   },
 
   footerSection: {
@@ -191,14 +206,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: "#E1E7EF",
-    marginRight: 8,
-  },
-
-  dotNoMargin: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
   },
 
   nextButton: {
@@ -207,6 +214,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2158E8",
     borderRadius: 14,
     minHeight: 56,
+    marginBottom: 12,
     shadowColor: "#2158E8",
     shadowOpacity: 0.3,
     shadowOffset: {

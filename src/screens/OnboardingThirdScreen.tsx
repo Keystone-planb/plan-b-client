@@ -49,7 +49,7 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.centerSection}>
-          <View style={styles.illustrationWrapper}>
+          <View style={styles.illustrationContainer}>
             <OnboardingThirdSvg width={108} height={108} />
           </View>
 
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
 
   headerRow: {
     alignItems: "flex-end",
-    marginBottom: 54,
+    marginBottom: 40,
   },
 
   skipButton: {
@@ -119,7 +119,7 @@ const styles = StyleSheet.create({
 
   logoSection: {
     alignItems: "center",
-    marginBottom: 78,
+    marginBottom: 30,
   },
 
   logoText: {
@@ -138,25 +138,15 @@ const styles = StyleSheet.create({
 
   centerSection: {
     alignItems: "center",
-    marginBottom: 84,
+    marginBottom: 48,
   },
 
-  illustrationWrapper: {
+  illustrationContainer: {
     width: 214,
     height: 214,
-    borderRadius: 999,
-    backgroundColor: "#D5EBFC",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 50,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowRadius: 15,
-    elevation: 12,
+    marginBottom: 28,
   },
 
   title: {
