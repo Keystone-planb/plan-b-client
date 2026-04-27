@@ -159,20 +159,22 @@ export default function TravelDateRangeModal({
             markingType="period"
             markedDates={markedDates}
             onDayPress={handleDayPress}
+            hideExtraDays
+            firstDay={0}
             theme={{
               backgroundColor: "#FFFFFF",
               calendarBackground: "#FFFFFF",
-              textSectionTitleColor: TEXT_SUB,
-              selectedDayBackgroundColor: PRIMARY,
+              textSectionTitleColor: "#9AA6B2",
+              selectedDayBackgroundColor: "#2158E8",
               selectedDayTextColor: "#FFFFFF",
-              todayTextColor: PRIMARY,
-              dayTextColor: TEXT_MAIN,
+              todayTextColor: "#2158E8",
+              dayTextColor: "#1C2534",
               textDisabledColor: "#C3CDD9",
-              arrowColor: PRIMARY,
-              monthTextColor: TEXT_MAIN,
-              textDayFontWeight: "600",
+              arrowColor: "#2158E8",
+              monthTextColor: "#111827",
+              textDayFontWeight: "500",
               textMonthFontWeight: "800",
-              textDayHeaderFontWeight: "700",
+              textDayHeaderFontWeight: "600",
               textDayFontSize: 15,
               textMonthFontSize: 18,
               textDayHeaderFontSize: 13,
