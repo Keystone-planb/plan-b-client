@@ -48,8 +48,10 @@ const SOCIAL_AUTH_URL = {
  * 백엔드가 로그인 완료 후 리다이렉트하는 URL 규칙으로 바꾸기
  */
 const SOCIAL_SUCCESS_URL_PREFIX = "http://127.0.0.1:8080/oauth/success";
-const SOCIAL_FAIL_URL_PREFIX = "http://127.0.0.1:8080/oauth/fail";
-
+const SOCIAL_AUTH_URL: Record<Exclude<SocialProvider, null>, string> = {
+  kakao: "http://127.0.0.1:8080/oauth2/authorization/kakao",
+  google: "http://127.0.0.1:8080/oauth2/authorization/google",
+};
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

@@ -8,23 +8,24 @@ import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
 
-const Stack = createNativeStackNavigator();
+type RootStackParamList = {
+  Login: undefined;
+  SignUp: undefined;
+  Main: undefined;
+};
+
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
-  const [initialRoute, setInitialRoute] = useState<"Login" | "Main" | null>(
-    null,
-  );
+  const [initialRoute, setInitialRoute] = useState<
+    keyof RootStackParamList | null
+  >(null);
 
   useEffect(() => {
     const bootstrapAuth = async () => {
       try {
         const accessToken = await AsyncStorage.getItem("access_token");
-
-        if (accessToken) {
-          setInitialRoute("Main");
-        } else {
-          setInitialRoute("Login");
-        }
+        setInitialRoute(accessToken ? "Main" : "Login");
       } catch (error) {
         console.log("초기 인증 상태 확인 실패:", error);
         setInitialRoute("Login");
@@ -35,30 +36,47 @@ export default function App() {
   }, []);
 
   if (!initialRoute) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          justifyContent: "center",
-          alignItems: "center",
-          backgroundColor: "#F7F9FB",
-        }}
-      >
-        <ActivityIndicator size="large" color="#2158E8" />
-      </View>
-    );
+    return <SplashLoading />;
   }
 
   return (
     <NavigationContainer>
       <Stack.Navigator
         initialRouteName={initialRoute}
-        screenOptions={{ headerShown: false }}
+        screenOptions={{
+          headerShown: false,
+          animation: "slide_from_right",
+          animationDuration: 300,
+        }}
       >
         <Stack.Screen name="Login" component={LoginScreen} />
-        <Stack.Screen name="SignUp" component={SignUpScreen} />
+
+        <Stack.Screen
+          name="SignUp"
+          component={SignUpScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 300,
+          }}
+        />
+
         <Stack.Screen name="Main" component={MainScreen} />
       </Stack.Navigator>
     </NavigationContainer>
+  );
+}
+
+function SplashLoading() {
+  return (
+    <View
+      style={{
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+        backgroundColor: "#F7F9FB",
+      }}
+    >
+      <ActivityIndicator size="large" color="#2158E8" />
+    </View>
   );
 }
