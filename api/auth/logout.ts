@@ -1,67 +1,112 @@
-import apiClient from "../client";
 import axios from "axios";
-import { API_CONFIG } from "../config";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-/** 응답 타입 */
+import apiClient from "../client";
+import { API_CONFIG } from "../config";
+
 export interface LogoutResponse {
   message: string;
 }
 
 interface LogoutErrorResponse {
   message?: string;
+  error?: string;
 }
 
 const clearAuthTokens = async () => {
-  await AsyncStorage.removeItem("access_token");
-  await AsyncStorage.removeItem("refresh_token");
+  await AsyncStorage.multiRemove(["access_token", "refresh_token"]);
 };
 
-/** mock */
-const mockLogout = async (): Promise<LogoutResponse> => {
-  console.log("로그아웃 요청 (mock)");
+const isHtmlResponse = (data: unknown) => {
+  if (typeof data !== "string") return false;
 
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({
-        message: "로그아웃 되었습니다.",
-      });
-    }, 500);
-  });
+  const trimmed = data.trim().toLowerCase();
+
+  return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
-/**
- * 로그아웃 API
- * POST /api/auth/logout
- */
+const getServerErrorMessage = (data: unknown) => {
+  if (!data || typeof data !== "object") return null;
+
+  const errorData = data as LogoutErrorResponse;
+
+  return errorData.message || errorData.error || null;
+};
+
 export const requestLogout = async (): Promise<LogoutResponse> => {
-  if (API_CONFIG.USE_MOCK) {
-    await clearAuthTokens();
-    return mockLogout();
-  }
-
   try {
-    console.log("로그아웃 요청 (server)");
+    console.log("🔥 requestLogout 호출됨");
+    console.log("🔥 LOGOUT URL:", `${API_CONFIG.BASE_URL}/api/auth/logout`);
 
-    const response = await apiClient.post<LogoutResponse>("/api/auth/logout");
+    const response = await apiClient.post<LogoutResponse>(
+      "/api/auth/logout",
+      {},
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
+    );
+    const data = response.data;
 
-    console.log("로그아웃 응답:", response.status, response.data);
+    console.log("🔥 로그아웃 response.status:", response.status);
+    console.log("🔥 로그아웃 response.data:", data);
+
+    if (isHtmlResponse(data)) {
+      throw new Error(
+        "로그아웃 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
+      );
+    }
 
     await clearAuthTokens();
 
-    return response.data;
+    return data ?? { message: "로그아웃 되었습니다." };
   } catch (error: unknown) {
     await clearAuthTokens();
 
     if (axios.isAxiosError(error)) {
-      console.log("로그아웃 실패 status:", error.response?.status);
-      console.log("로그아웃 실패 data:", error.response?.data);
-      console.log("로그아웃 실패 message:", error.message);
+      console.log("❌ 로그아웃 실패 status:", error.response?.status);
+      console.log("❌ 로그아웃 실패 data:", error.response?.data);
+      console.log("❌ 로그아웃 실패 message:", error.message);
 
-      const errorData = error.response?.data as LogoutErrorResponse | undefined;
-      const errorMessage = errorData?.message || "로그아웃에 실패했습니다.";
+      const errorData = error.response?.data as
+        | LogoutErrorResponse
+        | string
+        | undefined;
 
-      throw new Error(errorMessage);
+      if (!error.response && error.message === "Network Error") {
+        throw new Error(
+          "백엔드 서버에 연결할 수 없습니다. 서버 실행 여부와 포트를 확인해주세요.",
+        );
+      }
+
+      if (isHtmlResponse(errorData)) {
+        throw new Error(
+          "로그아웃 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL 또는 포트를 확인해주세요.",
+        );
+      }
+
+      const serverMessage = getServerErrorMessage(errorData);
+
+      if (serverMessage) {
+        throw new Error(serverMessage);
+      }
+
+      if (error.response?.status === 401) {
+        throw new Error("로그인 정보가 만료되었습니다. 다시 로그인해주세요.");
+      }
+
+      if (error.response?.status === 503) {
+        throw new Error(
+          "서버가 현재 사용할 수 없습니다. 백엔드 서버 상태를 확인해주세요.",
+        );
+      }
+
+      throw new Error("로그아웃에 실패했습니다.");
+    }
+
+    if (error instanceof Error) {
+      throw error;
     }
 
     console.log("로그아웃 알 수 없는 에러:", error);

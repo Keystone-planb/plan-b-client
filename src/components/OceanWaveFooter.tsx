@@ -71,7 +71,7 @@ const WaveLayer = ({
   );
 };
 
-export default function OceanWaveFooter() {
+export function OceanWaveFooter() {
   return (
     <View style={{ height: 180, width }} pointerEvents="none">
       <WaveLayer

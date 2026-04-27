@@ -19,36 +19,8 @@ export interface LoginResponse {
 
 interface LoginErrorResponse {
   message?: string;
+  error?: string;
 }
-
-const mockRequestLogin = async ({
-  email,
-  password,
-}: LoginRequest): Promise<LoginResponse> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!email || !password) {
-        reject(new Error("이메일과 비밀번호를 입력해주세요."));
-        return;
-      }
-
-      if (email !== "test@test.com" || password !== "1234") {
-        reject(new Error("이메일 또는 비밀번호가 올바르지 않습니다."));
-        return;
-      }
-
-      resolve({
-        success: true,
-        message: "mock login success",
-        nickname: "테스트유저",
-        access_token: "mock_access_token_123456",
-        refresh_token: "mock_refresh_token_abcdef",
-        token_type: "Bearer",
-        user_id: 1,
-      });
-    }, 800);
-  });
-};
 
 const isLoginResponse = (data: unknown): data is LoginResponse => {
   if (!data || typeof data !== "object") return false;
@@ -71,14 +43,18 @@ const isHtmlResponse = (data: unknown) => {
   return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
+const getServerErrorMessage = (data: unknown) => {
+  if (!data || typeof data !== "object") return null;
+
+  const errorData = data as LoginErrorResponse;
+
+  return errorData.message || errorData.error || null;
+};
+
 export const requestLogin = async ({
   email,
   password,
 }: LoginRequest): Promise<LoginResponse> => {
-  if (API_CONFIG.USE_MOCK) {
-    return mockRequestLogin({ email, password });
-  }
-
   try {
     console.log("🔥 requestLogin 호출됨");
     console.log("🔥 LOGIN URL:", `${API_CONFIG.BASE_URL}/api/auth/login`);
@@ -129,8 +105,10 @@ export const requestLogin = async ({
         );
       }
 
-      if (typeof errorData === "object" && errorData?.message) {
-        throw new Error(errorData.message);
+      const serverMessage = getServerErrorMessage(errorData);
+
+      if (serverMessage) {
+        throw new Error(serverMessage);
       }
 
       if (error.response?.status === 401) {
@@ -138,9 +116,7 @@ export const requestLogin = async ({
       }
 
       if (error.response?.status === 404) {
-        throw new Error(
-          "로그인 API 경로를 찾을 수 없습니다. endpoint를 확인해주세요.",
-        );
+        throw new Error("로그인에 실패했습니다.");
       }
 
       if (error.response?.status === 503) {

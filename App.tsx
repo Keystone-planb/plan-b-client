@@ -25,7 +25,9 @@ export default function App() {
     const bootstrapAuth = async () => {
       try {
         const accessToken = await AsyncStorage.getItem("access_token");
-        setInitialRoute(accessToken ? "Main" : "Login");
+        const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+        setInitialRoute(accessToken && refreshToken ? "Main" : "Login");
       } catch (error) {
         console.log("초기 인증 상태 확인 실패:", error);
         setInitialRoute("Login");
@@ -42,6 +44,7 @@ export default function App() {
   return (
     <NavigationContainer>
       <Stack.Navigator
+        id={undefined}
         initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
