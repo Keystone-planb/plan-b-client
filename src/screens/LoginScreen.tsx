@@ -259,7 +259,7 @@ export default function LoginScreen({ navigation }: any) {
                   disabled={loading}
                 >
                   <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
                     size={22}
                     color="#8C9BB1"
                   />
