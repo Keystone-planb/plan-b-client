@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import CalendarIcon from "../components/CalendarIcon";
+import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
 import { requestLogout } from "../../api/auth/logout";
@@ -121,10 +121,12 @@ export default function MainScreen({ navigation }: Props) {
 
         <View style={styles.contentArea}>
           <View style={styles.iconArea}>
-            <RadialBackground />
+            <View style={styles.backgroundLayer}>
+              <RadialBackground />
+            </View>
 
             <View style={styles.iconWrapper}>
-              <CalendarIcon size={120} />
+              <CalendarSvg width={100} height={100} />
             </View>
           </View>
 
@@ -213,16 +215,33 @@ const styles = StyleSheet.create({
 
   iconArea: {
     width: 260,
-    height: 210,
+    height: 260,
+    marginBottom: 8,
+    position: "relative",
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 8,
+  },
+
+  backgroundLayer: {
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
+    justifyContent: "center",
+    alignItems: "center",
   },
 
   iconWrapper: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: "center",
     alignItems: "center",
-    transform: [{ translateY: -8 }],
+    zIndex: 2,
+    elevation: 2,
+    transform: [{ translateY: -18 }],
   },
 
   textGroup: {

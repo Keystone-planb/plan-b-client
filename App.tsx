@@ -4,14 +4,26 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 
+import OnboardingFirstScreen from "./src/screens/OnboardingFirstScreen";
+import OnboardingSecondScreen from "./src/screens/OnboardingSecondScreen";
+import OnboardingThirdScreen from "./src/screens/OnboardingThirdScreen";
+import OnboardingFourthScreen from "./src/screens/OnboardingFourthScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
+import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
+import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 
 type RootStackParamList = {
+  OnboardingFirst: undefined;
+  OnboardingSecond: undefined;
+  OnboardingThird: undefined;
+  OnboardingFourth: undefined;
   Login: undefined;
   SignUp: undefined;
   Main: undefined;
+  AddSchedule: undefined;
+  AddScheduleDate: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -27,10 +39,12 @@ export default function App() {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-        setInitialRoute(accessToken && refreshToken ? "Main" : "Login");
+        setInitialRoute(
+          accessToken && refreshToken ? "Main" : "OnboardingFirst",
+        );
       } catch (error) {
-        console.log("초기 인증 상태 확인 실패:", error);
-        setInitialRoute("Login");
+        console.log("초기 상태 확인 실패:", error);
+        setInitialRoute("OnboardingFirst");
       }
     };
 
@@ -52,6 +66,23 @@ export default function App() {
           animationDuration: 300,
         }}
       >
+        <Stack.Screen
+          name="OnboardingFirst"
+          component={OnboardingFirstScreen}
+        />
+        <Stack.Screen
+          name="OnboardingSecond"
+          component={OnboardingSecondScreen}
+        />
+        <Stack.Screen
+          name="OnboardingThird"
+          component={OnboardingThirdScreen}
+        />
+        <Stack.Screen
+          name="OnboardingFourth"
+          component={OnboardingFourthScreen}
+        />
+
         <Stack.Screen name="Login" component={LoginScreen} />
 
         <Stack.Screen
@@ -64,6 +95,11 @@ export default function App() {
         />
 
         <Stack.Screen name="Main" component={MainScreen} />
+        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        <Stack.Screen
+          name="AddScheduleDate"
+          component={AddScheduleDateScreen}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
