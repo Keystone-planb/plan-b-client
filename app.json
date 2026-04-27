@@ -11,6 +11,9 @@
     },
     "ios": {
       "bundleIdentifier": "com.anonymous.keystone"
-    }
+    },
+    "plugins": [
+      "expo-web-browser"
+    ]
   }
 }

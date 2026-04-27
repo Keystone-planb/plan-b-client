@@ -16,6 +16,9 @@ import {
   ActivityIndicator,
   Modal,
 } from "react-native";
+
+import * as WebBrowser from "expo-web-browser";
+
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -33,25 +36,11 @@ type SocialLoginResult = {
 
 type SocialProvider = "kakao" | "google" | null;
 
-/**
- * 백엔드가 실제로 제공하는 시작 URL로 바꾸기
- * http://127.0.0.1:8080/oauth2/authorization/kakao
- * http://127.0.0.1:8080/oauth2/authorization/google
- */
-
-const SOCIAL_AUTH_URL = {
-  kakao: "http://127.0.0.1:8080/oauth2/authorization/kakao",
-  google: "http://127.0.0.1:8080/oauth2/authorization/google",
-};
-
-/**
- * 백엔드가 로그인 완료 후 리다이렉트하는 URL 규칙으로 바꾸기
- */
-const SOCIAL_SUCCESS_URL_PREFIX = "http://127.0.0.1:8080/oauth/success";
 const SOCIAL_AUTH_URL: Record<Exclude<SocialProvider, null>, string> = {
-  kakao: "http://127.0.0.1:8080/oauth2/authorization/kakao",
-  google: "http://127.0.0.1:8080/oauth2/authorization/google",
+  kakao: "https://api-dev.planb-travel.cloud/oauth2/authorization/kakao",
+  google: "https://api-dev.planb-travel.cloud/oauth2/authorization/google",
 };
+
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -143,9 +132,38 @@ export default function LoginScreen({ navigation }: any) {
   const openSocialWebView = (provider: Exclude<SocialProvider, null>) => {
     if (loading) return;
 
+    const url = SOCIAL_AUTH_URL[provider];
+
+    if (!url) {
+      Alert.alert("알림", "소셜 로그인 주소가 아직 설정되지 않았습니다.");
+      return;
+    }
+
     setCurrentProvider(provider);
-    setCurrentAuthUrl(SOCIAL_AUTH_URL[provider]);
+    setCurrentAuthUrl(url);
     setWebViewVisible(true);
+  };
+
+  const openGoogleLogin = async () => {
+    if (loading) return;
+
+    try {
+      const url = SOCIAL_AUTH_URL.google;
+
+      if (!url) {
+        Alert.alert("알림", "구글 로그인 주소가 아직 설정되지 않았습니다.");
+        return;
+      }
+
+      if (Platform.OS === "web") {
+        window.location.href = url;
+        return;
+      }
+
+      await WebBrowser.openBrowserAsync(url);
+    } catch (error) {
+      handleLoginError("구글 로그인 실패", error);
+    }
   };
 
   const closeSocialWebView = () => {
@@ -154,55 +172,22 @@ export default function LoginScreen({ navigation }: any) {
     setCurrentAuthUrl("");
   };
 
-  const parseQueryParams = (url: string) => {
-    try {
-      const parsedUrl = new URL(url);
-      const access_token = parsedUrl.searchParams.get("access_token") ?? "";
-      const refresh_token = parsedUrl.searchParams.get("refresh_token") ?? "";
-      const expires_in = Number(
-        parsedUrl.searchParams.get("expires_in") ?? "0",
-      );
-      const is_new_user = parsedUrl.searchParams.get("is_new_user") === "true";
-
-      return {
-        access_token,
-        refresh_token,
-        expires_in,
-        is_new_user,
-      };
-    } catch {
-      return {
-        access_token: "",
-        refresh_token: "",
-        expires_in: 0,
-        is_new_user: false,
-      };
-    }
-  };
-
   const handleWebViewNavigationChange = async (navState: { url: string }) => {
     const { url } = navState;
     console.log("WebView 현재 URL:", url);
+  };
 
-    if (!url) return;
+  const handleWebViewMessage = async (event: any) => {
+    try {
+      const rawData = event.nativeEvent.data;
+      console.log("WebView JSON 응답:", rawData);
 
-    if (url.startsWith(SOCIAL_FAIL_URL_PREFIX)) {
+      const result = JSON.parse(rawData);
+
       closeSocialWebView();
-
-      let failMessage = "소셜 로그인에 실패했습니다.";
-
-      try {
-        const parsedUrl = new URL(url);
-        failMessage = parsedUrl.searchParams.get("message") ?? failMessage;
-        console.log("소셜 로그인 실패 URL:", url);
-        console.log("소셜 로그인 실패 메시지:", failMessage);
-      } catch {}
-
-      handleLoginError(
-        currentProvider === "kakao" ? "카카오 로그인 실패" : "구글 로그인 실패",
-        new Error(failMessage),
-      );
-      return;
+      await handleLoginSuccess(result, "카카오 로그인 성공.");
+    } catch (error) {
+      handleLoginError("카카오 로그인 실패", error);
     }
   };
 
@@ -293,13 +278,13 @@ export default function LoginScreen({ navigation }: any) {
                 disabled={loading}
               >
                 <Ionicons name="chatbubble" size={18} color="#3C1E1E" />
-                <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
+                <Text style={styles.kakaoButtonText}>카카오 로그인</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.googleButton, loading && styles.disabledButton]}
                 activeOpacity={0.85}
-                onPress={() => openSocialWebView("google")}
+                onPress={openGoogleLogin}
                 disabled={loading}
               >
                 <GoogleIcon width={18} height={18} />
@@ -325,7 +310,11 @@ export default function LoginScreen({ navigation }: any) {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      <Modal visible={webViewVisible} animationType="slide">
+      <Modal
+        visible={webViewVisible && currentProvider === "kakao"}
+        animationType="slide"
+      >
+        {" "}
         <SafeAreaView style={styles.webViewContainer}>
           <View style={styles.webViewHeader}>
             <TouchableOpacity
@@ -335,14 +324,7 @@ export default function LoginScreen({ navigation }: any) {
               <Ionicons name="close" size={24} color="#1E293B" />
             </TouchableOpacity>
 
-            <Text style={styles.webViewTitle}>
-              {currentProvider === "kakao" ?
-                "카카오 로그인"
-              : currentProvider === "google" ?
-                "구글 로그인"
-              : "소셜 로그인"}
-            </Text>
-
+            <Text style={styles.webViewTitle}>카카오 로그인</Text>
             <View style={{ width: 24 }} />
           </View>
 
@@ -350,6 +332,13 @@ export default function LoginScreen({ navigation }: any) {
             <WebView
               source={{ uri: currentAuthUrl }}
               onNavigationStateChange={handleWebViewNavigationChange}
+              onMessage={handleWebViewMessage}
+              injectedJavaScript={`
+    setTimeout(() => {
+      window.ReactNativeWebView.postMessage(document.body.innerText);
+    }, 500);
+    true;
+  `}
               startInLoadingState
               renderLoading={() => (
                 <View style={styles.webViewLoading}>
