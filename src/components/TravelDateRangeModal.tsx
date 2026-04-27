@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
   visible: boolean;
@@ -21,13 +22,21 @@ type MarkedDates = Record<
 >;
 
 const PRIMARY = "#2158E8";
+const PRIMARY_SOFT = "#EAF3FF";
+const PRIMARY_LIGHT = "#F4F8FF";
+
 const TEXT_MAIN = "#1C2534";
 const TEXT_SUB = "#627187";
+const TEXT_MUTED = "#8C9BB1";
+
 const BG = "#F7F9FB";
 const BORDER = "#E1E7EF";
+const ERROR = "#F04438";
+const ERROR_BG = "#FFF1F0";
 
 function formatDisplayDate(date?: string) {
   if (!date) return "날짜 선택";
+
   const [year, month, day] = date.split("-");
   return `${year}.${month}.${day}`;
 }
@@ -41,6 +50,7 @@ function getDatesInRange(start: string, end: string) {
     const y = current.getFullYear();
     const m = String(current.getMonth() + 1).padStart(2, "0");
     const d = String(current.getDate()).padStart(2, "0");
+
     dates.push(`${y}-${m}-${d}`);
     current.setDate(current.getDate() + 1);
   }
@@ -72,8 +82,8 @@ function buildMarkedDates(startDate?: string, endDate?: string): MarkedDates {
     marked[date] = {
       startingDay: isFirst,
       endingDay: isLast,
-      color: PRIMARY,
-      textColor: "#FFFFFF",
+      color: isFirst || isLast ? PRIMARY : PRIMARY_SOFT,
+      textColor: isFirst || isLast ? "#FFFFFF" : TEXT_MAIN,
     };
   });
 
@@ -89,6 +99,7 @@ export default function TravelDateRangeModal({
 }: Props) {
   const [startDate, setStartDate] = useState(initialStartDate ?? "");
   const [endDate, setEndDate] = useState(initialEndDate ?? "");
+  const [errorMessage, setErrorMessage] = useState("");
 
   const markedDates = useMemo(
     () => buildMarkedDates(startDate || undefined, endDate || undefined),
@@ -98,23 +109,43 @@ export default function TravelDateRangeModal({
   const handleDayPress = (day: DateData) => {
     const selected = day.dateString;
 
+    setErrorMessage("");
+
+    /**
+     * 시작일이 없거나 이미 범위가 완성된 상태면
+     * 새 출발일로 다시 시작한다.
+     */
     if (!startDate || (startDate && endDate)) {
       setStartDate(selected);
       setEndDate("");
       return;
     }
 
+    /**
+     * 종료일은 출발일보다 빠를 수 없음.
+     * 기존 출발일은 유지하고, 종료일만 선택하지 않는다.
+     */
     if (selected < startDate) {
-      setStartDate(selected);
+      setErrorMessage("도착일은 출발일보다 빠를 수 없어요!");
       return;
     }
 
     setEndDate(selected);
   };
 
+  const handleClose = () => {
+    setErrorMessage("");
+    onClose();
+  };
+
   const handleApply = () => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate) {
+      setErrorMessage("출발일과 도착일을 모두 선택해주세요.");
+      return;
+    }
+
     onApply({ startDate, endDate });
+    setErrorMessage("");
     onClose();
   };
 
@@ -127,16 +158,40 @@ export default function TravelDateRangeModal({
           <View style={styles.handle} />
 
           <View style={styles.headerRow}>
-            <Text style={styles.title}>여행 날짜 선택</Text>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.8}>
-              <Text style={styles.closeText}>닫기</Text>
+            <View>
+              <Text style={styles.title}>여행 날짜 선택</Text>
+              <Text style={styles.subtitle}>
+                여행의 출발일과 도착일을 선택해주세요
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={handleClose}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="close" size={20} color={TEXT_SUB} />
             </TouchableOpacity>
           </View>
+
+          {errorMessage ?
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={15} color={ERROR} />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+            </View>
+          : null}
 
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryLabel}>출발일</Text>
-              <Text style={styles.summaryValue}>
+
+              <Text
+                style={[
+                  styles.summaryValue,
+                  startDate && styles.selectedSummaryValue,
+                ]}
+                numberOfLines={1}
+              >
                 {formatDisplayDate(startDate)}
               </Text>
             </View>
@@ -144,48 +199,61 @@ export default function TravelDateRangeModal({
             <View style={styles.summaryDivider} />
 
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>종료일</Text>
-              <Text style={styles.summaryValue}>
+              <Text style={styles.summaryLabel}>도착일</Text>
+
+              <Text
+                style={[
+                  styles.summaryValue,
+                  endDate && styles.selectedSummaryValue,
+                ]}
+                numberOfLines={1}
+              >
                 {formatDisplayDate(endDate)}
               </Text>
             </View>
           </View>
 
           <Text style={styles.helperText}>
-            출발일을 먼저 선택하고, 그다음 종료일을 선택해주세요.
+            출발일을 먼저 선택하고, 그다음 도착일을 선택해주세요.
           </Text>
 
-          <Calendar
-            markingType="period"
-            markedDates={markedDates}
-            onDayPress={handleDayPress}
-            hideExtraDays
-            firstDay={0}
-            theme={{
-              backgroundColor: "#FFFFFF",
-              calendarBackground: "#FFFFFF",
-              textSectionTitleColor: "#9AA6B2",
-              selectedDayBackgroundColor: "#2158E8",
-              selectedDayTextColor: "#FFFFFF",
-              todayTextColor: "#2158E8",
-              dayTextColor: "#1C2534",
-              textDisabledColor: "#C3CDD9",
-              arrowColor: "#2158E8",
-              monthTextColor: "#111827",
-              textDayFontWeight: "500",
-              textMonthFontWeight: "800",
-              textDayHeaderFontWeight: "600",
-              textDayFontSize: 15,
-              textMonthFontSize: 18,
-              textDayHeaderFontSize: 13,
-            }}
-            style={styles.calendar}
-          />
+          <View style={styles.calendarCard}>
+            <Calendar
+              markingType="period"
+              markedDates={markedDates}
+              onDayPress={handleDayPress}
+              hideExtraDays
+              firstDay={0}
+              theme={{
+                backgroundColor: "#FFFFFF",
+                calendarBackground: "#FFFFFF",
+
+                textSectionTitleColor: TEXT_MUTED,
+                selectedDayBackgroundColor: PRIMARY,
+                selectedDayTextColor: "#FFFFFF",
+                todayTextColor: PRIMARY,
+                dayTextColor: TEXT_MAIN,
+                textDisabledColor: "#C3CDD9",
+
+                arrowColor: PRIMARY,
+                monthTextColor: TEXT_MAIN,
+
+                textDayFontWeight: "600",
+                textMonthFontWeight: "900",
+                textDayHeaderFontWeight: "700",
+
+                textDayFontSize: 14,
+                textMonthFontSize: 17,
+                textDayHeaderFontSize: 12,
+              }}
+              style={styles.calendar}
+            />
+          </View>
 
           <View style={styles.buttonRow}>
             <TouchableOpacity
               style={styles.cancelButton}
-              onPress={onClose}
+              onPress={handleClose}
               activeOpacity={0.85}
             >
               <Text style={styles.cancelButtonText}>취소</Text>
@@ -212,17 +280,25 @@ export default function TravelDateRangeModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(28, 37, 52, 0.24)",
+    backgroundColor: "rgba(28, 37, 52, 0.28)",
     justifyContent: "flex-end",
   },
 
   sheet: {
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 30,
+    borderTopRightRadius: 30,
     paddingHorizontal: 20,
     paddingTop: 12,
     paddingBottom: 28,
+    shadowColor: "#000000",
+    shadowOffset: {
+      width: 0,
+      height: -4,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 12,
   },
 
   handle: {
@@ -231,75 +307,116 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 999,
     backgroundColor: "#D6DFEA",
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 18,
+    alignItems: "flex-start",
+    marginBottom: 14,
   },
 
   title: {
     fontSize: 22,
-    fontWeight: "800",
+    fontWeight: "900",
     color: TEXT_MAIN,
+    letterSpacing: -0.4,
   },
 
-  closeText: {
-    fontSize: 15,
-    fontWeight: "700",
+  subtitle: {
+    marginTop: 5,
+    fontSize: 13,
+    fontWeight: "600",
     color: TEXT_SUB,
+  },
+
+  closeButton: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: BG,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  errorBox: {
+    minHeight: 34,
+    borderRadius: 12,
+    backgroundColor: ERROR_BG,
+    borderWidth: 1,
+    borderColor: "#FFD7D3",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+
+  errorText: {
+    marginLeft: 6,
+    fontSize: 12,
+    fontWeight: "800",
+    color: ERROR,
   },
 
   summaryRow: {
     flexDirection: "row",
     alignItems: "stretch",
-    backgroundColor: BG,
+    backgroundColor: PRIMARY_LIGHT,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: BORDER,
-    marginBottom: 12,
+    borderColor: PRIMARY_SOFT,
+    marginBottom: 10,
     overflow: "hidden",
   },
 
   summaryCard: {
     flex: 1,
-    paddingVertical: 16,
+    paddingVertical: 15,
     paddingHorizontal: 16,
   },
 
   summaryDivider: {
     width: 1,
-    backgroundColor: BORDER,
+    backgroundColor: PRIMARY_SOFT,
   },
 
   summaryLabel: {
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 12,
+    fontWeight: "800",
     color: TEXT_SUB,
     marginBottom: 6,
   },
 
   summaryValue: {
-    fontSize: 18,
-    fontWeight: "800",
+    fontSize: 16,
+    fontWeight: "900",
+    color: TEXT_MUTED,
+  },
+
+  selectedSummaryValue: {
     color: TEXT_MAIN,
   },
 
   helperText: {
-    fontSize: 13,
+    fontSize: 12,
+    fontWeight: "600",
     color: TEXT_SUB,
-    marginBottom: 14,
+    marginBottom: 12,
+  },
+
+  calendarCard: {
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    overflow: "hidden",
+    marginBottom: 18,
   },
 
   calendar: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: BORDER,
-    paddingBottom: 8,
-    marginBottom: 18,
+    paddingTop: 4,
+    paddingBottom: 10,
   },
 
   buttonRow: {
@@ -310,7 +427,7 @@ const styles = StyleSheet.create({
   cancelButton: {
     flex: 1,
     minHeight: 54,
-    borderRadius: 14,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: BORDER,
     backgroundColor: "#FFFFFF",
@@ -320,17 +437,25 @@ const styles = StyleSheet.create({
 
   cancelButtonText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
     color: TEXT_MAIN,
   },
 
   applyButton: {
     flex: 1,
     minHeight: 54,
-    borderRadius: 14,
+    borderRadius: 15,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: PRIMARY,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 4,
   },
 
   applyButtonDisabled: {
@@ -339,7 +464,7 @@ const styles = StyleSheet.create({
 
   applyButtonText: {
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "900",
     color: "#FFFFFF",
   },
 });

@@ -1,21 +1,24 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
   ScrollView,
+  StatusBar,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Alert,
-  ActivityIndicator,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
+
 import { getMe } from "../../api/users/me";
 import { requestLogout } from "../../api/auth/logout";
+import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
@@ -31,11 +34,15 @@ export default function MainScreen({ navigation }: Props) {
   const [user, setUser] = useState<UserInfo>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+  const [schedules, setSchedules] = useState<SavedSchedule[]>([]);
+
+  const hasSchedules = schedules.length > 0;
 
   useEffect(() => {
     const fetchMe = async () => {
       try {
         setLoadingUser(true);
+
         const result = await getMe();
         setUser(result);
       } catch (error: unknown) {
@@ -54,6 +61,22 @@ export default function MainScreen({ navigation }: Props) {
 
     fetchMe();
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadSchedules = async () => {
+        try {
+          const savedSchedules = await getSchedules();
+          setSchedules(savedSchedules);
+        } catch (error) {
+          console.log("일정 목록 불러오기 실패:", error);
+          setSchedules([]);
+        }
+      };
+
+      loadSchedules();
+    }, []),
+  );
 
   const handleLogout = async () => {
     if (logoutLoading) return;
@@ -86,6 +109,15 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
+  const handlePressSchedule = (schedule: SavedSchedule) => {
+    navigation.navigate("PlanA", {
+      tripName: schedule.tripName,
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
+      location: schedule.location,
+    });
+  };
+
   const renderUserSection = () => {
     if (loadingUser) {
       return <Text style={styles.userText}>사용자 정보를 불러오는 중...</Text>;
@@ -105,13 +137,60 @@ export default function MainScreen({ navigation }: Props) {
     );
   };
 
+  const renderScheduleList = () => {
+    if (!hasSchedules) {
+      return null;
+    }
+
+    return (
+      <View style={styles.scheduleList}>
+        {schedules.map((schedule) => (
+          <TouchableOpacity
+            key={schedule.id}
+            style={styles.scheduleCard}
+            activeOpacity={0.85}
+            onPress={() => handlePressSchedule(schedule)}
+          >
+            <View style={styles.scheduleCardHeader}>
+              <View style={styles.scheduleTitleBox}>
+                <Text style={styles.scheduleTitle} numberOfLines={1}>
+                  {schedule.tripName}
+                </Text>
+
+                <Text style={styles.scheduleLocation} numberOfLines={1}>
+                  {schedule.location}
+                </Text>
+              </View>
+
+              <View style={styles.scheduleBadge}>
+                <Text style={styles.scheduleBadgeText}>Plan.A</Text>
+              </View>
+            </View>
+
+            <View style={styles.scheduleDateRow}>
+              <Ionicons name="calendar-outline" size={15} color="#64748B" />
+
+              <Text style={styles.schedulePeriod}>
+                {schedule.startDate.replace(/-/g, ".")} -{" "}
+                {schedule.endDate.replace(/-/g, ".")}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
+    );
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar barStyle="dark-content" />
 
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          hasSchedules && styles.scrollContentWithSchedules,
+        ]}
         showsVerticalScrollIndicator={false}
       >
         <View style={styles.header}>
@@ -120,21 +199,32 @@ export default function MainScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.contentArea}>
-          <View style={styles.iconArea}>
-            <View style={styles.backgroundLayer}>
-              <RadialBackground />
-            </View>
+          {!hasSchedules ?
+            <View style={styles.iconArea}>
+              <View style={styles.backgroundLayer}>
+                <RadialBackground />
+              </View>
 
-            <View style={styles.iconWrapper}>
-              <CalendarSvg width={100} height={100} />
+              <View style={styles.iconWrapper}>
+                <CalendarSvg width={100} height={100} />
+              </View>
             </View>
-          </View>
+          : null}
 
           <View style={styles.textGroup}>
-            <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-            <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
+            <Text style={styles.mainText}>
+              {hasSchedules ? "나의 여행 일정" : "등록된 일정이 없습니다"}
+            </Text>
+
+            <Text style={styles.subText}>
+              {hasSchedules ?
+                "저장된 여행 일정을 확인해보세요"
+              : "새로운 여행 일정을 추가해보세요"}
+            </Text>
 
             <View style={styles.userInfoBox}>{renderUserSection()}</View>
+
+            {renderScheduleList()}
           </View>
 
           <View style={styles.bottomActionGroup}>
@@ -144,6 +234,15 @@ export default function MainScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("AddSchedule")}
             >
               <Text style={styles.addButtonText}>일정 추가하기</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.planXButton}
+              activeOpacity={0.85}
+              onPress={() => navigation.navigate("PlanX")}
+            >
+              <Ionicons name="albums-outline" size={16} color="#2158E8" />
+              <Text style={styles.planXButtonText}>Plan.X 보기</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -187,6 +286,10 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  scrollContentWithSchedules: {
+    justifyContent: "flex-start",
   },
 
   header: {
@@ -291,6 +394,79 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
+  scheduleList: {
+    width: "100%",
+    marginTop: 18,
+    gap: 12,
+  },
+
+  scheduleCard: {
+    width: "100%",
+    padding: 18,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    shadowColor: "#1E293B",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 10,
+    elevation: 2,
+  },
+
+  scheduleCardHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+
+  scheduleTitleBox: {
+    flex: 1,
+  },
+
+  scheduleTitle: {
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#1E293B",
+  },
+
+  scheduleLocation: {
+    marginTop: 5,
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#2158E8",
+  },
+
+  scheduleBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#EAF3FF",
+  },
+
+  scheduleBadgeText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2158E8",
+  },
+
+  scheduleDateRow: {
+    marginTop: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  schedulePeriod: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+
   bottomActionGroup: {
     width: "100%",
     alignItems: "center",
@@ -316,6 +492,26 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
+  },
+
+  planXButton: {
+    minWidth: 132,
+    height: 46,
+    paddingHorizontal: 18,
+    borderRadius: 14,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#DCE7F7",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  planXButtonText: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "700",
   },
 
   logoutButton: {

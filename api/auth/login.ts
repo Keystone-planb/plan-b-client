@@ -77,8 +77,14 @@ export const requestLogin = async ({
     console.log("🔥 로그인 response.headers:", response.headers);
     console.log("🔥 로그인 response.data:", response.data);
 
-    const contentType = response.headers?.["content-type"] ?? "";
+    const contentType = String(response.headers["content-type"] ?? "");
     const data = response.data;
+
+    if (contentType.includes("text/html")) {
+      throw new Error(
+        "로그인 API 응답이 JSON이 아니라 HTML입니다. API 주소를 확인해주세요.",
+      );
+    }
 
     if (typeof data === "string") {
       const trimmed = data.trim();
@@ -91,12 +97,6 @@ export const requestLogin = async ({
           "로그인 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
         );
       }
-    }
-
-    if (contentType && !contentType.includes("application/json")) {
-      throw new Error(
-        `예상치 못한 응답 형식입니다. content-type: ${contentType}`,
-      );
     }
 
     if (!isLoginResponse(data)) {

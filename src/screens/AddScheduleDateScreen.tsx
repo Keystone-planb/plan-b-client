@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -18,88 +19,121 @@ type Props = {
 
 export default function AddScheduleDateScreen({ navigation, route }: Props) {
   const tripName = route?.params?.tripName ?? "";
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [calendarVisible, setCalendarVisible] = useState(false);
+
+  const canGoNext = Boolean(startDate && endDate);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
   const handleComplete = () => {
-    navigation.navigate("Main");
+    if (!startDate || !endDate) {
+      Alert.alert("알림", "여행 날짜를 선택해주세요.");
+      return;
+    }
+
+    navigation.navigate("AddScheduleLocation", {
+      tripName,
+      startDate,
+      endDate,
+    });
   };
 
   const formatDate = (value: string) => value.replace(/-/g, ".");
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleBack}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={24} color="#1C2534" />
-          </TouchableOpacity>
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={[styles.nextButton, !canGoNext && styles.disabledButton]}
+              onPress={handleComplete}
+              activeOpacity={0.85}
+              disabled={!canGoNext}
+            >
+              <Text style={styles.nextButtonText}>다음</Text>
+            </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Plan.A</Text>
+            <Text style={styles.headerTitle}>Plan.A</Text>
 
-          <View style={styles.iconPlaceholder} />
-        </View>
-
-        <View style={styles.centerSection}>
-          <View style={[styles.illustrationWrapper, styles.calendarBg]}>
-            <Text style={styles.illustrationEmoji}>📅</Text>
+            <View style={styles.iconPlaceholder} />
           </View>
 
-          <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
-
-          <Text style={styles.description}>
-            {tripName ?
-              `"${tripName}" 여행은 언제 떠나시나요?`
-            : "언제부터 언제까지 여행하시나요?"}
-          </Text>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>출발일</Text>
-          <TouchableOpacity
-            style={styles.dateField}
-            activeOpacity={0.85}
-            onPress={() => setCalendarVisible(true)}
-          >
-            <Text style={styles.dateText}>
-              {startDate ? formatDate(startDate) : "0000.00.00"}
-            </Text>
-            <View style={styles.calendarButton}>
-              <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+          <View style={styles.centerSection}>
+            <View style={[styles.illustrationWrapper, styles.calendarBg]}>
+              <Text style={styles.illustrationEmoji}>📅</Text>
             </View>
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>종료일</Text>
-          <TouchableOpacity
-            style={styles.dateField}
-            activeOpacity={0.85}
-            onPress={() => setCalendarVisible(true)}
-          >
-            <Text style={styles.dateText}>
-              {endDate ? formatDate(endDate) : "0000.00.00"}
+            <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
+
+            <Text style={styles.description}>
+              {tripName ?
+                `"${tripName}" 여행은 언제 떠나시나요?`
+              : "언제부터 언제까지 여행하시나요?"}
             </Text>
-            <View style={styles.calendarButton}>
-              <Ionicons name="calendar-outline" size={20} color="#2158E8" />
-            </View>
-          </TouchableOpacity>
-        </View>
+          </View>
 
+          <View style={styles.formSection}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>출발일</Text>
+
+              <TouchableOpacity
+                style={styles.dateField}
+                activeOpacity={0.85}
+                onPress={() => setCalendarVisible(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateText,
+                    startDate && styles.selectedDateText,
+                  ]}
+                >
+                  {startDate ? formatDate(startDate) : "2026.01.01"}
+                </Text>
+
+                <View style={styles.calendarButton}>
+                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>종료일</Text>
+
+              <TouchableOpacity
+                style={styles.dateField}
+                activeOpacity={0.85}
+                onPress={() => setCalendarVisible(true)}
+              >
+                <Text
+                  style={[styles.dateText, endDate && styles.selectedDateText]}
+                >
+                  {endDate ? formatDate(endDate) : "2026.01.02"}
+                </Text>
+
+                <View style={styles.calendarButton}>
+                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
+
+        {/* 
+          중요:
+          하단 버튼은 ScrollView 밖에 있어야 함.
+          그래야 이름 입력 화면처럼 스크롤하지 않아도 항상 보인다.
+        */}
         <View style={styles.footerSection}>
           <View style={styles.pagination}>
             <View style={styles.dot} />
@@ -107,14 +141,15 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
           </View>
 
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[styles.nextButton, !canGoNext && styles.disabledButton]}
             onPress={handleComplete}
             activeOpacity={0.85}
+            disabled={!canGoNext}
           >
-            <Text style={styles.nextButtonText}>완료</Text>
+            <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
       <TravelDateRangeModal
         visible={calendarVisible}
@@ -136,23 +171,27 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: "#F7F9FB",
+  },
+
+  container: {
+    flex: 1,
   },
 
   scrollContent: {
     flexGrow: 1,
     paddingTop: 18,
-    paddingBottom: 36,
     paddingHorizontal: 21,
+    paddingBottom: 24,
   },
 
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 56,
+    marginBottom: 34,
     paddingHorizontal: 4,
   },
 
@@ -177,16 +216,16 @@ const styles = StyleSheet.create({
 
   centerSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 28,
   },
 
   illustrationWrapper: {
-    width: 214,
-    height: 214,
+    width: 174,
+    height: 174,
     borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 40,
+    marginBottom: 28,
     shadowColor: "#000000",
     shadowOpacity: 0.12,
     shadowOffset: {
@@ -202,7 +241,7 @@ const styles = StyleSheet.create({
   },
 
   illustrationEmoji: {
-    fontSize: 80,
+    fontSize: 68,
   },
 
   title: {
@@ -211,7 +250,7 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     textAlign: "center",
     lineHeight: 40,
-    marginBottom: 20,
+    marginBottom: 14,
   },
 
   description: {
@@ -222,8 +261,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
+  formSection: {
+    marginTop: 2,
+  },
+
   fieldGroup: {
-    marginBottom: 20,
+    marginBottom: 16,
   },
 
   fieldLabel: {
@@ -234,6 +277,7 @@ const styles = StyleSheet.create({
   },
 
   dateField: {
+    minHeight: 56,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -251,6 +295,11 @@ const styles = StyleSheet.create({
     fontWeight: "500",
   },
 
+  selectedDateText: {
+    color: "#1C2534",
+    fontWeight: "700",
+  },
+
   calendarButton: {
     width: 40,
     height: 40,
@@ -261,14 +310,17 @@ const styles = StyleSheet.create({
   },
 
   footerSection: {
-    marginTop: "auto",
+    paddingHorizontal: 21,
+    paddingTop: 14,
+    paddingBottom: 18,
+    backgroundColor: "#F7F9FB",
   },
 
   pagination: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: 18,
   },
 
   activeDot: {
@@ -300,6 +352,10 @@ const styles = StyleSheet.create({
     },
     shadowRadius: 10,
     elevation: 10,
+  },
+
+  disabledButton: {
+    opacity: 0.45,
   },
 
   nextButtonText: {

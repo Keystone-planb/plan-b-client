@@ -22,8 +22,12 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
   };
 
   const handleNext = () => {
+    if (!tripName.trim()) {
+      return;
+    }
+
     navigation.navigate("AddScheduleDate", {
-      tripName,
+      tripName: tripName.trim(),
     });
   };
 
