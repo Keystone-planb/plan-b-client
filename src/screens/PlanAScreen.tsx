@@ -38,17 +38,23 @@ type MemoItem = {
   text: string;
 };
 
+type MemoMap = Record<number, MemoItem[]>;
+
 const DAY_OPTIONS: DayOption[] = [
   { id: 1, label: "Day 1" },
   { id: 2, label: "Day 2" },
   { id: 3, label: "Day 3" },
 ];
 
-const DEFAULT_MEMOS: MemoItem[] = [
-  { id: "1", text: "내일 매점 까먹지 말기" },
-  { id: "2", text: "내일 매점 까먹지 말기" },
-  { id: "3", text: "내일 매점 까먹지 말기" },
-];
+const DEFAULT_MEMOS_BY_DAY: MemoMap = {
+  1: [
+    { id: "1", text: "내일 매점 까먹지 말기" },
+    { id: "2", text: "강릉역 근처 맛집 확인하기" },
+    { id: "3", text: "카페 예약 시간 확인하기" },
+  ],
+  2: [],
+  3: [],
+};
 
 const DAY_PLACE_INFO: Record<
   number,
@@ -78,7 +84,11 @@ const DAY_PLACE_INFO: Record<
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
   const [memo, setMemo] = useState("");
-  const [memos, setMemos] = useState<MemoItem[]>(DEFAULT_MEMOS);
+
+  const [memosByDay, setMemosByDay] = useState<MemoMap>(DEFAULT_MEMOS_BY_DAY);
+
+  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [editingMemoText, setEditingMemoText] = useState("");
 
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
@@ -86,6 +96,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const selectedPlace = route?.params?.selectedPlace;
 
   const currentDayInfo = DAY_PLACE_INFO[selectedDay];
+  const currentMemos = memosByDay[selectedDay] ?? [];
+  const isEditingMemo = Boolean(editingMemoId);
 
   const placeName =
     selectedPlace?.day === selectedDay && selectedPlace?.name ?
@@ -99,6 +111,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const hasRealPlace = placeName !== "장소를 추가해주세요";
   const hasMemoText = memo.trim().length > 0;
+  const hasEditingText = editingMemoText.trim().length > 0;
 
   const handleBack = () => {
     navigation.goBack();
@@ -107,6 +120,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const handleChangeDay = (dayId: number) => {
     setSelectedDay(dayId);
     setMemo("");
+    setEditingMemoId(null);
+    setEditingMemoText("");
   };
 
   const handleAddPlace = () => {
@@ -124,19 +139,70 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     if (!trimmedMemo) return;
 
-    setMemos((prev) => [
+    setMemosByDay((prev) => ({
       ...prev,
-      {
-        id: `${Date.now()}`,
-        text: trimmedMemo,
-      },
-    ]);
+      [selectedDay]: [
+        ...(prev[selectedDay] ?? []),
+        {
+          id: `${Date.now()}`,
+          text: trimmedMemo,
+        },
+      ],
+    }));
 
     setMemo("");
   };
 
   const handleClearMemo = () => {
     setMemo("");
+  };
+
+  const handleStartEditMemo = (item: MemoItem) => {
+    setEditingMemoId(item.id);
+    setEditingMemoText(item.text);
+    setMemo("");
+  };
+
+  const handleCancelEditMemo = () => {
+    setEditingMemoId(null);
+    setEditingMemoText("");
+  };
+
+  const handleSaveEditMemo = () => {
+    const trimmedText = editingMemoText.trim();
+
+    if (!editingMemoId || !trimmedText) {
+      return;
+    }
+
+    setMemosByDay((prev) => ({
+      ...prev,
+      [selectedDay]: (prev[selectedDay] ?? []).map((item) =>
+        item.id === editingMemoId ?
+          {
+            ...item,
+            text: trimmedText,
+          }
+        : item,
+      ),
+    }));
+
+    setEditingMemoId(null);
+    setEditingMemoText("");
+  };
+
+  const handleDeleteMemo = (memoId: string) => {
+    setMemosByDay((prev) => ({
+      ...prev,
+      [selectedDay]: (prev[selectedDay] ?? []).filter(
+        (item) => item.id !== memoId,
+      ),
+    }));
+
+    if (editingMemoId === memoId) {
+      setEditingMemoId(null);
+      setEditingMemoText("");
+    }
   };
 
   return (
@@ -279,7 +345,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                     ]}
                     activeOpacity={0.85}
                     onPress={handleAddMemo}
-                    disabled={!hasRealPlace}
+                    disabled={!hasRealPlace || isEditingMemo || !hasMemoText}
                   >
                     <Text style={styles.memoButtonText}>메모추가</Text>
                   </TouchableOpacity>
@@ -287,50 +353,120 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
                 {hasRealPlace ?
                   <View style={styles.memoList}>
-                    {memos.map((item) => (
-                      <View key={item.id} style={styles.memoItem}>
-                        <Ionicons
-                          name="document-text-outline"
-                          size={14}
-                          color="#8C9BB1"
+                    {currentMemos.map((item) => {
+                      const isEditing = editingMemoId === item.id;
+
+                      if (isEditing) {
+                        return (
+                          <View key={item.id} style={styles.memoEditItem}>
+                            <TextInput
+                              value={editingMemoText}
+                              onChangeText={setEditingMemoText}
+                              style={styles.memoEditInput}
+                              placeholder="메모를 수정하세요"
+                              placeholderTextColor="#8C9BB1"
+                              autoFocus
+                            />
+
+                            <TouchableOpacity
+                              style={[
+                                styles.memoEditSaveButton,
+                                !hasEditingText && styles.memoButtonDisabled,
+                              ]}
+                              activeOpacity={0.85}
+                              onPress={handleSaveEditMemo}
+                              disabled={!hasEditingText}
+                            >
+                              <Ionicons
+                                name="checkmark"
+                                size={16}
+                                color="#FFFFFF"
+                              />
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                              style={styles.memoEditCancelButton}
+                              activeOpacity={0.85}
+                              onPress={handleCancelEditMemo}
+                            >
+                              <Ionicons
+                                name="close"
+                                size={16}
+                                color="#FFFFFF"
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        );
+                      }
+
+                      return (
+                        <TouchableOpacity
+                          key={item.id}
+                          style={styles.memoItem}
+                          activeOpacity={0.85}
+                          onPress={() => handleStartEditMemo(item)}
+                        >
+                          <Ionicons
+                            name="document-text-outline"
+                            size={14}
+                            color="#8C9BB1"
+                          />
+
+                          <Text style={styles.memoItemText} numberOfLines={1}>
+                            {item.text}
+                          </Text>
+
+                          <TouchableOpacity
+                            style={styles.memoDeleteButton}
+                            activeOpacity={0.8}
+                            onPress={() => handleDeleteMemo(item.id)}
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={14}
+                              color="#94A3B8"
+                            />
+                          </TouchableOpacity>
+                        </TouchableOpacity>
+                      );
+                    })}
+
+                    {!isEditingMemo ?
+                      <View style={styles.memoInputRow}>
+                        <TextInput
+                          value={memo}
+                          onChangeText={setMemo}
+                          placeholder="메모를 입력하세요"
+                          placeholderTextColor="#8C9BB1"
+                          style={styles.memoInput}
                         />
 
-                        <Text style={styles.memoItemText} numberOfLines={1}>
-                          {item.text}
-                        </Text>
+                        <TouchableOpacity
+                          style={[
+                            styles.memoConfirmButton,
+                            hasMemoText && styles.memoConfirmButtonActive,
+                            !hasMemoText && styles.memoButtonDisabled,
+                          ]}
+                          activeOpacity={0.85}
+                          onPress={handleAddMemo}
+                          disabled={!hasMemoText}
+                        >
+                          <Ionicons
+                            name="checkmark"
+                            size={18}
+                            color="#FFFFFF"
+                          />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.memoCancelButton}
+                          activeOpacity={0.85}
+                          onPress={handleClearMemo}
+                        >
+                          <Ionicons name="close" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
                       </View>
-                    ))}
-
-                    <View style={styles.memoInputRow}>
-                      <TextInput
-                        value={memo}
-                        onChangeText={setMemo}
-                        placeholder="메모를 입력하세요"
-                        placeholderTextColor="#8C9BB1"
-                        style={styles.memoInput}
-                      />
-
-                      <TouchableOpacity
-                        style={[
-                          styles.memoConfirmButton,
-                          hasMemoText && styles.memoConfirmButtonActive,
-                          !hasMemoText && styles.memoButtonDisabled,
-                        ]}
-                        activeOpacity={0.85}
-                        onPress={handleAddMemo}
-                        disabled={!hasMemoText}
-                      >
-                        <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-                      </TouchableOpacity>
-
-                      <TouchableOpacity
-                        style={styles.memoCancelButton}
-                        activeOpacity={0.85}
-                        onPress={handleClearMemo}
-                      >
-                        <Ionicons name="close" size={18} color="#FFFFFF" />
-                      </TouchableOpacity>
-                    </View>
+                    : null}
                   </View>
                 : null}
               </View>
@@ -718,7 +854,7 @@ const styles = StyleSheet.create({
   },
 
   memoButtonDisabledState: {
-    backgroundColor: "#2158E8",
+    backgroundColor: "#B8C4D4",
   },
 
   memoButtonText: {
@@ -749,6 +885,55 @@ const styles = StyleSheet.create({
     color: "#627187",
     fontSize: 11,
     fontWeight: "600",
+  },
+
+  memoDeleteButton: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 6,
+  },
+
+  memoEditItem: {
+    minHeight: 34,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#9FC8FF",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 8,
+    gap: 6,
+  },
+
+  memoEditInput: {
+    flex: 1,
+    height: 34,
+    paddingVertical: 0,
+    paddingHorizontal: 6,
+    color: "#1C2534",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  memoEditSaveButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  memoEditCancelButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: "#B8C4D4",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   memoInputRow: {
