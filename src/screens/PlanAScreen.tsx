@@ -1,14 +1,25 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
+
+import PlanADayTabs from "../components/planA/PlanADayTabs";
+import PlanAMapPreview from "../components/planA/PlanAMapPreview";
+import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
+
+import {
+  DayOption,
+  MemoItem,
+  PlaceItem,
+  PlacesByDay,
+  SelectedPlaceParam,
+} from "../types/planA";
 
 type Props = {
   navigation: any;
@@ -18,27 +29,11 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
-      selectedPlace?: {
-        id: string;
-        name: string;
-        time?: string;
-        day?: number;
-      };
+
+      selectedPlace?: SelectedPlaceParam;
     };
   };
 };
-
-type DayOption = {
-  id: number;
-  label: string;
-};
-
-type MemoItem = {
-  id: string;
-  text: string;
-};
-
-type MemoMap = Record<number, MemoItem[]>;
 
 const DAY_OPTIONS: DayOption[] = [
   { id: 1, label: "Day 1" },
@@ -46,82 +41,112 @@ const DAY_OPTIONS: DayOption[] = [
   { id: 3, label: "Day 3" },
 ];
 
-const DEFAULT_MEMOS_BY_DAY: MemoMap = {
+const DEFAULT_PLACES_BY_DAY: PlacesByDay = {
   1: [
-    { id: "1", text: "내일 매점 까먹지 말기" },
-    { id: "2", text: "강릉역 근처 맛집 확인하기" },
-    { id: "3", text: "카페 예약 시간 확인하기" },
+    {
+      id: "place-1",
+      name: "강릉역",
+      time: "10:00",
+      memos: [
+        { id: "memo-1", text: "내일 매점 까먹지 말기" },
+        { id: "memo-2", text: "강릉역 근처 맛집 확인하기" },
+        { id: "memo-3", text: "카페 예약 시간 확인하기" },
+      ],
+    },
   ],
   2: [],
   3: [],
 };
 
-const DAY_PLACE_INFO: Record<
-  number,
-  {
-    placeName: string;
-    placeTime: string;
-    emptyText: string;
-  }
-> = {
-  1: {
-    placeName: "강릉역",
-    placeTime: "10:00",
-    emptyText: "Day 1 장소를 추가해주세요",
-  },
-  2: {
-    placeName: "장소를 추가해주세요",
-    placeTime: "시간을 설정해주세요",
-    emptyText: "Day 2 장소를 추가해주세요",
-  },
-  3: {
-    placeName: "장소를 추가해주세요",
-    placeTime: "시간을 설정해주세요",
-    emptyText: "Day 3 장소를 추가해주세요",
-  },
-};
-
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
-  const [memo, setMemo] = useState("");
+  const [placesByDay, setPlacesByDay] = useState<PlacesByDay>(
+    DEFAULT_PLACES_BY_DAY,
+  );
 
-  const [memosByDay, setMemosByDay] = useState<MemoMap>(DEFAULT_MEMOS_BY_DAY);
+  const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({});
 
-  const [editingMemoId, setEditingMemoId] = useState<string | null>(null);
+  const [editingMemo, setEditingMemo] = useState<{
+    placeId: string;
+    memoId: string;
+  } | null>(null);
   const [editingMemoText, setEditingMemoText] = useState("");
+
+  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
+  const [editingPlaceName, setEditingPlaceName] = useState("");
+  const [editingPlaceTime, setEditingPlaceTime] = useState("");
 
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "04.23";
   const selectedPlace = route?.params?.selectedPlace;
 
-  const currentDayInfo = DAY_PLACE_INFO[selectedDay];
-  const currentMemos = memosByDay[selectedDay] ?? [];
-  const isEditingMemo = Boolean(editingMemoId);
+  const currentPlaces = placesByDay[selectedDay] ?? [];
+  const isEditingMemo = Boolean(editingMemo);
 
-  const placeName =
-    selectedPlace?.day === selectedDay && selectedPlace?.name ?
-      selectedPlace.name
-    : currentDayInfo.placeName;
+  useEffect(() => {
+    if (!selectedPlace?.id || !selectedPlace.name) return;
 
-  const placeTime =
-    selectedPlace?.day === selectedDay && selectedPlace?.time ?
-      selectedPlace.time
-    : currentDayInfo.placeTime;
+    const targetDay = selectedPlace.day ?? 1;
 
-  const hasRealPlace = placeName !== "장소를 추가해주세요";
-  const hasMemoText = memo.trim().length > 0;
-  const hasEditingText = editingMemoText.trim().length > 0;
+    setSelectedDay(targetDay);
+
+    setPlacesByDay((prev) => {
+      const targetPlaces = prev[targetDay] ?? [];
+      const alreadyExists = targetPlaces.some(
+        (place) => place.id === selectedPlace.id,
+      );
+
+      if (alreadyExists) {
+        return {
+          ...prev,
+          [targetDay]: targetPlaces.map((place) =>
+            place.id === selectedPlace.id ?
+              {
+                ...place,
+                name: selectedPlace.name,
+                time: selectedPlace.time ?? place.time,
+              }
+            : place,
+          ),
+        };
+      }
+
+      return {
+        ...prev,
+        [targetDay]: [
+          ...targetPlaces,
+          {
+            id: selectedPlace.id,
+            name: selectedPlace.name,
+            time: selectedPlace.time ?? "10:00",
+            memos: [],
+          },
+        ],
+      };
+    });
+  }, [
+    selectedPlace?.id,
+    selectedPlace?.name,
+    selectedPlace?.time,
+    selectedPlace?.day,
+  ]);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
+  const resetEditingState = () => {
+    setEditingMemo(null);
+    setEditingMemoText("");
+    setEditingPlaceId(null);
+    setEditingPlaceName("");
+    setEditingPlaceTime("");
+  };
+
   const handleChangeDay = (dayId: number) => {
     setSelectedDay(dayId);
-    setMemo("");
-    setEditingMemoId(null);
-    setEditingMemoText("");
+    resetEditingState();
   };
 
   const handleAddPlace = () => {
@@ -134,75 +159,223 @@ export default function PlanAScreen({ navigation, route }: Props) {
     });
   };
 
-  const handleAddMemo = () => {
-    const trimmedMemo = memo.trim();
+  const handleStartEditPlace = (place: PlaceItem) => {
+    if (isEditingMemo) return;
+
+    setEditingPlaceId(place.id);
+    setEditingPlaceName(place.name);
+    setEditingPlaceTime(place.time);
+  };
+
+  const handleCancelEditPlace = () => {
+    setEditingPlaceId(null);
+    setEditingPlaceName("");
+    setEditingPlaceTime("");
+  };
+
+  const handleSaveEditPlace = () => {
+    const trimmedName = editingPlaceName.trim();
+    const trimmedTime = editingPlaceTime.trim();
+
+    if (!editingPlaceId || !trimmedName) return;
+
+    setPlacesByDay((prev) => ({
+      ...prev,
+      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
+        place.id === editingPlaceId ?
+          {
+            ...place,
+            name: trimmedName,
+            time: trimmedTime || "시간 미정",
+          }
+        : place,
+      ),
+    }));
+
+    handleCancelEditPlace();
+  };
+
+  const handleDeletePlace = (placeId: string) => {
+    setPlacesByDay((prev) => ({
+      ...prev,
+      [selectedDay]: (prev[selectedDay] ?? []).filter(
+        (place) => place.id !== placeId,
+      ),
+    }));
+
+    setMemoDrafts((prev) => {
+      const next = { ...prev };
+      delete next[placeId];
+      return next;
+    });
+
+    if (editingPlaceId === placeId) {
+      handleCancelEditPlace();
+    }
+
+    if (editingMemo?.placeId === placeId) {
+      setEditingMemo(null);
+      setEditingMemoText("");
+    }
+  };
+
+  const handleChangeMemoDraft = (placeId: string, value: string) => {
+    setMemoDrafts((prev) => ({
+      ...prev,
+      [placeId]: value,
+    }));
+  };
+
+  const handleAddMemo = (placeId: string) => {
+    const trimmedMemo = memoDrafts[placeId]?.trim();
 
     if (!trimmedMemo) return;
 
-    setMemosByDay((prev) => ({
+    setPlacesByDay((prev) => ({
       ...prev,
-      [selectedDay]: [
-        ...(prev[selectedDay] ?? []),
-        {
-          id: `${Date.now()}`,
-          text: trimmedMemo,
-        },
-      ],
+      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
+        place.id === placeId ?
+          {
+            ...place,
+            memos: [
+              ...place.memos,
+              {
+                id: `${Date.now()}`,
+                text: trimmedMemo,
+              },
+            ],
+          }
+        : place,
+      ),
     }));
 
-    setMemo("");
+    setMemoDrafts((prev) => ({
+      ...prev,
+      [placeId]: "",
+    }));
   };
 
-  const handleClearMemo = () => {
-    setMemo("");
+  const handleClearMemo = (placeId: string) => {
+    setMemoDrafts((prev) => ({
+      ...prev,
+      [placeId]: "",
+    }));
   };
 
-  const handleStartEditMemo = (item: MemoItem) => {
-    setEditingMemoId(item.id);
+  const handleStartEditMemo = (placeId: string, item: MemoItem) => {
+    setEditingPlaceId(null);
+    setEditingPlaceName("");
+    setEditingPlaceTime("");
+    setEditingMemo({
+      placeId,
+      memoId: item.id,
+    });
     setEditingMemoText(item.text);
-    setMemo("");
   };
 
   const handleCancelEditMemo = () => {
-    setEditingMemoId(null);
+    setEditingMemo(null);
     setEditingMemoText("");
   };
 
   const handleSaveEditMemo = () => {
     const trimmedText = editingMemoText.trim();
 
-    if (!editingMemoId || !trimmedText) {
-      return;
-    }
+    if (!editingMemo || !trimmedText) return;
 
-    setMemosByDay((prev) => ({
+    setPlacesByDay((prev) => ({
       ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).map((item) =>
-        item.id === editingMemoId ?
+      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
+        place.id === editingMemo.placeId ?
           {
-            ...item,
-            text: trimmedText,
+            ...place,
+            memos: place.memos.map((memo) =>
+              memo.id === editingMemo.memoId ?
+                {
+                  ...memo,
+                  text: trimmedText,
+                }
+              : memo,
+            ),
           }
-        : item,
+        : place,
       ),
     }));
 
-    setEditingMemoId(null);
-    setEditingMemoText("");
+    handleCancelEditMemo();
   };
 
-  const handleDeleteMemo = (memoId: string) => {
-    setMemosByDay((prev) => ({
+  const handleDeleteMemo = (placeId: string, memoId: string) => {
+    setPlacesByDay((prev) => ({
       ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).filter(
-        (item) => item.id !== memoId,
+      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
+        place.id === placeId ?
+          {
+            ...place,
+            memos: place.memos.filter((memo) => memo.id !== memoId),
+          }
+        : place,
       ),
     }));
 
-    if (editingMemoId === memoId) {
-      setEditingMemoId(null);
-      setEditingMemoText("");
+    if (editingMemo?.placeId === placeId && editingMemo.memoId === memoId) {
+      handleCancelEditMemo();
     }
+  };
+
+  const renderPlaceCard = (place: PlaceItem, index: number) => {
+    return (
+      <PlanAPlaceCard
+        key={place.id}
+        place={place}
+        index={index}
+        memoDraft={memoDrafts[place.id] ?? ""}
+        editingMemo={editingMemo}
+        editingMemoText={editingMemoText}
+        editingPlaceId={editingPlaceId}
+        editingPlaceName={editingPlaceName}
+        editingPlaceTime={editingPlaceTime}
+        onStartEditPlace={handleStartEditPlace}
+        onCancelEditPlace={handleCancelEditPlace}
+        onSaveEditPlace={handleSaveEditPlace}
+        onDeletePlace={handleDeletePlace}
+        onChangeEditingPlaceName={setEditingPlaceName}
+        onChangeEditingPlaceTime={setEditingPlaceTime}
+        onChangeMemoDraft={handleChangeMemoDraft}
+        onAddMemo={handleAddMemo}
+        onClearMemo={handleClearMemo}
+        onStartEditMemo={handleStartEditMemo}
+        onCancelEditMemo={handleCancelEditMemo}
+        onSaveEditMemo={handleSaveEditMemo}
+        onDeleteMemo={handleDeleteMemo}
+        onChangeEditingMemoText={setEditingMemoText}
+      />
+    );
+  };
+
+  const renderEmptyPlace = () => {
+    return (
+      <View style={styles.timelineRow}>
+        <View style={styles.timelineLeft}>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepBadgeText}>1</Text>
+          </View>
+
+          <View style={styles.shortTimelineLine} />
+        </View>
+
+        <TouchableOpacity
+          style={styles.emptyPlaceCardLarge}
+          activeOpacity={0.85}
+          onPress={handleAddPlace}
+        >
+          <Text style={styles.emptyPlaceTitle}>장소를 추가해주세요</Text>
+          <Text style={styles.emptyPlaceSubText}>
+            Day {selectedDay}에 방문할 장소를 등록해보세요.
+          </Text>
+        </TouchableOpacity>
+      </View>
+    );
   };
 
   return (
@@ -236,261 +409,29 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            <View style={styles.dayTabs}>
-              {DAY_OPTIONS.map((day) => {
-                const isSelected = selectedDay === day.id;
-
-                return (
-                  <TouchableOpacity
-                    key={day.id}
-                    style={[styles.dayTab, isSelected && styles.activeDayTab]}
-                    activeOpacity={0.85}
-                    onPress={() => handleChangeDay(day.id)}
-                  >
-                    <Text
-                      style={[
-                        styles.dayTabText,
-                        isSelected && styles.activeDayTabText,
-                      ]}
-                    >
-                      {day.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <PlanADayTabs
+              days={DAY_OPTIONS}
+              selectedDay={selectedDay}
+              onChangeDay={handleChangeDay}
+            />
           </View>
 
-          <View style={styles.mapArea}>
-            <View style={styles.mapRoadHorizontal} />
-            <View style={styles.mapRoadVertical} />
-            <View style={styles.mapRoadDiagonal} />
-
-            <View style={styles.mapGreenAreaOne}>
-              <Text style={styles.mapAreaText}>강릉종합{"\n"}운동장</Text>
-            </View>
-
-            <View style={styles.mapGreenAreaTwo} />
-
-            <Text style={[styles.mapPlaceLabel, styles.mapLabelOne]}>
-              강릉세무서
-            </Text>
-
-            <Text style={[styles.mapPlaceLabel, styles.mapLabelTwo]}>
-              하슬라중학교
-            </Text>
-
-            <Text style={[styles.mapPlaceLabel, styles.mapLabelThree]}>
-              교2동
-            </Text>
-
-            <View style={[styles.mapPin, styles.mapPinOne]}>
-              <Text style={styles.mapPinText}>1</Text>
-            </View>
-
-            <View style={[styles.mapPin, styles.mapPinTwo]}>
-              <Text style={styles.mapPinText}>2</Text>
-            </View>
-
-            <View style={[styles.mapPin, styles.mapPinThree]}>
-              <Text style={styles.mapPinText}>3</Text>
-            </View>
-          </View>
+          <PlanAMapPreview />
 
           <View style={styles.sheet}>
             <View style={styles.sheetHandleWrapper}>
               <View style={styles.sheetHandle} />
             </View>
-
-            <View style={styles.timelineRow}>
-              <View style={styles.timelineLeft}>
-                <View style={styles.stepBadge}>
-                  <Text style={styles.stepBadgeText}>1</Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.timelineLine,
-                    !hasRealPlace && styles.shortTimelineLine,
-                  ]}
-                />
-              </View>
-
-              <View style={styles.placeCard}>
-                <View style={styles.placeHeader}>
-                  <View style={styles.placeTitleBox}>
-                    <Text
-                      style={[
-                        styles.placeTitle,
-                        !hasRealPlace && styles.emptyPlaceTitle,
-                      ]}
-                    >
-                      {placeName}
-                    </Text>
-
-                    <Text
-                      style={[
-                        styles.placeTime,
-                        !hasRealPlace && styles.emptyPlaceTime,
-                      ]}
-                    >
-                      {placeTime}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    style={[
-                      styles.memoButton,
-                      !hasRealPlace && styles.memoButtonDisabledState,
-                    ]}
-                    activeOpacity={0.85}
-                    onPress={handleAddMemo}
-                    disabled={!hasRealPlace || isEditingMemo || !hasMemoText}
-                  >
-                    <Text style={styles.memoButtonText}>메모추가</Text>
-                  </TouchableOpacity>
-                </View>
-
-                {hasRealPlace ?
-                  <View style={styles.memoList}>
-                    {currentMemos.map((item) => {
-                      const isEditing = editingMemoId === item.id;
-
-                      if (isEditing) {
-                        return (
-                          <View key={item.id} style={styles.memoEditItem}>
-                            <TextInput
-                              value={editingMemoText}
-                              onChangeText={setEditingMemoText}
-                              style={styles.memoEditInput}
-                              placeholder="메모를 수정하세요"
-                              placeholderTextColor="#8C9BB1"
-                              autoFocus
-                            />
-
-                            <TouchableOpacity
-                              style={[
-                                styles.memoEditSaveButton,
-                                !hasEditingText && styles.memoButtonDisabled,
-                              ]}
-                              activeOpacity={0.85}
-                              onPress={handleSaveEditMemo}
-                              disabled={!hasEditingText}
-                            >
-                              <Ionicons
-                                name="checkmark"
-                                size={16}
-                                color="#FFFFFF"
-                              />
-                            </TouchableOpacity>
-
-                            <TouchableOpacity
-                              style={styles.memoEditCancelButton}
-                              activeOpacity={0.85}
-                              onPress={handleCancelEditMemo}
-                            >
-                              <Ionicons
-                                name="close"
-                                size={16}
-                                color="#FFFFFF"
-                              />
-                            </TouchableOpacity>
-                          </View>
-                        );
-                      }
-
-                      return (
-                        <TouchableOpacity
-                          key={item.id}
-                          style={styles.memoItem}
-                          activeOpacity={0.85}
-                          onPress={() => handleStartEditMemo(item)}
-                        >
-                          <Ionicons
-                            name="document-text-outline"
-                            size={14}
-                            color="#8C9BB1"
-                          />
-
-                          <Text style={styles.memoItemText} numberOfLines={1}>
-                            {item.text}
-                          </Text>
-
-                          <TouchableOpacity
-                            style={styles.memoDeleteButton}
-                            activeOpacity={0.8}
-                            onPress={() => handleDeleteMemo(item.id)}
-                          >
-                            <Ionicons
-                              name="trash-outline"
-                              size={14}
-                              color="#94A3B8"
-                            />
-                          </TouchableOpacity>
-                        </TouchableOpacity>
-                      );
-                    })}
-
-                    {!isEditingMemo ?
-                      <View style={styles.memoInputRow}>
-                        <TextInput
-                          value={memo}
-                          onChangeText={setMemo}
-                          placeholder="메모를 입력하세요"
-                          placeholderTextColor="#8C9BB1"
-                          style={styles.memoInput}
-                        />
-
-                        <TouchableOpacity
-                          style={[
-                            styles.memoConfirmButton,
-                            hasMemoText && styles.memoConfirmButtonActive,
-                            !hasMemoText && styles.memoButtonDisabled,
-                          ]}
-                          activeOpacity={0.85}
-                          onPress={handleAddMemo}
-                          disabled={!hasMemoText}
-                        >
-                          <Ionicons
-                            name="checkmark"
-                            size={18}
-                            color="#FFFFFF"
-                          />
-                        </TouchableOpacity>
-
-                        <TouchableOpacity
-                          style={styles.memoCancelButton}
-                          activeOpacity={0.85}
-                          onPress={handleClearMemo}
-                        >
-                          <Ionicons name="close" size={18} color="#FFFFFF" />
-                        </TouchableOpacity>
-                      </View>
-                    : null}
-                  </View>
-                : null}
-              </View>
-            </View>
-
+            {currentPlaces.length > 0 ?
+              currentPlaces.map((place, index) => renderPlaceCard(place, index))
+            : renderEmptyPlace()}
             <TouchableOpacity
               style={styles.addPlaceButton}
               activeOpacity={0.85}
               onPress={handleAddPlace}
             >
-              <Text style={styles.addPlaceButtonText}>
-                {hasRealPlace ? "장소 추가" : currentDayInfo.emptyText}
-              </Text>
+              <Text style={styles.addPlaceButtonText}>장소 추가</Text>
             </TouchableOpacity>
-
-            {hasRealPlace ?
-              <View style={styles.nextTimelineRow}>
-                <View style={styles.stepBadge}>
-                  <Text style={styles.stepBadgeText}>2</Text>
-                </View>
-
-                <View style={styles.emptyPlaceCard} />
-              </View>
-            : null}
           </View>
         </ScrollView>
       </View>
@@ -568,181 +509,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  dayTabs: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 16,
-    gap: 8,
-  },
-
-  dayTab: {
-    minWidth: 56,
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
-    backgroundColor: "#F1F6FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  activeDayTab: {
-    backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.24,
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  dayTabText: {
-    color: "#8C9BB1",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  activeDayTabText: {
-    color: "#FFFFFF",
-  },
-
-  mapArea: {
-    height: 128,
-    backgroundColor: "#EEF3F7",
-    overflow: "hidden",
-    position: "relative",
-  },
-
-  mapRoadHorizontal: {
-    position: "absolute",
-    left: -20,
-    right: -20,
-    top: 62,
-    height: 16,
-    backgroundColor: "#FFFFFF",
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: "#D8E0EA",
-    transform: [{ rotate: "-4deg" }],
-  },
-
-  mapRoadVertical: {
-    position: "absolute",
-    top: -20,
-    bottom: -20,
-    left: 132,
-    width: 18,
-    backgroundColor: "#FFFFFF",
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: "#D8E0EA",
-    transform: [{ rotate: "12deg" }],
-  },
-
-  mapRoadDiagonal: {
-    position: "absolute",
-    left: 170,
-    top: -12,
-    width: 16,
-    height: 180,
-    backgroundColor: "#FFFFFF",
-    borderLeftWidth: 1,
-    borderRightWidth: 1,
-    borderColor: "#D8E0EA",
-    transform: [{ rotate: "48deg" }],
-  },
-
-  mapGreenAreaOne: {
-    position: "absolute",
-    left: 88,
-    top: 28,
-    width: 88,
-    height: 58,
-    borderRadius: 16,
-    backgroundColor: "#BFE8C5",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  mapGreenAreaTwo: {
-    position: "absolute",
-    left: 18,
-    top: 14,
-    width: 58,
-    height: 46,
-    borderRadius: 12,
-    backgroundColor: "#CDEFD1",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  mapAreaText: {
-    color: "#2B8A3E",
-    fontSize: 10,
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 14,
-  },
-
-  mapPlaceLabel: {
-    position: "absolute",
-    color: "#8C9BB1",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  mapLabelOne: {
-    left: 84,
-    top: 12,
-  },
-
-  mapLabelTwo: {
-    right: 24,
-    top: 55,
-    color: "#4A8BEA",
-  },
-
-  mapLabelThree: {
-    left: 154,
-    bottom: 16,
-  },
-
-  mapPin: {
-    position: "absolute",
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
-  },
-
-  mapPinOne: {
-    right: 82,
-    top: 52,
-  },
-
-  mapPinTwo: {
-    right: 48,
-    bottom: 12,
-  },
-
-  mapPinThree: {
-    left: 76,
-    top: 58,
-  },
-
-  mapPinText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
   sheet: {
     minHeight: 430,
     marginTop: -1,
@@ -769,6 +535,7 @@ const styles = StyleSheet.create({
   timelineRow: {
     flexDirection: "row",
     alignItems: "flex-start",
+    marginBottom: 14,
   },
 
   timelineLeft: {
@@ -792,196 +559,39 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  timelineLine: {
+  shortTimelineLine: {
     width: 2,
-    flex: 1,
-    minHeight: 204,
+    minHeight: 56,
     marginTop: 4,
     backgroundColor: "#DCEBFF",
   },
 
-  shortTimelineLine: {
-    minHeight: 56,
-  },
-
-  placeCard: {
+  emptyPlaceCardLarge: {
     flex: 1,
+    minHeight: 86,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
     paddingHorizontal: 16,
+    justifyContent: "center",
   },
 
-  placeHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-
-  placeTitleBox: {
-    flex: 1,
-  },
-
-  placeTitle: {
+  emptyPlaceTitle: {
     color: "#252D3C",
     fontSize: 15,
     fontWeight: "900",
   },
 
-  emptyPlaceTitle: {
-    color: "#627187",
-  },
-
-  placeTime: {
+  emptyPlaceSubText: {
     marginTop: 7,
-    color: "#627187",
+    color: "#8C9BB1",
     fontSize: 12,
     fontWeight: "600",
   },
 
-  emptyPlaceTime: {
-    color: "#8C9BB1",
-  },
-
-  memoButton: {
-    backgroundColor: "#8DBEFF",
-    borderRadius: 8,
-    paddingVertical: 7,
-    paddingHorizontal: 10,
-  },
-
-  memoButtonDisabledState: {
-    backgroundColor: "#B8C4D4",
-  },
-
-  memoButtonText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  memoList: {
-    marginTop: 14,
-    gap: 8,
-  },
-
-  memoItem: {
-    minHeight: 34,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#E1E7EF",
-    backgroundColor: "#F8FBFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 9,
-  },
-
-  memoItemText: {
-    flex: 1,
-    marginLeft: 6,
-    color: "#627187",
-    fontSize: 11,
-    fontWeight: "600",
-  },
-
-  memoDeleteButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6,
-  },
-
-  memoEditItem: {
-    minHeight: 34,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#9FC8FF",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 8,
-    gap: 6,
-  },
-
-  memoEditInput: {
-    flex: 1,
-    height: 34,
-    paddingVertical: 0,
-    paddingHorizontal: 6,
-    color: "#1C2534",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  memoEditSaveButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  memoEditCancelButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: "#B8C4D4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  memoInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-
-  memoInput: {
-    flex: 1,
-    height: 34,
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: "#9FC8FF",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    fontSize: 11,
-    color: "#1C2534",
-  },
-
-  memoConfirmButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 6,
-    backgroundColor: "#8DBEFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  memoConfirmButtonActive: {
-    backgroundColor: "#2158E8",
-  },
-
-  memoButtonDisabled: {
-    opacity: 0.45,
-  },
-
-  memoCancelButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 6,
-    backgroundColor: "#B8C4D4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
   addPlaceButton: {
-    marginTop: 14,
+    marginTop: 4,
     marginLeft: 44,
     minHeight: 44,
     borderRadius: 12,
@@ -1002,21 +612,5 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 14,
     fontWeight: "900",
-  },
-
-  nextTimelineRow: {
-    marginTop: 28,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  emptyPlaceCard: {
-    flex: 1,
-    height: 62,
-    marginLeft: 20,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E1E7EF",
-    backgroundColor: "#FFFFFF",
   },
 });
