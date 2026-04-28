@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,6 +14,7 @@ import PlanADayTabs from "../components/planA/PlanADayTabs";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
+import PlanAScheduleInfoEditor from "../components/planA/PlanAScheduleInfoEditor";
 
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
@@ -21,6 +23,7 @@ type Props = {
   navigation: any;
   route?: {
     params?: {
+      scheduleId?: string;
       tripName?: string;
       startDate?: string;
       endDate?: string;
@@ -39,12 +42,25 @@ const DAY_OPTIONS: DayOption[] = [
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
 
+  const scheduleId = route?.params?.scheduleId;
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "04.23";
+  const location = route?.params?.location ?? "";
   const selectedPlace = route?.params?.selectedPlace;
 
   const {
+    schedule,
+    updateScheduleInfo,
+
+    saving,
+    saveError,
+    saveSuccessMessage,
+    handleSaveSchedule,
+
+    loadingSchedule,
+    loadError,
+
     currentPlaces,
 
     memoDrafts,
@@ -77,6 +93,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
   } = usePlanAPlaces({
     selectedDay,
     selectedPlace,
+    tripName,
+    startDate,
+    endDate,
+    location,
+    scheduleId,
   });
 
   useEffect(() => {
@@ -97,10 +118,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const handleAddPlace = () => {
     navigation.navigate("AddPlace", {
       day: selectedDay,
-      tripName,
-      startDate,
-      endDate,
-      location: route?.params?.location,
+      scheduleId: schedule.id,
+      tripName: schedule.tripName,
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
+      location: schedule.location,
     });
   };
 
@@ -155,15 +177,59 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
               <Text style={styles.logoText}>Plan.A</Text>
 
-              <View style={styles.headerPlaceholder} />
+              <TouchableOpacity
+                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
+                activeOpacity={0.85}
+                onPress={handleSaveSchedule}
+                disabled={saving}
+              >
+                {saving ?
+                  <ActivityIndicator size="small" color="#2158E8" />
+                : <Text style={styles.saveButtonText}>저장</Text>}
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.tripInfoBox}>
-              <Text style={styles.tripTitle}>{tripName}</Text>
-              <Text style={styles.tripPeriod}>
-                {startDate} - {endDate}
-              </Text>
-            </View>
+            <PlanAScheduleInfoEditor
+              tripName={schedule.tripName}
+              startDate={schedule.startDate}
+              endDate={schedule.endDate}
+              location={schedule.location}
+              onSave={updateScheduleInfo}
+            />
+
+            {saveSuccessMessage ?
+              <View style={styles.saveFeedbackBox}>
+                <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
+                <Text style={styles.saveSuccessText}>{saveSuccessMessage}</Text>
+              </View>
+            : null}
+
+            {saveError ?
+              <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
+                <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                <Text style={styles.saveErrorText}>{saveError}</Text>
+              </View>
+            : null}
+
+            {loadingSchedule ?
+              <View style={styles.saveFeedbackBox}>
+                <Ionicons
+                  name="cloud-download-outline"
+                  size={14}
+                  color="#2158E8"
+                />
+                <Text style={styles.loadingText}>
+                  저장된 일정을 불러오는 중...
+                </Text>
+              </View>
+            : null}
+
+            {loadError ?
+              <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
+                <Ionicons name="alert-circle" size={14} color="#EF4444" />
+                <Text style={styles.saveErrorText}>{loadError}</Text>
+              </View>
+            : null}
 
             <PlanADayTabs
               days={DAY_OPTIONS}
@@ -242,11 +308,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  headerPlaceholder: {
-    width: 34,
-    height: 34,
-  },
-
   logoText: {
     color: "#1C2534",
     fontSize: 32,
@@ -254,21 +315,63 @@ const styles = StyleSheet.create({
     letterSpacing: -1,
   },
 
-  tripInfoBox: {
-    marginTop: 4,
+  saveButton: {
+    minWidth: 48,
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 17,
+    backgroundColor: "#EAF3FF",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
-  tripTitle: {
-    color: "#252D3C",
-    fontSize: 18,
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  saveButtonText: {
+    color: "#2158E8",
+    fontSize: 13,
     fontWeight: "900",
   },
 
-  tripPeriod: {
-    marginTop: 6,
-    color: "#8C9BB1",
+  saveFeedbackBox: {
+    marginTop: 10,
+    minHeight: 32,
+    borderRadius: 10,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  saveErrorBox: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+
+  saveSuccessText: {
+    flex: 1,
+    color: "#16A34A",
     fontSize: 12,
-    fontWeight: "600",
+    fontWeight: "800",
+  },
+
+  saveErrorText: {
+    flex: 1,
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  loadingText: {
+    flex: 1,
+    color: "#2158E8",
+    fontSize: 12,
+    fontWeight: "800",
   },
 
   sheet: {

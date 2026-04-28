@@ -20,6 +20,9 @@ import { getMe } from "../../api/users/me";
 import { requestLogout } from "../../api/auth/logout";
 import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
 
+import { loadLatestPlanASchedule } from "../api/schedules/planAStorage";
+import { TravelSchedule } from "../types/schedule";
+
 type Props = {
   navigation: any;
 };
@@ -30,11 +33,76 @@ type UserInfo = {
   nickname: string;
 } | null;
 
+type MainSchedule = {
+  id: string;
+  tripName: string;
+  startDate: string;
+  endDate: string;
+  location: string;
+  source: "planA" | "legacy";
+};
+
+const formatDate = (value: string) => {
+  if (!value) return "";
+  return value.replace(/-/g, ".");
+};
+
+const convertPlanAScheduleToMainSchedule = (
+  schedule: TravelSchedule,
+): MainSchedule => {
+  return {
+    id: schedule.id,
+    tripName: schedule.tripName,
+    startDate: schedule.startDate,
+    endDate: schedule.endDate,
+    location: schedule.location,
+    source: "planA",
+  };
+};
+
+const convertSavedScheduleToMainSchedule = (
+  schedule: SavedSchedule,
+): MainSchedule => {
+  return {
+    id: schedule.id,
+    tripName: schedule.tripName,
+    startDate: schedule.startDate,
+    endDate: schedule.endDate,
+    location: schedule.location,
+    source: "legacy",
+  };
+};
+
+const mergeSchedules = ({
+  latestPlanASchedule,
+  savedSchedules,
+}: {
+  latestPlanASchedule: TravelSchedule | null;
+  savedSchedules: SavedSchedule[];
+}) => {
+  const planASchedules =
+    latestPlanASchedule ?
+      [convertPlanAScheduleToMainSchedule(latestPlanASchedule)]
+    : [];
+
+  const legacySchedules = savedSchedules.map(
+    convertSavedScheduleToMainSchedule,
+  );
+
+  const mergedSchedules = [...planASchedules, ...legacySchedules];
+
+  return mergedSchedules.filter(
+    (schedule, index, array) =>
+      array.findIndex((item) => item.id === schedule.id) === index,
+  );
+};
+
 export default function MainScreen({ navigation }: Props) {
   const [user, setUser] = useState<UserInfo>(null);
   const [loadingUser, setLoadingUser] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
-  const [schedules, setSchedules] = useState<SavedSchedule[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(false);
+  const [schedules, setSchedules] = useState<MainSchedule[]>([]);
 
   const hasSchedules = schedules.length > 0;
 
@@ -66,11 +134,26 @@ export default function MainScreen({ navigation }: Props) {
     useCallback(() => {
       const loadSchedules = async () => {
         try {
-          const savedSchedules = await getSchedules();
-          setSchedules(savedSchedules);
+          setLoadingSchedules(true);
+
+          const [savedSchedules, latestPlanASchedule] = await Promise.all([
+            getSchedules(),
+            loadLatestPlanASchedule(),
+          ]);
+
+          console.log("[Main latest PlanA schedule]", latestPlanASchedule);
+
+          const nextSchedules = mergeSchedules({
+            latestPlanASchedule,
+            savedSchedules,
+          });
+
+          setSchedules(nextSchedules);
         } catch (error) {
           console.log("일정 목록 불러오기 실패:", error);
           setSchedules([]);
+        } finally {
+          setLoadingSchedules(false);
         }
       };
 
@@ -109,8 +192,9 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
-  const handlePressSchedule = (schedule: SavedSchedule) => {
+  const handlePressSchedule = (schedule: MainSchedule) => {
     navigation.navigate("PlanA", {
+      scheduleId: schedule.source === "planA" ? schedule.id : undefined,
       tripName: schedule.tripName,
       startDate: schedule.startDate,
       endDate: schedule.endDate,
@@ -138,6 +222,17 @@ export default function MainScreen({ navigation }: Props) {
   };
 
   const renderScheduleList = () => {
+    if (loadingSchedules) {
+      return (
+        <View style={styles.scheduleLoadingBox}>
+          <ActivityIndicator color="#2158E8" size="small" />
+          <Text style={styles.scheduleLoadingText}>
+            저장된 일정을 불러오는 중...
+          </Text>
+        </View>
+      );
+    }
+
     if (!hasSchedules) {
       return null;
     }
@@ -146,7 +241,7 @@ export default function MainScreen({ navigation }: Props) {
       <View style={styles.scheduleList}>
         {schedules.map((schedule) => (
           <TouchableOpacity
-            key={schedule.id}
+            key={`${schedule.source}-${schedule.id}`}
             style={styles.scheduleCard}
             activeOpacity={0.85}
             onPress={() => handlePressSchedule(schedule)}
@@ -158,12 +253,14 @@ export default function MainScreen({ navigation }: Props) {
                 </Text>
 
                 <Text style={styles.scheduleLocation} numberOfLines={1}>
-                  {schedule.location}
+                  {schedule.location || "지역 미정"}
                 </Text>
               </View>
 
               <View style={styles.scheduleBadge}>
-                <Text style={styles.scheduleBadgeText}>Plan.A</Text>
+                <Text style={styles.scheduleBadgeText}>
+                  {schedule.source === "planA" ? "Plan.A" : "일정"}
+                </Text>
               </View>
             </View>
 
@@ -171,8 +268,8 @@ export default function MainScreen({ navigation }: Props) {
               <Ionicons name="calendar-outline" size={15} color="#64748B" />
 
               <Text style={styles.schedulePeriod}>
-                {schedule.startDate.replace(/-/g, ".")} -{" "}
-                {schedule.endDate.replace(/-/g, ".")}
+                {formatDate(schedule.startDate)} -{" "}
+                {formatDate(schedule.endDate)}
               </Text>
             </View>
           </TouchableOpacity>
@@ -199,7 +296,7 @@ export default function MainScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.contentArea}>
-          {!hasSchedules ?
+          {!hasSchedules && !loadingSchedules ?
             <View style={styles.iconArea}>
               <View style={styles.backgroundLayer}>
                 <RadialBackground />
@@ -392,6 +489,26 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: "#64748B",
     textAlign: "center",
+  },
+
+  scheduleLoadingBox: {
+    width: "100%",
+    minHeight: 46,
+    marginTop: 18,
+    borderRadius: 14,
+    backgroundColor: "#EAF3FF",
+    borderWidth: 1,
+    borderColor: "#DCEBFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  scheduleLoadingText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "800",
   },
 
   scheduleList: {

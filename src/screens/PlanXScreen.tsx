@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -8,20 +9,28 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import { useFocusEffect } from "@react-navigation/native";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
+import { loadLatestPlanASchedule } from "../api/schedules/planAStorage";
+import { TravelSchedule } from "../types/schedule";
 
 type Props = {
   navigation: any;
 };
 
+type PlanXDisplayTrip = PlanXTrip & {
+  source?: "saved" | "mock";
+  scheduleId?: string;
+};
+
 /**
  * 임시 목데이터
  *
- * 나중에는 서버 또는 AsyncStorage에서 지난 여행 목록을 받아와서
- * 이 배열을 대체하면 된다.
+ * 저장된 Plan.A 일정이 있으면 목록 맨 위에 추가로 표시된다.
+ * 나중에는 서버 또는 AsyncStorage 전체 목록으로 대체하면 된다.
  */
-const MOCK_TRIPS: PlanXTrip[] = [
+const MOCK_TRIPS: PlanXDisplayTrip[] = [
   {
     id: "1",
     title: "제주도 힐링여행",
@@ -30,6 +39,7 @@ const MOCK_TRIPS: PlanXTrip[] = [
     location: "제주",
     placeCount: 8,
     emoji: "🏝️",
+    source: "mock",
   },
   {
     id: "2",
@@ -39,6 +49,7 @@ const MOCK_TRIPS: PlanXTrip[] = [
     location: "강릉",
     placeCount: 6,
     emoji: "🌊",
+    source: "mock",
   },
   {
     id: "3",
@@ -48,23 +59,89 @@ const MOCK_TRIPS: PlanXTrip[] = [
     location: "부산",
     placeCount: 9,
     emoji: "🌉",
+    source: "mock",
   },
 ];
 
+const getPlaceCount = (schedule: TravelSchedule) => {
+  return schedule.days.reduce((total, day) => {
+    return total + day.places.length;
+  }, 0);
+};
+
+const convertScheduleToPlanXTrip = (
+  schedule: TravelSchedule,
+): PlanXDisplayTrip => {
+  return {
+    id: schedule.id,
+    scheduleId: schedule.id,
+    title: schedule.tripName,
+    startDate: schedule.startDate,
+    endDate: schedule.endDate,
+    location: schedule.location || "지역 미정",
+    placeCount: getPlaceCount(schedule),
+    emoji: "🧳",
+    source: "saved",
+  };
+};
+
 export default function PlanXScreen({ navigation }: Props) {
+  const [trips, setTrips] = useState<PlanXDisplayTrip[]>(MOCK_TRIPS);
+  const [loading, setLoading] = useState(false);
+
+  useFocusEffect(
+    useCallback(() => {
+      const loadTrips = async () => {
+        try {
+          setLoading(true);
+
+          const latestSchedule = await loadLatestPlanASchedule();
+
+          if (!latestSchedule) {
+            setTrips(MOCK_TRIPS);
+            return;
+          }
+
+          const savedTrip = convertScheduleToPlanXTrip(latestSchedule);
+
+          const filteredMockTrips = MOCK_TRIPS.filter(
+            (trip) => trip.id !== savedTrip.id,
+          );
+
+          setTrips([savedTrip, ...filteredMockTrips]);
+        } catch (error) {
+          console.log("Plan.X 일정 불러오기 실패:", error);
+          setTrips(MOCK_TRIPS);
+        } finally {
+          setLoading(false);
+        }
+      };
+
+      loadTrips();
+    }, []),
+  );
+
   const handleBack = () => {
     navigation.goBack();
   };
 
   const handlePressTrip = (trip: PlanXTrip) => {
-    /**
-     * 추후 지난 여행 상세 화면 연결 예정
-     *
-     * 예:
-     * navigation.navigate("PlanXDetail", {
-     *   tripId: trip.id,
-     * });
-     */
+    const selectedTrip = trips.find(
+      (item) => item.id === trip.id && item.title === trip.title,
+    );
+
+    if (selectedTrip?.source === "saved" && selectedTrip.scheduleId) {
+      navigation.navigate("PlanA", {
+        scheduleId: selectedTrip.scheduleId,
+        tripName: selectedTrip.title,
+        startDate: selectedTrip.startDate,
+        endDate: selectedTrip.endDate,
+        location: selectedTrip.location,
+      });
+
+      return;
+    }
+
     console.log("[지난 여행 선택]", trip);
   };
 
@@ -96,9 +173,18 @@ export default function PlanXScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.listSection}>
-          {MOCK_TRIPS.map((trip) => (
+          {loading ?
+            <View style={styles.loadingBox}>
+              <ActivityIndicator color="#2158E8" />
+              <Text style={styles.loadingText}>
+                저장된 여행을 불러오는 중...
+              </Text>
+            </View>
+          : null}
+
+          {trips.map((trip) => (
             <PlanXTripCard
-              key={trip.id}
+              key={`${trip.source}-${trip.id}`}
               trip={trip}
               onPress={handlePressTrip}
             />
@@ -171,5 +257,24 @@ const styles = StyleSheet.create({
 
   listSection: {
     paddingHorizontal: 21,
+  },
+
+  loadingBox: {
+    minHeight: 44,
+    borderRadius: 14,
+    backgroundColor: "#EAF3FF",
+    borderWidth: 1,
+    borderColor: "#DCEBFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    marginBottom: 14,
+  },
+
+  loadingText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

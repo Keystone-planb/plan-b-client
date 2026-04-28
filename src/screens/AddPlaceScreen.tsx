@@ -16,6 +16,7 @@ type Props = {
   route?: {
     params?: {
       day?: number;
+      scheduleId?: string;
       tripName?: string;
       startDate?: string;
       endDate?: string;
@@ -88,6 +89,7 @@ export default function AddPlaceScreen({ navigation, route }: Props) {
   const [keyword, setKeyword] = useState("");
 
   const day = route?.params?.day ?? 1;
+  const scheduleId = route?.params?.scheduleId;
 
   const filteredPlaces = useMemo(() => {
     const normalizedKeyword = keyword.trim().toLowerCase();
@@ -114,6 +116,7 @@ export default function AddPlaceScreen({ navigation, route }: Props) {
 
   const handleSelectPlace = (place: PlaceOption) => {
     navigation.navigate("PlanA", {
+      scheduleId,
       tripName: route?.params?.tripName,
       startDate: route?.params?.startDate,
       endDate: route?.params?.endDate,

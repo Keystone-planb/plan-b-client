@@ -62,6 +62,7 @@ export type RootStackParamList = {
 
   // 플랜
   PlanA: {
+    scheduleId?: string;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -81,6 +82,7 @@ export type RootStackParamList = {
 
   AddPlace: {
     day?: number;
+    scheduleId?: string;
     tripName?: string;
     startDate?: string;
     endDate?: string;

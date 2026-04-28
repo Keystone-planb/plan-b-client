@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -105,7 +106,19 @@ export default function PlanAMemoList({
             <TouchableOpacity
               style={styles.memoDeleteButton}
               activeOpacity={0.8}
-              onPress={() => onDeleteMemo(place.id, item.id)}
+              onPress={() => {
+                Alert.alert("메모 삭제", "이 메모를 삭제할까요?", [
+                  {
+                    text: "취소",
+                    style: "cancel",
+                  },
+                  {
+                    text: "삭제",
+                    style: "destructive",
+                    onPress: () => onDeleteMemo(place.id, item.id),
+                  },
+                ]);
+              }}
             >
               <Ionicons name="trash-outline" size={14} color="#94A3B8" />
             </TouchableOpacity>

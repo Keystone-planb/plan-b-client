@@ -1,5 +1,6 @@
 import React from "react";
 import {
+  Alert,
   StyleSheet,
   Text,
   TextInput,
@@ -8,7 +9,7 @@ import {
 } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import { PlaceItem } from "../../types/planA";
+import { MemoItem, PlaceItem } from "../../types/planA";
 import PlanAMemoList from "./PlanAMemoList";
 
 type EditingMemoState = {
@@ -38,10 +39,7 @@ type Props = {
   onChangeMemoDraft: (placeId: string, value: string) => void;
   onAddMemo: (placeId: string) => void;
   onClearMemo: (placeId: string) => void;
-  onStartEditMemo: (
-    placeId: string,
-    item: { id: string; text: string },
-  ) => void;
+  onStartEditMemo: (placeId: string, item: MemoItem) => void;
   onCancelEditMemo: () => void;
   onSaveEditMemo: () => void;
   onDeleteMemo: (placeId: string, memoId: string) => void;
@@ -133,7 +131,23 @@ export default function PlanAPlaceCard({
               <TouchableOpacity
                 style={styles.placeDeleteButton}
                 activeOpacity={0.85}
-                onPress={() => onDeletePlace(place.id)}
+                onPress={() => {
+                  Alert.alert(
+                    "장소 삭제",
+                    "이 장소와 연결된 메모가 함께 삭제됩니다. 삭제할까요?",
+                    [
+                      {
+                        text: "취소",
+                        style: "cancel",
+                      },
+                      {
+                        text: "삭제",
+                        style: "destructive",
+                        onPress: () => onDeletePlace(place.id),
+                      },
+                    ],
+                  );
+                }}
               >
                 <Ionicons name="trash-outline" size={15} color="#FFFFFF" />
               </TouchableOpacity>
