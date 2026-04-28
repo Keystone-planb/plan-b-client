@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
   MemoItem,
@@ -12,6 +13,15 @@ import {
   loadPlanASchedule,
   savePlanASchedule,
 } from "../api/schedules/planAStorage";
+import {
+  addLocationToTripDay,
+  createTrip,
+  deleteTrip,
+} from "../../api/schedules/server";
+import {
+  toAddLocationRequests,
+  toCreateTripRequest,
+} from "../utils/schedules/serverMapper";
 
 type EditingMemoState = {
   placeId: string;
@@ -280,10 +290,6 @@ export function usePlanAPlaces({
   useEffect(() => {
     if (!hasLoadedSavedSchedule) return;
 
-    /**
-     * 저장된 일정이 있으면 route params로 덮어쓰지 않는다.
-     * 저장된 일정이 없을 때만 최초 params를 schedule 기본 정보로 반영한다.
-     */
     if (loadedSavedSchedule) return;
 
     updateScheduleInfo({
@@ -350,29 +356,92 @@ export function usePlanAPlaces({
   };
 
   const handleSaveSchedule = async () => {
+    const scheduleBase = {
+      ...schedule,
+      updatedAt: createNow(),
+    };
+
     try {
       setSaving(true);
       setSaveError("");
       setSaveSuccessMessage("");
 
+      const accessToken = await AsyncStorage.getItem("access_token");
+
+      if (!accessToken) {
+        console.log("[PlanA 로컬 저장]", {
+          reason: "access_token 없음",
+          localScheduleId: scheduleBase.id,
+          tripName: scheduleBase.tripName,
+        });
+
+        await savePlanASchedule(scheduleBase);
+
+        setSchedule(scheduleBase);
+        setLoadedSavedSchedule(true);
+        setSaveSuccessMessage("로그인 토큰이 없어 로컬에만 저장되었습니다.");
+
+        return;
+      }
+
+      console.log("[PlanA 서버 저장 시도]", {
+        localScheduleId: scheduleBase.id,
+        serverTripId: scheduleBase.serverTripId,
+        tripName: scheduleBase.tripName,
+      });
+
+      if (scheduleBase.serverTripId) {
+        await deleteTrip(scheduleBase.serverTripId);
+        console.log("[PlanA 기존 서버 여행 삭제 완료]", {
+          serverTripId: scheduleBase.serverTripId,
+        });
+      }
+
+      const createdTrip = await createTrip(toCreateTripRequest(scheduleBase));
+
+      console.log("[PlanA 서버 여행 생성 완료]", createdTrip);
+
+      const locationRequests = toAddLocationRequests(scheduleBase);
+
+      for (const item of locationRequests) {
+        const createdLocation = await addLocationToTripDay({
+          tripId: createdTrip.tripId,
+          day: item.day,
+          payload: item.payload,
+        });
+
+        console.log("[PlanA 서버 장소 추가 완료]", createdLocation);
+      }
+
       const scheduleToSave = {
-        ...schedule,
+        ...scheduleBase,
+        serverTripId: createdTrip.tripId,
+        tripName: createdTrip.title,
+        startDate: createdTrip.startDate,
+        endDate: createdTrip.endDate,
         updatedAt: createNow(),
       };
-
-      console.log("[PlanA 저장 시도]", {
-        scheduleId: scheduleToSave.id,
-        tripName: scheduleToSave.tripName,
-      });
 
       await savePlanASchedule(scheduleToSave);
 
       setSchedule(scheduleToSave);
       setLoadedSavedSchedule(true);
-      setSaveSuccessMessage("Plan.A 변경사항이 저장되었습니다.");
+      setSaveSuccessMessage("Plan.A 변경사항이 서버와 로컬에 저장되었습니다.");
     } catch (error) {
-      console.log("Plan.A 저장 실패:", error);
-      setSaveError("Plan.A 변경사항 저장에 실패했습니다.");
+      console.log("Plan.A 서버 저장 실패:", error);
+
+      try {
+        await savePlanASchedule(scheduleBase);
+
+        setSchedule(scheduleBase);
+        setLoadedSavedSchedule(true);
+        setSaveError(
+          "서버 저장은 실패했지만, 변경사항은 로컬에 저장되었습니다.",
+        );
+      } catch (localSaveError) {
+        console.log("Plan.A 로컬 백업 저장 실패:", localSaveError);
+        setSaveError("Plan.A 변경사항 저장에 실패했습니다.");
+      }
     } finally {
       setSaving(false);
     }

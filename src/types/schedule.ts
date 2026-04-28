@@ -22,6 +22,7 @@ export type ScheduleDay = {
 
 export type TravelSchedule = {
   id: string;
+  serverTripId?: number;
   tripName: string;
   startDate: string;
   endDate: string;
