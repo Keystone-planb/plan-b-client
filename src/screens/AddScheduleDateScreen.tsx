@@ -1,20 +1,24 @@
 import React, { useState } from "react";
 import {
-  View,
+  Alert,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Alert,
+  View,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+
 import TravelDateRangeModal from "../components/TravelDateRangeModal";
 
 type Props = {
   navigation: any;
-  route: any;
+  route: {
+    params?: {
+      tripName?: string;
+    };
+  };
 };
 
 export default function AddScheduleDateScreen({ navigation, route }: Props) {
@@ -43,7 +47,15 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
     });
   };
 
-  const formatDate = (value: string) => value.replace(/-/g, ".");
+  const formatDate = (value: string) => {
+    if (!value) return "";
+
+    return value.replace(/-/g, ".");
+  };
+
+  const openCalendar = () => {
+    setCalendarVisible(true);
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -56,12 +68,11 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
         >
           <View style={styles.headerRow}>
             <TouchableOpacity
-              style={[styles.nextButton, !canGoNext && styles.disabledButton]}
-              onPress={handleComplete}
-              activeOpacity={0.85}
-              disabled={!canGoNext}
+              style={styles.iconButton}
+              onPress={handleBack}
+              activeOpacity={0.8}
             >
-              <Text style={styles.nextButtonText}>다음</Text>
+              <Ionicons name="chevron-back" size={24} color="#1C2534" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Plan.A</Text>
@@ -90,7 +101,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
               <TouchableOpacity
                 style={styles.dateField}
                 activeOpacity={0.85}
-                onPress={() => setCalendarVisible(true)}
+                onPress={openCalendar}
               >
                 <Text
                   style={[
@@ -98,7 +109,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
                     startDate && styles.selectedDateText,
                   ]}
                 >
-                  {startDate ? formatDate(startDate) : "2026.01.01"}
+                  {startDate ? formatDate(startDate) : "출발일 선택"}
                 </Text>
 
                 <View style={styles.calendarButton}>
@@ -108,17 +119,17 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>종료일</Text>
+              <Text style={styles.fieldLabel}>도착일</Text>
 
               <TouchableOpacity
                 style={styles.dateField}
                 activeOpacity={0.85}
-                onPress={() => setCalendarVisible(true)}
+                onPress={openCalendar}
               >
                 <Text
                   style={[styles.dateText, endDate && styles.selectedDateText]}
                 >
-                  {endDate ? formatDate(endDate) : "2026.01.02"}
+                  {endDate ? formatDate(endDate) : "도착일 선택"}
                 </Text>
 
                 <View style={styles.calendarButton}>
@@ -129,15 +140,11 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
           </View>
         </ScrollView>
 
-        {/* 
-          중요:
-          하단 버튼은 ScrollView 밖에 있어야 함.
-          그래야 이름 입력 화면처럼 스크롤하지 않아도 항상 보인다.
-        */}
         <View style={styles.footerSection}>
           <View style={styles.pagination}>
             <View style={styles.dot} />
             <View style={styles.activeDot} />
+            <View style={styles.dot} />
           </View>
 
           <TouchableOpacity
@@ -159,6 +166,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
         onApply={({ startDate: nextStartDate, endDate: nextEndDate }) => {
           setStartDate(nextStartDate);
           setEndDate(nextEndDate);
+          setCalendarVisible(false);
         }}
       />
     </SafeAreaView>
@@ -222,7 +230,7 @@ const styles = StyleSheet.create({
   illustrationWrapper: {
     width: 174,
     height: 174,
-    borderRadius: 999,
+    borderRadius: 87,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 28,
@@ -272,8 +280,9 @@ const styles = StyleSheet.create({
   fieldLabel: {
     color: "#252D3C",
     fontSize: 14,
-    fontWeight: "700",
+    fontWeight: "800",
     marginBottom: 8,
+    marginLeft: 4,
   },
 
   dateField: {
@@ -292,12 +301,12 @@ const styles = StyleSheet.create({
   dateText: {
     color: "#8C9BB1",
     fontSize: 16,
-    fontWeight: "500",
+    fontWeight: "600",
   },
 
   selectedDateText: {
     color: "#1C2534",
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   calendarButton: {
@@ -328,6 +337,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: "#2158E8",
+    marginRight: 8,
   },
 
   dot: {
@@ -361,6 +371,6 @@ const styles = StyleSheet.create({
   nextButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 });

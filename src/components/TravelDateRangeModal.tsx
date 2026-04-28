@@ -1,5 +1,5 @@
-import React, { useMemo, useState } from "react";
-import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
@@ -47,11 +47,11 @@ function getDatesInRange(start: string, end: string) {
   const last = new Date(end);
 
   while (current <= last) {
-    const y = current.getFullYear();
-    const m = String(current.getMonth() + 1).padStart(2, "0");
-    const d = String(current.getDate()).padStart(2, "0");
+    const year = current.getFullYear();
+    const month = String(current.getMonth() + 1).padStart(2, "0");
+    const day = String(current.getDate()).padStart(2, "0");
 
-    dates.push(`${y}-${m}-${d}`);
+    dates.push(`${year}-${month}-${day}`);
     current.setDate(current.getDate() + 1);
   }
 
@@ -97,40 +97,49 @@ export default function TravelDateRangeModal({
   onClose,
   onApply,
 }: Props) {
-  const [startDate, setStartDate] = useState(initialStartDate ?? "");
-  const [endDate, setEndDate] = useState(initialEndDate ?? "");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
 
-  const markedDates = useMemo(
-    () => buildMarkedDates(startDate || undefined, endDate || undefined),
-    [startDate, endDate],
-  );
+  useEffect(() => {
+    if (!visible) return;
+
+    setStartDate(initialStartDate ?? "");
+    setEndDate(initialEndDate ?? "");
+    setErrorMessage("");
+  }, [visible, initialStartDate, initialEndDate]);
+
+  const markedDates = useMemo(() => {
+    return buildMarkedDates(startDate || undefined, endDate || undefined);
+  }, [startDate, endDate]);
+
+  const isApplyDisabled = !startDate || !endDate;
 
   const handleDayPress = (day: DateData) => {
-    const selected = day.dateString;
+    const selectedDate = day.dateString;
 
     setErrorMessage("");
 
     /**
-     * 시작일이 없거나 이미 범위가 완성된 상태면
-     * 새 출발일로 다시 시작한다.
+     * 출발일이 없거나 이미 출발일/도착일 선택이 끝난 상태라면
+     * 새 출발일로 다시 선택한다.
      */
-    if (!startDate || (startDate && endDate)) {
-      setStartDate(selected);
+    if (!startDate || endDate) {
+      setStartDate(selectedDate);
       setEndDate("");
       return;
     }
 
     /**
-     * 종료일은 출발일보다 빠를 수 없음.
-     * 기존 출발일은 유지하고, 종료일만 선택하지 않는다.
+     * 도착일은 출발일보다 빠를 수 없다.
+     * 이 경우 기존 출발일은 유지하고 에러만 표시한다.
      */
-    if (selected < startDate) {
+    if (selectedDate < startDate) {
       setErrorMessage("도착일은 출발일보다 빠를 수 없어요!");
       return;
     }
 
-    setEndDate(selected);
+    setEndDate(selectedDate);
   };
 
   const handleClose = () => {
@@ -144,21 +153,28 @@ export default function TravelDateRangeModal({
       return;
     }
 
-    onApply({ startDate, endDate });
+    onApply({
+      startDate,
+      endDate,
+    });
+
     setErrorMessage("");
     onClose();
   };
 
-  const isApplyDisabled = !startDate || !endDate;
-
   return (
-    <Modal visible={visible} animationType="slide" transparent>
+    <Modal
+      visible={visible}
+      animationType="slide"
+      transparent
+      onRequestClose={handleClose}
+    >
       <View style={styles.overlay}>
         <View style={styles.sheet}>
           <View style={styles.handle} />
 
           <View style={styles.headerRow}>
-            <View>
+            <View style={styles.headerTextBox}>
               <Text style={styles.title}>여행 날짜 선택</Text>
               <Text style={styles.subtitle}>
                 여행의 출발일과 도착일을 선택해주세요
@@ -315,6 +331,11 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: 14,
+    gap: 12,
+  },
+
+  headerTextBox: {
+    flex: 1,
   },
 
   title: {
@@ -329,6 +350,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
     color: TEXT_SUB,
+    lineHeight: 19,
   },
 
   closeButton: {
@@ -353,6 +375,7 @@ const styles = StyleSheet.create({
   },
 
   errorText: {
+    flex: 1,
     marginLeft: 6,
     fontSize: 12,
     fontWeight: "800",

@@ -66,6 +66,12 @@ export type RootStackParamList = {
     startDate?: string;
     endDate?: string;
     location?: string;
+    selectedPlace?: {
+      id: string;
+      name: string;
+      time?: string;
+      day?: number;
+    };
   };
 
   PlanX: undefined;
@@ -75,6 +81,10 @@ export type RootStackParamList = {
 
   AddPlace: {
     day?: number;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
   };
 
   AddScheduleDate: {
@@ -129,6 +139,8 @@ const linking = {
 
       PlanA: "plan-a",
       PlanX: "plan-x",
+
+      AddPlace: "add-place",
 
       AddSchedule: "add-schedule",
       AddScheduleDate: "add-schedule-date",

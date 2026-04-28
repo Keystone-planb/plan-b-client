@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
@@ -57,22 +58,33 @@ const LOCATION_OPTIONS: LocationOption[] = [
   },
 ];
 
+const formatDate = (value: string) => {
+  if (!value) return "";
+  return value.replace(/-/g, ".");
+};
+
 export default function AddScheduleLocationScreen({
   navigation,
   route,
 }: Props) {
   const [selectedLocation, setSelectedLocation] =
     useState<LocationOption | null>(null);
+  const [saving, setSaving] = useState(false);
 
   const tripName = route.params?.tripName ?? "";
   const startDate = route.params?.startDate ?? "";
   const endDate = route.params?.endDate ?? "";
 
+  const canComplete = Boolean(selectedLocation) && !saving;
+
   const handleBack = () => {
+    if (saving) return;
     navigation.goBack();
   };
 
   const handleComplete = async () => {
+    if (saving) return;
+
     if (!selectedLocation) {
       Alert.alert("알림", "여행 지역을 선택해주세요.");
       return;
@@ -84,6 +96,8 @@ export default function AddScheduleLocationScreen({
     }
 
     try {
+      setSaving(true);
+
       const savedSchedule = await saveSchedule({
         tripName,
         startDate,
@@ -110,6 +124,8 @@ export default function AddScheduleLocationScreen({
     } catch (error) {
       console.log("일정 저장 실패:", error);
       Alert.alert("오류", "일정 저장에 실패했습니다.");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -120,33 +136,31 @@ export default function AddScheduleLocationScreen({
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          bounces={false}
         >
-          <View style={styles.header}>
+          <View style={styles.headerRow}>
             <TouchableOpacity
+              style={styles.iconButton}
               onPress={handleBack}
-              style={styles.backButton}
-              activeOpacity={0.75}
+              activeOpacity={0.8}
+              disabled={saving}
             >
-              <Ionicons name="chevron-back" size={24} color="#1E293B" />
+              <Ionicons name="chevron-back" size={24} color="#1C2534" />
             </TouchableOpacity>
 
-            <Text style={styles.headerTitle}>일정 추가</Text>
+            <Text style={styles.headerTitle}>Plan.A</Text>
 
-            <View style={styles.headerSpacer} />
+            <View style={styles.iconPlaceholder} />
           </View>
 
-          <View style={styles.progressBox}>
-            <View style={styles.progressTrack}>
-              <View style={styles.progressFill} />
+          <View style={styles.centerSection}>
+            <View style={styles.illustrationWrapper}>
+              <Text style={styles.illustrationEmoji}>📍</Text>
             </View>
 
-            <Text style={styles.progressText}>3 / 3</Text>
-          </View>
+            <Text style={styles.title}>어디로{"\n"}떠나시나요?</Text>
 
-          <View style={styles.titleSection}>
-            <Text style={styles.title}>어디로 떠나시나요?</Text>
-
-            <Text style={styles.subtitle}>
+            <Text style={styles.description}>
               여행할 지역을 선택하면 Plan.A 일정 화면으로 이동해요.
             </Text>
           </View>
@@ -156,16 +170,16 @@ export default function AddScheduleLocationScreen({
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryKey}>여행명</Text>
-              <Text style={styles.summaryValue}>
+              <Text style={styles.summaryValue} numberOfLines={1}>
                 {tripName || "입력된 여행명이 없습니다"}
               </Text>
             </View>
 
             <View style={styles.summaryRow}>
               <Text style={styles.summaryKey}>기간</Text>
-              <Text style={styles.summaryValue}>
+              <Text style={styles.summaryValue} numberOfLines={1}>
                 {startDate && endDate ?
-                  `${startDate} - ${endDate}`
+                  `${formatDate(startDate)} - ${formatDate(endDate)}`
                 : "선택된 날짜가 없습니다"}
               </Text>
             </View>
@@ -184,6 +198,7 @@ export default function AddScheduleLocationScreen({
                   ]}
                   activeOpacity={0.85}
                   onPress={() => setSelectedLocation(location)}
+                  disabled={saving}
                 >
                   <View style={styles.locationTextBox}>
                     <Text
@@ -217,16 +232,24 @@ export default function AddScheduleLocationScreen({
         </ScrollView>
 
         <View style={styles.footerSection}>
+          <View style={styles.pagination}>
+            <View style={styles.dot} />
+            <View style={styles.dot} />
+            <View style={styles.activeDot} />
+          </View>
+
           <TouchableOpacity
             style={[
               styles.completeButton,
-              !selectedLocation && styles.disabledButton,
+              !canComplete && styles.disabledButton,
             ]}
             activeOpacity={0.85}
             onPress={handleComplete}
-            disabled={!selectedLocation}
+            disabled={!canComplete}
           >
-            <Text style={styles.completeButtonText}>Plan.A 만들기</Text>
+            {saving ?
+              <ActivityIndicator color="#FFFFFF" />
+            : <Text style={styles.completeButtonText}>Plan.A 만들기</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -237,11 +260,12 @@ export default function AddScheduleLocationScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: "#FFFFFF",
   },
 
   screen: {
     flex: 1,
+    backgroundColor: "#F7F9FB",
   },
 
   container: {
@@ -249,83 +273,85 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingHorizontal: 24,
+    flexGrow: 1,
+    paddingTop: 18,
+    paddingHorizontal: 21,
     paddingBottom: 24,
   },
 
-  header: {
-    height: 54,
+  headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    marginBottom: 34,
+    paddingHorizontal: 4,
   },
 
-  backButton: {
-    width: 38,
-    height: 38,
+  iconButton: {
+    width: 30,
+    height: 30,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 19,
-    backgroundColor: "#FFFFFF",
+  },
+
+  iconPlaceholder: {
+    width: 30,
+    height: 30,
   },
 
   headerTitle: {
-    fontSize: 17,
-    fontWeight: "800",
-    color: "#1E293B",
+    color: "#1C2534",
+    fontSize: 40,
+    fontWeight: "900",
+    textAlign: "center",
   },
 
-  headerSpacer: {
-    width: 38,
+  centerSection: {
+    alignItems: "center",
+    marginBottom: 28,
   },
 
-  progressBox: {
-    marginTop: 8,
+  illustrationWrapper: {
+    width: 174,
+    height: 174,
+    borderRadius: 87,
+    backgroundColor: "#EAF3FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 28,
+    shadowColor: "#000000",
+    shadowOpacity: 0.12,
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowRadius: 15,
+    elevation: 12,
   },
 
-  progressTrack: {
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    overflow: "hidden",
-  },
-
-  progressFill: {
-    width: "100%",
-    height: "100%",
-    borderRadius: 999,
-    backgroundColor: "#2158E8",
-  },
-
-  progressText: {
-    alignSelf: "flex-end",
-    marginTop: 8,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  titleSection: {
-    marginTop: 28,
+  illustrationEmoji: {
+    fontSize: 68,
   },
 
   title: {
-    fontSize: 28,
-    fontWeight: "900",
-    color: "#1E293B",
-    letterSpacing: -0.8,
+    color: "#000000",
+    fontSize: 30,
+    fontWeight: "800",
+    textAlign: "center",
+    lineHeight: 40,
+    marginBottom: 14,
   },
 
-  subtitle: {
-    marginTop: 10,
-    fontSize: 15,
-    lineHeight: 22,
-    color: "#64748B",
-    fontWeight: "500",
+  description: {
+    color: "#627187",
+    fontSize: 16,
+    textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 8,
   },
 
   summaryCard: {
-    marginTop: 24,
+    marginTop: 2,
     padding: 18,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
@@ -336,7 +362,7 @@ const styles = StyleSheet.create({
   summaryLabel: {
     marginBottom: 12,
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#2158E8",
   },
 
@@ -363,7 +389,7 @@ const styles = StyleSheet.create({
   },
 
   locationList: {
-    marginTop: 24,
+    marginTop: 20,
     gap: 12,
   },
 
@@ -424,25 +450,49 @@ const styles = StyleSheet.create({
   },
 
   footerSection: {
-    paddingHorizontal: 24,
+    paddingHorizontal: 21,
     paddingTop: 14,
     paddingBottom: 18,
     backgroundColor: "#F7F9FB",
-    borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+  },
+
+  pagination: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+  activeDot: {
+    width: 24,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#2158E8",
+    marginRight: 8,
+  },
+
+  dot: {
+    width: 6,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#E1E7EF",
+    marginRight: 8,
   },
 
   completeButton: {
-    height: 54,
-    borderRadius: 16,
+    height: 56,
+    borderRadius: 14,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.24,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 10,
   },
 
   disabledButton: {
@@ -451,7 +501,7 @@ const styles = StyleSheet.create({
 
   completeButtonText: {
     fontSize: 16,
-    fontWeight: "900",
+    fontWeight: "800",
     color: "#FFFFFF",
   },
 });
