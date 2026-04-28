@@ -27,7 +27,6 @@ export type RootStackParamList = {
 
   Login: undefined;
   SignUp: undefined;
-
   OAuthRedirect: undefined;
 
   Main: undefined;
@@ -70,6 +69,24 @@ const linking = {
   },
 };
 
+/**
+ * 온보딩 화면 전환 옵션
+ * - 페이지가 오른쪽에서 자연스럽게 넘어오도록 통일
+ */
+const onboardingScreenOptions = {
+  animation: "slide_from_right" as const,
+  animationDuration: 260,
+};
+
+/**
+ * 인증/리다이렉트 화면 전환 옵션
+ * - 로그인, 회원가입, OAuth 처리 화면은 튀지 않게 fade 계열 사용
+ */
+const authScreenOptions = {
+  animation: "fade" as const,
+  animationDuration: 240,
+};
+
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<
     keyof RootStackParamList | null
@@ -104,39 +121,53 @@ export default function App() {
         initialRouteName={initialRoute}
         screenOptions={{
           headerShown: false,
+          gestureEnabled: true,
           animation: "slide_from_right",
-          animationDuration: 300,
+          animationDuration: 260,
+          contentStyle: {
+            backgroundColor: "#F7F9FB",
+          },
         }}
       >
+        {/* Onboarding */}
         <Stack.Screen
           name="OnboardingFirst"
           component={OnboardingFirstScreen}
+          options={onboardingScreenOptions}
         />
 
         <Stack.Screen
           name="OnboardingSecond"
           component={OnboardingSecondScreen}
+          options={onboardingScreenOptions}
         />
 
         <Stack.Screen
           name="OnboardingThird"
           component={OnboardingThirdScreen}
+          options={onboardingScreenOptions}
         />
 
         <Stack.Screen
           name="OnboardingFourth"
           component={OnboardingFourthScreen}
+          options={onboardingScreenOptions}
         />
 
-        <Stack.Screen name="Login" component={LoginScreen} />
+        {/* Auth */}
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{
+            animation: "fade_from_bottom",
+            animationDuration: 260,
+          }}
+        />
 
         <Stack.Screen
           name="SignUp"
           component={SignUpScreen}
-          options={{
-            animation: "fade",
-            animationDuration: 300,
-          }}
+          options={authScreenOptions}
         />
 
         <Stack.Screen
@@ -144,16 +175,38 @@ export default function App() {
           component={OAuthRedirectScreen}
           options={{
             animation: "fade",
+            animationDuration: 180,
           }}
         />
 
-        <Stack.Screen name="Main" component={MainScreen} />
+        {/* Main */}
+        <Stack.Screen
+          name="Main"
+          component={MainScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 240,
+            gestureEnabled: false,
+          }}
+        />
 
-        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        {/* Add Schedule */}
+        <Stack.Screen
+          name="AddSchedule"
+          component={AddScheduleNameScreen}
+          options={{
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
 
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

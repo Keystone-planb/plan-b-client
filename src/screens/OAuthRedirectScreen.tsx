@@ -11,10 +11,10 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
+  getOAuthFailureMessage,
   handleOAuthSuccessUrl,
   isOAuthFailureUrl,
   isOAuthSuccessUrl,
-  parseOAuthError,
 } from "../utils/authToken";
 
 type Props = {
@@ -49,7 +49,7 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
         }
 
         if (isOAuthFailureUrl(url)) {
-          throw new Error(parseOAuthError(url));
+          throw new Error(getOAuthFailureMessage(url));
         }
 
         if (!isOAuthSuccessUrl(url)) {

@@ -1,21 +1,24 @@
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 
-const SOCIAL_BASE_URL = "https://api-dev.planb-travel.cloud";
+import { API_CONFIG } from "../config";
 
 export type SocialProvider = "kakao" | "google";
 
-const getWebRedirectUri = () => {
-  if (typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}/oauth/success`;
-  }
+type SocialAuthUrlResult = {
+  provider: SocialProvider;
+  redirectUri: string;
+  authUrl: string;
+};
 
-  return "http://localhost:8081/oauth/success";
+const SOCIAL_AUTH_PATH: Record<SocialProvider, string> = {
+  kakao: "/oauth2/authorization/kakao",
+  google: "/oauth2/authorization/google",
 };
 
 export const getSocialRedirectUri = () => {
-  if (Platform.OS === "web") {
-    return getWebRedirectUri();
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return `${window.location.origin}/oauth/success`;
   }
 
   return Linking.createURL("oauth/success", {
@@ -23,14 +26,16 @@ export const getSocialRedirectUri = () => {
   });
 };
 
-export const createSocialAuthUrl = (provider: SocialProvider) => {
+export const createSocialAuthUrl = (
+  provider: SocialProvider,
+): SocialAuthUrlResult => {
   const redirectUri = getSocialRedirectUri();
 
-  const authUrl =
-    `${SOCIAL_BASE_URL}/oauth2/authorization/${provider}` +
-    `?redirect_uri=${encodeURIComponent(redirectUri)}`;
+  const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodeURIComponent(
+    redirectUri,
+  )}`;
 
-  console.log("");
+  console.log("──────────────────────────────");
   console.log("🧭 소셜 로그인 시작");
   console.log({
     provider,
