@@ -2,7 +2,7 @@
   "expo": {
     "name": "Keystone",
     "slug": "keystone",
-    "scheme": "keystone",
+    "scheme": "planb",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -12,8 +12,6 @@
     "ios": {
       "bundleIdentifier": "com.anonymous.keystone"
     },
-    "plugins": [
-      "expo-web-browser"
-    ]
+    "plugins": ["expo-web-browser"]
   }
 }

@@ -4,28 +4,41 @@
 
 import React, { useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  KeyboardAvoidingView,
-  Platform,
-  Alert,
-  ActivityIndicator,
-  Modal,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import WebView from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
 
 import { OceanWaveFooter } from "../components/OceanWaveFooter";
 import GoogleIcon from "../assets/google.svg";
 import KakaoIcon from "../assets/kakao.svg";
+
 import { requestLogin } from "../../api/auth/login";
+import {
+  createSocialAuthUrl,
+  getSocialRedirectUri,
+} from "../../api/auth/social";
+import {
+  handleOAuthSuccessUrl,
+  isOAuthFailureUrl,
+  isOAuthSuccessUrl,
+  parseOAuthError,
+  saveOAuthTokens,
+} from "../utils/authToken";
+
+WebBrowser.maybeCompleteAuthSession();
 
 type LoginResult = {
   access_token: string;
@@ -34,28 +47,10 @@ type LoginResult = {
   is_new_user?: boolean;
 };
 
-type SocialProvider = "kakao" | "google";
-
-const SOCIAL_AUTH_BASE_URL: Record<SocialProvider, string> = {
-  kakao: "https://api-dev.planb-travel.cloud/oauth2/authorization/kakao",
-  google: "https://api-dev.planb-travel.cloud/oauth2/authorization/google",
-};
-
-const getRedirectUri = () => {
-  return Platform.OS === "web" ?
-      "http://localhost:8082/oauth/success"
-    : "planb://oauth/success";
-};
-
-// 소셜 로그인 URL 생성 함수
-const getSocialAuthUrl = (provider: SocialProvider) => {
-  const redirectUri = encodeURIComponent(getRedirectUri());
-  return `${SOCIAL_AUTH_BASE_URL[provider]}?redirect_uri=${redirectUri}`;
-};
-
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -65,10 +60,10 @@ export default function LoginScreen({ navigation }: any) {
   const isPasswordLongEnough = password.length >= 8;
   const hasPasswordLetter = /[A-Za-z]/.test(password);
   const hasPasswordNumber = /[0-9]/.test(password);
+
   const isPasswordValid =
     isPasswordLongEnough && hasPasswordLetter && hasPasswordNumber;
 
-  // 로그인 성공 시 access/refresh token 저장
   const saveTokens = async (result: Partial<LoginResult>) => {
     const accessToken = result.access_token;
     const refreshToken = result.refresh_token;
@@ -77,10 +72,10 @@ export default function LoginScreen({ navigation }: any) {
       throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
     }
 
-    await AsyncStorage.multiSet([
-      ["access_token", accessToken],
-      ["refresh_token", refreshToken],
-    ]);
+    await saveOAuthTokens({
+      accessToken,
+      refreshToken,
+    });
   };
 
   const goMainWithAlert = (message: string) => {
@@ -92,7 +87,6 @@ export default function LoginScreen({ navigation }: any) {
     ]);
   };
 
-  // 토큰 저장 후 메인 화면으로 이동
   const completeLogin = async (result: LoginResult, message: string) => {
     await saveTokens(result);
 
@@ -110,7 +104,6 @@ export default function LoginScreen({ navigation }: any) {
     );
   };
 
-  // 일반 이메일 로그인 처리
   const handleLogin = async () => {
     if (loading) return;
 
@@ -135,36 +128,10 @@ export default function LoginScreen({ navigation }: any) {
       console.log("🔥 로그인 응답 전체:", result);
 
       await completeLogin(result, "로그인되었습니다.");
-    } catch (error: any) {
+    } catch (error) {
       showError("로그인 실패", error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  // 카카오는 앱 내부 WebView로 로그인 진행
-  const openKakaoLogin = () => {
-    if (loading) return;
-
-    setKakaoAuthUrl(getSocialAuthUrl("kakao"));
-    setWebViewVisible(true);
-  };
-
-  // 구글은 정책상 시스템 브라우저로 로그인 진행
-  const openGoogleLogin = async () => {
-    if (loading) return;
-
-    try {
-      const url = getSocialAuthUrl("google");
-
-      if (Platform.OS === "web") {
-        window.location.href = url;
-        return;
-      }
-
-      await WebBrowser.openBrowserAsync(url);
-    } catch (error) {
-      showError("구글 로그인 실패", error);
     }
   };
 
@@ -173,33 +140,75 @@ export default function LoginScreen({ navigation }: any) {
     setKakaoAuthUrl("");
   };
 
-  // OAuth 성공/실패 redirect URL에서 토큰 또는 에러 메시지 추출
   const handleOAuthRedirect = async (url: string) => {
-    if (!url.includes("/oauth/success") && !url.includes("/oauth/failure")) {
+    console.log("[OAuth Redirect 감지 URL]", url);
+
+    if (!isOAuthSuccessUrl(url) && !isOAuthFailureUrl(url)) {
       return;
     }
 
     try {
-      const parsedUrl = new URL(url);
-      const accessToken = parsedUrl.searchParams.get("access_token");
-      const refreshToken = parsedUrl.searchParams.get("refresh_token");
-      const errorMessage = parsedUrl.searchParams.get("error");
-
       closeKakaoWebView();
 
-      if (url.includes("/oauth/failure")) {
-        throw new Error(errorMessage ?? "소셜 로그인에 실패했습니다.");
+      if (isOAuthFailureUrl(url)) {
+        throw new Error(parseOAuthError(url));
       }
 
-      await completeLogin(
-        {
-          access_token: accessToken ?? "",
-          refresh_token: refreshToken ?? "",
-        },
-        "소셜 로그인되었습니다.",
-      );
+      await handleOAuthSuccessUrl(url);
+
+      goMainWithAlert("소셜 로그인되었습니다.");
     } catch (error) {
       showError("소셜 로그인 실패", error);
+    }
+  };
+
+  const openKakaoLogin = () => {
+    if (loading) return;
+
+    try {
+      const { authUrl, redirectUri } = createSocialAuthUrl("kakao");
+
+      console.log("[카카오 로그인 authUrl]", authUrl);
+      console.log("[카카오 로그인 redirectUri]", redirectUri);
+
+      if (Platform.OS === "web") {
+        window.location.href = authUrl;
+        return;
+      }
+
+      setKakaoAuthUrl(authUrl);
+      setWebViewVisible(true);
+    } catch (error) {
+      showError("카카오 로그인 실패", error);
+    }
+  };
+
+  const openGoogleLogin = async () => {
+    if (loading) return;
+
+    try {
+      const { authUrl, redirectUri } = createSocialAuthUrl("google");
+
+      console.log("[구글 로그인 authUrl]", authUrl);
+      console.log("[구글 로그인 redirectUri]", redirectUri);
+
+      if (Platform.OS === "web") {
+        window.location.href = authUrl;
+        return;
+      }
+
+      const result = await WebBrowser.openAuthSessionAsync(
+        authUrl,
+        redirectUri,
+      );
+
+      console.log("[구글 로그인 결과]", result);
+
+      if (result.type === "success") {
+        await handleOAuthRedirect(result.url);
+      }
+    } catch (error) {
+      showError("구글 로그인 실패", error);
     }
   };
 
@@ -265,6 +274,37 @@ export default function LoginScreen({ navigation }: any) {
                   />
                 </TouchableOpacity>
               </View>
+
+              {password.length > 0 && !isPasswordValid ?
+                <View style={styles.passwordHintBox}>
+                  <Text
+                    style={[
+                      styles.passwordHintText,
+                      isPasswordLongEnough && styles.passwordHintSuccess,
+                    ]}
+                  >
+                    8자 이상
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.passwordHintText,
+                      hasPasswordLetter && styles.passwordHintSuccess,
+                    ]}
+                  >
+                    영문 포함
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.passwordHintText,
+                      hasPasswordNumber && styles.passwordHintSuccess,
+                    ]}
+                  >
+                    숫자 포함
+                  </Text>
+                </View>
+              : null}
 
               <TouchableOpacity
                 style={[styles.loginButton, loading && styles.disabledButton]}
@@ -335,6 +375,7 @@ export default function LoginScreen({ navigation }: any) {
             <TouchableOpacity
               onPress={closeKakaoWebView}
               style={styles.webViewCloseButton}
+              activeOpacity={0.8}
             >
               <Ionicons name="close" size={24} color="#1E293B" />
             </TouchableOpacity>
@@ -347,9 +388,25 @@ export default function LoginScreen({ navigation }: any) {
           {kakaoAuthUrl ?
             <WebView
               source={{ uri: kakaoAuthUrl }}
+              originWhitelist={["https://*", "http://*", "planb://*"]}
+              onShouldStartLoadWithRequest={(request) => {
+                const nextUrl = request.url;
+
+                console.log("[카카오 WebView 요청 URL]", nextUrl);
+
+                if (isOAuthSuccessUrl(nextUrl) || isOAuthFailureUrl(nextUrl)) {
+                  handleOAuthRedirect(nextUrl);
+                  return false;
+                }
+
+                return true;
+              }}
               onNavigationStateChange={({ url }) => {
-                console.log("WebView 현재 URL:", url);
-                handleOAuthRedirect(url);
+                console.log("[카카오 WebView URL]", url);
+
+                if (isOAuthSuccessUrl(url) || isOAuthFailureUrl(url)) {
+                  handleOAuthRedirect(url);
+                }
               }}
               startInLoadingState
               renderLoading={() => (
@@ -369,36 +426,44 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
   },
+
   container: {
     flex: 1,
     backgroundColor: "#F7F9FB",
   },
+
   scrollContent: {
     flexGrow: 1,
     justifyContent: "space-between",
   },
+
   topSection: {
     paddingHorizontal: 28,
     paddingTop: 50,
   },
+
   logoContainer: {
     alignItems: "center",
     marginBottom: 40,
   },
+
   logoText: {
     fontSize: 52,
     fontWeight: "900",
     color: "#1E293B",
     letterSpacing: -1.5,
   },
+
   subLogoText: {
     fontSize: 15,
     color: "#64748B",
     marginTop: 4,
   },
+
   formContainer: {
     width: "100%",
   },
+
   inputLabel: {
     fontSize: 14,
     fontWeight: "700",
@@ -406,9 +471,11 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     marginLeft: 4,
   },
+
   passwordLabel: {
     marginTop: 15,
   },
+
   input: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -419,6 +486,7 @@ const styles = StyleSheet.create({
     color: "#1E293B",
     fontWeight: "500",
   },
+
   passwordInputWrapper: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -428,6 +496,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+
   passwordInput: {
     flex: 1,
     height: 54,
@@ -436,25 +505,30 @@ const styles = StyleSheet.create({
     fontWeight: "500",
     paddingVertical: 0,
   },
+
   eyeButton: {
     width: 36,
     height: 36,
     alignItems: "center",
     justifyContent: "center",
   },
+
   passwordHintBox: {
     marginTop: 8,
     marginLeft: 4,
     gap: 4,
   },
+
   passwordHintText: {
     fontSize: 12,
     color: "#EF4444",
     fontWeight: "600",
   },
+
   passwordHintSuccess: {
     color: "#16A34A",
   },
+
   loginButton: {
     width: "100%",
     height: 50,
@@ -469,27 +543,33 @@ const styles = StyleSheet.create({
     elevation: 5,
     marginTop: 24,
   },
+
   disabledButton: {
     opacity: 0.7,
   },
+
   loginButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
+
   socialSection: {
     marginTop: 35,
   },
+
   divider: {
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 20,
   },
+
   line: {
     flex: 1,
     height: 1,
     backgroundColor: "#E2E8F0",
   },
+
   dividerText: {
     marginHorizontal: 12,
     color: "#94A3B8",
@@ -497,21 +577,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  // 공통 소셜 로그인 SVG 버튼 터치 영역
   socialSvgButton: {
     width: "100%",
     height: 52,
     marginBottom: 12,
   },
+
   signupContainer: {
     marginTop: 30,
     alignItems: "center",
   },
+
   signupNotice: {
     fontSize: 14,
     color: "#64748B",
     marginBottom: 10,
   },
+
   signupBox: {
     flexDirection: "row",
     alignItems: "center",
@@ -520,16 +602,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderRadius: 25,
   },
+
   signupText: {
     fontSize: 15,
     color: "#2563EB",
     fontWeight: "800",
     marginRight: 4,
   },
+
   webViewContainer: {
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+
   webViewHeader: {
     height: 56,
     paddingHorizontal: 16,
@@ -539,17 +624,21 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: "#E2E8F0",
   },
+
   webViewCloseButton: {
     padding: 4,
   },
+
   webViewHeaderSpacer: {
     width: 24,
   },
+
   webViewTitle: {
     fontSize: 16,
     fontWeight: "700",
     color: "#1E293B",
   },
+
   webViewLoading: {
     flex: 1,
     alignItems: "center",
