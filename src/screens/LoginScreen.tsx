@@ -2,10 +2,12 @@
  * src/screens/LoginScreen.tsx
  */
 
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -17,13 +19,13 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Ionicons from "@expo/vector-icons/Ionicons";
+import Svg, { Path } from "react-native-svg";
+import { Ionicons } from "@expo/vector-icons";
 import WebView from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
 
-import { OceanWaveFooter } from "../components/OceanWaveFooter";
 import GoogleIcon from "../assets/google.svg";
-import KakaoIcon from "../assets/kakao.svg";
+import KakaoIcon from "../components/KakaoIcon";
 
 import { requestLogin } from "../../api/auth/login";
 import {
@@ -40,11 +42,110 @@ import {
 
 WebBrowser.maybeCompleteAuthSession();
 
+const { width } = Dimensions.get("window");
+
 type LoginResult = {
   access_token: string;
   refresh_token: string;
   expires_in?: number;
   is_new_user?: boolean;
+};
+
+type WaveLayerProps = {
+  color: string;
+  opacity: number;
+  duration: number;
+  offsetY: number;
+  bCurveAmp: number;
+};
+
+const WaveLayer = ({
+  color,
+  opacity,
+  duration,
+  offsetY,
+  bCurveAmp,
+}: WaveLayerProps) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(translateX, {
+        toValue: -width,
+        duration,
+        useNativeDriver: true,
+      }),
+    );
+
+    animation.start();
+
+    return () => {
+      animation.stop();
+    };
+  }, [duration, translateX]);
+
+  const waveHeight = 250;
+
+  const d = `
+    M 0 ${offsetY}
+    C ${width * 0.15} ${offsetY - bCurveAmp}, ${width * 0.35} ${
+      offsetY - bCurveAmp * 0.5
+    }, ${width * 0.5} ${offsetY}
+    C ${width * 0.65} ${offsetY + bCurveAmp * 0.5}, ${width * 0.85} ${
+      offsetY + bCurveAmp
+    }, ${width} ${offsetY}
+    L ${width} ${waveHeight}
+    L 0 ${waveHeight}
+    Z
+  `;
+
+  return (
+    <Animated.View
+      style={{
+        position: "absolute",
+        width: width * 2,
+        flexDirection: "row",
+        transform: [{ translateX }],
+        bottom: 0,
+      }}
+    >
+      {[0, 1].map((item) => (
+        <Svg key={item} width={width} height={waveHeight}>
+          <Path d={d} fill={color} opacity={opacity} />
+        </Svg>
+      ))}
+    </Animated.View>
+  );
+};
+
+const OceanWaveFooter = () => {
+  return (
+    <View style={styles.waveContainer} pointerEvents="none">
+      <WaveLayer
+        color="#93C5FD"
+        opacity={0.4}
+        duration={12000}
+        offsetY={70}
+        bCurveAmp={60}
+      />
+
+      <WaveLayer
+        color="#60A5FA"
+        opacity={0.6}
+        duration={8500}
+        offsetY={100}
+        bCurveAmp={45}
+      />
+
+      <WaveLayer
+        color="#2563EB"
+        opacity={1}
+        duration={5500}
+        offsetY={130}
+        bCurveAmp={30}
+      />
+    </View>
+  );
 };
 
 export default function LoginScreen({ navigation }: any) {
@@ -56,13 +157,6 @@ export default function LoginScreen({ navigation }: any) {
 
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [kakaoAuthUrl, setKakaoAuthUrl] = useState("");
-
-  const isPasswordLongEnough = password.length >= 8;
-  const hasPasswordLetter = /[A-Za-z]/.test(password);
-  const hasPasswordNumber = /[0-9]/.test(password);
-
-  const isPasswordValid =
-    isPasswordLongEnough && hasPasswordLetter && hasPasswordNumber;
 
   const saveTokens = async (result: Partial<LoginResult>) => {
     const accessToken = result.access_token;
@@ -78,7 +172,7 @@ export default function LoginScreen({ navigation }: any) {
     });
   };
 
-  const goMainWithAlert = (message: string) => {
+  const moveToMainWithSuccessAlert = (message: string) => {
     Alert.alert("성공", message, [
       {
         text: "확인",
@@ -87,21 +181,29 @@ export default function LoginScreen({ navigation }: any) {
     ]);
   };
 
-  const completeLogin = async (result: LoginResult, message: string) => {
+  const handleLoginSuccess = async (
+    result: LoginResult,
+    successMessage: string,
+  ) => {
     await saveTokens(result);
 
-    goMainWithAlert(
-      result.is_new_user ? `${message}\n회원가입이 완료되었습니다.` : message,
-    );
+    if (result.is_new_user) {
+      moveToMainWithSuccessAlert(
+        `${successMessage}\n회원가입이 완료되었습니다.`,
+      );
+      return;
+    }
+
+    moveToMainWithSuccessAlert(successMessage);
   };
 
-  const showError = (title: string, error: unknown) => {
+  const handleLoginError = (title: string, error: unknown) => {
     console.log(`${title} 에러:`, error);
 
-    Alert.alert(
-      title,
-      error instanceof Error ? error.message : "로그인에 실패했습니다.",
-    );
+    const message =
+      error instanceof Error ? error.message : "로그인에 실패했습니다.";
+
+    Alert.alert(title, message);
   };
 
   const handleLogin = async () => {
@@ -109,11 +211,6 @@ export default function LoginScreen({ navigation }: any) {
 
     if (!email.trim() || !password.trim()) {
       Alert.alert("알림", "이메일과 비밀번호를 입력해주세요.");
-      return;
-    }
-
-    if (!isPasswordValid) {
-      Alert.alert("알림", "비밀번호 조건을 확인해주세요.");
       return;
     }
 
@@ -127,9 +224,9 @@ export default function LoginScreen({ navigation }: any) {
 
       console.log("🔥 로그인 응답 전체:", result);
 
-      await completeLogin(result, "로그인되었습니다.");
+      await handleLoginSuccess(result, "로그인되었습니다.");
     } catch (error) {
-      showError("로그인 실패", error);
+      handleLoginError("로그인 실패", error);
     } finally {
       setLoading(false);
     }
@@ -156,9 +253,9 @@ export default function LoginScreen({ navigation }: any) {
 
       await handleOAuthSuccessUrl(url);
 
-      goMainWithAlert("소셜 로그인되었습니다.");
+      moveToMainWithSuccessAlert("소셜 로그인되었습니다.");
     } catch (error) {
-      showError("소셜 로그인 실패", error);
+      handleLoginError("소셜 로그인 실패", error);
     }
   };
 
@@ -179,7 +276,7 @@ export default function LoginScreen({ navigation }: any) {
       setKakaoAuthUrl(authUrl);
       setWebViewVisible(true);
     } catch (error) {
-      showError("카카오 로그인 실패", error);
+      handleLoginError("카카오 로그인 실패", error);
     }
   };
 
@@ -199,7 +296,7 @@ export default function LoginScreen({ navigation }: any) {
 
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
-        redirectUri,
+        getSocialRedirectUri(),
       );
 
       console.log("[구글 로그인 결과]", result);
@@ -208,7 +305,7 @@ export default function LoginScreen({ navigation }: any) {
         await handleOAuthRedirect(result.url);
       }
     } catch (error) {
-      showError("구글 로그인 실패", error);
+      handleLoginError("구글 로그인 실패", error);
     }
   };
 
@@ -275,37 +372,6 @@ export default function LoginScreen({ navigation }: any) {
                 </TouchableOpacity>
               </View>
 
-              {password.length > 0 && !isPasswordValid ?
-                <View style={styles.passwordHintBox}>
-                  <Text
-                    style={[
-                      styles.passwordHintText,
-                      isPasswordLongEnough && styles.passwordHintSuccess,
-                    ]}
-                  >
-                    8자 이상
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.passwordHintText,
-                      hasPasswordLetter && styles.passwordHintSuccess,
-                    ]}
-                  >
-                    영문 포함
-                  </Text>
-
-                  <Text
-                    style={[
-                      styles.passwordHintText,
-                      hasPasswordNumber && styles.passwordHintSuccess,
-                    ]}
-                  >
-                    숫자 포함
-                  </Text>
-                </View>
-              : null}
-
               <TouchableOpacity
                 style={[styles.loginButton, loading && styles.disabledButton]}
                 onPress={handleLogin}
@@ -326,27 +392,23 @@ export default function LoginScreen({ navigation }: any) {
               </View>
 
               <TouchableOpacity
-                style={[
-                  styles.socialSvgButton,
-                  loading && styles.disabledButton,
-                ]}
+                style={[styles.kakaoButton, loading && styles.disabledButton]}
                 activeOpacity={0.85}
                 onPress={openKakaoLogin}
                 disabled={loading}
               >
-                <KakaoIcon width="100%" height="100%" />
+                <KakaoIcon size={18} color="#3C1E1E" />
+                <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[
-                  styles.socialSvgButton,
-                  loading && styles.disabledButton,
-                ]}
+                style={[styles.googleButton, loading && styles.disabledButton]}
                 activeOpacity={0.85}
                 onPress={openGoogleLogin}
                 disabled={loading}
               >
-                <GoogleIcon width="100%" height="100%" />
+                <GoogleIcon width={18} height={18} />
+                <Text style={styles.googleButtonText}>Google 로그인</Text>
               </TouchableOpacity>
             </View>
 
@@ -472,10 +534,6 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
 
-  passwordLabel: {
-    marginTop: 15,
-  },
-
   input: {
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -485,6 +543,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: "#1E293B",
     fontWeight: "500",
+  },
+
+  passwordLabel: {
+    marginTop: 15,
   },
 
   passwordInputWrapper: {
@@ -513,22 +575,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  passwordHintBox: {
-    marginTop: 8,
-    marginLeft: 4,
-    gap: 4,
-  },
-
-  passwordHintText: {
-    fontSize: 12,
-    color: "#EF4444",
-    fontWeight: "600",
-  },
-
-  passwordHintSuccess: {
-    color: "#16A34A",
-  },
-
   loginButton: {
     width: "100%",
     height: 50,
@@ -537,7 +583,10 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     backgroundColor: "#2158E8",
     shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
     shadowOpacity: 0.3,
     shadowRadius: 10,
     elevation: 5,
@@ -577,10 +626,39 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
-  socialSvgButton: {
-    width: "100%",
-    height: 52,
+  kakaoButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEE500",
+    padding: 16,
+    borderRadius: 16,
     marginBottom: 12,
+    gap: 10,
+  },
+
+  kakaoButtonText: {
+    color: "#3C1E1E",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  googleButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FFFFFF",
+    padding: 16,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    gap: 10,
+  },
+
+  googleButtonText: {
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "700",
   },
 
   signupContainer: {
@@ -608,6 +686,11 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "800",
     marginRight: 4,
+  },
+
+  waveContainer: {
+    height: 180,
+    width,
   },
 
   webViewContainer: {
