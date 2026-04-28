@@ -12,14 +12,10 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import PlanADayTabs from "../components/planA/PlanADayTabs";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
+import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 
-import {
-  DayOption,
-  MemoItem,
-  PlaceItem,
-  PlacesByDay,
-  SelectedPlaceParam,
-} from "../types/planA";
+import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
+import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
 
 type Props = {
   navigation: any;
@@ -29,7 +25,6 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
-
       selectedPlace?: SelectedPlaceParam;
     };
   };
@@ -41,107 +36,57 @@ const DAY_OPTIONS: DayOption[] = [
   { id: 3, label: "Day 3" },
 ];
 
-const DEFAULT_PLACES_BY_DAY: PlacesByDay = {
-  1: [
-    {
-      id: "place-1",
-      name: "강릉역",
-      time: "10:00",
-      memos: [
-        { id: "memo-1", text: "내일 매점 까먹지 말기" },
-        { id: "memo-2", text: "강릉역 근처 맛집 확인하기" },
-        { id: "memo-3", text: "카페 예약 시간 확인하기" },
-      ],
-    },
-  ],
-  2: [],
-  3: [],
-};
-
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
-  const [placesByDay, setPlacesByDay] = useState<PlacesByDay>(
-    DEFAULT_PLACES_BY_DAY,
-  );
-
-  const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({});
-
-  const [editingMemo, setEditingMemo] = useState<{
-    placeId: string;
-    memoId: string;
-  } | null>(null);
-  const [editingMemoText, setEditingMemoText] = useState("");
-
-  const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
-  const [editingPlaceName, setEditingPlaceName] = useState("");
-  const [editingPlaceTime, setEditingPlaceTime] = useState("");
 
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "04.23";
   const selectedPlace = route?.params?.selectedPlace;
 
-  const currentPlaces = placesByDay[selectedDay] ?? [];
-  const isEditingMemo = Boolean(editingMemo);
+  const {
+    currentPlaces,
+
+    memoDrafts,
+
+    editingMemo,
+    editingMemoText,
+    setEditingMemoText,
+
+    editingPlaceId,
+    editingPlaceName,
+    setEditingPlaceName,
+    editingPlaceTime,
+    setEditingPlaceTime,
+
+    resetEditingState,
+
+    handleStartEditPlace,
+    handleCancelEditPlace,
+    handleSaveEditPlace,
+    handleDeletePlace,
+
+    handleChangeMemoDraft,
+    handleAddMemo,
+    handleClearMemo,
+
+    handleStartEditMemo,
+    handleCancelEditMemo,
+    handleSaveEditMemo,
+    handleDeleteMemo,
+  } = usePlanAPlaces({
+    selectedDay,
+    selectedPlace,
+  });
 
   useEffect(() => {
-    if (!selectedPlace?.id || !selectedPlace.name) return;
+    if (!selectedPlace?.day) return;
 
-    const targetDay = selectedPlace.day ?? 1;
-
-    setSelectedDay(targetDay);
-
-    setPlacesByDay((prev) => {
-      const targetPlaces = prev[targetDay] ?? [];
-      const alreadyExists = targetPlaces.some(
-        (place) => place.id === selectedPlace.id,
-      );
-
-      if (alreadyExists) {
-        return {
-          ...prev,
-          [targetDay]: targetPlaces.map((place) =>
-            place.id === selectedPlace.id ?
-              {
-                ...place,
-                name: selectedPlace.name,
-                time: selectedPlace.time ?? place.time,
-              }
-            : place,
-          ),
-        };
-      }
-
-      return {
-        ...prev,
-        [targetDay]: [
-          ...targetPlaces,
-          {
-            id: selectedPlace.id,
-            name: selectedPlace.name,
-            time: selectedPlace.time ?? "10:00",
-            memos: [],
-          },
-        ],
-      };
-    });
-  }, [
-    selectedPlace?.id,
-    selectedPlace?.name,
-    selectedPlace?.time,
-    selectedPlace?.day,
-  ]);
+    setSelectedDay(selectedPlace.day);
+  }, [selectedPlace?.day]);
 
   const handleBack = () => {
     navigation.goBack();
-  };
-
-  const resetEditingState = () => {
-    setEditingMemo(null);
-    setEditingMemoText("");
-    setEditingPlaceId(null);
-    setEditingPlaceName("");
-    setEditingPlaceTime("");
   };
 
   const handleChangeDay = (dayId: number) => {
@@ -157,170 +102,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
       endDate,
       location: route?.params?.location,
     });
-  };
-
-  const handleStartEditPlace = (place: PlaceItem) => {
-    if (isEditingMemo) return;
-
-    setEditingPlaceId(place.id);
-    setEditingPlaceName(place.name);
-    setEditingPlaceTime(place.time);
-  };
-
-  const handleCancelEditPlace = () => {
-    setEditingPlaceId(null);
-    setEditingPlaceName("");
-    setEditingPlaceTime("");
-  };
-
-  const handleSaveEditPlace = () => {
-    const trimmedName = editingPlaceName.trim();
-    const trimmedTime = editingPlaceTime.trim();
-
-    if (!editingPlaceId || !trimmedName) return;
-
-    setPlacesByDay((prev) => ({
-      ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
-        place.id === editingPlaceId ?
-          {
-            ...place,
-            name: trimmedName,
-            time: trimmedTime || "시간 미정",
-          }
-        : place,
-      ),
-    }));
-
-    handleCancelEditPlace();
-  };
-
-  const handleDeletePlace = (placeId: string) => {
-    setPlacesByDay((prev) => ({
-      ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).filter(
-        (place) => place.id !== placeId,
-      ),
-    }));
-
-    setMemoDrafts((prev) => {
-      const next = { ...prev };
-      delete next[placeId];
-      return next;
-    });
-
-    if (editingPlaceId === placeId) {
-      handleCancelEditPlace();
-    }
-
-    if (editingMemo?.placeId === placeId) {
-      setEditingMemo(null);
-      setEditingMemoText("");
-    }
-  };
-
-  const handleChangeMemoDraft = (placeId: string, value: string) => {
-    setMemoDrafts((prev) => ({
-      ...prev,
-      [placeId]: value,
-    }));
-  };
-
-  const handleAddMemo = (placeId: string) => {
-    const trimmedMemo = memoDrafts[placeId]?.trim();
-
-    if (!trimmedMemo) return;
-
-    setPlacesByDay((prev) => ({
-      ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
-        place.id === placeId ?
-          {
-            ...place,
-            memos: [
-              ...place.memos,
-              {
-                id: `${Date.now()}`,
-                text: trimmedMemo,
-              },
-            ],
-          }
-        : place,
-      ),
-    }));
-
-    setMemoDrafts((prev) => ({
-      ...prev,
-      [placeId]: "",
-    }));
-  };
-
-  const handleClearMemo = (placeId: string) => {
-    setMemoDrafts((prev) => ({
-      ...prev,
-      [placeId]: "",
-    }));
-  };
-
-  const handleStartEditMemo = (placeId: string, item: MemoItem) => {
-    setEditingPlaceId(null);
-    setEditingPlaceName("");
-    setEditingPlaceTime("");
-    setEditingMemo({
-      placeId,
-      memoId: item.id,
-    });
-    setEditingMemoText(item.text);
-  };
-
-  const handleCancelEditMemo = () => {
-    setEditingMemo(null);
-    setEditingMemoText("");
-  };
-
-  const handleSaveEditMemo = () => {
-    const trimmedText = editingMemoText.trim();
-
-    if (!editingMemo || !trimmedText) return;
-
-    setPlacesByDay((prev) => ({
-      ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
-        place.id === editingMemo.placeId ?
-          {
-            ...place,
-            memos: place.memos.map((memo) =>
-              memo.id === editingMemo.memoId ?
-                {
-                  ...memo,
-                  text: trimmedText,
-                }
-              : memo,
-            ),
-          }
-        : place,
-      ),
-    }));
-
-    handleCancelEditMemo();
-  };
-
-  const handleDeleteMemo = (placeId: string, memoId: string) => {
-    setPlacesByDay((prev) => ({
-      ...prev,
-      [selectedDay]: (prev[selectedDay] ?? []).map((place) =>
-        place.id === placeId ?
-          {
-            ...place,
-            memos: place.memos.filter((memo) => memo.id !== memoId),
-          }
-        : place,
-      ),
-    }));
-
-    if (editingMemo?.placeId === placeId && editingMemo.memoId === memoId) {
-      handleCancelEditMemo();
-    }
   };
 
   const renderPlaceCard = (place: PlaceItem, index: number) => {
@@ -350,31 +131,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onDeleteMemo={handleDeleteMemo}
         onChangeEditingMemoText={setEditingMemoText}
       />
-    );
-  };
-
-  const renderEmptyPlace = () => {
-    return (
-      <View style={styles.timelineRow}>
-        <View style={styles.timelineLeft}>
-          <View style={styles.stepBadge}>
-            <Text style={styles.stepBadgeText}>1</Text>
-          </View>
-
-          <View style={styles.shortTimelineLine} />
-        </View>
-
-        <TouchableOpacity
-          style={styles.emptyPlaceCardLarge}
-          activeOpacity={0.85}
-          onPress={handleAddPlace}
-        >
-          <Text style={styles.emptyPlaceTitle}>장소를 추가해주세요</Text>
-          <Text style={styles.emptyPlaceSubText}>
-            Day {selectedDay}에 방문할 장소를 등록해보세요.
-          </Text>
-        </TouchableOpacity>
-      </View>
     );
   };
 
@@ -422,9 +178,15 @@ export default function PlanAScreen({ navigation, route }: Props) {
             <View style={styles.sheetHandleWrapper}>
               <View style={styles.sheetHandle} />
             </View>
+
             {currentPlaces.length > 0 ?
               currentPlaces.map((place, index) => renderPlaceCard(place, index))
-            : renderEmptyPlace()}
+            : <PlanAEmptyPlaceCard
+                selectedDay={selectedDay}
+                onPress={handleAddPlace}
+              />
+            }
+
             <TouchableOpacity
               style={styles.addPlaceButton}
               activeOpacity={0.85}
@@ -530,64 +292,6 @@ const styles = StyleSheet.create({
     height: 5,
     borderRadius: 999,
     backgroundColor: "#D6DFEA",
-  },
-
-  timelineRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-
-  timelineLeft: {
-    width: 30,
-    alignItems: "center",
-    marginRight: 14,
-  },
-
-  stepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  stepBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  shortTimelineLine: {
-    width: 2,
-    minHeight: 56,
-    marginTop: 4,
-    backgroundColor: "#DCEBFF",
-  },
-
-  emptyPlaceCardLarge: {
-    flex: 1,
-    minHeight: 86,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E1E7EF",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    justifyContent: "center",
-  },
-
-  emptyPlaceTitle: {
-    color: "#252D3C",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-
-  emptyPlaceSubText: {
-    marginTop: 7,
-    color: "#8C9BB1",
-    fontSize: 12,
-    fontWeight: "600",
   },
 
   addPlaceButton: {
