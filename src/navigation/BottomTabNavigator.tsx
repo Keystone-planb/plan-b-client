@@ -121,22 +121,23 @@ export default function BottomTabNavigator() {
 const styles = StyleSheet.create({
   tabBarOuter: {
     position: "absolute",
-    left: 30,
-    right: 30,
+    left: 24,
+    right: 24,
     alignItems: "center",
     zIndex: 100,
   },
   tabBarContainer: {
     width: "100%",
-    height: 104,
+    height: 58,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-around",
-    borderRadius: 52,
+    borderRadius: 29,
     backgroundColor: "#FFFFFF",
-    borderWidth: 1.3,
+    borderWidth: 1,
     borderColor: "#DDE6F2",
   },
+
   tabButton: {
     flex: 1,
     height: "100%",
