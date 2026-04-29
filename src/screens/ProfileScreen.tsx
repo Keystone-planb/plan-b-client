@@ -1,19 +1,76 @@
-import React from "react";
-import { Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import {
+  ActivityIndicator,
+  Alert,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { CommonActions } from "@react-navigation/native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { requestLogout } from "../../api/auth/logout";
 
 type Props = {
   navigation: any;
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+  const [logoutLoading, setLogoutLoading] = useState(false);
+
   const handlePressProfile = () => {
     navigation.navigate("ProfileEdit");
   };
 
-  const handleLogout = () => {
-    Alert.alert("로그아웃", "로그아웃 기능은 이후 연결 예정입니다.");
+  const resetToLogin = () => {
+    navigation.getParent()?.dispatch(
+      CommonActions.reset({
+        index: 0,
+        routes: [{ name: "Login" }],
+      }),
+    );
+  };
+
+  const clearLocalTokens = async () => {
+    await AsyncStorage.multiRemove([
+      "access_token",
+      "refresh_token",
+      "user_id",
+      "nickname",
+    ]);
+  };
+
+  const handleLogout = async () => {
+    if (logoutLoading) return;
+
+    try {
+      setLogoutLoading(true);
+
+      const result = await requestLogout();
+      await clearLocalTokens();
+
+      Alert.alert("로그아웃", result.message ?? "로그아웃되었습니다.", [
+        {
+          text: "확인",
+          onPress: resetToLogin,
+        },
+      ]);
+    } catch (error) {
+      console.log("로그아웃 실패:", error);
+
+      await clearLocalTokens();
+
+      Alert.alert("로그아웃", "로그아웃 처리되었습니다.", [
+        {
+          text: "확인",
+          onPress: resetToLogin,
+        },
+      ]);
+    } finally {
+      setLogoutLoading(false);
+    }
   };
 
   return (
@@ -56,12 +113,18 @@ export default function ProfileScreen({ navigation }: Props) {
         </View>
 
         <TouchableOpacity
-          style={styles.logoutButton}
+          style={[styles.logoutButton, logoutLoading && styles.disabledButton]}
           activeOpacity={0.85}
           onPress={handleLogout}
+          disabled={logoutLoading}
         >
-          <Ionicons name="log-out-outline" size={17} color="#8FA0B7" />
-          <Text style={styles.logoutText}>로그아웃</Text>
+          {logoutLoading ?
+            <ActivityIndicator size="small" color="#8FA0B7" />
+          : <>
+              <Ionicons name="log-out-outline" size={17} color="#8FA0B7" />
+              <Text style={styles.logoutText}>로그아웃</Text>
+            </>
+          }
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -159,10 +222,14 @@ const styles = StyleSheet.create({
     borderColor: "#DDE6F2",
     backgroundColor: "#FFFFFF",
   },
+
   logoutText: {
     marginLeft: 8,
     fontSize: 12,
     fontWeight: "700",
     color: "#8FA0B7",
+  },
+  disabledButton: {
+    opacity: 0.65,
   },
 });
