@@ -5,11 +5,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import TravelDateRangeModal from "../components/TravelDateRangeModal";
+import { saveSchedule } from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
@@ -27,8 +29,40 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-  const handleComplete = () => {
-    navigation.navigate("Main");
+  const handleComplete = async () => {
+    if (!tripName.trim() || !startDate || !endDate) {
+      console.log("[일정 저장 중단]", {
+        tripName,
+        startDate,
+        endDate,
+      });
+      return;
+    }
+
+    try {
+      const savedSchedule = await saveSchedule({
+        tripName: tripName.trim(),
+        startDate,
+        endDate,
+        location: "지역 미정",
+      });
+
+      console.log("[일정 저장 완료]", savedSchedule);
+
+      Alert.alert("저장 완료", "여행 일정이 저장되었습니다.", [
+        {
+          text: "확인",
+          onPress: () =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Main" }],
+            }),
+        },
+      ]);
+    } catch (error) {
+      console.log("일정 저장 실패:", error);
+      Alert.alert("저장 실패", "일정 저장 중 문제가 발생했습니다.");
+    }
   };
 
   const formatDate = (value: string) => value.replace(/-/g, ".");
@@ -116,9 +150,14 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
           </View>
 
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[
+              styles.nextButton,
+              (!tripName.trim() || !startDate || !endDate) &&
+                styles.disabledButton,
+            ]}
             onPress={handleComplete}
             activeOpacity={0.85}
+            disabled={!tripName.trim() || !startDate || !endDate}
           >
             <Text style={styles.nextButtonText}>완료</Text>
           </TouchableOpacity>
@@ -299,5 +338,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  disabledButton: {
+    opacity: 0.45,
   },
 });

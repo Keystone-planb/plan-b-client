@@ -24,8 +24,14 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
   };
 
   const handleNext = () => {
+    const trimmedTripName = tripName.trim();
+
+    if (!trimmedTripName) {
+      return;
+    }
+
     navigation.navigate("AddScheduleDate", {
-      tripName,
+      tripName: trimmedTripName,
     });
   };
 
@@ -81,9 +87,13 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
           </View>
 
           <TouchableOpacity
-            style={styles.nextButton}
+            style={[
+              styles.nextButton,
+              !tripName.trim() && styles.disabledButton,
+            ]}
             onPress={handleNext}
             activeOpacity={0.85}
+            disabled={!tripName.trim()}
           >
             <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
@@ -225,5 +235,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
+  },
+
+  disabledButton: {
+    opacity: 0.45,
   },
 });
