@@ -7,16 +7,12 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
-import { CommonActions } from "@react-navigation/native";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
-import { requestLogout } from "../../api/auth/logout";
 
 type Props = {
   navigation: any;
@@ -31,12 +27,12 @@ type UserInfo = {
 export default function MainScreen({ navigation }: Props) {
   const [user, setUser] = useState<UserInfo>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
     const fetchMe = async () => {
       try {
         setLoadingUser(true);
+
         const result = await getMe();
         setUser(result);
       } catch (error: unknown) {
@@ -55,51 +51,6 @@ export default function MainScreen({ navigation }: Props) {
 
     fetchMe();
   }, []);
-
-  const handleLogout = async () => {
-    if (logoutLoading) return;
-
-    try {
-      setLogoutLoading(true);
-
-      const result = await requestLogout();
-
-      Alert.alert("로그아웃", result.message, [
-        {
-          text: "확인",
-          onPress: () => {
-            navigation.getParent()?.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: "Login" }],
-              }),
-            );
-          },
-        },
-      ]);
-    } catch (error: unknown) {
-      console.log("로그아웃 실패:", error);
-
-      const message =
-        error instanceof Error ? error.message : "로그아웃 처리되었습니다.";
-
-      Alert.alert("로그아웃", message, [
-        {
-          text: "확인",
-          onPress: () => {
-            navigation.getParent()?.dispatch(
-              CommonActions.reset({
-                index: 0,
-                routes: [{ name: "Login" }],
-              }),
-            );
-          },
-        },
-      ]);
-    } finally {
-      setLogoutLoading(false);
-    }
-  };
 
   const renderUserSection = () => {
     if (loadingUser) {
@@ -159,24 +110,6 @@ export default function MainScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("AddSchedule")}
             >
               <Text style={styles.addButtonText}>일정 추가하기</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.logoutButton,
-                logoutLoading && styles.disabledButton,
-              ]}
-              onPress={handleLogout}
-              activeOpacity={0.85}
-              disabled={logoutLoading}
-            >
-              {logoutLoading ?
-                <ActivityIndicator color="#2158E8" size="small" />
-              : <>
-                  <Ionicons name="log-out-outline" size={16} color="#2158E8" />
-                  <Text style={styles.logoutButtonText}>로그아웃</Text>
-                </>
-              }
             </TouchableOpacity>
           </View>
         </View>
@@ -309,7 +242,6 @@ const styles = StyleSheet.create({
   bottomActionGroup: {
     width: "100%",
     alignItems: "center",
-    gap: 12,
     marginTop: 26,
   },
 
@@ -331,29 +263,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-
-  logoutButton: {
-    minWidth: 132,
-    height: 46,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DCE7F7",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-
-  logoutButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  disabledButton: {
-    opacity: 0.7,
   },
 });
