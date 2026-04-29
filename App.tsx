@@ -3,7 +3,6 @@ import { ActivityIndicator, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-
 import OnboardingFirstScreen from "./src/screens/OnboardingFirstScreen";
 import OnboardingSecondScreen from "./src/screens/OnboardingSecondScreen";
 import OnboardingThirdScreen from "./src/screens/OnboardingThirdScreen";
@@ -13,6 +12,7 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
+import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -23,6 +23,11 @@ type RootStackParamList = {
   SignUp: undefined;
 
   MainTabs: undefined;
+
+  PlanXDetail: {
+    tripId: string;
+    title: string;
+  };
 
   AddSchedule: undefined;
   AddScheduleDate: undefined;
@@ -113,6 +118,16 @@ export default function App() {
             headerShown: false,
             animation: "fade",
             animationDuration: 250,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanXDetail"
+          component={PlanXDetailScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
           }}
         />
 
