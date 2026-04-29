@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import {
+  ActivityIndicator,
   FlatList,
   StyleSheet,
   Text,
@@ -8,58 +9,62 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
+import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
 };
 
-type PastTrip = {
-  id: string;
-  title: string;
-  period: string;
-  location: string;
-  placeCount: number;
-  days: number;
+const formatPeriod = (startDate: string, endDate: string) => {
+  if (!startDate && !endDate) {
+    return "날짜 미정";
+  }
+
+  if (startDate && !endDate) {
+    return startDate;
+  }
+
+  if (!startDate && endDate) {
+    return endDate;
+  }
+
+  return `${startDate} - ${endDate}`;
 };
 
-const MOCK_TRIPS: PastTrip[] = [
-  {
-    id: "1",
-    title: "제주도 힐링여행",
-    period: "2024.03.15 - 2024.03.18",
-    location: "제주",
-    placeCount: 8,
-    days: 3,
-  },
-  {
-    id: "2",
-    title: "부산 바다여행",
-    period: "2024.05.02 - 2024.05.04",
-    location: "부산",
-    placeCount: 6,
-    days: 2,
-  },
-  {
-    id: "3",
-    title: "강릉 카페투어",
-    period: "2024.07.11 - 2024.07.12",
-    location: "강릉",
-    placeCount: 5,
-    days: 1,
-  },
-];
-
 export default function PlanXScreen({ navigation }: Props) {
-  const handlePressTrip = (trip: PastTrip) => {
-    console.log("[Plan.X 카드 클릭]", trip);
+  const [schedules, setSchedules] = useState<SavedSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const loadSchedules = async () => {
+    try {
+      setLoading(true);
+
+      const savedSchedules = await getSchedules();
+      setSchedules(savedSchedules);
+    } catch (error) {
+      console.log("[Plan.X 일정 목록 불러오기 실패]", error);
+      setSchedules([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+  useFocusEffect(
+    useCallback(() => {
+      loadSchedules();
+    }, []),
+  );
+
+  const handlePressTrip = (schedule: SavedSchedule) => {
+    console.log("[Plan.X 카드 클릭]", schedule);
 
     navigation.navigate("PlanXDetail", {
-      tripId: trip.id,
-      title: trip.title,
+      tripId: schedule.id,
+      title: schedule.tripName,
     });
   };
 
-  const renderTripCard = ({ item }: { item: PastTrip }) => {
+  const renderTripCard = ({ item }: { item: SavedSchedule }) => {
     return (
       <TouchableOpacity
         style={styles.tripCard}
@@ -71,23 +76,48 @@ export default function PlanXScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.tripInfo}>
-          <Text style={styles.tripTitle}>{item.title}</Text>
+          <Text style={styles.tripTitle} numberOfLines={1}>
+            {item.tripName}
+          </Text>
 
           <View style={styles.metaRow}>
             <Ionicons name="calendar-outline" size={12} color="#8FA0B7" />
-            <Text style={styles.metaText}>{item.period}</Text>
+            <Text style={styles.metaText} numberOfLines={1}>
+              {formatPeriod(item.startDate, item.endDate)}
+            </Text>
           </View>
 
           <View style={styles.metaRow}>
             <Ionicons name="location-outline" size={12} color="#8FA0B7" />
-            <Text style={styles.metaText}>
-              {item.location} · {item.days}일 · {item.placeCount}개 장소
+            <Text style={styles.metaText} numberOfLines={1}>
+              {item.location || "지역 미정"}
             </Text>
           </View>
         </View>
 
         <Ionicons name="chevron-forward" size={17} color="#B9C4D3" />
       </TouchableOpacity>
+    );
+  };
+
+  const renderEmptyState = () => {
+    if (loading) {
+      return (
+        <View style={styles.emptyContainer}>
+          <ActivityIndicator size="small" color="#2563EB" />
+          <Text style={styles.emptyText}>저장된 여행을 불러오는 중...</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.emptyContainer}>
+        <Ionicons name="airplane-outline" size={42} color="#B9C4D3" />
+        <Text style={styles.emptyTitle}>저장된 여행이 없습니다</Text>
+        <Text style={styles.emptyText}>
+          여행 일정을 추가하면 Plan.X에서 다시 볼 수 있어요
+        </Text>
+      </View>
     );
   };
 
@@ -100,10 +130,14 @@ export default function PlanXScreen({ navigation }: Props) {
         </View>
 
         <FlatList
-          data={MOCK_TRIPS}
+          data={schedules}
           keyExtractor={(item) => item.id}
           renderItem={renderTripCard}
-          contentContainerStyle={styles.listContent}
+          contentContainerStyle={[
+            styles.listContent,
+            schedules.length === 0 && styles.emptyListContent,
+          ]}
+          ListEmptyComponent={renderEmptyState}
           showsVerticalScrollIndicator={false}
         />
       </View>
@@ -143,6 +177,10 @@ const styles = StyleSheet.create({
     paddingBottom: 28,
     gap: 16,
   },
+  emptyListContent: {
+    flexGrow: 1,
+    justifyContent: "center",
+  },
   tripCard: {
     minHeight: 82,
     paddingHorizontal: 14,
@@ -181,9 +219,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   metaText: {
+    flex: 1,
     marginLeft: 5,
     fontSize: 10.5,
     fontWeight: "600",
     color: "#8FA0B7",
+  },
+  emptyContainer: {
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 80,
+  },
+  emptyTitle: {
+    marginTop: 14,
+    fontSize: 18,
+    fontWeight: "900",
+    color: "#202938",
+  },
+  emptyText: {
+    marginTop: 8,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#8FA0B7",
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
