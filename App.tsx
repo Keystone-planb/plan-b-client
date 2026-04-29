@@ -13,6 +13,7 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
+import ProfileEditScreen from "./src/screens/ProfileEditScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -23,6 +24,7 @@ type RootStackParamList = {
   SignUp: undefined;
 
   MainTabs: undefined;
+  ProfileEdit: undefined;
 
   AddSchedule: undefined;
   AddScheduleDate: undefined;
@@ -113,6 +115,16 @@ export default function App() {
             headerShown: false,
             animation: "fade",
             animationDuration: 250,
+          }}
+        />
+
+        <Stack.Screen
+          name="ProfileEdit"
+          component={ProfileEditScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
           }}
         />
 
