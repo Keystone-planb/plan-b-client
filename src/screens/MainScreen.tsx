@@ -14,7 +14,11 @@ import { useFocusEffect } from "@react-navigation/native";
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
-import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
+import {
+  deleteSchedule,
+  getSchedules,
+  SavedSchedule,
+} from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
@@ -84,6 +88,34 @@ export default function MainScreen({ navigation }: Props) {
     return value.replace(/-/g, ".");
   };
 
+  const handleDeleteSchedule = (schedule: SavedSchedule) => {
+    Alert.alert("일정 삭제", `"${schedule.tripName}" 일정을 삭제할까요?`, [
+      {
+        text: "취소",
+        style: "cancel",
+      },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: async () => {
+          try {
+            const nextSchedules = await deleteSchedule(schedule.id);
+
+            console.log("[일정 삭제 완료]", {
+              deletedScheduleId: schedule.id,
+              nextSchedules,
+            });
+
+            setSchedules(nextSchedules);
+          } catch (error) {
+            console.log("[일정 삭제 실패]", error);
+            Alert.alert("삭제 실패", "일정을 삭제하지 못했습니다.");
+          }
+        },
+      },
+    ]);
+  };
+
   const renderUserSection = () => {
     if (loadingUser) {
       return <Text style={styles.userText}>사용자 정보를 불러오는 중...</Text>;
@@ -147,6 +179,14 @@ export default function MainScreen({ navigation }: Props) {
                 {schedule.location || "지역 미정"}
               </Text>
             </View>
+
+            <TouchableOpacity
+              style={styles.deleteButton}
+              activeOpacity={0.75}
+              onPress={() => handleDeleteSchedule(schedule)}
+            >
+              <Text style={styles.deleteButtonText}>삭제</Text>
+            </TouchableOpacity>
           </TouchableOpacity>
         ))}
       </View>
@@ -345,6 +385,19 @@ const styles = StyleSheet.create({
     marginTop: 2,
     fontSize: 11,
     fontWeight: "600",
+    color: "#8FA0B7",
+  },
+
+  deleteButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+  },
+
+  deleteButtonText: {
+    fontSize: 11,
+    fontWeight: "800",
     color: "#8FA0B7",
   },
 

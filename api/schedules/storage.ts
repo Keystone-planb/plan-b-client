@@ -47,6 +47,21 @@ export const saveSchedule = async (
   return newSchedule;
 };
 
+export const deleteSchedule = async (scheduleId: string) => {
+  const prevSchedules = await getSchedules();
+
+  const nextSchedules = prevSchedules.filter(
+    (schedule) => schedule.id !== scheduleId,
+  );
+
+  await AsyncStorage.setItem(
+    SCHEDULES_STORAGE_KEY,
+    JSON.stringify(nextSchedules),
+  );
+
+  return nextSchedules;
+};
+
 export const clearSchedules = async () => {
   await AsyncStorage.removeItem(SCHEDULES_STORAGE_KEY);
 };
