@@ -87,7 +87,11 @@ export default function LoginScreen({ navigation }: any) {
     Alert.alert("성공", message, [
       {
         text: "확인",
-        onPress: () => navigation.replace("Main"),
+        onPress: () =>
+          navigation.reset({
+            index: 0,
+            routes: [{ name: "MainTabs" }],
+          }),
       },
     ]);
   };
@@ -162,7 +166,16 @@ export default function LoginScreen({ navigation }: any) {
         return;
       }
 
-      await WebBrowser.openBrowserAsync(url);
+      const result = await WebBrowser.openAuthSessionAsync(
+        url,
+        getRedirectUri(),
+      );
+
+      console.log("[구글 로그인 결과]", result);
+
+      if (result.type === "success") {
+        await handleOAuthRedirect(result.url);
+      }
     } catch (error) {
       showError("구글 로그인 실패", error);
     }
@@ -259,7 +272,7 @@ export default function LoginScreen({ navigation }: any) {
                   disabled={loading}
                 >
                   <Ionicons
-                    name={showPassword ? "eye-off-outline" : "eye-outline"}
+                    name={showPassword ? "eye-outline" : "eye-off-outline"}
                     size={22}
                     color="#8C9BB1"
                   />

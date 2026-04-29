@@ -10,9 +10,9 @@ import OnboardingThirdScreen from "./src/screens/OnboardingThirdScreen";
 import OnboardingFourthScreen from "./src/screens/OnboardingFourthScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
-import MainScreen from "./src/screens/MainScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -21,7 +21,9 @@ type RootStackParamList = {
   OnboardingFourth: undefined;
   Login: undefined;
   SignUp: undefined;
-  Main: undefined;
+
+  MainTabs: undefined;
+
   AddSchedule: undefined;
   AddScheduleDate: undefined;
 };
@@ -40,7 +42,7 @@ export default function App() {
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
         setInitialRoute(
-          accessToken && refreshToken ? "Main" : "OnboardingFirst",
+          accessToken && refreshToken ? "MainTabs" : "OnboardingFirst",
         );
       } catch (error) {
         console.log("초기 상태 확인 실패:", error);
@@ -70,20 +72,30 @@ export default function App() {
           name="OnboardingFirst"
           component={OnboardingFirstScreen}
         />
+
         <Stack.Screen
           name="OnboardingSecond"
           component={OnboardingSecondScreen}
         />
+
         <Stack.Screen
           name="OnboardingThird"
           component={OnboardingThirdScreen}
         />
+
         <Stack.Screen
           name="OnboardingFourth"
           component={OnboardingFourthScreen}
         />
 
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 300,
+          }}
+        />
 
         <Stack.Screen
           name="SignUp"
@@ -94,11 +106,34 @@ export default function App() {
           }}
         />
 
-        <Stack.Screen name="Main" component={MainScreen} />
-        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        <Stack.Screen
+          name="MainTabs"
+          component={BottomTabNavigator}
+          options={{
+            headerShown: false,
+            animation: "fade",
+            animationDuration: 250,
+          }}
+        />
+
+        <Stack.Screen
+          name="AddSchedule"
+          component={AddScheduleNameScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>

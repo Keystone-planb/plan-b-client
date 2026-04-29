@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { CommonActions } from "@react-navigation/native";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
@@ -66,7 +67,14 @@ export default function MainScreen({ navigation }: Props) {
       Alert.alert("로그아웃", result.message, [
         {
           text: "확인",
-          onPress: () => navigation.replace("Login"),
+          onPress: () => {
+            navigation.getParent()?.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              }),
+            );
+          },
         },
       ]);
     } catch (error: unknown) {
@@ -78,7 +86,14 @@ export default function MainScreen({ navigation }: Props) {
       Alert.alert("로그아웃", message, [
         {
           text: "확인",
-          onPress: () => navigation.replace("Login"),
+          onPress: () => {
+            navigation.getParent()?.dispatch(
+              CommonActions.reset({
+                index: 0,
+                routes: [{ name: "Login" }],
+              }),
+            );
+          },
         },
       ]);
     } finally {
@@ -184,7 +199,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
-    paddingBottom: 40,
+    paddingBottom: 150,
     alignItems: "center",
     justifyContent: "center",
   },
