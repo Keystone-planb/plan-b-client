@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   ScrollView,
@@ -7,15 +7,14 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
-import { requestLogout } from "../../api/auth/logout";
+import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
@@ -30,12 +29,14 @@ type UserInfo = {
 export default function MainScreen({ navigation }: Props) {
   const [user, setUser] = useState<UserInfo>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [logoutLoading, setLogoutLoading] = useState(false);
+  const [schedules, setSchedules] = useState<SavedSchedule[]>([]);
+  const [loadingSchedules, setLoadingSchedules] = useState(true);
 
   useEffect(() => {
     const fetchMe = async () => {
       try {
         setLoadingUser(true);
+
         const result = await getMe();
         setUser(result);
       } catch (error: unknown) {
@@ -55,35 +56,32 @@ export default function MainScreen({ navigation }: Props) {
     fetchMe();
   }, []);
 
-  const handleLogout = async () => {
-    if (logoutLoading) return;
-
+  const loadSchedules = async () => {
     try {
-      setLogoutLoading(true);
+      setLoadingSchedules(true);
 
-      const result = await requestLogout();
+      const savedSchedules = await getSchedules();
 
-      Alert.alert("로그아웃", result.message, [
-        {
-          text: "확인",
-          onPress: () => navigation.replace("Login"),
-        },
-      ]);
-    } catch (error: unknown) {
-      console.log("로그아웃 실패:", error);
+      console.log("[메인 일정 목록]", savedSchedules);
 
-      const message =
-        error instanceof Error ? error.message : "로그아웃 처리되었습니다.";
-
-      Alert.alert("로그아웃", message, [
-        {
-          text: "확인",
-          onPress: () => navigation.replace("Login"),
-        },
-      ]);
+      setSchedules(savedSchedules);
+    } catch (error) {
+      console.log("메인 일정 목록 불러오기 실패:", error);
+      setSchedules([]);
     } finally {
-      setLogoutLoading(false);
+      setLoadingSchedules(false);
     }
+  };
+
+  useFocusEffect(
+    useCallback(() => {
+      loadSchedules();
+    }, []),
+  );
+
+  const formatDate = (value: string) => {
+    if (!value) return "";
+    return value.replace(/-/g, ".");
   };
 
   const renderUserSection = () => {
@@ -102,6 +100,56 @@ export default function MainScreen({ navigation }: Props) {
 
     return (
       <Text style={styles.userText}>사용자 정보를 불러오지 못했습니다.</Text>
+    );
+  };
+
+  const renderScheduleSection = () => {
+    if (loadingSchedules) {
+      return (
+        <View style={styles.scheduleEmptyBox}>
+          <Text style={styles.mainText}>일정을 불러오는 중...</Text>
+        </View>
+      );
+    }
+
+    if (schedules.length === 0) {
+      return (
+        <View style={styles.scheduleEmptyBox}>
+          <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
+          <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
+        </View>
+      );
+    }
+
+    return (
+      <View style={styles.scheduleList}>
+        {schedules.map((schedule) => (
+          <TouchableOpacity
+            key={schedule.id}
+            style={styles.scheduleCard}
+            activeOpacity={0.85}
+          >
+            <View style={styles.scheduleThumbnail}>
+              <Text style={styles.scheduleEmoji}>🏝️</Text>
+            </View>
+
+            <View style={styles.scheduleInfo}>
+              <Text style={styles.scheduleTitle} numberOfLines={1}>
+                {schedule.tripName}
+              </Text>
+
+              <Text style={styles.scheduleMeta} numberOfLines={1}>
+                {formatDate(schedule.startDate)} -{" "}
+                {formatDate(schedule.endDate)}
+              </Text>
+
+              <Text style={styles.scheduleMeta} numberOfLines={1}>
+                {schedule.location || "지역 미정"}
+              </Text>
+            </View>
+          </TouchableOpacity>
+        ))}
+      </View>
     );
   };
 
@@ -131,8 +179,7 @@ export default function MainScreen({ navigation }: Props) {
           </View>
 
           <View style={styles.textGroup}>
-            <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-            <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
+            {renderScheduleSection()}
 
             <View style={styles.userInfoBox}>{renderUserSection()}</View>
           </View>
@@ -144,24 +191,6 @@ export default function MainScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("AddSchedule")}
             >
               <Text style={styles.addButtonText}>일정 추가하기</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.logoutButton,
-                logoutLoading && styles.disabledButton,
-              ]}
-              onPress={handleLogout}
-              activeOpacity={0.85}
-              disabled={logoutLoading}
-            >
-              {logoutLoading ?
-                <ActivityIndicator color="#2158E8" size="small" />
-              : <>
-                  <Ionicons name="log-out-outline" size={16} color="#2158E8" />
-                  <Text style={styles.logoutButtonText}>로그아웃</Text>
-                </>
-              }
             </TouchableOpacity>
           </View>
         </View>
@@ -184,7 +213,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
-    paddingBottom: 40,
+    paddingBottom: 150,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -265,6 +294,60 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
+  scheduleEmptyBox: {
+    width: "100%",
+    alignItems: "center",
+  },
+
+  scheduleList: {
+    width: "100%",
+    gap: 12,
+  },
+
+  scheduleCard: {
+    minHeight: 82,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2EAF4",
+  },
+
+  scheduleThumbnail: {
+    width: 52,
+    height: 52,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 12,
+    backgroundColor: "#DDF0FF",
+  },
+
+  scheduleEmoji: {
+    fontSize: 28,
+  },
+
+  scheduleInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+
+  scheduleTitle: {
+    marginBottom: 6,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#202938",
+  },
+
+  scheduleMeta: {
+    marginTop: 2,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#8FA0B7",
+  },
+
   userInfoBox: {
     width: "100%",
     marginTop: 22,
@@ -294,7 +377,6 @@ const styles = StyleSheet.create({
   bottomActionGroup: {
     width: "100%",
     alignItems: "center",
-    gap: 12,
     marginTop: 26,
   },
 
@@ -316,29 +398,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-
-  logoutButton: {
-    minWidth: 132,
-    height: 46,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DCE7F7",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-
-  logoutButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "700",
-  },
-
-  disabledButton: {
-    opacity: 0.7,
   },
 });
