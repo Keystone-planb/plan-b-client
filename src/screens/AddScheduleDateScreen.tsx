@@ -5,33 +5,37 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import TravelDateRangeModal from "../components/TravelDateRangeModal";
-import { saveSchedule } from "../../api/schedules/storage";
 
 type Props = {
   navigation: any;
-  route: any;
+  route: {
+    params?: {
+      tripName?: string;
+    };
+  };
 };
 
 export default function AddScheduleDateScreen({ navigation, route }: Props) {
-  const tripName = route?.params?.tripName ?? "";
+  const tripName = route.params?.tripName ?? "";
 
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [calendarVisible, setCalendarVisible] = useState(false);
 
+  const canGoNext = Boolean(tripName.trim() && startDate && endDate);
+
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const handleComplete = async () => {
-    if (!tripName.trim() || !startDate || !endDate) {
-      console.log("[일정 저장 중단]", {
+  const handleNext = () => {
+    if (!canGoNext) {
+      console.log("[지역 선택 이동 중단]", {
         tripName,
         startDate,
         endDate,
@@ -39,33 +43,17 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
       return;
     }
 
-    try {
-      const savedSchedule = await saveSchedule({
-        tripName: tripName.trim(),
-        startDate,
-        endDate,
-        location: "지역 미정",
-      });
-
-      console.log("[일정 저장 완료]", savedSchedule);
-
-      Alert.alert("저장 완료", "여행 일정이 저장되었습니다.", [
-        {
-          text: "확인",
-          onPress: () =>
-            navigation.reset({
-              index: 0,
-              routes: [{ name: "Main" }],
-            }),
-        },
-      ]);
-    } catch (error) {
-      console.log("일정 저장 실패:", error);
-      Alert.alert("저장 실패", "일정 저장 중 문제가 발생했습니다.");
-    }
+    navigation.navigate("AddScheduleLocation", {
+      tripName: tripName.trim(),
+      startDate,
+      endDate,
+    });
   };
 
-  const formatDate = (value: string) => value.replace(/-/g, ".");
+  const formatDate = (value: string) => {
+    if (!value) return "";
+    return value.replace(/-/g, ".");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -91,7 +79,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.topSection}>
-            <View style={[styles.illustrationWrapper, styles.calendarBg]}>
+            <View style={styles.illustrationWrapper}>
               <Text style={styles.illustrationEmoji}>📅</Text>
             </View>
 
@@ -113,7 +101,12 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
                 activeOpacity={0.85}
                 onPress={() => setCalendarVisible(true)}
               >
-                <Text style={styles.dateText}>
+                <Text
+                  style={[
+                    styles.dateText,
+                    startDate && styles.selectedDateText,
+                  ]}
+                >
                   {startDate ? formatDate(startDate) : "0000.00.00"}
                 </Text>
 
@@ -131,7 +124,9 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
                 activeOpacity={0.85}
                 onPress={() => setCalendarVisible(true)}
               >
-                <Text style={styles.dateText}>
+                <Text
+                  style={[styles.dateText, endDate && styles.selectedDateText]}
+                >
                   {endDate ? formatDate(endDate) : "0000.00.00"}
                 </Text>
 
@@ -147,19 +142,16 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
           <View style={styles.pagination}>
             <View style={styles.dot} />
             <View style={styles.activeDot} />
+            <View style={styles.dot} />
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.nextButton,
-              (!tripName.trim() || !startDate || !endDate) &&
-                styles.disabledButton,
-            ]}
-            onPress={handleComplete}
+            style={[styles.nextButton, !canGoNext && styles.disabledButton]}
+            onPress={handleNext}
             activeOpacity={0.85}
-            disabled={!tripName.trim() || !startDate || !endDate}
+            disabled={!canGoNext}
           >
-            <Text style={styles.nextButtonText}>완료</Text>
+            <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -225,24 +217,12 @@ const styles = StyleSheet.create({
   illustrationWrapper: {
     width: 170,
     height: 170,
-    borderRadius: 999,
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 30,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowRadius: 15,
-    elevation: 12,
-  },
-  calendarBg: {
-    backgroundColor: "#FFEDD2",
   },
   illustrationEmoji: {
-    fontSize: 88,
+    fontSize: 96,
   },
   title: {
     color: "#000000",
@@ -287,6 +267,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "500",
   },
+  selectedDateText: {
+    color: "#1C2534",
+    fontWeight: "700",
+  },
   calendarButton: {
     width: 40,
     height: 40,
@@ -311,13 +295,13 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: "#2158E8",
+    marginHorizontal: 8,
   },
   dot: {
     width: 6,
     height: 6,
     borderRadius: 999,
     backgroundColor: "#E1E7EF",
-    marginRight: 8,
   },
   nextButton: {
     alignItems: "center",
@@ -334,13 +318,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+  disabledButton: {
+    opacity: 0.45,
+  },
   nextButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-  },
-
-  disabledButton: {
-    opacity: 0.45,
   },
 });

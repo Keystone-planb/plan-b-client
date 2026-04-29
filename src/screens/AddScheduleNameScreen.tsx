@@ -19,6 +19,8 @@ type Props = {
 export default function AddScheduleNameScreen({ navigation }: Props) {
   const [tripName, setTripName] = useState("");
 
+  const canGoNext = Boolean(tripName.trim());
+
   const handleBack = () => {
     navigation.goBack();
   };
@@ -61,7 +63,7 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
 
           <View style={styles.topSection}>
             <View style={styles.illustrationWrapper}>
-              <AddScheduleMainSvg width={108} height={108} />
+              <AddScheduleMainSvg width={170} height={170} />
             </View>
 
             <Text style={styles.title}>여행의 이름을{"\n"}정해주세요</Text>
@@ -76,6 +78,9 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
               value={tripName}
               onChangeText={setTripName}
               style={styles.input}
+              autoCapitalize="none"
+              autoCorrect={false}
+              returnKeyType="done"
             />
           </View>
         </ScrollView>
@@ -84,16 +89,14 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
           <View style={styles.pagination}>
             <View style={styles.activeDot} />
             <View style={styles.dot} />
+            <View style={styles.dot} />
           </View>
 
           <TouchableOpacity
-            style={[
-              styles.nextButton,
-              !tripName.trim() && styles.disabledButton,
-            ]}
+            style={[styles.nextButton, !canGoNext && styles.disabledButton]}
             onPress={handleNext}
             activeOpacity={0.85}
-            disabled={!tripName.trim()}
+            disabled={!canGoNext}
           >
             <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
@@ -150,19 +153,9 @@ const styles = StyleSheet.create({
   illustrationWrapper: {
     width: 170,
     height: 170,
-    borderRadius: 999,
-    backgroundColor: "#D5EBFC",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 30,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowRadius: 15,
-    elevation: 12,
   },
   title: {
     color: "#000000",
@@ -215,6 +208,7 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: "#E1E7EF",
+    marginRight: 8,
   },
   nextButton: {
     alignItems: "center",
@@ -231,13 +225,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+  disabledButton: {
+    opacity: 0.45,
+  },
   nextButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
-  },
-
-  disabledButton: {
-    opacity: 0.45,
   },
 });

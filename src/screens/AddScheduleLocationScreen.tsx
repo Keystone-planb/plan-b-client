@@ -83,20 +83,45 @@ export default function AddScheduleLocationScreen({
   };
 
   const handleComplete = async () => {
-    if (saving) return;
+    console.log("[지역 저장 버튼 클릭]", {
+      saving,
+      selectedLocation,
+      tripName,
+      startDate,
+      endDate,
+    });
+
+    if (saving) {
+      console.log("[지역 저장 중단] 이미 저장 중");
+      return;
+    }
 
     if (!selectedLocation) {
+      console.log("[지역 저장 중단] 지역 미선택");
       Alert.alert("알림", "여행 지역을 선택해주세요.");
       return;
     }
 
     if (!tripName || !startDate || !endDate) {
+      console.log("[지역 저장 중단] 필수 정보 누락", {
+        tripName,
+        startDate,
+        endDate,
+      });
+
       Alert.alert("알림", "여행 이름과 날짜 정보가 없습니다.");
       return;
     }
 
     try {
       setSaving(true);
+
+      console.log("[일정 저장 요청]", {
+        tripName,
+        startDate,
+        endDate,
+        location: selectedLocation.name,
+      });
 
       const savedSchedule = await saveSchedule({
         tripName,
@@ -107,22 +132,18 @@ export default function AddScheduleLocationScreen({
 
       console.log("[일정 저장 완료]", savedSchedule);
 
-      navigation.reset({
-        index: 0,
-        routes: [
-          {
-            name: "PlanA",
-            params: {
-              tripName,
-              startDate,
-              endDate,
-              location: selectedLocation.name,
-            },
-          },
-        ],
-      });
+      Alert.alert("저장 완료", "여행 일정이 저장되었습니다.", [
+        {
+          text: "확인",
+          onPress: () =>
+            navigation.reset({
+              index: 0,
+              routes: [{ name: "Main" }],
+            }),
+        },
+      ]);
     } catch (error) {
-      console.log("일정 저장 실패:", error);
+      console.log("[일정 저장 실패]", error);
       Alert.alert("오류", "일정 저장에 실패했습니다.");
     } finally {
       setSaving(false);
@@ -161,7 +182,7 @@ export default function AddScheduleLocationScreen({
             <Text style={styles.title}>어디로{"\n"}떠나시나요?</Text>
 
             <Text style={styles.description}>
-              여행할 지역을 선택하면 Plan.A 일정 화면으로 이동해요.
+              여행할 지역을 선택하면 일정이 저장돼요.
             </Text>
           </View>
 
@@ -249,7 +270,7 @@ export default function AddScheduleLocationScreen({
           >
             {saving ?
               <ActivityIndicator color="#FFFFFF" />
-            : <Text style={styles.completeButtonText}>Plan.A 만들기</Text>}
+            : <Text style={styles.completeButtonText}>저장하기</Text>}
           </TouchableOpacity>
         </View>
       </View>
@@ -468,7 +489,6 @@ const styles = StyleSheet.create({
     height: 6,
     borderRadius: 999,
     backgroundColor: "#2158E8",
-    marginRight: 8,
   },
 
   dot: {

@@ -13,6 +13,7 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -23,7 +24,14 @@ type RootStackParamList = {
   SignUp: undefined;
   Main: undefined;
   AddSchedule: undefined;
-  AddScheduleDate: undefined;
+  AddScheduleDate: {
+    tripName: string;
+  };
+  AddScheduleLocation: {
+    tripName: string;
+    startDate: string;
+    endDate: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -70,14 +78,17 @@ export default function App() {
           name="OnboardingFirst"
           component={OnboardingFirstScreen}
         />
+
         <Stack.Screen
           name="OnboardingSecond"
           component={OnboardingSecondScreen}
         />
+
         <Stack.Screen
           name="OnboardingThird"
           component={OnboardingThirdScreen}
         />
+
         <Stack.Screen
           name="OnboardingFourth"
           component={OnboardingFourthScreen}
@@ -95,10 +106,17 @@ export default function App() {
         />
 
         <Stack.Screen name="Main" component={MainScreen} />
+
         <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+        />
+
+        <Stack.Screen
+          name="AddScheduleLocation"
+          component={AddScheduleLocationScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>
