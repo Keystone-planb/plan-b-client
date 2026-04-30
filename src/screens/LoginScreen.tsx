@@ -317,15 +317,14 @@ export default function LoginScreen({ navigation }: any) {
                 disabled={isBusy}
               >
                 <View style={styles.socialIconBox}>
-                  <View style={styles.socialIconBox}>
                   {isKakaoLoading ?
                     <ActivityIndicator size="small" color="#3C1E1E" />
                   : <KakaoIcon
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
-                    />}
-                </View>
+                    />
+                  }
                 </View>
 
                 <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
@@ -344,7 +343,8 @@ export default function LoginScreen({ navigation }: any) {
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
-                    />}
+                    />
+                  }
                 </View>
 
                 <Text style={styles.googleButtonText}>Google 로그인</Text>
