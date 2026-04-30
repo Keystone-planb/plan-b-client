@@ -17,6 +17,8 @@ import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
+import PlanAScreen from "./src/screens/PlanAScreen";
+import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
 
 export type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -29,6 +31,16 @@ export type RootStackParamList = {
   OAuthRedirect: undefined;
 
   MainTabs: undefined;
+
+  PlanA: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+  };
+
+  PlanXDetail: undefined;
 
   AddSchedule: undefined;
   AddScheduleDate: {
@@ -49,6 +61,7 @@ const linking = {
       OAuthRedirect: {
         path: "oauth/:result",
       },
+      PlanXDetail: "plan-x-detail",
       AddSchedule: "add-schedule",
       AddScheduleDate: "add-schedule-date",
     },
@@ -162,6 +175,26 @@ export default function App() {
             animation: "fade",
             animationDuration: 250,
             gestureEnabled: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanA"
+          component={PlanAScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanXDetail"
+          component={PlanXDetailScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
           }}
         />
 
