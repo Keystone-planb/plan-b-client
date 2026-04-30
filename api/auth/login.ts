@@ -1,5 +1,5 @@
-import axios from "axios";
 import apiClient from "../client";
+import axios from "axios";
 import { API_CONFIG } from "../config";
 
 export interface LoginRequest {
@@ -8,19 +8,55 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
-  success?: boolean;
-  message?: string;
-  nickname?: string;
   access_token: string;
   refresh_token: string;
-  token_type?: string;
+  expires_in?: number;
   user_id?: number;
+  nickname?: string;
 }
 
 interface LoginErrorResponse {
   message?: string;
   error?: string;
 }
+
+export class LoginError extends Error {
+  status?: number;
+
+  constructor(message: string, status?: number) {
+    super(message);
+    this.name = "LoginError";
+    this.status = status;
+  }
+}
+
+const mockRequestLogin = async ({
+  email,
+  password,
+}: LoginRequest): Promise<LoginResponse> => {
+  
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      if (!email || !password) {
+        reject(new LoginError("이메일과 비밀번호를 입력해주세요."));
+        return;
+      }
+
+      if (email !== "test@test.com" || password !== "1234") {
+        reject(new LoginError("이메일 또는 비밀번호가 올바르지 않습니다."));
+        return;
+      }
+
+      resolve({
+        access_token: "mock_access_token_123456",
+        refresh_token: "mock_refresh_token_abcdef",
+        expires_in: 3600,
+        user_id: 101,
+        nickname: "test",
+      });
+    }, 800);
+  });
+};
 
 const isLoginResponse = (data: unknown): data is LoginResponse => {
   if (!data || typeof data !== "object") return false;
@@ -29,9 +65,7 @@ const isLoginResponse = (data: unknown): data is LoginResponse => {
 
   return (
     typeof obj.access_token === "string" &&
-    obj.access_token.length > 0 &&
-    typeof obj.refresh_token === "string" &&
-    obj.refresh_token.length > 0
+    typeof obj.refresh_token === "string"
   );
 };
 
@@ -43,95 +77,73 @@ const isHtmlResponse = (data: unknown) => {
   return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
-const getServerErrorMessage = (data: unknown) => {
-  if (!data || typeof data !== "object") return null;
-
-  const errorData = data as LoginErrorResponse;
-
-  return errorData.message || errorData.error || null;
-};
-
 export const requestLogin = async ({
   email,
   password,
 }: LoginRequest): Promise<LoginResponse> => {
-  try {
-    console.log("🔥 requestLogin 호출됨");
-    console.log("🔥 LOGIN URL:", `${API_CONFIG.BASE_URL}/api/auth/login`);
-    console.log("🔥 로그인 요청:", { email, password });
+  if (API_CONFIG.USE_MOCK) {
+    return mockRequestLogin({ email, password });
+  }
 
-    const response = await apiClient.post("/api/auth/login", {
-      email,
+  try {
+    const trimmedEmail = email.trim();
+
+        
+    const response = await apiClient.post<unknown>("/api/auth/login", {
+      email: trimmedEmail,
       password,
     });
 
+        
     const data = response.data;
 
-    console.log("🔥 로그인 response.status:", response.status);
-    console.log("🔥 로그인 response.data:", data);
-
     if (isHtmlResponse(data)) {
-      throw new Error(
+      throw new LoginError(
         "로그인 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
       );
     }
 
     if (!isLoginResponse(data)) {
-      console.log("❌ 예상한 로그인 응답 구조 아님:", data);
-      throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
+            throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
     }
 
     return data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.log("❌ 로그인 실패 status:", error.response?.status);
-      console.log("❌ 로그인 실패 data:", error.response?.data);
-      console.log("❌ 로그인 실패 message:", error.message);
-
+                              
+      const status = error.response?.status;
       const errorData = error.response?.data as
         | LoginErrorResponse
         | string
         | undefined;
 
       if (!error.response && error.message === "Network Error") {
-        throw new Error(
-          "백엔드 서버에 연결할 수 없습니다. 서버 실행 여부와 포트를 확인해주세요.",
+        throw new LoginError(
+          "백엔드 서버에 연결할 수 없습니다. 서버 상태와 BASE_URL을 확인해주세요.",
         );
       }
 
       if (isHtmlResponse(errorData)) {
-        throw new Error(
-          "로그인 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL 또는 포트를 확인해주세요.",
+        throw new LoginError(
+          "로그인 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
+          status,
         );
       }
 
-      const serverMessage = getServerErrorMessage(errorData);
-
-      if (serverMessage) {
-        throw new Error(serverMessage);
+      if (typeof errorData === "string") {
+        throw new LoginError(errorData.trim(), status);
       }
 
-      if (error.response?.status === 401) {
-        throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
-      }
+      const serverMessage =
+        errorData?.message || errorData?.error || "로그인에 실패했습니다.";
 
-      if (error.response?.status === 404) {
-        throw new Error("로그인에 실패했습니다.");
-      }
-
-      if (error.response?.status === 503) {
-        throw new Error(
-          "서버가 현재 사용할 수 없습니다. 백엔드 서버 상태를 확인해주세요.",
-        );
-      }
-
-      throw new Error("로그인에 실패했습니다.");
+      throw new LoginError(serverMessage, status);
     }
 
     if (error instanceof Error) {
       throw error;
     }
 
-    throw new Error("알 수 없는 오류가 발생했습니다.");
+    throw new LoginError("알 수 없는 오류가 발생했습니다.");
   }
 };

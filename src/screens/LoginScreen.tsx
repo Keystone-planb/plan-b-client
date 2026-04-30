@@ -96,8 +96,7 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleLoginError = (title: string, error: unknown) => {
-    console.log(`${title} 에러:`, error);
-
+    
     const message =
       error instanceof Error ? error.message : "로그인에 실패했습니다.";
 
@@ -120,8 +119,7 @@ export default function LoginScreen({ navigation }: any) {
         password,
       });
 
-      console.log("🔥 로그인 응답 전체:", result);
-
+      
       await handleLoginSuccess(result);
     } catch (error) {
       handleLoginError("로그인 실패", error);
@@ -137,8 +135,7 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleOAuthRedirect = async (url: string) => {
-    console.log("[OAuth Redirect 감지 URL]", url);
-
+    
     if (!isOAuthSuccessUrl(url) && !isOAuthFailureUrl(url)) {
       return;
     }
@@ -168,9 +165,7 @@ export default function LoginScreen({ navigation }: any) {
 
       const { authUrl, redirectUri } = createSocialAuthUrl("kakao");
 
-      console.log("[카카오 로그인 authUrl]", authUrl);
-      console.log("[카카오 로그인 redirectUri]", redirectUri);
-
+            
       if (Platform.OS === "web") {
         window.location.assign(authUrl);
         return;
@@ -192,9 +187,7 @@ export default function LoginScreen({ navigation }: any) {
 
       const { authUrl, redirectUri } = createSocialAuthUrl("google");
 
-      console.log("[구글 로그인 authUrl]", authUrl);
-      console.log("[구글 로그인 redirectUri]", redirectUri);
-
+            
       if (Platform.OS === "web") {
         window.location.assign(authUrl);
         return;
@@ -205,16 +198,14 @@ export default function LoginScreen({ navigation }: any) {
         redirectUri,
       );
 
-      console.log("[구글 로그인 결과]", result);
-
+      
       if (result.type === "success") {
         await handleOAuthRedirect(result.url);
         return;
       }
 
       if (result.type === "cancel" || result.type === "dismiss") {
-        console.log("[구글 로그인 취소]", result.type);
-      }
+              }
     } catch (error) {
       handleLoginError("구글 로그인 실패", error);
     } finally {
@@ -317,15 +308,14 @@ export default function LoginScreen({ navigation }: any) {
                 disabled={isBusy}
               >
                 <View style={styles.socialIconBox}>
-                  <View style={styles.socialIconBox}>
                   {isKakaoLoading ?
                     <ActivityIndicator size="small" color="#3C1E1E" />
                   : <KakaoIcon
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
-                    />}
-                </View>
+                    />
+                  }
                 </View>
 
                 <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
@@ -344,7 +334,8 @@ export default function LoginScreen({ navigation }: any) {
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
-                    />}
+                    />
+                  }
                 </View>
 
                 <Text style={styles.googleButtonText}>Google 로그인</Text>
@@ -394,17 +385,11 @@ export default function LoginScreen({ navigation }: any) {
               thirdPartyCookiesEnabled
               setSupportMultipleWindows={false}
               onLoadStart={(event) => {
-                console.log(
-                  "[카카오 WebView load start]",
-                  event.nativeEvent.url,
-                );
-              }}
+                              }}
               onLoadEnd={(event) => {
-                console.log("[카카오 WebView load end]", event.nativeEvent.url);
-              }}
+                              }}
               onError={(event) => {
-                console.log("[카카오 WebView onError]", event.nativeEvent);
-
+                
                 Alert.alert(
                   "카카오 로그인 오류",
                   event.nativeEvent.description ||
@@ -414,13 +399,11 @@ export default function LoginScreen({ navigation }: any) {
                 setSocialLoadingProvider(null);
               }}
               onHttpError={(event) => {
-                console.log("[카카오 WebView onHttpError]", event.nativeEvent);
-              }}
+                              }}
               onShouldStartLoadWithRequest={(request) => {
                 const nextUrl = request.url;
 
-                console.log("[카카오 WebView 요청 URL]", nextUrl);
-
+                
                 if (isOAuthSuccessUrl(nextUrl) || isOAuthFailureUrl(nextUrl)) {
                   handleOAuthRedirect(nextUrl);
                   return false;
@@ -429,8 +412,7 @@ export default function LoginScreen({ navigation }: any) {
                 return true;
               }}
               onNavigationStateChange={({ url }) => {
-                console.log("[카카오 WebView URL]", url);
-
+                
                 if (isOAuthSuccessUrl(url) || isOAuthFailureUrl(url)) {
                   handleOAuthRedirect(url);
                 }
