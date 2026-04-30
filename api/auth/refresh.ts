@@ -19,8 +19,7 @@ interface RefreshErrorResponse {
 const mockRequestRefresh = async ({
   refresh_token,
 }: RefreshRequest): Promise<RefreshResponse> => {
-  console.log("토큰 재발급 요청 (mock):", refresh_token);
-
+  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!refresh_token) {
@@ -48,8 +47,7 @@ export const requestRefresh = async ({
   }
 
   try {
-    console.log("토큰 재발급 요청 (server):", { refresh_token });
-
+    
     const response = await axios.post<RefreshResponse>(
       `${BASE_URL}/api/auth/refresh`,
       { refresh_token },
@@ -61,15 +59,11 @@ export const requestRefresh = async ({
       },
     );
 
-    console.log("토큰 재발급 응답:", response.status, response.data);
-
+    
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.log("토큰 재발급 실패 status:", error.response?.status);
-      console.log("토큰 재발급 실패 data:", error.response?.data);
-      console.log("토큰 재발급 실패 message:", error.message);
-
+                  
       const errorData = error.response?.data as
         | RefreshErrorResponse
         | undefined;
@@ -79,7 +73,6 @@ export const requestRefresh = async ({
       throw new Error(errorMessage);
     }
 
-    console.log("토큰 재발급 알 수 없는 에러:", error);
-    throw new Error("알 수 없는 오류가 발생했습니다.");
+        throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };

@@ -14,10 +14,9 @@ import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
-import MainScreen from "./src/screens/MainScreen";
-
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 
 export type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -29,7 +28,7 @@ export type RootStackParamList = {
   SignUp: undefined;
   OAuthRedirect: undefined;
 
-  Main: undefined;
+  MainTabs: undefined;
 
   AddSchedule: undefined;
   AddScheduleDate: {
@@ -39,17 +38,6 @@ export type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-/**
- * 소셜 로그인 redirect URL 처리
- *
- * 앱:
- * planb://oauth/success?access_token=...
- * planb://oauth/failure?error=...
- *
- * 웹:
- * http://localhost:8081/oauth/success?access_token=...
- * http://localhost:8082/oauth/success?access_token=...
- */
 const linking = {
   prefixes: ["planb://", "http://localhost:8081", "http://localhost:8082"],
   config: {
@@ -57,31 +45,21 @@ const linking = {
       OnboardingFirst: "",
       Login: "login",
       SignUp: "signup",
-      Main: "main",
-
+      MainTabs: "main",
       OAuthRedirect: {
         path: "oauth/:result",
       },
-
       AddSchedule: "add-schedule",
       AddScheduleDate: "add-schedule-date",
     },
   },
 };
 
-/**
- * 온보딩 화면 전환 옵션
- * - 페이지가 오른쪽에서 자연스럽게 넘어오도록 통일
- */
 const onboardingScreenOptions = {
   animation: "slide_from_right" as const,
   animationDuration: 260,
 };
 
-/**
- * 인증/리다이렉트 화면 전환 옵션
- * - 로그인, 회원가입, OAuth 처리 화면은 튀지 않게 fade 계열 사용
- */
 const authScreenOptions = {
   animation: "fade" as const,
   animationDuration: 240,
@@ -99,10 +77,9 @@ export default function App() {
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
         setInitialRoute(
-          accessToken && refreshToken ? "Main" : "OnboardingFirst",
+          accessToken && refreshToken ? "MainTabs" : "OnboardingFirst",
         );
-      } catch (error) {
-        console.log("초기 상태 확인 실패:", error);
+      } catch {
         setInitialRoute("OnboardingFirst");
       }
     };
@@ -129,7 +106,6 @@ export default function App() {
           },
         }}
       >
-        {/* Onboarding */}
         <Stack.Screen
           name="OnboardingFirst"
           component={OnboardingFirstScreen}
@@ -154,7 +130,6 @@ export default function App() {
           options={onboardingScreenOptions}
         />
 
-        {/* Auth */}
         <Stack.Screen
           name="Login"
           component={LoginScreen}
@@ -179,22 +154,22 @@ export default function App() {
           }}
         />
 
-        {/* Main */}
         <Stack.Screen
-          name="Main"
-          component={MainScreen}
+          name="MainTabs"
+          component={BottomTabNavigator}
           options={{
+            headerShown: false,
             animation: "fade",
-            animationDuration: 240,
+            animationDuration: 250,
             gestureEnabled: false,
           }}
         />
 
-        {/* Add Schedule */}
         <Stack.Screen
           name="AddSchedule"
           component={AddScheduleNameScreen}
           options={{
+            headerShown: false,
             animation: "slide_from_right",
             animationDuration: 260,
           }}
@@ -204,6 +179,7 @@ export default function App() {
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
           options={{
+            headerShown: false,
             animation: "slide_from_right",
             animationDuration: 260,
           }}

@@ -21,8 +21,7 @@ export const getSchedules = async (): Promise<SavedSchedule[]> => {
   try {
     return JSON.parse(rawSchedules) as SavedSchedule[];
   } catch (error) {
-    console.log("일정 목록 파싱 실패:", error);
-    return [];
+        return [];
   }
 };
 

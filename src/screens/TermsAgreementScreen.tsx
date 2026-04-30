@@ -122,8 +122,7 @@ export default function TermsAgreementScreen({ navigation, route }: Props) {
         routes: [{ name: "Main" }],
       });
     } catch (error) {
-      console.log("약관 동의 저장 실패:", error);
-      Alert.alert("오류", "약관 동의 저장에 실패했습니다.");
+            Alert.alert("오류", "약관 동의 저장에 실패했습니다.");
     }
   };
 

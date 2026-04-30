@@ -43,16 +43,7 @@ export const createSocialAuthUrl = (
 
   const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodedRedirectUri}`;
 
-  console.log("──────────────────────────────");
-  console.log("🧭 소셜 로그인 시작");
-  console.log({
-    provider,
-    redirectUri,
-    encodedRedirectUri,
-    authUrl,
-  });
-  console.log("──────────────────────────────");
-
+        
   return {
     provider,
     redirectUri,

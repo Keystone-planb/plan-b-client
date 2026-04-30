@@ -35,9 +35,7 @@ const getServerErrorMessage = (data: unknown) => {
 
 export const requestLogout = async (): Promise<LogoutResponse> => {
   try {
-    console.log("🔥 requestLogout 호출됨");
-    console.log("🔥 LOGOUT URL:", `${API_CONFIG.BASE_URL}/api/auth/logout`);
-
+        
     const response = await apiClient.post<LogoutResponse>(
       "/api/auth/logout",
       {},
@@ -49,9 +47,7 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
     );
     const data = response.data;
 
-    console.log("🔥 로그아웃 response.status:", response.status);
-    console.log("🔥 로그아웃 response.data:", data);
-
+        
     if (isHtmlResponse(data)) {
       throw new Error(
         "로그아웃 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
@@ -65,10 +61,7 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
     await clearAuthTokens();
 
     if (axios.isAxiosError(error)) {
-      console.log("❌ 로그아웃 실패 status:", error.response?.status);
-      console.log("❌ 로그아웃 실패 data:", error.response?.data);
-      console.log("❌ 로그아웃 실패 message:", error.message);
-
+                  
       const errorData = error.response?.data as
         | LogoutErrorResponse
         | string
@@ -109,7 +102,6 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
       throw error;
     }
 
-    console.log("로그아웃 알 수 없는 에러:", error);
-    throw new Error("알 수 없는 오류가 발생했습니다.");
+        throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };

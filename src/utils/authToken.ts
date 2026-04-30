@@ -67,13 +67,7 @@ export const handleOAuthSuccessUrl = async (url: string) => {
 
   await saveOAuthTokens(tokens);
 
-  console.log("[OAuth 토큰 저장 완료]", {
-    hasAccessToken: Boolean(tokens.accessToken),
-    hasRefreshToken: Boolean(tokens.refreshToken),
-    userId: tokens.userId,
-    nickname: tokens.nickname,
-  });
-
+  
   return tokens;
 };
 
