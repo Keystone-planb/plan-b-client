@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   ScrollView,
@@ -12,6 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
 import {
   requestEmailCode,
@@ -24,11 +25,13 @@ type Props = {
   navigation: any;
 };
 
-const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z\d]).{8,}$/;
 
 export default function SignUpScreen({ navigation }: Props) {
   const [email, setEmail] = useState("");
   const [authCode, setAuthCode] = useState("");
+  const [nickname, setNickname] = useState("");
   const [password, setPassword] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
 
@@ -37,27 +40,115 @@ export default function SignUpScreen({ navigation }: Props) {
   const [isVerifying, setIsVerifying] = useState(false);
   const [isEmailSent, setIsEmailSent] = useState(false);
   const [isVerified, setIsVerified] = useState(false);
+
   const [timer, setTimer] = useState(180);
+  const [resendCooldown, setResendCooldown] = useState(0);
+  const [verifyErrorMessage, setVerifyErrorMessage] = useState("");
+
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isPasswordConfirmVisible, setIsPasswordConfirmVisible] =
+    useState(false);
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const resendTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const trimmedEmail = email.trim();
+  const trimmedNickname = nickname.trim();
+  const trimmedAuthCode = authCode.trim();
+
+  const isEmailValid = EMAIL_REGEX.test(trimmedEmail);
+  const isNicknameValid = trimmedNickname.length >= 2;
+  const isPasswordValid = PASSWORD_REGEX.test(password);
+  const isPasswordMatched =
+    password.length > 0 &&
+    passwordConfirm.length > 0 &&
+    password === passwordConfirm;
+
+  const isBusy = loading || isSending || isVerifying;
+
+  const canRequestCode =
+    isEmailValid &&
+    !loading &&
+    !isSending &&
+    !isVerified &&
+    resendCooldown === 0;
+
+  const canVerifyCode =
+    isEmailSent &&
+    !isVerified &&
+    trimmedAuthCode.length === 6 &&
+    timer > 0 &&
+    !loading &&
+    !isVerifying;
+
+  const canSubmit = useMemo(() => {
+    return (
+      isEmailValid &&
+      isEmailSent &&
+      isVerified &&
+      isNicknameValid &&
+      isPasswordValid &&
+      isPasswordMatched &&
+      !isBusy
+    );
+  }, [
+    isEmailValid,
+    isEmailSent,
+    isVerified,
+    isNicknameValid,
+    isPasswordValid,
+    isPasswordMatched,
+    isBusy,
+  ]);
 
   const formatTimer = (seconds: number) => {
     const m = String(Math.floor(seconds / 60)).padStart(2, "0");
     const s = String(seconds % 60).padStart(2, "0");
+
     return `${m}:${s}`;
   };
 
-  const startTimer = (seconds: number = 180) => {
-    if (timerRef.current) clearInterval(timerRef.current);
+  const clearTimer = () => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
+  };
 
+  const clearResendTimer = () => {
+    if (resendTimerRef.current) {
+      clearInterval(resendTimerRef.current);
+      resendTimerRef.current = null;
+    }
+  };
+
+  const startTimer = (seconds: number = 180) => {
+    clearTimer();
     setTimer(seconds);
 
     timerRef.current = setInterval(() => {
       setTimer((prev) => {
         if (prev <= 1) {
-          if (timerRef.current) clearInterval(timerRef.current);
+          clearTimer();
           return 0;
         }
+
+        return prev - 1;
+      });
+    }, 1000);
+  };
+
+  const startResendCooldown = (seconds: number = 60) => {
+    clearResendTimer();
+    setResendCooldown(seconds);
+
+    resendTimerRef.current = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearResendTimer();
+          return 0;
+        }
+
         return prev - 1;
       });
     }, 1000);
@@ -65,96 +156,157 @@ export default function SignUpScreen({ navigation }: Props) {
 
   useEffect(() => {
     return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+      clearTimer();
+      clearResendTimer();
     };
   }, []);
 
+  const resetEmailVerification = () => {
+    setIsVerified(false);
+    setIsEmailSent(false);
+    setAuthCode("");
+    setVerifyErrorMessage("");
+    setTimer(180);
+    setResendCooldown(0);
+    clearTimer();
+    clearResendTimer();
+  };
+
   const handleRequestAuthCode = async () => {
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       Alert.alert("알림", "이메일을 입력해주세요.");
+      return;
+    }
+
+    if (!isEmailValid) {
+      Alert.alert("알림", "올바른 이메일 형식으로 입력해주세요.");
+      return;
+    }
+
+    if (resendCooldown > 0) {
+      Alert.alert(
+        "알림",
+        `${resendCooldown}초 후 인증번호를 다시 전송할 수 있습니다.`,
+      );
       return;
     }
 
     try {
       setIsSending(true);
       setIsVerified(false);
-      setIsEmailSent(false);
       setAuthCode("");
+      setVerifyErrorMessage("");
 
       const result = await requestEmailCode({
-        email: email.trim(),
+        email: trimmedEmail,
       });
 
       setIsEmailSent(true);
       startTimer(180);
+      startResendCooldown(60);
 
-      Alert.alert("성공", result.message);
-    } catch (error: any) {
+      Alert.alert(
+        "인증번호 발송",
+        result.message || "인증번호가 이메일로 발송되었습니다.",
+      );
+    } catch (error: unknown) {
       console.log("인증 코드 발송 실패:", error);
 
-      if (error instanceof RequestEmailCodeError) {
-        Alert.alert(
-          "인증번호 발송 실패",
-          error.message || "인증번호 발송에 실패했습니다.",
-        );
-        return;
-      }
+      const message =
+        error instanceof RequestEmailCodeError || error instanceof Error ?
+          error.message
+        : "인증번호 발송에 실패했습니다.";
 
-      Alert.alert("에러", error.message || "인증번호 발송에 실패했습니다.");
+      Alert.alert("인증번호 발송 실패", message);
     } finally {
       setIsSending(false);
     }
   };
 
   const handleVerifyCode = async () => {
-    if (!email.trim()) {
+    if (!trimmedEmail) {
       Alert.alert("알림", "이메일을 입력해주세요.");
       return;
     }
 
-    if (!authCode.trim() || authCode.trim().length < 6) {
-      Alert.alert("알림", "6자리 인증번호를 입력해주세요.");
+    if (!isEmailValid) {
+      Alert.alert("알림", "올바른 이메일 형식으로 입력해주세요.");
+      return;
+    }
+
+    if (trimmedAuthCode.length !== 6) {
+      const message = "6자리 인증번호를 입력해주세요.";
+      setVerifyErrorMessage(message);
+      Alert.alert("알림", message);
       return;
     }
 
     if (timer === 0) {
-      Alert.alert("알림", "인증 시간이 만료되었습니다. 다시 전송해주세요.");
+      const message = "인증 시간이 만료되었습니다. 다시 전송해주세요.";
+      setVerifyErrorMessage(message);
+      Alert.alert("알림", message);
       return;
     }
 
     try {
       setIsVerifying(true);
+      setVerifyErrorMessage("");
 
       const result = await verifyEmailCode({
-        email: email.trim(),
-        code: authCode.trim(),
+        email: trimmedEmail,
+        code: trimmedAuthCode,
       });
 
       setIsVerified(true);
+      setVerifyErrorMessage("");
+      clearTimer();
 
-      if (timerRef.current) clearInterval(timerRef.current);
-
-      Alert.alert("성공", result.message);
-    } catch (error: any) {
+      Alert.alert(
+        "인증 완료",
+        result.message || "이메일 인증이 완료되었습니다.",
+      );
+    } catch (error: unknown) {
       console.log("인증 코드 검증 실패:", error);
 
-      if (error instanceof VerifyEmailError) {
-        Alert.alert(
-          "인증 실패",
-          error.message || "인증 코드가 일치하지 않거나 만료되었습니다.",
-        );
-        return;
-      }
+      const message =
+        error instanceof VerifyEmailError || error instanceof Error ?
+          error.message
+        : "인증 코드가 일치하지 않거나 만료되었습니다.";
 
-      Alert.alert("에러", error.message || "인증 확인에 실패했습니다.");
+      setVerifyErrorMessage(message);
+      Alert.alert("인증 실패", message);
     } finally {
       setIsVerifying(false);
     }
   };
 
   const handleSignup = async () => {
-    if (!email.trim() || !password || !passwordConfirm) {
+    if (loading) return;
+
+    console.log("[회원가입 버튼 클릭]", {
+      email: trimmedEmail,
+      isEmailValid,
+      isEmailSent,
+      isVerified,
+      nickname: trimmedNickname,
+      isNicknameValid,
+      passwordLength: password.length,
+      isPasswordValid,
+      passwordConfirmLength: passwordConfirm.length,
+      isPasswordMatched,
+      loading,
+      isSending,
+      isVerifying,
+      canSubmit,
+    });
+
+    if (!trimmedEmail || !trimmedNickname || !password || !passwordConfirm) {
       Alert.alert("알림", "모든 정보를 입력해주세요.");
+      return;
+    }
+
+    if (!isEmailValid) {
+      Alert.alert("알림", "올바른 이메일 형식으로 입력해주세요.");
       return;
     }
 
@@ -168,15 +320,20 @@ export default function SignUpScreen({ navigation }: Props) {
       return;
     }
 
-    if (!passwordRegex.test(password)) {
+    if (!isNicknameValid) {
+      Alert.alert("알림", "닉네임은 2자 이상 입력해주세요.");
+      return;
+    }
+
+    if (!isPasswordValid) {
       Alert.alert(
         "알림",
-        "비밀번호는 8자 이상, 대소문자/숫자/특수문자를 포함해야 합니다.",
+        "비밀번호는 8자 이상, 대문자/소문자/숫자/특수문자를 모두 포함해야 합니다.",
       );
       return;
     }
 
-    if (password !== passwordConfirm) {
+    if (!isPasswordMatched) {
       Alert.alert("알림", "비밀번호가 일치하지 않습니다.");
       return;
     }
@@ -185,29 +342,70 @@ export default function SignUpScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await requestSignup({
-        email: email.trim(),
+        email: trimmedEmail,
         password,
-        nickname: email.trim().split("@")[0],
+        nickname: trimmedNickname,
       });
 
-      Alert.alert("성공", result.message || "회원가입이 완료되었습니다.", [
+      console.log("[회원가입 성공]", result);
+
+      const successMessage = result.message || "회원가입이 완료되었습니다.";
+
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.alert(successMessage);
+        navigation.replace("Login");
+        return;
+      }
+
+      Alert.alert("회원가입 완료", successMessage, [
         {
           text: "확인",
           onPress: () => navigation.replace("Login"),
         },
       ]);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.log("회원가입 실패:", error);
-      Alert.alert("가입 실패", error.message || "다시 시도해주세요.");
+
+      const message =
+        error instanceof Error ? error.message : "회원가입에 실패했습니다.";
+
+      Alert.alert("가입 실패", message);
     } finally {
       setLoading(false);
     }
   };
 
+  const renderPasswordRule = (
+    label: string,
+    active: boolean,
+    touched: boolean,
+  ) => {
+    const color =
+      !touched ? "#94A3B8"
+      : active ? "#16A34A"
+      : "#EF4444";
+    const iconName = active ? "checkmark-circle" : "ellipse-outline";
+
+    return (
+      <View style={styles.ruleRow}>
+        <Ionicons name={iconName} size={14} color={color} />
+        <Text style={[styles.ruleText, { color }]}>{label}</Text>
+      </View>
+    );
+  };
+
+  const getRequestCodeButtonText = () => {
+    if (isSending) return "";
+    if (resendCooldown > 0) return `${resendCooldown}초`;
+    if (isEmailSent) return "재전송";
+
+    return "인증전송";
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={styles.keyboardView}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
       >
         <ScrollView
@@ -218,14 +416,18 @@ export default function SignUpScreen({ navigation }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.page}>
-            <View style={styles.logoBox}>
+            <View style={styles.header}>
               <Text style={styles.logoText}>Plan.B</Text>
               <Text style={styles.logoSubText}>더 스마트한 여행의 시작</Text>
+              <Text style={styles.title}>회원가입</Text>
             </View>
 
             <View style={styles.fieldBlock}>
               <Text style={styles.label}>이메일</Text>
-              <View style={styles.inlineField}>
+
+              <View
+                style={[styles.inlineField, isVerified && styles.verifiedField]}
+              >
                 <TextInput
                   placeholder="example@planb.com"
                   placeholderTextColor="#8C9BB1"
@@ -233,51 +435,73 @@ export default function SignUpScreen({ navigation }: Props) {
                   value={email}
                   onChangeText={(text) => {
                     setEmail(text);
-                    setIsVerified(false);
+                    resetEmailVerification();
                   }}
                   autoCapitalize="none"
+                  autoCorrect={false}
                   keyboardType="email-address"
                   textContentType="emailAddress"
-                  editable={!loading && !isSending && !isVerified}
+                  returnKeyType="next"
+                  editable={!isBusy && !isVerified}
                 />
+
                 <TouchableOpacity
-                  style={styles.inlineButton}
+                  style={[
+                    styles.inlineButton,
+                    !canRequestCode && styles.disabledButton,
+                  ]}
                   onPress={handleRequestAuthCode}
-                  disabled={isSending || loading}
+                  disabled={!canRequestCode}
                   activeOpacity={0.85}
                 >
                   {isSending ?
                     <ActivityIndicator color="#FFFFFF" size="small" />
                   : <Text style={styles.inlineButtonText}>
-                      {isEmailSent ? "재전송" : "인증전송"}
+                      {getRequestCodeButtonText()}
                     </Text>
                   }
                 </TouchableOpacity>
               </View>
+
+              {!!trimmedEmail && !isEmailValid && (
+                <Text style={styles.errorText}>
+                  올바른 이메일 형식으로 입력해주세요.
+                </Text>
+              )}
+
+              {isVerified && (
+                <Text style={styles.successText}>이메일 인증 완료</Text>
+              )}
             </View>
 
             <View style={styles.fieldBlock}>
               <Text style={styles.label}>인증번호</Text>
+
               <View style={styles.inlineField}>
                 <TextInput
-                  placeholder="인증번호를 입력하세요"
+                  placeholder="6자리 인증번호"
                   placeholderTextColor="#8C9BB1"
                   style={styles.inlineInput}
                   value={authCode}
-                  onChangeText={setAuthCode}
+                  onChangeText={(text) => {
+                    const onlyNumber = text.replace(/[^0-9]/g, "");
+                    setAuthCode(onlyNumber);
+                    setVerifyErrorMessage("");
+                  }}
                   keyboardType="number-pad"
                   maxLength={6}
                   editable={
                     !loading && !isVerifying && isEmailSent && !isVerified
                   }
                 />
+
                 <TouchableOpacity
                   style={[
                     styles.inlineButton,
-                    (!isEmailSent || isVerified) && styles.disabledButton,
+                    !canVerifyCode && styles.disabledButton,
                   ]}
                   onPress={handleVerifyCode}
-                  disabled={!isEmailSent || isVerified || isVerifying}
+                  disabled={!canVerifyCode}
                   activeOpacity={0.85}
                 >
                   {isVerifying ?
@@ -290,46 +514,146 @@ export default function SignUpScreen({ navigation }: Props) {
               </View>
 
               {isEmailSent && !isVerified && (
-                <Text style={styles.timerText}>
+                <Text style={timer > 0 ? styles.timerText : styles.errorText}>
                   {timer > 0 ?
                     `남은 시간 ${formatTimer(timer)}`
                   : "인증 시간이 만료되었습니다. 다시 전송해주세요."}
                 </Text>
               )}
 
-              {isVerified && (
-                <Text style={styles.successText}>이메일 인증 완료</Text>
+              {!!verifyErrorMessage && !isVerified && (
+                <Text style={styles.errorText}>{verifyErrorMessage}</Text>
+              )}
+            </View>
+
+            <View style={styles.fieldBlock}>
+              <Text style={styles.label}>닉네임</Text>
+
+              <TextInput
+                placeholder="닉네임을 입력하세요"
+                placeholderTextColor="#8C9BB1"
+                style={styles.textInput}
+                value={nickname}
+                onChangeText={setNickname}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={20}
+                returnKeyType="next"
+                editable={!loading}
+              />
+
+              {!!trimmedNickname && !isNicknameValid && (
+                <Text style={styles.errorText}>
+                  닉네임은 2자 이상 입력해주세요.
+                </Text>
               )}
             </View>
 
             <View style={styles.fieldBlock}>
               <Text style={styles.label}>비밀번호</Text>
-              <TextInput
-                placeholder="비밀번호를 입력하세요"
-                placeholderTextColor="#8C9BB1"
-                secureTextEntry
-                style={styles.textInput}
-                value={password}
-                onChangeText={setPassword}
-                autoCapitalize="none"
-                textContentType="newPassword"
-                editable={!loading}
-              />
+
+              <View style={styles.passwordField}>
+                <TextInput
+                  placeholder="비밀번호를 입력하세요"
+                  placeholderTextColor="#8C9BB1"
+                  secureTextEntry={!isPasswordVisible}
+                  style={styles.passwordInput}
+                  value={password}
+                  onChangeText={setPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  returnKeyType="next"
+                  editable={!loading}
+                />
+
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setIsPasswordVisible((prev) => !prev)}
+                  activeOpacity={0.7}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name={isPasswordVisible ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748B"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.passwordRules}>
+                {renderPasswordRule(
+                  "8자 이상",
+                  password.length >= 8,
+                  !!password,
+                )}
+                {renderPasswordRule(
+                  "대문자 포함",
+                  /[A-Z]/.test(password),
+                  !!password,
+                )}
+                {renderPasswordRule(
+                  "소문자 포함",
+                  /[a-z]/.test(password),
+                  !!password,
+                )}
+                {renderPasswordRule(
+                  "숫자 포함",
+                  /\d/.test(password),
+                  !!password,
+                )}
+                {renderPasswordRule(
+                  "특수문자 포함",
+                  /[^A-Za-z\d]/.test(password),
+                  !!password,
+                )}
+              </View>
             </View>
 
-            <View style={[styles.fieldBlock, { marginBottom: 50 }]}>
+            <View style={styles.fieldBlock}>
               <Text style={styles.label}>비밀번호 확인</Text>
-              <TextInput
-                placeholder="비밀번호를 다시 입력하세요"
-                placeholderTextColor="#8C9BB1"
-                secureTextEntry
-                style={styles.textInput}
-                value={passwordConfirm}
-                onChangeText={setPasswordConfirm}
-                autoCapitalize="none"
-                textContentType="newPassword"
-                editable={!loading}
-              />
+
+              <View style={styles.passwordField}>
+                <TextInput
+                  placeholder="비밀번호를 다시 입력하세요"
+                  placeholderTextColor="#8C9BB1"
+                  secureTextEntry={!isPasswordConfirmVisible}
+                  style={styles.passwordInput}
+                  value={passwordConfirm}
+                  onChangeText={setPasswordConfirm}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="newPassword"
+                  returnKeyType="done"
+                  editable={!loading}
+                  onSubmitEditing={handleSignup}
+                />
+
+                <TouchableOpacity
+                  style={styles.eyeButton}
+                  onPress={() => setIsPasswordConfirmVisible((prev) => !prev)}
+                  activeOpacity={0.7}
+                  disabled={loading}
+                >
+                  <Ionicons
+                    name={isPasswordConfirmVisible ? "eye" : "eye-off"}
+                    size={20}
+                    color="#64748B"
+                  />
+                </TouchableOpacity>
+              </View>
+
+              {!!passwordConfirm && (
+                <Text
+                  style={
+                    isPasswordMatched ? styles.successText : styles.errorText
+                  }
+                >
+                  {isPasswordMatched ?
+                    "비밀번호가 일치합니다."
+                  : "비밀번호가 일치하지 않습니다."}
+                </Text>
+              )}
             </View>
 
             <TouchableOpacity
@@ -345,6 +669,7 @@ export default function SignUpScreen({ navigation }: Props) {
 
             <View style={styles.bottomWrap}>
               <Text style={styles.bottomLabel}>이미 계정이 있으신가요?</Text>
+
               <TouchableOpacity
                 style={styles.loginButton}
                 onPress={() => navigation.goBack()}
@@ -367,44 +692,63 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
+
+  keyboardView: {
+    flex: 1,
+  },
+
   scroll: {
     flex: 1,
     backgroundColor: "#F7F9FB",
   },
+
   scrollContent: {
     paddingBottom: 48,
   },
+
   page: {
     alignItems: "center",
-    paddingTop: 56,
+    paddingTop: 48,
   },
-  logoBox: {
-    marginBottom: 34,
+
+  header: {
+    marginBottom: 30,
     alignItems: "center",
   },
+
   logoText: {
     color: "#1C2534",
-    fontSize: 50,
-    fontWeight: "700",
+    fontSize: 48,
+    fontWeight: "800",
     textAlign: "center",
-    marginBottom: 9,
-    width: 149,
+    marginBottom: 6,
   },
+
   logoSubText: {
     color: "#627187",
     fontSize: 15,
   },
+
+  title: {
+    color: "#1E293B",
+    fontSize: 20,
+    fontWeight: "800",
+    marginTop: 18,
+  },
+
   fieldBlock: {
     alignSelf: "stretch",
-    marginBottom: 20,
+    marginBottom: 18,
     marginHorizontal: 21,
   },
+
   label: {
     color: "#252D3C",
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 8,
   },
+
   inlineField: {
     flexDirection: "row",
     alignItems: "center",
@@ -415,6 +759,12 @@ const styles = StyleSheet.create({
     paddingVertical: 7,
     paddingHorizontal: 12,
   },
+
+  verifiedField: {
+    borderColor: "#86EFAC",
+    backgroundColor: "#F0FDF4",
+  },
+
   inlineInput: {
     flex: 1,
     color: "#252D3C",
@@ -422,6 +772,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     paddingHorizontal: 8,
   },
+
   inlineButton: {
     backgroundColor: "#2158E8",
     borderRadius: 10,
@@ -430,11 +781,13 @@ const styles = StyleSheet.create({
     minWidth: 80,
     alignItems: "center",
   },
+
   inlineButtonText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "700",
   },
+
   textInput: {
     color: "#252D3C",
     fontSize: 16,
@@ -445,12 +798,53 @@ const styles = StyleSheet.create({
     paddingVertical: 17,
     paddingHorizontal: 20,
   },
+
+  passwordField: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E1E7EF",
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingRight: 12,
+  },
+
+  passwordInput: {
+    flex: 1,
+    color: "#252D3C",
+    fontSize: 16,
+    paddingVertical: 17,
+    paddingLeft: 20,
+    paddingRight: 10,
+  },
+
+  eyeButton: {
+    padding: 8,
+  },
+
+  passwordRules: {
+    marginTop: 10,
+    gap: 5,
+  },
+
+  ruleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  ruleText: {
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
   timerText: {
     color: "#627187",
     fontSize: 12,
     marginTop: 8,
     marginLeft: 2,
   },
+
   successText: {
     color: "#16A34A",
     fontSize: 12,
@@ -458,13 +852,23 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginLeft: 2,
   },
+
+  errorText: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "600",
+    marginTop: 8,
+    marginLeft: 2,
+  },
+
   signupButton: {
     alignSelf: "stretch",
     alignItems: "center",
     backgroundColor: "#2158E8",
     borderRadius: 14,
     paddingVertical: 17,
-    marginBottom: 35,
+    marginTop: 8,
+    marginBottom: 34,
     marginHorizontal: 21,
     shadowColor: "#2158E84D",
     shadowOpacity: 0.3,
@@ -475,20 +879,24 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+
   signupButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "700",
   },
+
   bottomWrap: {
     marginBottom: 48,
     alignItems: "center",
   },
+
   bottomLabel: {
     color: "#627187",
     fontSize: 14,
     marginBottom: 10,
   },
+
   loginButton: {
     alignSelf: "flex-start",
     flexDirection: "row",
@@ -498,19 +906,22 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 42,
   },
+
   loginButtonText: {
     color: "#2158E8",
     fontSize: 15,
     fontWeight: "700",
     marginRight: 12,
   },
+
   loginArrow: {
     color: "#2158E8",
     fontSize: 18,
     fontWeight: "700",
     lineHeight: 18,
   },
+
   disabledButton: {
-    opacity: 0.6,
+    opacity: 0.55,
   },
 });

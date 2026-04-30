@@ -1,7 +1,6 @@
+import apiClient from "../../client";
 import axios from "axios";
 import { API_CONFIG } from "../../config";
-
-const BASE_URL = "https://api.planb-travel.cloud/v1";
 
 export interface RequestEmailCodeRequest {
   email: string;
@@ -13,6 +12,7 @@ export interface RequestEmailCodeResponse {
 
 interface RequestEmailCodeErrorResponse {
   message?: string;
+  error?: string;
 }
 
 export class RequestEmailCodeError extends Error {
@@ -38,17 +38,20 @@ const mockRequestEmailCode = async ({
       }
 
       resolve({
-        message: "인증 코드가 이메일로 발송되었습니다. (유효시간 3분)",
+        message: "인증 코드가 이메일로 발송되었습니다. 유효시간은 3분입니다.",
       });
     }, 800);
   });
 };
 
-const getRequestEmailCodeUrl = () => `${BASE_URL}/api/auth/email/request`;
-
 /**
- * 인증 코드 발송 API
+ * 이메일 인증 코드 발송 API
  * POST /api/auth/email/request
+ *
+ * Request Body:
+ * {
+ *   email: string
+ * }
  */
 export const requestEmailCode = async ({
   email,
@@ -57,47 +60,68 @@ export const requestEmailCode = async ({
     return mockRequestEmailCode({ email });
   }
 
-  const url = getRequestEmailCodeUrl();
-
   try {
-    console.log("🔥 requestEmailCode 호출됨");
-    console.log("인증 코드 발송 요청 (server):", { email });
-    console.log("인증 코드 발송 최종 URL:", url);
+    const trimmedEmail = email.trim();
 
-    const response = await axios.post<RequestEmailCodeResponse>(
-      url,
-      { email },
+    console.log("🔥 requestEmailCode 호출됨");
+    console.log("🔥 이메일 인증 요청:", { email: trimmedEmail });
+
+    const response = await apiClient.post<RequestEmailCodeResponse>(
+      "/api/auth/email/request",
       {
-        timeout: 5000,
-        headers: {
-          "Content-Type": "application/json",
-        },
+        email: trimmedEmail,
       },
     );
 
-    console.log("인증 코드 발송 응답:", response.status, response.data);
+    console.log("🔥 이메일 인증 발송 response.status:", response.status);
+    console.log("🔥 이메일 인증 발송 response.data:", response.data);
 
     return response.data;
   } catch (error: unknown) {
-    console.log("🔥 requestEmailCode catch 진입");
-
     if (axios.isAxiosError(error)) {
+      console.log("❌ 이메일 인증 발송 실패 status:", error.response?.status);
+      console.log("❌ 이메일 인증 발송 실패 data:", error.response?.data);
+      console.log("❌ 이메일 인증 발송 실패 message:", error.message);
+      console.log("❌ 이메일 인증 발송 실패 url:", error.config?.url);
+      console.log("❌ 이메일 인증 발송 실패 baseURL:", error.config?.baseURL);
+
       const status = error.response?.status;
-      const data = error.response?.data as
+      const errorData = error.response?.data as
         | RequestEmailCodeErrorResponse
+        | string
         | undefined;
-      const message = data?.message || "인증 코드 발송에 실패했습니다.";
 
-      console.log("인증 코드 발송 실패 status:", status);
-      console.log("인증 코드 발송 실패 data:", data);
-      console.log("인증 코드 발송 실패 message:", error.message);
-      console.log("인증 코드 발송 실패 code:", error.code);
-      console.log("인증 코드 발송 실패 url:", error.config?.url);
+      if (!error.response && error.message === "Network Error") {
+        throw new RequestEmailCodeError(
+          "백엔드 서버에 연결할 수 없습니다. 서버 상태와 BASE_URL을 확인해주세요.",
+        );
+      }
 
-      throw new RequestEmailCodeError(message, status);
+      if (typeof errorData === "string") {
+        const trimmed = errorData.trim();
+
+        if (
+          trimmed.startsWith("<!DOCTYPE html>") ||
+          trimmed.startsWith("<html")
+        ) {
+          throw new RequestEmailCodeError(
+            "이메일 인증 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
+            status,
+          );
+        }
+
+        throw new RequestEmailCodeError(trimmed, status);
+      }
+
+      const serverMessage =
+        errorData?.message ||
+        errorData?.error ||
+        "인증 코드 발송에 실패했습니다.";
+
+      throw new RequestEmailCodeError(serverMessage, status);
     }
 
-    console.log("인증 코드 발송 알 수 없는 에러:", error);
+    console.log("이메일 인증 발송 알 수 없는 에러:", error);
     throw new RequestEmailCodeError("알 수 없는 오류가 발생했습니다.");
   }
 };
