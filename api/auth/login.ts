@@ -1,5 +1,5 @@
-import apiClient from "../client";
 import axios from "axios";
+import apiClient from "../client";
 import { API_CONFIG } from "../config";
 
 export interface LoginRequest {
@@ -8,39 +8,19 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  success?: boolean;
+  message?: string;
+  nickname?: string;
   access_token: string;
   refresh_token: string;
-  expires_in: number;
+  token_type?: string;
+  user_id?: number;
 }
 
 interface LoginErrorResponse {
   message?: string;
+  error?: string;
 }
-
-const mockRequestLogin = async ({
-  email,
-  password,
-}: LoginRequest): Promise<LoginResponse> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!email || !password) {
-        reject(new Error("이메일과 비밀번호를 입력해주세요."));
-        return;
-      }
-
-      if (email !== "test@test.com" || password !== "1234") {
-        reject(new Error("이메일 또는 비밀번호가 올바르지 않습니다."));
-        return;
-      }
-
-      resolve({
-        access_token: "mock_access_token_123456",
-        refresh_token: "mock_refresh_token_abcdef",
-        expires_in: 3600,
-      });
-    }, 800);
-  });
-};
 
 const isLoginResponse = (data: unknown): data is LoginResponse => {
   if (!data || typeof data !== "object") return false;
@@ -49,22 +29,34 @@ const isLoginResponse = (data: unknown): data is LoginResponse => {
 
   return (
     typeof obj.access_token === "string" &&
+    obj.access_token.length > 0 &&
     typeof obj.refresh_token === "string" &&
-    typeof obj.expires_in === "number"
+    obj.refresh_token.length > 0
   );
+};
+
+const isHtmlResponse = (data: unknown) => {
+  if (typeof data !== "string") return false;
+
+  const trimmed = data.trim().toLowerCase();
+
+  return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
+};
+
+const getServerErrorMessage = (data: unknown) => {
+  if (!data || typeof data !== "object") return null;
+
+  const errorData = data as LoginErrorResponse;
+
+  return errorData.message || errorData.error || null;
 };
 
 export const requestLogin = async ({
   email,
   password,
 }: LoginRequest): Promise<LoginResponse> => {
-  if (API_CONFIG.USE_MOCK) {
-    return mockRequestLogin({ email, password });
-  }
-
   try {
     console.log("🔥 requestLogin 호출됨");
-    console.log("🔥 BASE_URL:", API_CONFIG.BASE_URL);
     console.log("🔥 LOGIN URL:", `${API_CONFIG.BASE_URL}/api/auth/login`);
     console.log("🔥 로그인 요청:", { email, password });
 
@@ -73,33 +65,14 @@ export const requestLogin = async ({
       password,
     });
 
-    console.log("🔥 로그인 response.status:", response.status);
-    console.log("🔥 로그인 response.headers:", response.headers);
-    console.log("🔥 로그인 response.data:", response.data);
-
-    const rawContentType = response.headers?.["content-type"];
-    const contentType =
-      typeof rawContentType === "string" ? rawContentType : (
-        String(rawContentType ?? "")
-      );
     const data = response.data;
 
-    if (typeof data === "string") {
-      const trimmed = data.trim();
+    console.log("🔥 로그인 response.status:", response.status);
+    console.log("🔥 로그인 response.data:", data);
 
-      if (
-        trimmed.startsWith("<!DOCTYPE html>") ||
-        trimmed.startsWith("<html")
-      ) {
-        throw new Error(
-          "로그인 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
-        );
-      }
-    }
-
-    if (contentType && !contentType.includes("application/json")) {
+    if (isHtmlResponse(data)) {
       throw new Error(
-        `예상치 못한 응답 형식입니다. content-type: ${contentType}`,
+        "로그인 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
       );
     }
 
@@ -112,9 +85,13 @@ export const requestLogin = async ({
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       console.log("❌ 로그인 실패 status:", error.response?.status);
-      console.log("❌ 로그인 실패 headers:", error.response?.headers);
       console.log("❌ 로그인 실패 data:", error.response?.data);
       console.log("❌ 로그인 실패 message:", error.message);
+
+      const errorData = error.response?.data as
+        | LoginErrorResponse
+        | string
+        | undefined;
 
       if (!error.response && error.message === "Network Error") {
         throw new Error(
@@ -122,37 +99,24 @@ export const requestLogin = async ({
         );
       }
 
-      const errorData = error.response?.data as
-        | LoginErrorResponse
-        | string
-        | undefined;
-
-      if (typeof errorData === "string") {
-        const trimmed = errorData.trim();
-
-        if (
-          trimmed.startsWith("<!DOCTYPE html>") ||
-          trimmed.startsWith("<html")
-        ) {
-          throw new Error(
-            "로그인 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL 또는 포트를 확인해주세요.",
-          );
-        }
+      if (isHtmlResponse(errorData)) {
+        throw new Error(
+          "로그인 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL 또는 포트를 확인해주세요.",
+        );
       }
 
-      if (
-        errorData &&
-        typeof errorData === "object" &&
-        "message" in errorData &&
-        typeof errorData.message === "string"
-      ) {
-        throw new Error(errorData.message);
+      const serverMessage = getServerErrorMessage(errorData);
+
+      if (serverMessage) {
+        throw new Error(serverMessage);
+      }
+
+      if (error.response?.status === 401) {
+        throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
       }
 
       if (error.response?.status === 404) {
-        throw new Error(
-          "로그인 API 경로를 찾을 수 없습니다. endpoint를 확인해주세요.",
-        );
+        throw new Error("로그인에 실패했습니다.");
       }
 
       if (error.response?.status === 503) {
