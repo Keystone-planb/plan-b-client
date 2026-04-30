@@ -11,8 +11,13 @@ import MainScreen from "../screens/MainScreen";
 import PlanXScreen from "../screens/PlanXScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
-const Tab = createBottomTabNavigator();
+type BottomTabParamList = {
+  PlanX: undefined;
+  Home: undefined;
+  Profile: undefined;
+};
 
+const Tab = createBottomTabNavigator<BottomTabParamList>();
 type IconName = keyof typeof Ionicons.glyphMap;
 
 function getIconName(routeName: string, focused: boolean): IconName {
@@ -63,7 +68,7 @@ function CustomBottomTabBar({
             });
 
             if (!focused && !event.defaultPrevented) {
-              navigation.navigate(route.name);
+              navigation.navigate(route.name as keyof BottomTabParamList);
             }
           };
 
@@ -102,6 +107,7 @@ function CustomBottomTabBar({
 export default function BottomTabNavigator() {
   return (
     <Tab.Navigator
+      id={undefined}
       initialRouteName="Home"
       tabBar={(props) => <CustomBottomTabBar {...props} />}
       screenOptions={{
