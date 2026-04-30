@@ -17,8 +17,6 @@ import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { requestLogout } from "../../api/auth/logout";
-
 type Props = {
   navigation: any;
 };
@@ -32,7 +30,6 @@ type UserInfo = {
 export default function MainScreen({ navigation }: Props) {
   const [user, setUser] = useState<UserInfo>(null);
   const [loadingUser, setLoadingUser] = useState(true);
-  const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
     const fetchMe = async () => {
@@ -56,40 +53,6 @@ export default function MainScreen({ navigation }: Props) {
 
     fetchMe();
   }, []);
-
-  const moveToLoginAfterLogout = async () => {
-    await AsyncStorage.multiRemove([
-      "access_token",
-      "refresh_token",
-      "user_id",
-      "nickname",
-    ]);
-
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  };
-
-  const handleLogout = async () => {
-    if (logoutLoading) return;
-
-    try {
-      setLogoutLoading(true);
-
-      const result = await requestLogout();
-
-      console.log("로그아웃 성공:", result);
-    } catch (error: unknown) {
-      console.log(
-        "로그아웃 실패, 로컬 토큰 삭제 후 로그인 화면으로 이동:",
-        error,
-      );
-    } finally {
-      setLogoutLoading(false);
-      await moveToLoginAfterLogout();
-    }
-  };
 
   const renderUserSection = () => {
     if (loadingUser) {
@@ -149,24 +112,6 @@ export default function MainScreen({ navigation }: Props) {
               onPress={() => navigation.navigate("AddSchedule")}
             >
               <Text style={styles.addButtonText}>일정 추가하기</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[
-                styles.logoutButton,
-                logoutLoading && styles.disabledButton,
-              ]}
-              onPress={handleLogout}
-              activeOpacity={0.85}
-              disabled={logoutLoading}
-            >
-              {logoutLoading ?
-                <ActivityIndicator color="#2158E8" size="small" />
-              : <>
-                  <Ionicons name="log-out-outline" size={16} color="#2158E8" />
-                  <Text style={styles.logoutButtonText}>로그아웃</Text>
-                </>
-              }
             </TouchableOpacity>
           </View>
         </View>
@@ -321,26 +266,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-
-  logoutButton: {
-    minWidth: 132,
-    height: 46,
-    paddingHorizontal: 18,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DCE7F7",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-
-  logoutButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "700",
   },
 
   disabledButton: {
