@@ -7,15 +7,12 @@ import {
   StyleSheet,
   StatusBar,
   Alert,
-  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = {
   navigation: any;
@@ -35,11 +32,10 @@ export default function MainScreen({ navigation }: Props) {
     const fetchMe = async () => {
       try {
         setLoadingUser(true);
+
         const result = await getMe();
         setUser(result);
       } catch (error: unknown) {
-        console.log("내 정보 조회 실패:", error);
-
         const message =
           error instanceof Error ?
             error.message
@@ -87,25 +83,27 @@ export default function MainScreen({ navigation }: Props) {
           <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
         </View>
 
-        <View style={styles.contentArea}>
-          <View style={styles.iconArea}>
-            <View style={styles.backgroundLayer}>
-              <RadialBackground />
+        <View style={styles.contentSection}>
+          <View style={styles.emptyState}>
+            <View style={styles.iconArea}>
+              <View style={styles.backgroundLayer}>
+                <RadialBackground />
+              </View>
+
+              <View style={styles.iconWrapper}>
+                <CalendarSvg width={100} height={100} />
+              </View>
             </View>
 
-            <View style={styles.iconWrapper}>
-              <CalendarSvg width={100} height={100} />
+            <View style={styles.emptyTextGroup}>
+              <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
+              <Text style={styles.subText}>
+                새로운 여행 일정을 추가해보세요
+              </Text>
             </View>
-          </View>
-
-          <View style={styles.textGroup}>
-            <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-            <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
 
             <View style={styles.userInfoBox}>{renderUserSection()}</View>
-          </View>
 
-          <View style={styles.bottomActionGroup}>
             <TouchableOpacity
               style={styles.addButton}
               activeOpacity={0.85}
@@ -135,13 +133,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingTop: 36,
     paddingBottom: 40,
-    alignItems: "center",
-    justifyContent: "center",
   },
 
   header: {
+    width: "100%",
     alignItems: "center",
-    marginBottom: 28,
   },
 
   logoText: {
@@ -149,30 +145,41 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1E293B",
     letterSpacing: -1.5,
+    textAlign: "center",
   },
 
   subLogoText: {
     fontSize: 15,
     color: "#64748B",
     marginTop: 4,
+    textAlign: "center",
   },
 
-  contentArea: {
+  contentSection: {
+    flex: 1,
     width: "100%",
-    maxWidth: 380,
+    justifyContent: "center",
     alignItems: "center",
   },
 
+  emptyState: {
+    width: "100%",
+    maxWidth: 380,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   iconArea: {
-    width: 260,
-    height: 260,
-    marginBottom: 8,
+    width: 150,
+    height: 150,
+    marginBottom: 12,
     position: "relative",
     justifyContent: "center",
     alignItems: "center",
   },
 
   backgroundLayer: {
+    position: "absolute",
     top: 0,
     right: 0,
     bottom: 0,
@@ -191,13 +198,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     zIndex: 2,
     elevation: 2,
-    transform: [{ translateY: -18 }],
   },
 
-  textGroup: {
+  emptyTextGroup: {
     width: "100%",
     alignItems: "center",
-    marginTop: 4,
+    marginBottom: 20,
   },
 
   mainText: {
@@ -217,7 +223,6 @@ const styles = StyleSheet.create({
 
   userInfoBox: {
     width: "100%",
-    marginTop: 22,
     paddingVertical: 16,
     paddingHorizontal: 16,
     borderRadius: 18,
@@ -225,6 +230,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#E6EEF9",
     alignItems: "center",
+    marginBottom: 20,
   },
 
   userText: {
@@ -241,16 +247,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
 
-  bottomActionGroup: {
-    width: "100%",
-    alignItems: "center",
-    gap: 12,
-    marginTop: 26,
-  },
-
   addButton: {
-    width: "45%",
+    minWidth: 168,
     height: 52,
+    paddingHorizontal: 28,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 16,
@@ -266,9 +266,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     color: "#FFFFFF",
-  },
-
-  disabledButton: {
-    opacity: 0.7,
   },
 });
