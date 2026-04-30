@@ -34,8 +34,7 @@ const mockRequestLogin = async ({
   email,
   password,
 }: LoginRequest): Promise<LoginResponse> => {
-  console.log("로그인 요청 (mock):", { email });
-
+  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!email || !password) {
@@ -89,17 +88,13 @@ export const requestLogin = async ({
   try {
     const trimmedEmail = email.trim();
 
-    console.log("🔥 requestLogin 호출됨");
-    console.log("🔥 로그인 요청:", { email: trimmedEmail });
-
+        
     const response = await apiClient.post<unknown>("/api/auth/login", {
       email: trimmedEmail,
       password,
     });
 
-    console.log("🔥 로그인 response.status:", response.status);
-    console.log("🔥 로그인 response.data:", response.data);
-
+        
     const data = response.data;
 
     if (isHtmlResponse(data)) {
@@ -109,19 +104,13 @@ export const requestLogin = async ({
     }
 
     if (!isLoginResponse(data)) {
-      console.log("❌ 예상한 로그인 응답 구조 아님:", data);
-      throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
+            throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
     }
 
     return data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.log("❌ 로그인 실패 status:", error.response?.status);
-      console.log("❌ 로그인 실패 data:", error.response?.data);
-      console.log("❌ 로그인 실패 message:", error.message);
-      console.log("❌ 로그인 실패 url:", error.config?.url);
-      console.log("❌ 로그인 실패 baseURL:", error.config?.baseURL);
-
+                              
       const status = error.response?.status;
       const errorData = error.response?.data as
         | LoginErrorResponse

@@ -217,8 +217,7 @@ export function useSignupForm({ navigation }: UseSignupFormParams) {
         result.message || "인증번호가 이메일로 발송되었습니다.",
       );
     } catch (error: unknown) {
-      console.log("인증 코드 발송 실패:", error);
-
+      
       const message =
         error instanceof RequestEmailCodeError || error instanceof Error ?
           error.message
@@ -273,8 +272,7 @@ export function useSignupForm({ navigation }: UseSignupFormParams) {
         result.message || "이메일 인증이 완료되었습니다.",
       );
     } catch (error: unknown) {
-      console.log("인증 코드 검증 실패:", error);
-
+      
       const message =
         error instanceof VerifyEmailError || error instanceof Error ?
           error.message
@@ -352,8 +350,7 @@ export function useSignupForm({ navigation }: UseSignupFormParams) {
         },
       ]);
     } catch (error: unknown) {
-      console.log("회원가입 실패:", error);
-
+      
       const message =
         error instanceof Error ? error.message : "회원가입에 실패했습니다.";
 

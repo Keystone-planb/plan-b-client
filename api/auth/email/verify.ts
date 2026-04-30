@@ -30,11 +30,7 @@ const mockVerifyEmailCode = async ({
   email,
   code,
 }: VerifyEmailRequest): Promise<VerifyEmailResponse> => {
-  console.log("인증 코드 검증 요청 (mock):", {
-    email,
-    code,
-  });
-
+  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!email || !email.includes("@")) {
@@ -83,12 +79,7 @@ export const verifyEmailCode = async ({
     const trimmedEmail = email.trim();
     const trimmedCode = code.trim();
 
-    console.log("🔥 verifyEmailCode 호출됨");
-    console.log("🔥 이메일 인증 검증 요청:", {
-      email: trimmedEmail,
-      code: trimmedCode,
-    });
-
+        
     const response = await apiClient.post<VerifyEmailResponse>(
       "/api/auth/email/verify",
       {
@@ -97,18 +88,11 @@ export const verifyEmailCode = async ({
       },
     );
 
-    console.log("🔥 이메일 인증 검증 response.status:", response.status);
-    console.log("🔥 이메일 인증 검증 response.data:", response.data);
-
+        
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.log("❌ 이메일 인증 검증 실패 status:", error.response?.status);
-      console.log("❌ 이메일 인증 검증 실패 data:", error.response?.data);
-      console.log("❌ 이메일 인증 검증 실패 message:", error.message);
-      console.log("❌ 이메일 인증 검증 실패 url:", error.config?.url);
-      console.log("❌ 이메일 인증 검증 실패 baseURL:", error.config?.baseURL);
-
+                              
       const status = error.response?.status;
       const errorData = error.response?.data as
         | VerifyEmailErrorResponse
@@ -145,7 +129,6 @@ export const verifyEmailCode = async ({
       throw new VerifyEmailError(serverMessage, status);
     }
 
-    console.log("이메일 인증 검증 알 수 없는 에러:", error);
-    throw new VerifyEmailError("알 수 없는 오류가 발생했습니다.");
+        throw new VerifyEmailError("알 수 없는 오류가 발생했습니다.");
   }
 };

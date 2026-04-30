@@ -28,8 +28,7 @@ export class RequestEmailCodeError extends Error {
 const mockRequestEmailCode = async ({
   email,
 }: RequestEmailCodeRequest): Promise<RequestEmailCodeResponse> => {
-  console.log("인증 코드 발송 요청 (mock):", email);
-
+  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!email || !email.includes("@")) {
@@ -63,9 +62,7 @@ export const requestEmailCode = async ({
   try {
     const trimmedEmail = email.trim();
 
-    console.log("🔥 requestEmailCode 호출됨");
-    console.log("🔥 이메일 인증 요청:", { email: trimmedEmail });
-
+        
     const response = await apiClient.post<RequestEmailCodeResponse>(
       "/api/auth/email/request",
       {
@@ -73,18 +70,11 @@ export const requestEmailCode = async ({
       },
     );
 
-    console.log("🔥 이메일 인증 발송 response.status:", response.status);
-    console.log("🔥 이메일 인증 발송 response.data:", response.data);
-
+        
     return response.data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-      console.log("❌ 이메일 인증 발송 실패 status:", error.response?.status);
-      console.log("❌ 이메일 인증 발송 실패 data:", error.response?.data);
-      console.log("❌ 이메일 인증 발송 실패 message:", error.message);
-      console.log("❌ 이메일 인증 발송 실패 url:", error.config?.url);
-      console.log("❌ 이메일 인증 발송 실패 baseURL:", error.config?.baseURL);
-
+                              
       const status = error.response?.status;
       const errorData = error.response?.data as
         | RequestEmailCodeErrorResponse
@@ -121,7 +111,6 @@ export const requestEmailCode = async ({
       throw new RequestEmailCodeError(serverMessage, status);
     }
 
-    console.log("이메일 인증 발송 알 수 없는 에러:", error);
-    throw new RequestEmailCodeError("알 수 없는 오류가 발생했습니다.");
+        throw new RequestEmailCodeError("알 수 없는 오류가 발생했습니다.");
   }
 };
