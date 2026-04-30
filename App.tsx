@@ -14,6 +14,7 @@ import MainScreen from "./src/screens/MainScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
+import PlanAScreen from "./src/screens/PlanAScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -22,15 +23,26 @@ type RootStackParamList = {
   OnboardingFourth: undefined;
   Login: undefined;
   SignUp: undefined;
+
   Main: undefined;
+
   AddSchedule: undefined;
+
   AddScheduleDate: {
     tripName: string;
   };
+
   AddScheduleLocation: {
     tripName: string;
     startDate: string;
     endDate: string;
+  };
+
+  PlanA: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
   };
 };
 
@@ -94,7 +106,14 @@ export default function App() {
           component={OnboardingFourthScreen}
         />
 
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 300,
+          }}
+        />
 
         <Stack.Screen
           name="SignUp"
@@ -105,18 +124,52 @@ export default function App() {
           }}
         />
 
-        <Stack.Screen name="Main" component={MainScreen} />
+        <Stack.Screen
+          name="Main"
+          component={MainScreen}
+          options={{
+            headerShown: false,
+          }}
+        />
 
-        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        <Stack.Screen
+          name="AddSchedule"
+          component={AddScheduleNameScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
 
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
         />
 
         <Stack.Screen
           name="AddScheduleLocation"
           component={AddScheduleLocationScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanA"
+          component={PlanAScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>
