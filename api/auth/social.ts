@@ -8,6 +8,7 @@ export type SocialProvider = "kakao" | "google";
 type SocialAuthUrlResult = {
   provider: SocialProvider;
   redirectUri: string;
+  encodedRedirectUri: string;
   authUrl: string;
 };
 
@@ -26,20 +27,28 @@ export const getSocialRedirectUri = () => {
   });
 };
 
+const encodeRedirectUriForOAuth = (redirectUri: string) => {
+  if (Platform.OS === "web" && typeof window !== "undefined") {
+    return window.btoa(redirectUri);
+  }
+
+  return encodeURIComponent(redirectUri);
+};
+
 export const createSocialAuthUrl = (
   provider: SocialProvider,
 ): SocialAuthUrlResult => {
   const redirectUri = getSocialRedirectUri();
+  const encodedRedirectUri = encodeRedirectUriForOAuth(redirectUri);
 
-  const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodeURIComponent(
-    redirectUri,
-  )}`;
+  const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodedRedirectUri}`;
 
   console.log("──────────────────────────────");
   console.log("🧭 소셜 로그인 시작");
   console.log({
     provider,
     redirectUri,
+    encodedRedirectUri,
     authUrl,
   });
   console.log("──────────────────────────────");
@@ -47,6 +56,7 @@ export const createSocialAuthUrl = (
   return {
     provider,
     redirectUri,
+    encodedRedirectUri,
     authUrl,
   };
 };

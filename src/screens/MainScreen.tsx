@@ -15,6 +15,8 @@ import { Ionicons } from "@expo/vector-icons";
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
 import { getMe } from "../../api/users/me";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+
 import { requestLogout } from "../../api/auth/logout";
 
 type Props = {
@@ -55,6 +57,20 @@ export default function MainScreen({ navigation }: Props) {
     fetchMe();
   }, []);
 
+  const moveToLoginAfterLogout = async () => {
+    await AsyncStorage.multiRemove([
+      "access_token",
+      "refresh_token",
+      "user_id",
+      "nickname",
+    ]);
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  };
+
   const handleLogout = async () => {
     if (logoutLoading) return;
 
@@ -63,26 +79,15 @@ export default function MainScreen({ navigation }: Props) {
 
       const result = await requestLogout();
 
-      Alert.alert("로그아웃", result.message, [
-        {
-          text: "확인",
-          onPress: () => navigation.replace("Login"),
-        },
-      ]);
+      console.log("로그아웃 성공:", result);
     } catch (error: unknown) {
-      console.log("로그아웃 실패:", error);
-
-      const message =
-        error instanceof Error ? error.message : "로그아웃 처리되었습니다.";
-
-      Alert.alert("로그아웃", message, [
-        {
-          text: "확인",
-          onPress: () => navigation.replace("Login"),
-        },
-      ]);
+      console.log(
+        "로그아웃 실패, 로컬 토큰 삭제 후 로그인 화면으로 이동:",
+        error,
+      );
     } finally {
       setLogoutLoading(false);
+      await moveToLoginAfterLogout();
     }
   };
 

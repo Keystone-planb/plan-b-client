@@ -317,7 +317,7 @@ export default function LoginScreen({ navigation }: any) {
       console.log("[카카오 로그인 redirectUri]", redirectUri);
 
       if (Platform.OS === "web") {
-        window.location.href = authUrl;
+        window.location.assign(authUrl);
         return;
       }
 
@@ -346,7 +346,7 @@ export default function LoginScreen({ navigation }: any) {
       console.log("[구글 로그인 redirectUri]", redirectUri);
 
       if (Platform.OS === "web") {
-        window.location.href = authUrl;
+        window.location.assign(authUrl);
         return;
       }
 
