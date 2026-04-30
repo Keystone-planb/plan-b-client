@@ -24,11 +24,15 @@ const getQueryParam = (url: string, key: string) => {
 };
 
 export const isOAuthSuccessUrl = (url: string) => {
-  return url.startsWith("planb://oauth/success");
+  return (
+    url.startsWith("planb://oauth/success") || url.includes("/oauth/success")
+  );
 };
 
 export const isOAuthFailureUrl = (url: string) => {
-  return url.includes("/oauth/failure") || url.includes("oauth/failure");
+  return (
+    url.startsWith("planb://oauth/failure") || url.includes("/oauth/failure")
+  );
 };
 
 export const parseOAuthSuccessUrl = (url: string): OAuthTokens => {
