@@ -5,12 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
+  Image,
 } from "react-native";
 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import OnboardingFourthSvg from "../assets/onboarding-fourth.svg";
+const OnboardingFourthImage = require("../assets/onboarding-fourth.png");
 
 type Props = {
   navigation: any;
@@ -52,7 +53,11 @@ export default function OnboardingFourthScreen({ navigation }: Props) {
 
         <View style={styles.centerSection}>
           <View style={styles.illustrationWrapper}>
-            <OnboardingFourthSvg width={108} height={108} />
+            <Image
+              source={OnboardingFourthImage}
+              style={styles.illustrationImage}
+              resizeMode="contain"
+            />
           </View>
 
           <Text style={styles.title}>
@@ -145,21 +150,16 @@ const styles = StyleSheet.create({
   },
 
   illustrationWrapper: {
-    width: 214,
-    height: 214,
-    borderRadius: 999,
-    backgroundColor: "#D5EBFC",
+    width: 180,
+    height: 180,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 50,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowRadius: 15,
-    elevation: 12,
+    marginBottom: 42,
+  },
+
+  illustrationImage: {
+    width: 180,
+    height: 180,
   },
 
   title: {

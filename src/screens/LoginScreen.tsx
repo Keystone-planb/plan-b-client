@@ -2,24 +2,21 @@
  * src/screens/LoginScreen.tsx
  */
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
 import {
   View,
   Text,
   TextInput,
   TouchableOpacity,
   StyleSheet,
-  Dimensions,
   ScrollView,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   Alert,
   ActivityIndicator,
   Modal,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import Svg, { Path } from "react-native-svg";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { WebView } from "react-native-webview";
@@ -28,7 +25,6 @@ import GoogleIcon from "../assets/google.svg";
 import KakaoIcon from "../components/KakaoIcon";
 import { requestLogin } from "../../api/auth/login";
 
-const { width } = Dimensions.get("window");
 
 type SocialLoginResult = {
   access_token: string;
@@ -37,13 +33,6 @@ type SocialLoginResult = {
   is_new_user?: boolean;
 };
 
-type WaveLayerProps = {
-  color: string;
-  opacity: number;
-  duration: number;
-  offsetY: number;
-  bCurveAmp: number;
-};
 
 type SocialProvider = "kakao" | "google" | null;
 
@@ -55,90 +44,7 @@ const SOCIAL_AUTH_URL = {
 const SOCIAL_SUCCESS_URL_PREFIX = "http://127.0.0.1:8080/oauth/success";
 const SOCIAL_FAIL_URL_PREFIX = "http://127.0.0.1:8080/oauth/fail";
 
-const WaveLayer = ({
-  color,
-  opacity,
-  duration,
-  offsetY,
-  bCurveAmp,
-}: WaveLayerProps) => {
-  const translateX = useRef(new Animated.Value(0)).current;
 
-  useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(translateX, {
-        toValue: -width,
-        duration,
-        useNativeDriver: true,
-      }),
-    );
-
-    animation.start();
-
-    return () => {
-      animation.stop();
-    };
-  }, [duration, translateX]);
-
-  const waveHeight = 250;
-
-  const d = `
-    M 0 ${offsetY}
-    C ${width * 0.15} ${offsetY - bCurveAmp}, ${width * 0.35} ${
-      offsetY - bCurveAmp * 0.5
-    }, ${width * 0.5} ${offsetY}
-    C ${width * 0.65} ${offsetY + bCurveAmp * 0.5}, ${width * 0.85} ${
-      offsetY + bCurveAmp
-    }, ${width} ${offsetY}
-    L ${width} ${waveHeight}
-    L 0 ${waveHeight}
-    Z
-  `;
-
-  return (
-    <Animated.View
-      style={{
-        position: "absolute",
-        width: width * 2,
-        flexDirection: "row",
-        transform: [{ translateX }],
-        bottom: 0,
-      }}
-    >
-      {[0, 1].map((i) => (
-        <Svg key={i} width={width} height={waveHeight}>
-          <Path d={d} fill={color} opacity={opacity} />
-        </Svg>
-      ))}
-    </Animated.View>
-  );
-};
-
-const OceanWaveFooter = () => (
-  <View style={styles.waveContainer} pointerEvents="none">
-    <WaveLayer
-      color="#93C5FD"
-      opacity={0.4}
-      duration={12000}
-      offsetY={70}
-      bCurveAmp={60}
-    />
-    <WaveLayer
-      color="#60A5FA"
-      opacity={0.6}
-      duration={8500}
-      offsetY={100}
-      bCurveAmp={45}
-    />
-    <WaveLayer
-      color="#2563EB"
-      opacity={1}
-      duration={5500}
-      offsetY={130}
-      bCurveAmp={30}
-    />
-  </View>
-);
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
@@ -416,7 +322,6 @@ export default function LoginScreen({ navigation }: any) {
             </View>
           </View>
 
-          <OceanWaveFooter />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -601,10 +506,6 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "800",
     marginRight: 4,
-  },
-  waveContainer: {
-    height: 180,
-    width: width,
   },
   webViewContainer: {
     flex: 1,
