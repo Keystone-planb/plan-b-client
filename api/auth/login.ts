@@ -77,7 +77,11 @@ export const requestLogin = async ({
     console.log("🔥 로그인 response.headers:", response.headers);
     console.log("🔥 로그인 response.data:", response.data);
 
-    const contentType = response.headers?.["content-type"] ?? "";
+    const rawContentType = response.headers?.["content-type"];
+    const contentType =
+      typeof rawContentType === "string" ? rawContentType : (
+        String(rawContentType ?? "")
+      );
     const data = response.data;
 
     if (typeof data === "string") {

@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { WebView } from "react-native-webview";
+import WebView from "react-native-webview";
 
 import GoogleIcon from "../assets/google.svg";
 import KakaoIcon from "../components/KakaoIcon";
@@ -346,7 +346,7 @@ export default function LoginScreen({ navigation }: any) {
             <View style={{ width: 24 }} />
           </View>
 
-          {currentAuthUrl ?
+          {currentAuthUrl && Platform.OS !== "web" ?
             <WebView
               source={{ uri: currentAuthUrl }}
               onNavigationStateChange={handleWebViewNavigationChange}
