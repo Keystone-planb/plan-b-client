@@ -24,13 +24,17 @@ function ProfileRow({ label, value, onPress }: ProfileRowProps) {
 
       <View style={styles.infoValueBox}>
         <Text style={styles.infoValue}>{value}</Text>
-        <Ionicons name="chevron-forward" size={17} color="#C7D0DE" />
+        <Ionicons name="chevron-forward" size={15} color="#C7D0DE" />
       </View>
     </TouchableOpacity>
   );
 }
 
 export default function ProfileEditScreen({ navigation }: Props) {
+  const handleBack = () => {
+    navigation.goBack();
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -38,9 +42,9 @@ export default function ProfileEditScreen({ navigation }: Props) {
           <TouchableOpacity
             style={styles.backButton}
             activeOpacity={0.75}
-            onPress={() => navigation.goBack()}
+            onPress={handleBack}
           >
-            <Ionicons name="chevron-back" size={24} color="#637083" />
+            <Ionicons name="chevron-back" size={23} color="#748195" />
           </TouchableOpacity>
 
           <Text style={styles.logo}>Plan.B</Text>
@@ -50,11 +54,11 @@ export default function ProfileEditScreen({ navigation }: Props) {
 
         <View style={styles.avatarSection}>
           <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={42} color="#FFFFFF" />
+            <Ionicons name="person-outline" size={35} color="#FFFFFF" />
           </View>
 
-          <TouchableOpacity style={styles.plusButton} activeOpacity={0.8}>
-            <Ionicons name="add" size={16} color="#FFFFFF" />
+          <TouchableOpacity style={styles.addButton} activeOpacity={0.8}>
+            <Ionicons name="add" size={13} color="#273142" />
           </TouchableOpacity>
         </View>
 
@@ -62,8 +66,6 @@ export default function ProfileEditScreen({ navigation }: Props) {
           <ProfileRow label="이름" value="김플랜" />
           <ProfileRow label="이메일" value="traveler@planb.com" />
           <ProfileRow label="휴대폰 번호" value="010-0000-0000" />
-          <ProfileRow label="생년월일" value="0000.00.00" />
-          <ProfileRow label="성별" value="비공개" />
         </View>
       </View>
     </SafeAreaView>
@@ -75,80 +77,98 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7F9FC",
   },
+
   container: {
     flex: 1,
-    paddingHorizontal: 28,
-    paddingTop: 12,
+    backgroundColor: "#F7F9FC",
+    paddingHorizontal: 21,
+    paddingTop: 3,
   },
+
   header: {
-    height: 54,
+    height: 57,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   backButton: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     alignItems: "flex-start",
     justifyContent: "center",
   },
+
   logo: {
-    fontSize: 31,
-    fontWeight: "900",
     color: "#202938",
+    fontSize: 30,
+    fontWeight: "900",
+    letterSpacing: -1,
   },
+
   headerRightSpace: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
   },
+
   avatarSection: {
-    marginTop: 26,
+    marginTop: 8,
     alignItems: "center",
     justifyContent: "center",
   },
+
   avatar: {
-    width: 78,
-    height: 78,
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 39,
+    width: 65,
+    height: 65,
+    borderRadius: 32.5,
     backgroundColor: "#273142",
-  },
-  plusButton: {
-    position: "absolute",
-    right: "38%",
-    bottom: 2,
-    width: 22,
-    height: 22,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 11,
-    backgroundColor: "#8797AD",
+  },
+
+  addButton: {
+    position: "absolute",
+    left: "50%",
+    bottom: 0,
+    marginLeft: 16,
+    width: 19,
+    height: 19,
+    borderRadius: 9.5,
+    backgroundColor: "#B8C3D3",
     borderWidth: 2,
     borderColor: "#F7F9FC",
+    alignItems: "center",
+    justifyContent: "center",
   },
+
   infoSection: {
     marginTop: 48,
   },
+
   infoRow: {
-    height: 47,
+    height: 41,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   infoLabel: {
-    fontSize: 13,
-    fontWeight: "800",
     color: "#202938",
+    fontSize: 11,
+    fontWeight: "800",
+    letterSpacing: -0.2,
   },
+
   infoValueBox: {
     flexDirection: "row",
     alignItems: "center",
   },
+
   infoValue: {
-    marginRight: 8,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#4B5563",
+    marginRight: 6,
+    color: "#2F3A4A",
+    fontSize: 10,
+    fontWeight: "500",
+    letterSpacing: -0.2,
   },
 });
