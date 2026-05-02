@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import AddScheduleMainSvg from "../assets/add-schedule-main.svg";
+
 type Props = {
   navigation: any;
 };
@@ -55,7 +55,7 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
 
         <View style={styles.centerSection}>
           <View style={styles.illustrationWrapper}>
-            <AddScheduleMainSvg width={108} height={108} />
+            <Ionicons name="airplane" size={96} color="#2158E8" />
           </View>
 
           <Text style={styles.title}>여행의 이름을{"\n"}정해주세요</Text>

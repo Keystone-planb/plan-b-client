@@ -1,83 +1,124 @@
-import * as Linking from "expo-linking";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type SocialLoginTokens = {
-  accessToken: string | null;
-  refreshToken: string | null;
-  userId: string | null;
-  nickname: string | null;
+export type OAuthTokens = {
+  accessToken: string;
+  refreshToken: string;
+  userId?: string;
+  nickname?: string;
+
+  access_token?: string;
+  refresh_token?: string;
+  user_id?: string;
 };
 
-/**
- * 소셜 로그인 성공 redirect URL에서 로그인 정보를 추출한다.
- *
- * 웹:
- * http://localhost:8082/oauth/success?access_token=...&refresh_token=...&user_id=1&nickname=태형
- *
- * 앱:
- * planb://oauth/success?access_token=...&refresh_token=...&user_id=1&nickname=태형
- */
-export const extractSocialTokensFromUrl = (url: string): SocialLoginTokens => {
-  const parsed = Linking.parse(url);
+const getSearchParamsFromUrl = (url: string) => {
+  try {
+    const parsedUrl = new URL(url);
+    return parsedUrl.searchParams;
+  } catch {
+    const queryString = url.split("?")[1];
 
-  const accessToken =
-    parsed.queryParams?.access_token ||
-    parsed.queryParams?.accessToken ||
-    parsed.queryParams?.access;
+    if (!queryString) {
+      return new URLSearchParams();
+    }
 
-  const refreshToken =
-    parsed.queryParams?.refresh_token ||
-    parsed.queryParams?.refreshToken ||
-    parsed.queryParams?.refresh;
+    return new URLSearchParams(queryString);
+  }
+};
 
-  const userId = parsed.queryParams?.user_id || parsed.queryParams?.userId;
+export const isOAuthSuccessUrl = (url: string) => {
+  return (
+    url.includes("/oauth/success") ||
+    url.includes("oauth/success") ||
+    url.startsWith("planb://oauth/success")
+  );
+};
 
-  const nickname = parsed.queryParams?.nickname;
+export const isOAuthFailureUrl = (url: string) => {
+  return (
+    url.includes("/oauth/failure") ||
+    url.includes("oauth/failure") ||
+    url.startsWith("planb://oauth/failure")
+  );
+};
+
+export const getOAuthFailureMessage = (url: string) => {
+  const params = getSearchParamsFromUrl(url);
+  const error = params.get("error");
+
+  if (!error) {
+    return "소셜 로그인에 실패했습니다.";
+  }
+
+  return decodeURIComponent(error);
+};
+
+export const extractSocialTokensFromUrl = (url: string): OAuthTokens | null => {
+  const params = getSearchParamsFromUrl(url);
+
+  const accessToken = params.get("access_token");
+  const refreshToken = params.get("refresh_token");
+  const userId = params.get("user_id");
+  const nickname = params.get("nickname");
+
+  if (!accessToken || !refreshToken) {
+    return null;
+  }
 
   return {
-    accessToken: typeof accessToken === "string" ? accessToken : null,
-    refreshToken: typeof refreshToken === "string" ? refreshToken : null,
-    userId: typeof userId === "string" ? userId : null,
-    nickname:
-      typeof nickname === "string" ? decodeURIComponent(nickname) : null,
+    accessToken,
+    refreshToken,
+    userId: userId ?? undefined,
+    nickname: nickname ? decodeURIComponent(nickname) : undefined,
+
+    // 구버전 코드 호환용
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    user_id: userId ?? undefined,
   };
 };
 
-/**
- * 소셜 로그인 실패 redirect URL에서 error 메시지를 추출한다.
- *
- * 웹:
- * http://localhost:8082/oauth/failure?error=소셜+로그인에+실패했습니다.
- *
- * 앱:
- * planb://oauth/failure?error=소셜+로그인에+실패했습니다.
- */
-export const extractOAuthErrorFromUrl = (url: string) => {
-  const parsed = Linking.parse(url);
+export const extractOAuthErrorFromUrl = (url: string): string | null => {
+  const params = getSearchParamsFromUrl(url);
+  const error = params.get("error");
 
-  const error = parsed.queryParams?.error;
-  const message = parsed.queryParams?.message;
-
-  if (typeof message === "string") {
-    return decodeURIComponent(message.replace(/\+/g, " "));
+  if (!error) {
+    return null;
   }
 
-  if (typeof error === "string") {
-    return decodeURIComponent(error.replace(/\+/g, " "));
+  return decodeURIComponent(error);
+};
+
+export const saveOAuthTokens = async (tokens: OAuthTokens) => {
+  const accessToken = tokens.accessToken ?? tokens.access_token;
+  const refreshToken = tokens.refreshToken ?? tokens.refresh_token;
+  const userId = tokens.userId ?? tokens.user_id;
+  const nickname = tokens.nickname;
+
+  if (!accessToken || !refreshToken) {
+    throw new Error("소셜 로그인 토큰이 없습니다.");
   }
 
-  return null;
+  await AsyncStorage.setItem("access_token", accessToken);
+  await AsyncStorage.setItem("refresh_token", refreshToken);
+
+  if (userId) {
+    await AsyncStorage.setItem("user_id", userId);
+  }
+
+  if (nickname) {
+    await AsyncStorage.setItem("nickname", nickname);
+  }
 };
 
-/**
- * 현재 URL이 OAuth 성공 URL인지 확인한다.
- */
-export const isOAuthSuccessUrl = (url: string) => {
-  return url.includes("/oauth/success") || url.includes("://oauth/success");
-};
+export const handleOAuthSuccessUrl = async (url: string) => {
+  const tokens = extractSocialTokensFromUrl(url);
 
-/**
- * 현재 URL이 OAuth 실패 URL인지 확인한다.
- */
-export const isOAuthFailureUrl = (url: string) => {
-  return url.includes("/oauth/failure") || url.includes("://oauth/failure");
+  if (!tokens) {
+    throw new Error("소셜 로그인 응답에서 토큰을 찾을 수 없습니다.");
+  }
+
+  await saveOAuthTokens(tokens);
+
+  return tokens;
 };
