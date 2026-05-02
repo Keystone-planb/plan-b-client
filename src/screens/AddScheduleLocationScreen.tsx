@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Keyboard,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -34,8 +35,8 @@ type SelectedPlace = {
 const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
-  latitudeDelta: 0.012,
-  longitudeDelta: 0.012,
+  latitudeDelta: 0.014,
+  longitudeDelta: 0.014,
 };
 
 export default function AddScheduleLocationScreen({
@@ -47,6 +48,9 @@ export default function AddScheduleLocationScreen({
 
   const [keyword, setKeyword] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
+  const [detailLoadingPlaceId, setDetailLoadingPlaceId] = useState<
+    string | null
+  >(null);
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
     null,
@@ -65,53 +69,11 @@ export default function AddScheduleLocationScreen({
       {
         latitude: place.latitude,
         longitude: place.longitude,
-        latitudeDelta: 0.012,
-        longitudeDelta: 0.012,
+        latitudeDelta: 0.014,
+        longitudeDelta: 0.014,
       },
       350,
     );
-  };
-
-  const selectPlace = async (place: PlaceSearchResult) => {
-    try {
-      setSearchLoading(true);
-
-      const detail = await getPlaceDetail(place.placeId);
-
-      const nextPlace: SelectedPlace = {
-        placeId: place.placeId,
-        name: place.name,
-        address: place.address,
-        rating: place.rating,
-        category: place.category,
-        latitude: detail.lat ?? INITIAL_REGION.latitude,
-        longitude: detail.lng ?? INITIAL_REGION.longitude,
-      };
-
-      setSelectedPlace(nextPlace);
-      setKeyword(place.name);
-      moveMapToPlace(nextPlace);
-      Keyboard.dismiss();
-    } catch (error) {
-      console.log("장소 상세 조회 실패:", error);
-
-      const fallbackPlace: SelectedPlace = {
-        placeId: place.placeId,
-        name: place.name,
-        address: place.address,
-        rating: place.rating,
-        category: place.category,
-        latitude: INITIAL_REGION.latitude,
-        longitude: INITIAL_REGION.longitude,
-      };
-
-      setSelectedPlace(fallbackPlace);
-      setKeyword(place.name);
-      moveMapToPlace(fallbackPlace);
-      Keyboard.dismiss();
-    } finally {
-      setSearchLoading(false);
-    }
   };
 
   const handleSearch = async () => {
@@ -142,6 +104,46 @@ export default function AddScheduleLocationScreen({
     handleSearch();
   };
 
+  const handlePlaceDetail = async (place: PlaceSearchResult) => {
+    try {
+      setDetailLoadingPlaceId(place.placeId);
+
+      const detail = await getPlaceDetail(place.placeId);
+
+      const nextPlace: SelectedPlace = {
+        placeId: place.placeId,
+        name: place.name,
+        address: place.address,
+        rating: place.rating,
+        category: place.category,
+        latitude: detail.lat ?? place.latitude ?? INITIAL_REGION.latitude,
+        longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
+      };
+
+      setSelectedPlace(nextPlace);
+      setKeyword(place.name);
+      moveMapToPlace(nextPlace);
+    } catch (error) {
+      console.log("장소 상세 조회 실패:", error);
+
+      const fallbackPlace: SelectedPlace = {
+        placeId: place.placeId,
+        name: place.name,
+        address: place.address,
+        rating: place.rating,
+        category: place.category,
+        latitude: place.latitude ?? INITIAL_REGION.latitude,
+        longitude: place.longitude ?? INITIAL_REGION.longitude,
+      };
+
+      setSelectedPlace(fallbackPlace);
+      setKeyword(place.name);
+      moveMapToPlace(fallbackPlace);
+    } finally {
+      setDetailLoadingPlaceId(null);
+    }
+  };
+
   const handleNext = () => {
     if (!selectedPlace) {
       return;
@@ -155,146 +157,151 @@ export default function AddScheduleLocationScreen({
     });
   };
 
+  const placesToRender =
+    searchResults.length > 0 ?
+      searchResults
+    : [
+        {
+          placeId: "empty-preview-1",
+          name: "장소를 검색해주세요",
+          address: "검색어를 입력하면 장소 후보가 표시됩니다.",
+          rating: undefined,
+          category: "preview",
+        },
+      ];
+
   return (
     <View style={styles.screen}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-        initialRegion={INITIAL_REGION}
-        showsUserLocation
-        showsMyLocationButton={false}
-        showsCompass={false}
-        rotateEnabled={false}
-      >
-        {selectedPlace && (
-          <Marker
-            coordinate={{
-              latitude: selectedPlace.latitude,
-              longitude: selectedPlace.longitude,
-            }}
-            title={selectedPlace.name}
-            description={selectedPlace.address}
-          />
-        )}
-      </MapView>
+      <View style={styles.mapSection}>
+        <MapView
+          ref={mapRef}
+          style={styles.map}
+          provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+          initialRegion={INITIAL_REGION}
+          showsUserLocation
+          showsMyLocationButton={false}
+          showsCompass={false}
+          rotateEnabled={false}
+        >
+          {selectedPlace && (
+            <Marker
+              coordinate={{
+                latitude: selectedPlace.latitude,
+                longitude: selectedPlace.longitude,
+              }}
+              title={selectedPlace.name}
+              description={selectedPlace.address}
+            />
+          )}
+        </MapView>
 
-      <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
-        <View style={styles.searchBar}>
-          <TouchableOpacity
-            style={styles.backButton}
-            activeOpacity={0.75}
-            onPress={handleBack}
-          >
-            <Ionicons name="chevron-back" size={25} color="#6F7F95" />
-          </TouchableOpacity>
+        <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
+          <View style={styles.searchBar}>
+            <TouchableOpacity
+              style={styles.backButton}
+              activeOpacity={0.75}
+              onPress={handleBack}
+            >
+              <Ionicons name="chevron-back" size={25} color="#6F7F95" />
+            </TouchableOpacity>
 
-          <TextInput
-            ref={inputRef}
-            style={styles.searchInput}
-            value={keyword}
-            onChangeText={setKeyword}
-            placeholder="어디로 떠나시나요? ✈️"
-            placeholderTextColor="#8090A6"
-            autoFocus
-            returnKeyType="search"
-            autoCapitalize="none"
-            autoCorrect={false}
-            onSubmitEditing={handleSubmitEditing}
-          />
+            <TextInput
+              ref={inputRef}
+              style={styles.searchInput}
+              value={keyword}
+              onChangeText={setKeyword}
+              placeholder="어디로 떠나시나요?"
+              placeholderTextColor="#8090A6"
+              returnKeyType="search"
+              autoCapitalize="none"
+              autoCorrect={false}
+              onSubmitEditing={handleSubmitEditing}
+            />
 
-          <TouchableOpacity
-            style={styles.searchButton}
-            activeOpacity={0.75}
-            onPress={handleSearch}
-            disabled={searchLoading}
-          >
-            {searchLoading ?
-              <ActivityIndicator size="small" color="#5D6E86" />
-            : <Ionicons name="search" size={24} color="#5D6E86" />}
-          </TouchableOpacity>
-        </View>
-
-        {searchResults.length > 0 && (
-          <View style={styles.resultList}>
-            {searchResults.slice(0, 5).map((place) => (
-              <TouchableOpacity
-                key={place.placeId}
-                style={styles.resultItem}
-                activeOpacity={0.8}
-                onPress={() => selectPlace(place)}
-              >
-                <View style={styles.resultIconBox}>
-                  <Ionicons name="location" size={15} color="#2158E8" />
-                </View>
-
-                <View style={styles.resultTextBox}>
-                  <Text style={styles.resultName} numberOfLines={1}>
-                    {place.name}
-                  </Text>
-
-                  {!!place.address && (
-                    <Text style={styles.resultAddress} numberOfLines={1}>
-                      {place.address}
-                    </Text>
-                  )}
-                </View>
-              </TouchableOpacity>
-            ))}
+            <TouchableOpacity
+              style={styles.searchButton}
+              activeOpacity={0.75}
+              onPress={handleSearch}
+              disabled={searchLoading}
+            >
+              {searchLoading ?
+                <ActivityIndicator size="small" color="#5D6E86" />
+              : <Ionicons name="search" size={25} color="#5D6E86" />}
+            </TouchableOpacity>
           </View>
-        )}
+        </SafeAreaView>
+      </View>
 
-        {selectedPlace && (
-          <View style={styles.selectedPlaceCard}>
-            <View style={styles.selectedPlaceTop}>
-              <View style={styles.selectedPlaceIcon}>
-                <Ionicons name="location" size={18} color="#FFFFFF" />
-              </View>
+      <View style={styles.bottomSheet}>
+        <View style={styles.handleBar} />
 
-              <View style={styles.selectedPlaceInfo}>
-                <Text style={styles.selectedPlaceName} numberOfLines={1}>
-                  {selectedPlace.name}
+        <ScrollView
+          style={styles.resultScroll}
+          contentContainerStyle={styles.resultContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {placesToRender.map((place) => {
+            const isPreview = place.placeId === "empty-preview-1";
+            const isSelected = selectedPlace?.placeId === place.placeId;
+            const isDetailLoading = detailLoadingPlaceId === place.placeId;
+
+            return (
+              <View
+                key={place.placeId}
+                style={[
+                  styles.placeCard,
+                  isSelected && styles.selectedPlaceCard,
+                ]}
+              >
+                <Text style={styles.placeName}>{place.name}</Text>
+
+                <Text style={styles.placeAddress} numberOfLines={1}>
+                  {place.address}
                 </Text>
 
-                {!!selectedPlace.address && (
-                  <Text style={styles.selectedPlaceAddress} numberOfLines={1}>
-                    {selectedPlace.address}
-                  </Text>
+                {!isPreview && typeof place.rating === "number" && (
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={13} color="#FACC15" />
+                    <Text style={styles.ratingText}>
+                      {place.rating.toFixed(2)}
+                    </Text>
+                  </View>
                 )}
+
+                <TouchableOpacity
+                  style={[
+                    styles.detailButton,
+                    isPreview && styles.disabledDetailButton,
+                  ]}
+                  activeOpacity={0.8}
+                  disabled={isPreview || isDetailLoading}
+                  onPress={() => handlePlaceDetail(place)}
+                >
+                  {isDetailLoading ?
+                    <ActivityIndicator size="small" color="#6F7F95" />
+                  : <>
+                      <Text style={styles.detailButtonText}>
+                        상세 정보 보기
+                      </Text>
+                      <Ionicons name="eye-outline" size={15} color="#6F7F95" />
+                    </>
+                  }
+                </TouchableOpacity>
               </View>
-            </View>
+            );
+          })}
+        </ScrollView>
+      </View>
 
-            <View style={styles.selectedMetaRow}>
-              {!!selectedPlace.category && (
-                <View style={styles.metaChip}>
-                  <Text style={styles.metaChipText}>
-                    {selectedPlace.category}
-                  </Text>
-                </View>
-              )}
-
-              {typeof selectedPlace.rating === "number" && (
-                <View style={styles.metaChip}>
-                  <Ionicons name="star" size={12} color="#F59E0B" />
-                  <Text style={styles.metaChipText}>
-                    {selectedPlace.rating.toFixed(1)}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-        )}
-
-        {selectedPlace && (
-          <TouchableOpacity
-            style={styles.nextButton}
-            activeOpacity={0.85}
-            onPress={handleNext}
-          >
-            <Ionicons name="checkmark" size={22} color="#FFFFFF" />
-          </TouchableOpacity>
-        )}
-      </SafeAreaView>
+      {selectedPlace && (
+        <TouchableOpacity
+          style={styles.nextButton}
+          activeOpacity={0.85}
+          onPress={handleNext}
+        >
+          <Ionicons name="checkmark" size={23} color="#FFFFFF" />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -305,19 +312,25 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F9FC",
   },
 
+  mapSection: {
+    height: 335,
+    backgroundColor: "#DDE7F2",
+    position: "relative",
+  },
+
   map: {
     ...StyleSheet.absoluteFillObject,
   },
 
-  overlay: {
+  searchOverlay: {
     ...StyleSheet.absoluteFillObject,
-    paddingHorizontal: 13,
+    paddingHorizontal: 15,
   },
 
   searchBar: {
-    height: 50,
-    marginTop: 28,
-    borderRadius: 13,
+    height: 51,
+    marginTop: 31,
+    borderRadius: 12,
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
@@ -333,158 +346,125 @@ const styles = StyleSheet.create({
 
   backButton: {
     width: 43,
-    height: 50,
+    height: 51,
     alignItems: "center",
     justifyContent: "center",
   },
 
   searchInput: {
     flex: 1,
-    height: 50,
+    height: 51,
     paddingTop: 1,
     color: "#263244",
-    fontSize: 15,
-    fontWeight: "600",
+    fontSize: 17,
+    fontWeight: "700",
   },
 
   searchButton: {
-    width: 48,
-    height: 50,
+    width: 50,
+    height: 51,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  resultList: {
-    marginTop: 10,
-    borderRadius: 15,
-    backgroundColor: "#FFFFFF",
+  bottomSheet: {
+    flex: 1,
+    marginTop: -4,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: "#F7F9FC",
     overflow: "hidden",
-    shadowColor: "#1E293B",
-    shadowOffset: {
-      width: 0,
-      height: 3,
-    },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
   },
 
-  resultItem: {
-    minHeight: 58,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: "#EEF2F7",
+  handleBar: {
+    alignSelf: "center",
+    width: 43,
+    height: 4,
+    borderRadius: 999,
+    backgroundColor: "#D6DDE8",
+    marginTop: 10,
+    marginBottom: 15,
   },
 
-  resultIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#EAF1FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  resultTextBox: {
+  resultScroll: {
     flex: 1,
   },
 
-  resultName: {
-    color: "#263244",
-    fontSize: 14,
-    fontWeight: "800",
+  resultContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 96,
   },
 
-  resultAddress: {
-    marginTop: 4,
-    color: "#7B8BA3",
-    fontSize: 12,
-    fontWeight: "500",
+  placeCard: {
+    minHeight: 178,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCE5F1",
+    paddingHorizontal: 23,
+    paddingTop: 25,
+    paddingBottom: 28,
+    marginBottom: 16,
   },
 
   selectedPlaceCard: {
-    position: "absolute",
-    left: 20,
-    right: 20,
-    bottom: 88,
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    padding: 15,
-    shadowColor: "#1E293B",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 5,
+    borderColor: "#2158E8",
   },
 
-  selectedPlaceTop: {
+  placeName: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+
+  placeAddress: {
+    color: "#8A9BB2",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 14,
+  },
+
+  ratingRow: {
     flexDirection: "row",
     alignItems: "center",
+    marginBottom: 25,
   },
 
-  selectedPlaceIcon: {
-    width: 36,
+  ratingText: {
+    marginLeft: 5,
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  detailButton: {
     height: 36,
-    borderRadius: 18,
-    backgroundColor: "#2158E8",
+    borderRadius: 10,
+    backgroundColor: "#F1F4F8",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
   },
 
-  selectedPlaceInfo: {
-    flex: 1,
+  disabledDetailButton: {
+    opacity: 0.65,
   },
 
-  selectedPlaceName: {
-    color: "#263244",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-
-  selectedPlaceAddress: {
-    marginTop: 4,
-    color: "#7B8BA3",
-    fontSize: 12,
-    fontWeight: "500",
-  },
-
-  selectedMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-    marginTop: 12,
-  },
-
-  metaChip: {
-    minHeight: 26,
-    borderRadius: 13,
-    backgroundColor: "#F1F5F9",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    gap: 4,
-  },
-
-  metaChipText: {
-    color: "#526173",
-    fontSize: 11,
+  detailButtonText: {
+    color: "#6F7F95",
+    fontSize: 13,
     fontWeight: "700",
+    marginRight: 5,
   },
 
   nextButton: {
     position: "absolute",
-    right: 20,
-    bottom: 26,
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    right: 19,
+    bottom: 24,
+    width: 52,
+    height: 52,
+    borderRadius: 26,
     backgroundColor: "#273142",
     alignItems: "center",
     justifyContent: "center",
