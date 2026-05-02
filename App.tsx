@@ -13,17 +13,27 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
   OnboardingSecond: undefined;
   OnboardingThird: undefined;
   OnboardingFourth: undefined;
+
   Login: undefined;
   SignUp: undefined;
   Main: undefined;
+
   AddSchedule: undefined;
-  AddScheduleDate: undefined;
+  AddScheduleDate: {
+    tripName?: string;
+  };
+  AddScheduleLocation: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -36,15 +46,19 @@ export default function App() {
   useEffect(() => {
     const bootstrapAuth = async () => {
       try {
-        const accessToken = await AsyncStorage.getItem("access_token");
-        const refreshToken = await AsyncStorage.getItem("refresh_token");
+        await AsyncStorage.getItem("access_token");
+        await AsyncStorage.getItem("refresh_token");
 
-        setInitialRoute(
-          accessToken && refreshToken ? "Main" : "OnboardingFirst",
-        );
+        // 임시 테스트용: 앱 실행 시 장소 선택/상세 테스트 화면으로 바로 이동
+        setInitialRoute("AddScheduleLocation");
+
+        // 원래 로그인 흐름으로 되돌릴 때는 아래 코드 사용
+        // setInitialRoute(
+        //   accessToken && refreshToken ? "Main" : "OnboardingFirst",
+        // );
       } catch (error) {
         console.log("초기 상태 확인 실패:", error);
-        setInitialRoute("OnboardingFirst");
+        setInitialRoute("AddScheduleLocation");
       }
     };
 
@@ -70,20 +84,30 @@ export default function App() {
           name="OnboardingFirst"
           component={OnboardingFirstScreen}
         />
+
         <Stack.Screen
           name="OnboardingSecond"
           component={OnboardingSecondScreen}
         />
+
         <Stack.Screen
           name="OnboardingThird"
           component={OnboardingThirdScreen}
         />
+
         <Stack.Screen
           name="OnboardingFourth"
           component={OnboardingFourthScreen}
         />
 
-        <Stack.Screen name="Login" component={LoginScreen} />
+        <Stack.Screen
+          name="Login"
+          component={LoginScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 300,
+          }}
+        />
 
         <Stack.Screen
           name="SignUp"
@@ -94,11 +118,48 @@ export default function App() {
           }}
         />
 
-        <Stack.Screen name="Main" component={MainScreen} />
-        <Stack.Screen name="AddSchedule" component={AddScheduleNameScreen} />
+        <Stack.Screen
+          name="Main"
+          component={MainScreen}
+          options={{
+            animation: "fade",
+            animationDuration: 250,
+          }}
+        />
+
+        <Stack.Screen
+          name="AddSchedule"
+          component={AddScheduleNameScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AddScheduleLocation"
+          component={AddScheduleLocationScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+          initialParams={{
+            tripName: "테스트 여행",
+            startDate: "2026-05-03",
+            endDate: "2026-05-05",
+          }}
         />
       </Stack.Navigator>
     </NavigationContainer>
