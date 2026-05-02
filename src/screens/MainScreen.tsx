@@ -1,119 +1,210 @@
 import React, { useEffect, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Alert,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 
-import CalendarSvg from "../assets/calendar.svg";
-import RadialBackground from "../components/RadialBackground";
-import { getMe } from "../../api/users/me";
+import {
+  getHomeSchedules,
+  HomeScheduleResponse,
+  OngoingPlace,
+  UpcomingTrip,
+} from "../../api/home/homeSchedules";
 
 type Props = {
   navigation: any;
 };
 
-type UserInfo = {
-  id: number;
-  email: string;
-  nickname: string;
-} | null;
-
 export default function MainScreen({ navigation }: Props) {
-  const [user, setUser] = useState<UserInfo>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [homeData, setHomeData] = useState<HomeScheduleResponse>({
+    ongoingPlaces: [],
+    upcomingTrips: [],
+  });
 
   useEffect(() => {
-    const fetchMe = async () => {
+    const loadHomeSchedules = async () => {
       try {
-        setLoadingUser(true);
+        setLoading(true);
 
-        const result = await getMe();
-        setUser(result);
-      } catch (error: unknown) {
-        const message =
-          error instanceof Error ?
-            error.message
-          : "내 정보 조회에 실패했습니다.";
+        const data = await getHomeSchedules();
+        setHomeData(data);
 
-        Alert.alert("오류", message);
+        console.log("[홈 화면] 진행중인 일정:", data.ongoingPlaces.length);
+        console.log("[홈 화면] 다음 여행:", data.upcomingTrips.length);
+      } catch (error) {
+        console.log("[홈 화면] 일정 조회 실패:", error);
       } finally {
-        setLoadingUser(false);
+        setLoading(false);
       }
     };
 
-    fetchMe();
+    loadHomeSchedules();
   }, []);
 
-  const renderUserSection = () => {
-    if (loadingUser) {
-      return <Text style={styles.userText}>사용자 정보를 불러오는 중...</Text>;
-    }
+  const handleOpenAddSchedule = () => {
+    navigation.navigate("AddSchedule");
+  };
 
-    if (user) {
-      return (
-        <>
-          <Text style={styles.userText}>{user.nickname}님, 반가워요</Text>
-          <Text style={styles.userSubText}>{user.email}</Text>
-        </>
-      );
-    }
+  const handleOpenPlanX = () => {
+    navigation.navigate("PlanX");
+  };
 
-    return (
-      <Text style={styles.userText}>사용자 정보를 불러오지 못했습니다.</Text>
-    );
+  const handleOpenPlace = (place: OngoingPlace) => {
+    console.log("[홈 화면] 진행중인 장소 선택:", place);
+  };
+
+  const handleOpenTrip = (trip: UpcomingTrip) => {
+    console.log("[홈 화면] 다음 여행 선택:", trip);
   };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.logo}>Plan.B</Text>
 
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-          <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
-        </View>
+          <View style={styles.mapPreview}>
+            <View style={styles.mapBackground}>
+              <View style={[styles.mapRoad, styles.mapRoadOne]} />
+              <View style={[styles.mapRoad, styles.mapRoadTwo]} />
+              <View style={[styles.mapRoad, styles.mapRoadThree]} />
 
-        <View style={styles.contentSection}>
-          <View style={styles.emptyState}>
-            <View style={styles.iconArea}>
-              <View style={styles.backgroundLayer}>
-                <RadialBackground />
-              </View>
+              <View style={[styles.mapBlock, styles.mapBlockOne]} />
+              <View style={[styles.mapBlock, styles.mapBlockTwo]} />
+              <View style={[styles.mapBlock, styles.mapBlockThree]} />
 
-              <View style={styles.iconWrapper}>
-                <CalendarSvg width={100} height={100} />
+              <View style={styles.mapPin}>
+                <Ionicons name="location" size={19} color="#FFFFFF" />
               </View>
             </View>
+          </View>
 
-            <View style={styles.emptyTextGroup}>
-              <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-              <Text style={styles.subText}>
-                새로운 여행 일정을 추가해보세요
-              </Text>
-            </View>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>진행중인 일정</Text>
 
-            <View style={styles.userInfoBox}>{renderUserSection()}</View>
-
-            <TouchableOpacity
-              style={styles.addButton}
-              activeOpacity={0.85}
-              onPress={() => navigation.navigate("AddSchedule")}
-            >
-              <Text style={styles.addButtonText}>일정 추가하기</Text>
+            <TouchableOpacity activeOpacity={0.75}>
+              <Text style={styles.viewAllText}>전체</Text>
             </TouchableOpacity>
           </View>
+
+          {loading ?
+            <View style={styles.loadingBox}>
+              <ActivityIndicator size="small" color="#2158E8" />
+            </View>
+          : <View style={styles.ongoingList}>
+              {homeData.ongoingPlaces.map((place) => (
+                <TouchableOpacity
+                  key={place.id}
+                  style={styles.ongoingItem}
+                  activeOpacity={0.78}
+                  onPress={() => handleOpenPlace(place)}
+                >
+                  <View style={styles.orderBadge}>
+                    <Text style={styles.orderText}>{place.order}</Text>
+                  </View>
+
+                  <View style={styles.ongoingInfo}>
+                    <Text style={styles.placeName}>{place.name}</Text>
+                    <Text style={styles.placeAddress}>{place.address}</Text>
+
+                    <View style={styles.timeRow}>
+                      <Ionicons name="time-outline" size={14} color="#70839C" />
+                      <Text style={styles.timeText}>{place.time}</Text>
+                    </View>
+                  </View>
+
+                  <Ionicons name="chevron-forward" size={20} color="#C5CEDA" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          }
+
+          <View style={styles.todayCard}>
+            <Text style={styles.todayText}>📅 2026.05.05</Text>
+            <Text style={styles.todayText}>🗺️ Day 1</Text>
+          </View>
+
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>다음 여행</Text>
+
+            <TouchableOpacity activeOpacity={0.75} onPress={handleOpenPlanX}>
+              <Text style={styles.viewAllText}>전체</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.tripList}>
+            {homeData.upcomingTrips.map((trip) => (
+              <TouchableOpacity
+                key={trip.id}
+                style={styles.tripCard}
+                activeOpacity={0.78}
+                onPress={() => handleOpenTrip(trip)}
+              >
+                <View style={styles.tripThumbnail}>
+                  <Text style={styles.tripEmoji}>{trip.thumbnailEmoji}</Text>
+                </View>
+
+                <View style={styles.tripInfo}>
+                  <Text style={styles.tripTitle}>{trip.title}</Text>
+
+                  <View style={styles.tripMetaRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={13}
+                      color="#70839C"
+                    />
+                    <Text style={styles.tripMetaText}>
+                      {trip.startDate} - {trip.endDate}
+                    </Text>
+                  </View>
+
+                  <View style={styles.tripMetaRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={13}
+                      color="#70839C"
+                    />
+                    <Text style={styles.tripMetaText}>
+                      {trip.location} · {trip.placeCount}개 장소
+                    </Text>
+                  </View>
+                </View>
+
+                <Ionicons name="chevron-forward" size={20} color="#C5CEDA" />
+              </TouchableOpacity>
+            ))}
+          </View>
+        </ScrollView>
+
+        <View style={styles.bottomTab}>
+          <TouchableOpacity style={styles.tabButton} activeOpacity={0.75}>
+            <Ionicons name="refresh-outline" size={27} color="#B7C2D1" />
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabButton} activeOpacity={0.75}>
+            <Ionicons name="home-outline" size={27} color="#273142" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.tabButton}
+            activeOpacity={0.75}
+            onPress={handleOpenAddSchedule}
+          >
+            <Ionicons name="person-outline" size={27} color="#B7C2D1" />
+          </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -121,150 +212,294 @@ export default function MainScreen({ navigation }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: "#FFFFFF",
   },
 
-  container: {
+  screen: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+  },
+
+  scroll: {
     flex: 1,
   },
 
   scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    paddingBottom: 40,
+    paddingHorizontal: 17,
+    paddingBottom: 138,
   },
 
-  header: {
-    width: "100%",
-    alignItems: "center",
-  },
-
-  logoText: {
-    fontSize: 52,
+  logo: {
+    marginTop: 28,
+    marginBottom: 54,
+    color: "#202938",
+    fontSize: 40,
     fontWeight: "900",
-    color: "#1E293B",
-    letterSpacing: -1.5,
     textAlign: "center",
+    letterSpacing: -1.1,
   },
 
-  subLogoText: {
-    fontSize: 15,
-    color: "#64748B",
-    marginTop: 4,
-    textAlign: "center",
+  mapPreview: {
+    height: 200,
+    borderRadius: 11,
+    overflow: "hidden",
+    backgroundColor: "#E8EEF5",
+    marginBottom: 31,
   },
 
-  contentSection: {
+  mapBackground: {
     flex: 1,
-    width: "100%",
-    justifyContent: "center",
-    alignItems: "center",
+    backgroundColor: "#EEF3F7",
+    overflow: "hidden",
   },
 
-  emptyState: {
-    width: "100%",
-    maxWidth: 380,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  iconArea: {
-    width: 150,
-    height: 150,
-    marginBottom: 12,
-    position: "relative",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-
-  backgroundLayer: {
+  mapRoad: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    justifyContent: "center",
-    alignItems: "center",
+    height: 8,
+    borderRadius: 999,
+    backgroundColor: "#D2DAE5",
+    transform: [{ rotate: "-34deg" }],
   },
 
-  iconWrapper: {
+  mapRoadOne: {
+    width: 280,
+    top: 40,
+    left: -50,
+  },
+
+  mapRoadTwo: {
+    width: 360,
+    top: 106,
+    left: 18,
+    backgroundColor: "#C9D2DE",
+  },
+
+  mapRoadThree: {
+    width: 250,
+    top: 156,
+    right: -30,
+  },
+
+  mapBlock: {
     position: "absolute",
-    top: 0,
-    right: 0,
-    bottom: 0,
-    left: 0,
-    justifyContent: "center",
-    alignItems: "center",
-    zIndex: 2,
-    elevation: 2,
+    borderRadius: 12,
+    backgroundColor: "#D9EAD7",
   },
 
-  emptyTextGroup: {
-    width: "100%",
-    alignItems: "center",
-    marginBottom: 20,
+  mapBlockOne: {
+    width: 86,
+    height: 70,
+    top: 16,
+    left: 18,
   },
 
-  mainText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#252D3C",
-    marginBottom: 8,
-    textAlign: "center",
+  mapBlockTwo: {
+    width: 96,
+    height: 80,
+    top: 72,
+    right: 28,
   },
 
-  subText: {
-    fontSize: 15,
-    color: "#8C9BB1",
-    textAlign: "center",
-    lineHeight: 22,
+  mapBlockThree: {
+    width: 66,
+    height: 58,
+    bottom: 20,
+    left: 78,
   },
 
-  userInfoBox: {
-    width: "100%",
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#E6EEF9",
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
-  userText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-    textAlign: "center",
-  },
-
-  userSubText: {
-    marginTop: 6,
-    fontSize: 13,
-    color: "#64748B",
-    textAlign: "center",
-  },
-
-  addButton: {
-    minWidth: 168,
-    height: 52,
-    paddingHorizontal: 28,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 16,
+  mapPin: {
+    position: "absolute",
+    left: "48%",
+    top: "46%",
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
 
-  addButtonText: {
-    fontSize: 16,
+  sectionHeader: {
+    marginHorizontal: 19,
+    marginBottom: 20,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  sectionTitle: {
+    color: "#111827",
+    fontSize: 21,
+    fontWeight: "900",
+  },
+
+  viewAllText: {
+    color: "#2158E8",
+    fontSize: 14,
     fontWeight: "700",
-    color: "#FFFFFF",
+  },
+
+  loadingBox: {
+    height: 100,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  ongoingList: {
+    marginHorizontal: 5,
+    marginBottom: 8,
+  },
+
+  ongoingItem: {
+    minHeight: 105,
+    flexDirection: "row",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E6ECF3",
+    paddingHorizontal: 24,
+  },
+
+  orderBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 22,
+  },
+
+  orderText: {
+    color: "#2158E8",
+    fontSize: 15,
+    fontWeight: "800",
+  },
+
+  ongoingInfo: {
+    flex: 1,
+  },
+
+  placeName: {
+    color: "#273142",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 7,
+  },
+
+  placeAddress: {
+    color: "#70839C",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 7,
+  },
+
+  timeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  timeText: {
+    marginLeft: 4,
+    color: "#70839C",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  todayCard: {
+    minHeight: 70,
+    marginTop: 10,
+    marginBottom: 37,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 21,
+  },
+
+  todayText: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "800",
+    marginRight: 21,
+  },
+
+  tripList: {
+    marginHorizontal: 18,
+  },
+
+  tripCard: {
+    minHeight: 94,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  tripThumbnail: {
+    width: 73,
+    height: 73,
+    borderRadius: 10,
+    backgroundColor: "#D5EBFC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 23,
+  },
+
+  tripEmoji: {
+    fontSize: 35,
+  },
+
+  tripInfo: {
+    flex: 1,
+  },
+
+  tripTitle: {
+    color: "#273142",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 9,
+  },
+
+  tripMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 3,
+  },
+
+  tripMetaText: {
+    marginLeft: 6,
+    color: "#70839C",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+
+  bottomTab: {
+    position: "absolute",
+    left: 11,
+    right: 11,
+    bottom: 28,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    shadowColor: "#1E293B",
+    shadowOpacity: 0.08,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowRadius: 12,
+    elevation: 6,
+  },
+
+  tabButton: {
+    width: 74,
+    height: 58,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
