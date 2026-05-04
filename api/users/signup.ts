@@ -9,7 +9,9 @@ export interface SignupRequest {
 }
 
 export interface SignupResponse {
+  success?: boolean;
   message: string;
+  user_id?: number;
   userId?: number;
   id?: number;
 }
@@ -34,7 +36,6 @@ const mockRequestSignup = async ({
   password,
   nickname,
 }: SignupRequest): Promise<SignupResponse> => {
-  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!email || !email.includes("@")) {
@@ -53,11 +54,20 @@ const mockRequestSignup = async ({
       }
 
       resolve({
+        success: true,
         message: "회원가입이 완료되었습니다.",
-        userId: 101,
+        user_id: 101,
       });
     }, 700);
   });
+};
+
+const isHtmlResponse = (data: unknown) => {
+  if (typeof data !== "string") return false;
+
+  const trimmed = data.trim().toLowerCase();
+
+  return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
 /**
@@ -84,18 +94,23 @@ export const requestSignup = async ({
     const trimmedEmail = email.trim();
     const trimmedNickname = nickname.trim();
 
-        
     const response = await apiClient.post<SignupResponse>("/api/users/signup", {
       email: trimmedEmail,
       password,
       nickname: trimmedNickname,
     });
 
-        
-    return response.data;
+    const data = response.data;
+
+    if (isHtmlResponse(data)) {
+      throw new SignupError(
+        "회원가입 API가 HTML을 반환했습니다. BASE_URL과 백엔드 서버 상태를 확인해주세요.",
+      );
+    }
+
+    return data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-                              
       const status = error.response?.status;
       const errorData = error.response?.data as
         | SignupErrorResponse
@@ -108,20 +123,15 @@ export const requestSignup = async ({
         );
       }
 
+      if (isHtmlResponse(errorData)) {
+        throw new SignupError(
+          "회원가입 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
+          status,
+        );
+      }
+
       if (typeof errorData === "string") {
-        const trimmed = errorData.trim();
-
-        if (
-          trimmed.startsWith("<!DOCTYPE html>") ||
-          trimmed.startsWith("<html")
-        ) {
-          throw new SignupError(
-            "회원가입 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
-            status,
-          );
-        }
-
-        throw new SignupError(trimmed, status);
+        throw new SignupError(errorData.trim(), status);
       }
 
       const serverMessage =
@@ -130,6 +140,10 @@ export const requestSignup = async ({
       throw new SignupError(serverMessage, status);
     }
 
-        throw new SignupError("알 수 없는 오류가 발생했습니다.");
+    if (error instanceof Error) {
+      throw error;
+    }
+
+    throw new SignupError("알 수 없는 오류가 발생했습니다.");
   }
 };
