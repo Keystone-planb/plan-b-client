@@ -8,8 +8,11 @@ export interface LoginRequest {
 }
 
 export interface LoginResponse {
+  success?: boolean;
+  message?: string;
   access_token: string;
   refresh_token: string;
+  token_type?: "Bearer" | string;
   expires_in?: number;
   user_id?: number;
   nickname?: string;
@@ -34,7 +37,6 @@ const mockRequestLogin = async ({
   email,
   password,
 }: LoginRequest): Promise<LoginResponse> => {
-  
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       if (!email || !password) {
@@ -48,8 +50,11 @@ const mockRequestLogin = async ({
       }
 
       resolve({
+        success: true,
+        message: "mock 로그인에 성공하였습니다.",
         access_token: "mock_access_token_123456",
         refresh_token: "mock_refresh_token_abcdef",
+        token_type: "Bearer",
         expires_in: 3600,
         user_id: 101,
         nickname: "test",
@@ -65,7 +70,9 @@ const isLoginResponse = (data: unknown): data is LoginResponse => {
 
   return (
     typeof obj.access_token === "string" &&
-    typeof obj.refresh_token === "string"
+    obj.access_token.length > 0 &&
+    typeof obj.refresh_token === "string" &&
+    obj.refresh_token.length > 0
   );
 };
 
@@ -88,13 +95,11 @@ export const requestLogin = async ({
   try {
     const trimmedEmail = email.trim();
 
-        
     const response = await apiClient.post<unknown>("/api/auth/login", {
       email: trimmedEmail,
       password,
     });
 
-        
     const data = response.data;
 
     if (isHtmlResponse(data)) {
@@ -104,13 +109,12 @@ export const requestLogin = async ({
     }
 
     if (!isLoginResponse(data)) {
-            throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
+      throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
     }
 
     return data;
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
-                              
       const status = error.response?.status;
       const errorData = error.response?.data as
         | LoginErrorResponse

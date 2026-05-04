@@ -2,7 +2,6 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import apiClient from "../client";
-import { API_CONFIG } from "../config";
 
 export interface LogoutResponse {
   message: string;
@@ -34,20 +33,39 @@ const getServerErrorMessage = (data: unknown) => {
 };
 
 export const requestLogout = async (): Promise<LogoutResponse> => {
+  const refreshToken = await AsyncStorage.getItem("refresh_token");
+
   try {
-        
-    const response = await apiClient.post<LogoutResponse>(
+    /**
+     * 05/04 API 명세 기준:
+     * POST /api/auth/logout
+     * Request body: { refreshToken: string }
+     *
+     * 단, refresh_token이 없는 상태여도 앱에서는 로컬 토큰을 정리하고
+     * 로그아웃 성공으로 처리한다.
+     */
+    if (!refreshToken || refreshToken.trim().length === 0) {
+      await clearAuthTokens();
+
+      return {
+        message: "로그아웃 되었습니다.",
+      };
+    }
+
+    const response = await apiClient.post<unknown>(
       "/api/auth/logout",
-      {},
+      {
+        refreshToken,
+      },
       {
         headers: {
           "Content-Type": "application/json",
         },
       },
     );
+
     const data = response.data;
 
-        
     if (isHtmlResponse(data)) {
       throw new Error(
         "로그아웃 API가 HTML을 반환했습니다. BASE_URL, 포트, 백엔드 서버 상태를 확인해주세요.",
@@ -56,12 +74,25 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
 
     await clearAuthTokens();
 
-    return data ?? { message: "로그아웃 되었습니다." };
+    if (!data || typeof data !== "object") {
+      return {
+        message: "로그아웃 되었습니다.",
+      };
+    }
+
+    const logoutData = data as Partial<LogoutResponse>;
+
+    return {
+      message: logoutData.message || "로그아웃 되었습니다.",
+    };
   } catch (error: unknown) {
+    /**
+     * 서버 로그아웃 실패 여부와 관계없이
+     * 앱에서는 로컬 토큰을 반드시 삭제한다.
+     */
     await clearAuthTokens();
 
     if (axios.isAxiosError(error)) {
-                  
       const errorData = error.response?.data as
         | LogoutErrorResponse
         | string
@@ -77,6 +108,10 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
         throw new Error(
           "로그아웃 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL 또는 포트를 확인해주세요.",
         );
+      }
+
+      if (typeof errorData === "string") {
+        throw new Error(errorData.trim());
       }
 
       const serverMessage = getServerErrorMessage(errorData);
@@ -102,6 +137,6 @@ export const requestLogout = async (): Promise<LogoutResponse> => {
       throw error;
     }
 
-        throw new Error("알 수 없는 오류가 발생했습니다.");
+    throw new Error("알 수 없는 오류가 발생했습니다.");
   }
 };
