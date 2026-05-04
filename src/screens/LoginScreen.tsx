@@ -43,9 +43,14 @@ import {
 WebBrowser.maybeCompleteAuthSession();
 
 type LoginResult = {
+  success?: boolean;
+  message?: string;
   access_token: string;
   refresh_token: string;
+  token_type?: "Bearer" | string;
   expires_in?: number;
+  user_id?: number;
+  nickname?: string;
   is_new_user?: boolean;
 };
 
@@ -96,7 +101,6 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleLoginError = (title: string, error: unknown) => {
-    
     const message =
       error instanceof Error ? error.message : "로그인에 실패했습니다.";
 
@@ -119,7 +123,6 @@ export default function LoginScreen({ navigation }: any) {
         password,
       });
 
-      
       await handleLoginSuccess(result);
     } catch (error) {
       handleLoginError("로그인 실패", error);
@@ -135,7 +138,6 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const handleOAuthRedirect = async (url: string) => {
-    
     if (!isOAuthSuccessUrl(url) && !isOAuthFailureUrl(url)) {
       return;
     }
@@ -148,7 +150,6 @@ export default function LoginScreen({ navigation }: any) {
       }
 
       await handleOAuthSuccessUrl(url);
-
       moveToMain();
     } catch (error) {
       handleLoginError("소셜 로그인 실패", error);
@@ -163,9 +164,8 @@ export default function LoginScreen({ navigation }: any) {
     try {
       setSocialLoadingProvider("kakao");
 
-      const { authUrl, redirectUri } = createSocialAuthUrl("kakao");
+      const { authUrl } = createSocialAuthUrl("kakao");
 
-            
       if (Platform.OS === "web") {
         window.location.assign(authUrl);
         return;
@@ -187,7 +187,6 @@ export default function LoginScreen({ navigation }: any) {
 
       const { authUrl, redirectUri } = createSocialAuthUrl("google");
 
-            
       if (Platform.OS === "web") {
         window.location.assign(authUrl);
         return;
@@ -198,14 +197,14 @@ export default function LoginScreen({ navigation }: any) {
         redirectUri,
       );
 
-      
       if (result.type === "success") {
         await handleOAuthRedirect(result.url);
         return;
       }
 
       if (result.type === "cancel" || result.type === "dismiss") {
-              }
+        return;
+      }
     } catch (error) {
       handleLoginError("구글 로그인 실패", error);
     } finally {
@@ -384,12 +383,7 @@ export default function LoginScreen({ navigation }: any) {
               sharedCookiesEnabled
               thirdPartyCookiesEnabled
               setSupportMultipleWindows={false}
-              onLoadStart={(event) => {
-                              }}
-              onLoadEnd={(event) => {
-                              }}
               onError={(event) => {
-                
                 Alert.alert(
                   "카카오 로그인 오류",
                   event.nativeEvent.description ||
@@ -398,12 +392,9 @@ export default function LoginScreen({ navigation }: any) {
 
                 setSocialLoadingProvider(null);
               }}
-              onHttpError={(event) => {
-                              }}
               onShouldStartLoadWithRequest={(request) => {
                 const nextUrl = request.url;
 
-                
                 if (isOAuthSuccessUrl(nextUrl) || isOAuthFailureUrl(nextUrl)) {
                   handleOAuthRedirect(nextUrl);
                   return false;
@@ -412,7 +403,6 @@ export default function LoginScreen({ navigation }: any) {
                 return true;
               }}
               onNavigationStateChange={({ url }) => {
-                
                 if (isOAuthSuccessUrl(url) || isOAuthFailureUrl(url)) {
                   handleOAuthRedirect(url);
                 }
