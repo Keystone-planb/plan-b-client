@@ -119,10 +119,10 @@ export default function TermsAgreementScreen({ navigation, route }: Props) {
 
       navigation.reset({
         index: 0,
-        routes: [{ name: "Main" }],
+        routes: [{ name: "MainTabs" }],
       });
     } catch (error) {
-            Alert.alert("오류", "약관 동의 저장에 실패했습니다.");
+      Alert.alert("오류", "약관 동의 저장에 실패했습니다.");
     }
   };
 

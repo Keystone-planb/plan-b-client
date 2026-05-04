@@ -27,7 +27,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
   };
 
   const handleComplete = () => {
-    navigation.navigate("Main");
+    navigation.navigate("MainTabs");
   };
 
   const formatDate = (value: string) => value.replace(/-/g, ".");
