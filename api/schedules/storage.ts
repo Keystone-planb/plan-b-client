@@ -21,13 +21,13 @@ export const getSchedules = async (): Promise<SavedSchedule[]> => {
   try {
     return JSON.parse(rawSchedules) as SavedSchedule[];
   } catch (error) {
-        return [];
+    return [];
   }
 };
 
 export const saveSchedule = async (
   schedule: Omit<SavedSchedule, "id" | "createdAt">,
-) => {
+): Promise<SavedSchedule> => {
   const prevSchedules = await getSchedules();
 
   const newSchedule: SavedSchedule = {
@@ -46,6 +46,6 @@ export const saveSchedule = async (
   return newSchedule;
 };
 
-export const clearSchedules = async () => {
+export const clearSchedules = async (): Promise<void> => {
   await AsyncStorage.removeItem(SCHEDULES_STORAGE_KEY);
 };
