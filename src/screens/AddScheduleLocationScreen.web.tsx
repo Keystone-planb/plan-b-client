@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   ActivityIndicator,
   Keyboard,
@@ -11,10 +11,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
-import L from "leaflet";
-
-import "leaflet/dist/leaflet.css";
 
 import { getPlaceDetail, searchPlaces } from "../../api/places/searchPlaces";
 import { PlaceSearchResult } from "../../api/places/place";
@@ -34,56 +30,10 @@ type SelectedPlace = {
   longitude: number;
 };
 
-const INITIAL_CENTER = {
+const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
 };
-
-const DEFAULT_ZOOM = 15;
-
-const markerIcon = L.divIcon({
-  className: "custom-place-marker",
-  html: `
-    <div style="
-      width: 34px;
-      height: 34px;
-      border-radius: 17px;
-      background: #2158E8;
-      border: 3px solid white;
-      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 15px;
-      font-weight: 800;
-    ">
-      📍
-    </div>
-  `,
-  iconSize: [34, 34],
-  iconAnchor: [17, 34],
-});
-
-function MapFocus({ selectedPlace }: { selectedPlace: SelectedPlace | null }) {
-  const map = useMap();
-
-  React.useEffect(() => {
-    if (!selectedPlace) {
-      return;
-    }
-
-    map.setView(
-      [selectedPlace.latitude, selectedPlace.longitude],
-      DEFAULT_ZOOM,
-      {
-        animate: true,
-      },
-    );
-  }, [map, selectedPlace]);
-
-  return null;
-}
 
 export default function AddScheduleLocationScreen({
   navigation,
@@ -97,6 +47,10 @@ export default function AddScheduleLocationScreen({
     string | null
   >(null);
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [reviewLoadingPlaceId, setReviewLoadingPlaceId] = useState<
+    string | null
+  >(null);
+  const [expandedPlaceId, setExpandedPlaceId] = useState<string | null>(null);
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
     null,
   );
@@ -104,10 +58,6 @@ export default function AddScheduleLocationScreen({
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
-
-  const center = useMemo<[number, number]>(() => {
-    return [INITIAL_CENTER.latitude, INITIAL_CENTER.longitude];
-  }, []);
 
   const handleBack = () => {
     navigation.goBack();
@@ -123,15 +73,18 @@ export default function AddScheduleLocationScreen({
     try {
       setSearchLoading(true);
       setSelectedPlace(null);
+      setExpandedPlaceId(null);
+      setReviewLoadingPlaceId(null);
 
       const places = await searchPlaces(trimmedKeyword);
       setSearchResults(places);
 
       Keyboard.dismiss();
-    } catch (error) {
-      console.log("장소 검색 실패:", error);
+    } catch {
       setSearchResults([]);
       setSelectedPlace(null);
+      setExpandedPlaceId(null);
+      setReviewLoadingPlaceId(null);
     } finally {
       setSearchLoading(false);
     }
@@ -153,23 +106,21 @@ export default function AddScheduleLocationScreen({
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: detail.lat ?? place.latitude ?? INITIAL_CENTER.latitude,
-        longitude: detail.lng ?? place.longitude ?? INITIAL_CENTER.longitude,
+        latitude: detail.lat ?? place.latitude ?? INITIAL_REGION.latitude,
+        longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
       };
 
       setSelectedPlace(nextPlace);
       setKeyword(place.name);
-    } catch (error) {
-      console.log("장소 상세 조회 실패:", error);
-
+    } catch {
       const fallbackPlace: SelectedPlace = {
         placeId: place.placeId,
         name: place.name,
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: place.latitude ?? INITIAL_CENTER.latitude,
-        longitude: place.longitude ?? INITIAL_CENTER.longitude,
+        latitude: place.latitude ?? INITIAL_REGION.latitude,
+        longitude: place.longitude ?? INITIAL_REGION.longitude,
       };
 
       setSelectedPlace(fallbackPlace);
@@ -177,6 +128,22 @@ export default function AddScheduleLocationScreen({
     } finally {
       setDetailLoadingPlaceId(null);
     }
+  };
+
+  const handleTogglePlaceReview = (placeId: string) => {
+    if (expandedPlaceId === placeId) {
+      setExpandedPlaceId(null);
+      setReviewLoadingPlaceId(null);
+      return;
+    }
+
+    setReviewLoadingPlaceId(placeId);
+    setExpandedPlaceId(null);
+
+    setTimeout(() => {
+      setReviewLoadingPlaceId(null);
+      setExpandedPlaceId(placeId);
+    }, 1000);
   };
 
   const handleNext = () => {
@@ -208,31 +175,20 @@ export default function AddScheduleLocationScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.mapSection}>
-        <View style={styles.mapLayer}>
-          <MapContainer
-            center={center}
-            zoom={DEFAULT_ZOOM}
-            scrollWheelZoom
-            zoomControl={false}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-          >
-            <TileLayer
-              attribution="&copy; OpenStreetMap contributors"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
+        <View style={styles.webMapMock}>
+          <View style={styles.mapGridLineHorizontal} />
+          <View style={styles.mapGridLineVertical} />
 
-            <MapFocus selectedPlace={selectedPlace} />
-
-            {selectedPlace && (
-              <Marker
-                position={[selectedPlace.latitude, selectedPlace.longitude]}
-                icon={markerIcon}
-              />
-            )}
-          </MapContainer>
+          {selectedPlace ?
+            <View style={styles.markerBox}>
+              <Ionicons name="location-sharp" size={38} color="#2158E8" />
+              <Text style={styles.markerLabel}>{selectedPlace.name}</Text>
+            </View>
+          : <View style={styles.mapEmptyBox}>
+              <Ionicons name="map-outline" size={38} color="#8EA0B8" />
+              <Text style={styles.mapEmptyText}>장소를 검색해보세요</Text>
+            </View>
+          }
         </View>
 
         <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
@@ -284,49 +240,170 @@ export default function AddScheduleLocationScreen({
             const isPreview = place.placeId === "empty-preview-1";
             const isSelected = selectedPlace?.placeId === place.placeId;
             const isDetailLoading = detailLoadingPlaceId === place.placeId;
+            const isReviewLoading = reviewLoadingPlaceId === place.placeId;
+            const isExpanded = expandedPlaceId === place.placeId;
 
             return (
               <View
                 key={place.placeId}
                 style={[
                   styles.placeCard,
+                  isExpanded && styles.expandedPlaceCard,
+                  isReviewLoading && styles.reviewLoadingPlaceCard,
                   isSelected && styles.selectedPlaceCard,
                 ]}
               >
-                <Text style={styles.placeName}>{place.name}</Text>
+                {!isExpanded && (
+                  <>
+                    <Text style={styles.placeName}>{place.name}</Text>
 
-                <Text style={styles.placeAddress} numberOfLines={1}>
-                  {place.address}
-                </Text>
-
-                {!isPreview && typeof place.rating === "number" && (
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={13} color="#FACC15" />
-                    <Text style={styles.ratingText}>
-                      {place.rating.toFixed(2)}
+                    <Text style={styles.placeAddress} numberOfLines={1}>
+                      {place.address}
                     </Text>
-                  </View>
+
+                    {!isPreview && typeof place.rating === "number" && (
+                      <View style={styles.ratingRow}>
+                        <Ionicons name="star" size={13} color="#FACC15" />
+                        <Text style={styles.ratingText}>
+                          {place.rating.toFixed(2)}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
 
                 <TouchableOpacity
                   style={[
                     styles.detailButton,
                     isPreview && styles.disabledDetailButton,
+                    isExpanded && styles.compactButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isDetailLoading}
-                  onPress={() => handlePlaceDetail(place)}
+                  disabled={isPreview || isReviewLoading}
+                  onPress={() => handleTogglePlaceReview(place.placeId)}
                 >
-                  {isDetailLoading ?
+                  {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        상세 정보 보기
+                        {isExpanded ? "간략히" : "상세 정보 보기"}
                       </Text>
-                      <Ionicons name="eye-outline" size={15} color="#6F7F95" />
+                      <Ionicons
+                        name={isExpanded ? "chevron-up-outline" : "eye-outline"}
+                        size={15}
+                        color="#6F7F95"
+                      />
                     </>
                   }
                 </TouchableOpacity>
+
+                {isReviewLoading ?
+                  <View style={styles.reviewLoadingPanel}>
+                    <ActivityIndicator size="large" color="#2563EB" />
+
+                    <Text style={styles.reviewLoadingText}>
+                      리뷰 불러오는 중...
+                    </Text>
+
+                    <View style={styles.reviewProgressTrack}>
+                      <View style={styles.reviewProgressFill} />
+                    </View>
+                  </View>
+                : null}
+
+                {isExpanded ?
+                  <View style={styles.reviewPanel}>
+                    <View style={styles.placeExpandedHeader}>
+                      <View style={styles.placeIconCircle}>
+                        <Text style={styles.placeIconEmoji}>🎡</Text>
+                      </View>
+
+                      <View style={styles.placeExpandedInfo}>
+                        <Text style={styles.expandedPlaceName}>
+                          {place.name}
+                        </Text>
+
+                        <Text style={styles.expandedAddress} numberOfLines={1}>
+                          {place.address}
+                        </Text>
+
+                        <View style={styles.expandedMetaRow}>
+                          <Ionicons name="star" size={13} color="#FACC15" />
+
+                          <Text style={styles.expandedMetaText}>
+                            {typeof place.rating === "number" ?
+                              place.rating.toFixed(2)
+                            : "4.58"}
+                          </Text>
+
+                          <Text style={styles.expandedDot}>·</Text>
+
+                          <Ionicons
+                            name="time-outline"
+                            size={14}
+                            color="#60A5FA"
+                          />
+
+                          <Text style={styles.expandedMetaText}>
+                            10:00 - 21:00
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.aiReviewBox}>
+                      <Text style={styles.aiReviewText}>
+                        📊 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
+                        좋아요
+                      </Text>
+
+                      <View style={styles.aiBadge}>
+                        <Text style={styles.aiBadgeText}>AI</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.reviewLineArea}>
+                      <View style={styles.reviewVerticalLine} />
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          🟢 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
+                          좋아요
+                        </Text>
+                      </View>
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          📸 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
+                          좋아요
+                        </Text>
+                      </View>
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          🌈 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
+                          좋아요
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                : null}
+
+                {!isPreview && isExpanded && (
+                  <TouchableOpacity
+                    style={styles.expandedSelectButton}
+                    activeOpacity={0.8}
+                    disabled={isDetailLoading}
+                    onPress={() => handlePlaceDetail(place)}
+                  >
+                    {isDetailLoading ?
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={styles.expandedSelectButtonText}>
+                        이 장소 선택
+                      </Text>
+                    }
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -358,15 +435,63 @@ const styles = StyleSheet.create({
     position: "relative",
   },
 
-  mapLayer: {
+  webMapMock: {
     ...StyleSheet.absoluteFillObject,
-    zIndex: 0,
+    backgroundColor: "#DDE7F2",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  mapGridLineHorizontal: {
+    position: "absolute",
+    top: 168,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "#C9D6E5",
+  },
+
+  mapGridLineVertical: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: "50%",
+    width: 1,
+    backgroundColor: "#C9D6E5",
+  },
+
+  markerBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  markerLabel: {
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    color: "#172132",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  mapEmptyBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mapEmptyText: {
+    marginTop: 8,
+    color: "#74859B",
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   searchOverlay: {
     ...StyleSheet.absoluteFillObject,
     paddingHorizontal: 15,
-    zIndex: 2,
   },
 
   searchBar: {
@@ -417,7 +542,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     backgroundColor: "#F7F9FC",
     overflow: "hidden",
-    zIndex: 1,
   },
 
   handleBar: {
@@ -447,8 +571,16 @@ const styles = StyleSheet.create({
     borderColor: "#DCE5F1",
     paddingHorizontal: 23,
     paddingTop: 25,
-    paddingBottom: 28,
+    paddingBottom: 24,
     marginBottom: 16,
+  },
+
+  expandedPlaceCard: {
+    minHeight: 620,
+  },
+
+  reviewLoadingPlaceCard: {
+    minHeight: 360,
   },
 
   selectedPlaceCard: {
@@ -472,7 +604,7 @@ const styles = StyleSheet.create({
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 25,
+    marginBottom: 18,
   },
 
   ratingText: {
@@ -489,6 +621,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 9,
+  },
+
+  compactButton: {
+    marginTop: 4,
+    marginBottom: 18,
   },
 
   disabledDetailButton: {
@@ -500,6 +638,183 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginRight: 5,
+  },
+
+  reviewLoadingPanel: {
+    minHeight: 150,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+    marginBottom: 12,
+  },
+
+  reviewLoadingText: {
+    marginTop: 12,
+    color: "#617087",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  reviewProgressTrack: {
+    width: "78%",
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#E2E8F0",
+    marginTop: 24,
+    overflow: "hidden",
+  },
+
+  reviewProgressFill: {
+    width: "74%",
+    height: "100%",
+    borderRadius: 999,
+    backgroundColor: "#2563EB",
+  },
+
+  reviewPanel: {
+    marginTop: 20,
+    marginBottom: 12,
+  },
+
+  placeExpandedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 22,
+  },
+
+  placeIconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#F8C8F4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+
+  placeIconEmoji: {
+    fontSize: 30,
+  },
+
+  placeExpandedInfo: {
+    flex: 1,
+  },
+
+  expandedPlaceName: {
+    color: "#111827",
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  expandedAddress: {
+    color: "#8A9BB2",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  expandedMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  expandedMetaText: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: 5,
+  },
+
+  expandedDot: {
+    marginHorizontal: 8,
+    color: "#8A9BB2",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  aiReviewBox: {
+    position: "relative",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#CFE0FF",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+
+  aiReviewText: {
+    color: "#2158E8",
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 23,
+  },
+
+  aiBadge: {
+    position: "absolute",
+    right: -12,
+    top: -12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#5B3DFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  aiBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  reviewLineArea: {
+    position: "relative",
+    paddingLeft: 36,
+    gap: 12,
+  },
+
+  reviewVerticalLine: {
+    position: "absolute",
+    left: 8,
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: "#DDE5EF",
+  },
+
+  platformReviewCard: {
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DDE5EF",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+
+  platformReviewText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+
+  expandedSelectButton: {
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+  },
+
+  expandedSelectButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   nextButton: {
@@ -520,6 +835,5 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
-    zIndex: 3,
   },
 });
