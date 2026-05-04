@@ -14,11 +14,49 @@ import {
   getHomeSchedules,
   HomeScheduleResponse,
   OngoingPlace,
-  UpcomingTrip,
+  UpcomingTrip as ApiUpcomingTrip,
 } from "../../api/home/homeSchedules";
+
+import HomeStatusBar from "../components/home/HomeStatusBar";
+import OngoingScheduleCard, {
+  OngoingSchedule,
+} from "../components/home/OngoingScheduleCard";
+import UpcomingTripCard, {
+  UpcomingTrip,
+} from "../components/home/UpcomingTripCard";
 
 type Props = {
   navigation: any;
+};
+
+const createOngoingSchedule = (
+  ongoingPlaces: OngoingPlace[],
+): OngoingSchedule | null => {
+  if (ongoingPlaces.length === 0) {
+    return null;
+  }
+
+  const firstPlace = ongoingPlaces[0];
+
+  return {
+    id: "ongoing-schedule-1",
+    title: "강릉 여행",
+    location: firstPlace.name,
+    startDate: "2026.04.30",
+    endDate: "2026.05.05",
+  };
+};
+
+const convertUpcomingTrip = (trip: ApiUpcomingTrip): UpcomingTrip => {
+  return {
+    id: trip.id,
+    title: trip.title,
+    location: trip.location,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    placeCount: trip.placeCount,
+    thumbnailEmoji: trip.thumbnailEmoji,
+  };
 };
 
 export default function MainScreen({ navigation }: Props) {
@@ -35,11 +73,11 @@ export default function MainScreen({ navigation }: Props) {
 
         const data = await getHomeSchedules();
         setHomeData(data);
-
-        console.log("[홈 화면] 진행중인 일정:", data.ongoingPlaces.length);
-        console.log("[홈 화면] 다음 여행:", data.upcomingTrips.length);
-      } catch (error) {
-        console.log("[홈 화면] 일정 조회 실패:", error);
+      } catch {
+        setHomeData({
+          ongoingPlaces: [],
+          upcomingTrips: [],
+        });
       } finally {
         setLoading(false);
       }
@@ -47,6 +85,12 @@ export default function MainScreen({ navigation }: Props) {
 
     loadHomeSchedules();
   }, []);
+
+  const ongoingSchedule = createOngoingSchedule(homeData.ongoingPlaces);
+  const upcomingTrips = homeData.upcomingTrips.map(convertUpcomingTrip);
+  const firstUpcomingTrip = upcomingTrips[0];
+
+  const hasOngoingSchedule = Boolean(ongoingSchedule);
 
   const handleOpenAddSchedule = () => {
     navigation.navigate("AddSchedule");
@@ -56,12 +100,26 @@ export default function MainScreen({ navigation }: Props) {
     navigation.navigate("PlanX");
   };
 
-  const handleOpenPlace = (place: OngoingPlace) => {
-    console.log("[홈 화면] 진행중인 장소 선택:", place);
+  const handleOpenOngoingSchedule = () => {
+    if (!ongoingSchedule) {
+      return;
+    }
+
+    navigation.navigate("PlanA", {
+      tripName: ongoingSchedule.title,
+      startDate: ongoingSchedule.startDate,
+      endDate: ongoingSchedule.endDate,
+      location: ongoingSchedule.location,
+    });
   };
 
-  const handleOpenTrip = (trip: UpcomingTrip) => {
-    console.log("[홈 화면] 다음 여행 선택:", trip);
+  const handleOpenUpcomingTrip = (trip: UpcomingTrip) => {
+    navigation.navigate("PlanA", {
+      tripName: trip.title,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      location: trip.location,
+    });
   };
 
   return (
@@ -74,136 +132,80 @@ export default function MainScreen({ navigation }: Props) {
         >
           <Text style={styles.logo}>Plan.B</Text>
 
-          <View style={styles.mapPreview}>
-            <View style={styles.mapBackground}>
-              <View style={[styles.mapRoad, styles.mapRoadOne]} />
-              <View style={[styles.mapRoad, styles.mapRoadTwo]} />
-              <View style={[styles.mapRoad, styles.mapRoadThree]} />
-
-              <View style={[styles.mapBlock, styles.mapBlockOne]} />
-              <View style={[styles.mapBlock, styles.mapBlockTwo]} />
-              <View style={[styles.mapBlock, styles.mapBlockThree]} />
-
-              <View style={styles.mapPin}>
-                <Ionicons name="location" size={19} color="#FFFFFF" />
-              </View>
-            </View>
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>진행중인 일정</Text>
-
-            <TouchableOpacity activeOpacity={0.75}>
-              <Text style={styles.viewAllText}>전체</Text>
-            </TouchableOpacity>
-          </View>
-
           {loading ?
             <View style={styles.loadingBox}>
               <ActivityIndicator size="small" color="#2158E8" />
             </View>
-          : <View style={styles.ongoingList}>
-              {homeData.ongoingPlaces.map((place) => (
-                <TouchableOpacity
-                  key={place.id}
-                  style={styles.ongoingItem}
-                  activeOpacity={0.78}
-                  onPress={() => handleOpenPlace(place)}
-                >
-                  <View style={styles.orderBadge}>
-                    <Text style={styles.orderText}>{place.order}</Text>
-                  </View>
+          : <>
+              <View style={styles.statusWrapper}>
+                <HomeStatusBar
+                  temperature={23}
+                  dateText="2026.04.30"
+                  statusText={hasOngoingSchedule ? "Day 1" : "D-78"}
+                />
+              </View>
 
-                  <View style={styles.ongoingInfo}>
-                    <Text style={styles.placeName}>{place.name}</Text>
-                    <Text style={styles.placeAddress}>{place.address}</Text>
+              {ongoingSchedule ?
+                <View style={styles.sectionBlock}>
+                  <OngoingScheduleCard
+                    schedule={ongoingSchedule}
+                    onPress={handleOpenOngoingSchedule}
+                  />
+                </View>
+              : null}
 
-                    <View style={styles.timeRow}>
-                      <Ionicons name="time-outline" size={14} color="#70839C" />
-                      <Text style={styles.timeText}>{place.time}</Text>
-                    </View>
-                  </View>
-
-                  <Ionicons name="chevron-forward" size={20} color="#C5CEDA" />
-                </TouchableOpacity>
-              ))}
-            </View>
-          }
-
-          <View style={styles.todayCard}>
-            <Text style={styles.todayText}>📅 2026.05.05</Text>
-            <Text style={styles.todayText}>🗺️ Day 1</Text>
-          </View>
-
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>다음 여행</Text>
-
-            <TouchableOpacity activeOpacity={0.75} onPress={handleOpenPlanX}>
-              <Text style={styles.viewAllText}>전체</Text>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.tripList}>
-            {homeData.upcomingTrips.map((trip) => (
-              <TouchableOpacity
-                key={trip.id}
-                style={styles.tripCard}
-                activeOpacity={0.78}
-                onPress={() => handleOpenTrip(trip)}
+              <View
+                style={[
+                  styles.sectionHeader,
+                  !hasOngoingSchedule && styles.firstSectionHeader,
+                ]}
               >
-                <View style={styles.tripThumbnail}>
-                  <Text style={styles.tripEmoji}>{trip.thumbnailEmoji}</Text>
+                <Text style={styles.sectionTitle}>다음 여행</Text>
+
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={handleOpenPlanX}
+                >
+                  <Text style={styles.viewAllText}>전체</Text>
+                </TouchableOpacity>
+              </View>
+
+              {firstUpcomingTrip ?
+                <View style={styles.sectionBlock}>
+                  <UpcomingTripCard
+                    trip={firstUpcomingTrip}
+                    onPress={() => handleOpenUpcomingTrip(firstUpcomingTrip)}
+                  />
                 </View>
+              : <View style={styles.emptyTripCard}>
+                  <Ionicons name="calendar-outline" size={28} color="#9AA8BA" />
+                  <Text style={styles.emptyTitle}>예정된 여행이 없어요</Text>
+                  <Text style={styles.emptyDescription}>
+                    새로운 여행 일정을 추가해보세요.
+                  </Text>
 
-                <View style={styles.tripInfo}>
-                  <Text style={styles.tripTitle}>{trip.title}</Text>
-
-                  <View style={styles.tripMetaRow}>
-                    <Ionicons
-                      name="calendar-outline"
-                      size={13}
-                      color="#70839C"
-                    />
-                    <Text style={styles.tripMetaText}>
-                      {trip.startDate} - {trip.endDate}
+                  <TouchableOpacity
+                    style={styles.addScheduleButton}
+                    activeOpacity={0.82}
+                    onPress={handleOpenAddSchedule}
+                  >
+                    <Text style={styles.addScheduleButtonText}>
+                      여행 일정 추가
                     </Text>
-                  </View>
-
-                  <View style={styles.tripMetaRow}>
-                    <Ionicons
-                      name="location-outline"
-                      size={13}
-                      color="#70839C"
-                    />
-                    <Text style={styles.tripMetaText}>
-                      {trip.location} · {trip.placeCount}개 장소
-                    </Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
-
-                <Ionicons name="chevron-forward" size={20} color="#C5CEDA" />
-              </TouchableOpacity>
-            ))}
-          </View>
+              }
+            </>
+          }
         </ScrollView>
 
-        <View style={styles.bottomTab}>
-          <TouchableOpacity style={styles.tabButton} activeOpacity={0.75}>
-            <Ionicons name="refresh-outline" size={27} color="#B7C2D1" />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.tabButton} activeOpacity={0.75}>
-            <Ionicons name="home-outline" size={27} color="#273142" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.tabButton}
-            activeOpacity={0.75}
-            onPress={handleOpenAddSchedule}
-          >
-            <Ionicons name="person-outline" size={27} color="#B7C2D1" />
-          </TouchableOpacity>
-        </View>
+        <TouchableOpacity
+          style={styles.floatingAddButton}
+          activeOpacity={0.85}
+          onPress={handleOpenAddSchedule}
+        >
+          <Ionicons name="add" size={27} color="#FFFFFF" />
+        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );
@@ -217,7 +219,7 @@ const styles = StyleSheet.create({
 
   screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F7F9FC",
   },
 
   scroll: {
@@ -225,13 +227,13 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingHorizontal: 17,
-    paddingBottom: 138,
+    paddingHorizontal: 21,
+    paddingBottom: 120,
   },
 
   logo: {
-    marginTop: 28,
-    marginBottom: 54,
+    marginTop: 30,
+    marginBottom: 50,
     color: "#202938",
     fontSize: 40,
     fontWeight: "900",
@@ -239,94 +241,29 @@ const styles = StyleSheet.create({
     letterSpacing: -1.1,
   },
 
-  mapPreview: {
-    height: 200,
-    borderRadius: 11,
-    overflow: "hidden",
-    backgroundColor: "#E8EEF5",
-    marginBottom: 31,
-  },
-
-  mapBackground: {
-    flex: 1,
-    backgroundColor: "#EEF3F7",
-    overflow: "hidden",
-  },
-
-  mapRoad: {
-    position: "absolute",
-    height: 8,
-    borderRadius: 999,
-    backgroundColor: "#D2DAE5",
-    transform: [{ rotate: "-34deg" }],
-  },
-
-  mapRoadOne: {
-    width: 280,
-    top: 40,
-    left: -50,
-  },
-
-  mapRoadTwo: {
-    width: 360,
-    top: 106,
-    left: 18,
-    backgroundColor: "#C9D2DE",
-  },
-
-  mapRoadThree: {
-    width: 250,
-    top: 156,
-    right: -30,
-  },
-
-  mapBlock: {
-    position: "absolute",
-    borderRadius: 12,
-    backgroundColor: "#D9EAD7",
-  },
-
-  mapBlockOne: {
-    width: 86,
-    height: 70,
-    top: 16,
-    left: 18,
-  },
-
-  mapBlockTwo: {
-    width: 96,
-    height: 80,
-    top: 72,
-    right: 28,
-  },
-
-  mapBlockThree: {
-    width: 66,
-    height: 58,
-    bottom: 20,
-    left: 78,
-  },
-
-  mapPin: {
-    position: "absolute",
-    left: "48%",
-    top: "46%",
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#2158E8",
+  loadingBox: {
+    height: 260,
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
+  },
+
+  statusWrapper: {
+    marginBottom: 25,
+  },
+
+  sectionBlock: {
+    marginBottom: 35,
   },
 
   sectionHeader: {
-    marginHorizontal: 19,
-    marginBottom: 20,
+    marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+
+  firstSectionHeader: {
+    marginTop: 72,
   },
 
   sectionTitle: {
@@ -338,168 +275,76 @@ const styles = StyleSheet.create({
   viewAllText: {
     color: "#2158E8",
     fontSize: 14,
-    fontWeight: "700",
-  },
-
-  loadingBox: {
-    height: 100,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  ongoingList: {
-    marginHorizontal: 5,
-    marginBottom: 8,
-  },
-
-  ongoingItem: {
-    minHeight: 105,
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E6ECF3",
-    paddingHorizontal: 24,
-  },
-
-  orderBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 22,
-  },
-
-  orderText: {
-    color: "#2158E8",
-    fontSize: 15,
     fontWeight: "800",
   },
 
-  ongoingInfo: {
-    flex: 1,
-  },
-
-  placeName: {
-    color: "#273142",
-    fontSize: 16,
-    fontWeight: "900",
-    marginBottom: 7,
-  },
-
-  placeAddress: {
-    color: "#70839C",
-    fontSize: 13,
-    fontWeight: "600",
-    marginBottom: 7,
-  },
-
-  timeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  timeText: {
-    marginLeft: 4,
-    color: "#70839C",
-    fontSize: 13,
-    fontWeight: "600",
-  },
-
-  todayCard: {
-    minHeight: 70,
-    marginTop: 10,
-    marginBottom: 37,
-    borderRadius: 14,
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 21,
-  },
-
-  todayText: {
-    color: "#111827",
-    fontSize: 14,
-    fontWeight: "800",
-    marginRight: 21,
-  },
-
-  tripList: {
-    marginHorizontal: 18,
-  },
-
-  tripCard: {
-    minHeight: 94,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  tripThumbnail: {
-    width: 73,
-    height: 73,
-    borderRadius: 10,
-    backgroundColor: "#D5EBFC",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 23,
-  },
-
-  tripEmoji: {
-    fontSize: 35,
-  },
-
-  tripInfo: {
-    flex: 1,
-  },
-
-  tripTitle: {
-    color: "#273142",
-    fontSize: 18,
-    fontWeight: "900",
-    marginBottom: 9,
-  },
-
-  tripMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 3,
-  },
-
-  tripMetaText: {
-    marginLeft: 6,
-    color: "#70839C",
-    fontSize: 12,
-    fontWeight: "600",
-  },
-
-  bottomTab: {
-    position: "absolute",
-    left: 11,
-    right: 11,
-    bottom: 28,
-    height: 60,
-    borderRadius: 30,
+  emptyTripCard: {
+    minHeight: 190,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DDE5F0",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    shadowColor: "#1E293B",
-    shadowOpacity: 0.08,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 12,
-    elevation: 6,
-  },
-
-  tabButton: {
-    width: 74,
-    height: 58,
+    borderColor: "#E3EAF3",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 20,
+    paddingVertical: 28,
+    shadowColor: "#E7EEF8",
+    shadowOffset: {
+      width: 0,
+      height: 7,
+    },
+    shadowOpacity: 0.45,
+    shadowRadius: 14,
+    elevation: 3,
+  },
+
+  emptyTitle: {
+    marginTop: 12,
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  emptyDescription: {
+    marginTop: 7,
+    color: "#7A8BA3",
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  addScheduleButton: {
+    height: 40,
+    marginTop: 20,
+    paddingHorizontal: 20,
+    borderRadius: 20,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  addScheduleButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  floatingAddButton: {
+    position: "absolute",
+    right: 24,
+    bottom: 31,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#273142",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#1E293B",
+    shadowOffset: {
+      width: 0,
+      height: 5,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 6,
   },
 });
