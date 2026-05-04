@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { useFocusEffect } from "@react-navigation/native";
 
 import {
   getHomeSchedules,
@@ -40,10 +41,10 @@ const createOngoingSchedule = (
 
   return {
     id: "ongoing-schedule-1",
-    title: "강릉 여행",
+    title: "진행중인 여행",
     location: firstPlace.name,
-    startDate: "2026.04.30",
-    endDate: "2026.05.05",
+    startDate: "",
+    endDate: "",
   };
 };
 
@@ -59,6 +60,33 @@ const convertUpcomingTrip = (trip: ApiUpcomingTrip): UpcomingTrip => {
   };
 };
 
+const getTodayText = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = `${now.getMonth() + 1}`.padStart(2, "0");
+  const date = `${now.getDate()}`.padStart(2, "0");
+
+  return `${year}.${month}.${date}`;
+};
+
+const getHomeStatusText = ({
+  hasOngoingSchedule,
+  firstUpcomingTrip,
+}: {
+  hasOngoingSchedule: boolean;
+  firstUpcomingTrip?: UpcomingTrip;
+}) => {
+  if (hasOngoingSchedule) {
+    return "Day 1";
+  }
+
+  if (firstUpcomingTrip) {
+    return "예정";
+  }
+
+  return "일정 없음";
+};
+
 export default function MainScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(true);
   const [homeData, setHomeData] = useState<HomeScheduleResponse>({
@@ -66,31 +94,39 @@ export default function MainScreen({ navigation }: Props) {
     upcomingTrips: [],
   });
 
-  useEffect(() => {
-    const loadHomeSchedules = async () => {
-      try {
-        setLoading(true);
+  const loadHomeSchedules = useCallback(async () => {
+    try {
+      setLoading(true);
 
-        const data = await getHomeSchedules();
-        setHomeData(data);
-      } catch {
-        setHomeData({
-          ongoingPlaces: [],
-          upcomingTrips: [],
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      const data = await getHomeSchedules();
+      setHomeData(data);
+    } catch (error) {
+      console.log("홈 일정 조회 실패:", error);
 
-    loadHomeSchedules();
+      setHomeData({
+        ongoingPlaces: [],
+        upcomingTrips: [],
+      });
+    } finally {
+      setLoading(false);
+    }
   }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadHomeSchedules();
+    }, [loadHomeSchedules]),
+  );
 
   const ongoingSchedule = createOngoingSchedule(homeData.ongoingPlaces);
   const upcomingTrips = homeData.upcomingTrips.map(convertUpcomingTrip);
   const firstUpcomingTrip = upcomingTrips[0];
 
   const hasOngoingSchedule = Boolean(ongoingSchedule);
+  const statusText = getHomeStatusText({
+    hasOngoingSchedule,
+    firstUpcomingTrip,
+  });
 
   const handleOpenAddSchedule = () => {
     navigation.navigate("AddSchedule");
@@ -105,21 +141,10 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
-    navigation.navigate("PlanA", {
-      tripName: ongoingSchedule.title,
-      startDate: ongoingSchedule.startDate,
-      endDate: ongoingSchedule.endDate,
-      location: ongoingSchedule.location,
-    });
+    console.log("PlanA 화면이 아직 등록되지 않았습니다.", ongoingSchedule);
   };
-
   const handleOpenUpcomingTrip = (trip: UpcomingTrip) => {
-    navigation.navigate("PlanA", {
-      tripName: trip.title,
-      startDate: trip.startDate,
-      endDate: trip.endDate,
-      location: trip.location,
-    });
+    console.log("PlanA 화면이 아직 등록되지 않았습니다.", trip);
   };
 
   return (
@@ -140,8 +165,8 @@ export default function MainScreen({ navigation }: Props) {
               <View style={styles.statusWrapper}>
                 <HomeStatusBar
                   temperature={23}
-                  dateText="2026.04.30"
-                  statusText={hasOngoingSchedule ? "Day 1" : "D-78"}
+                  dateText={getTodayText()}
+                  statusText={statusText}
                 />
               </View>
 

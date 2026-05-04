@@ -42,7 +42,6 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
       try {
         const url = await getCurrentOAuthUrl();
 
-        
         if (!url) {
           throw new Error("OAuth redirect URL을 확인할 수 없습니다.");
         }
@@ -61,10 +60,9 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
 
         navigation.reset({
           index: 0,
-          routes: [{ name: "Main" }],
+          routes: [{ name: "MainTabs" }],
         });
       } catch (error) {
-        
         const errorMessage =
           error instanceof Error ?
             error.message
