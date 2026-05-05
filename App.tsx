@@ -19,6 +19,7 @@ import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 
 import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
+import ProfileEditScreen from "./src/screens/ProfileEditScreen";
 
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 
@@ -33,10 +34,17 @@ export type RootStackParamList = {
   OAuthRedirect: undefined;
 
   MainTabs: undefined;
+
   PlanXDetail: {
     tripId?: string;
     scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
   };
+
+  ProfileEdit: undefined;
 
   AddSchedule: undefined;
   AddScheduleDate: {
@@ -60,6 +68,7 @@ const linking = {
       SignUp: "signup",
       MainTabs: "main",
       PlanXDetail: "plan-x-detail",
+      ProfileEdit: "profile-edit",
       OAuthRedirect: {
         path: "oauth/:result",
       },
@@ -183,6 +192,16 @@ export default function App() {
         <Stack.Screen
           name="PlanXDetail"
           component={PlanXDetailScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="ProfileEdit"
+          component={ProfileEditScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",

@@ -1,13 +1,13 @@
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { getMe, MeResponse } from "../../api/users/me";
@@ -47,20 +47,20 @@ export default function ProfileScreen({ navigation }: Props) {
       return;
     }
 
+    console.log("[Profile] 로그아웃 버튼 클릭");
+
     try {
       setLogoutLoading(true);
 
+      console.log("[Profile] requestLogout 시작");
       await requestLogout();
+      console.log("[Profile] requestLogout 완료");
     } catch (error) {
-      console.log("로그아웃 요청 실패:", error);
-
-      /**
-       * requestLogout 내부에서 서버 요청 실패 여부와 관계없이
-       * 로컬 토큰은 정리하도록 되어 있으므로,
-       * 여기서는 Login 이동을 계속 진행한다.
-       */
+      console.log("[Profile] 로그아웃 요청 실패:", error);
     } finally {
       setLogoutLoading(false);
+
+      console.log("[Profile] Login 화면으로 이동");
 
       navigation.reset({
         index: 0,
@@ -69,67 +69,71 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
-  const confirmLogout = () => {
-    Alert.alert("로그아웃", "정말 로그아웃하시겠어요?", [
-      {
-        text: "취소",
-        style: "cancel",
-      },
-      {
-        text: "로그아웃",
-        style: "destructive",
-        onPress: handleLogout,
-      },
-    ]);
-  };
-
-  const nickname = me?.nickname || "여행자";
-  const email = me?.email || "이메일 정보를 불러오지 못했어요";
-  const provider = me?.provider ? String(me.provider).toLowerCase() : "local";
+  const nickname = me?.nickname || "김플랜";
+  const email = me?.email || "traveler@planb.com";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-        <Text style={styles.logo}>Profile</Text>
+        <Text style={styles.logo}>Plan.B</Text>
 
-        <View style={styles.card}>
-          {loading ?
-            <View style={styles.loadingBox}>
-              <ActivityIndicator size="small" color="#2158E8" />
-              <Text style={styles.loadingText}>프로필을 불러오는 중...</Text>
+        <TouchableOpacity
+          style={styles.profileCard}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate("ProfileEdit")}
+          disabled={loading}
+        >
+          <View style={styles.avatar}>
+            <Ionicons name="person-outline" size={31} color="#FFFFFF" />
+          </View>
+
+          <View style={styles.profileTextBox}>
+            {loading ?
+              <>
+                <ActivityIndicator size="small" color="#2158E8" />
+                <Text style={styles.loadingText}>프로필 불러오는 중...</Text>
+              </>
+            : <>
+                <Text style={styles.nickname}>{nickname}</Text>
+                <Text style={styles.email}>{email}</Text>
+              </>
+            }
+          </View>
+
+          <Ionicons name="chevron-forward" size={22} color="#B8C4D5" />
+        </TouchableOpacity>
+
+        <View style={styles.settingCard}>
+          <Text style={styles.sectionTitle}>설정</Text>
+
+          <TouchableOpacity style={styles.settingRow} activeOpacity={0.8}>
+            <View style={styles.settingLeft}>
+              <Ionicons
+                name="notifications-outline"
+                size={22}
+                color="#8CA0BC"
+              />
+              <Text style={styles.settingText}>알림</Text>
             </View>
-          : <>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarText}>
-                  {nickname.slice(0, 1).toUpperCase()}
-                </Text>
-              </View>
 
-              <Text style={styles.nickname}>{nickname}</Text>
-              <Text style={styles.email}>{email}</Text>
-
-              <View style={styles.infoBox}>
-                <Text style={styles.infoLabel}>로그인 방식</Text>
-                <Text style={styles.infoValue}>{provider}</Text>
-              </View>
-            </>
-          }
+            <Ionicons name="chevron-forward" size={22} color="#B8C4D5" />
+          </TouchableOpacity>
         </View>
 
         <TouchableOpacity
           style={[styles.logoutButton, logoutLoading && styles.disabledButton]}
-          activeOpacity={0.85}
-          onPress={confirmLogout}
+          activeOpacity={0.8}
+          onPress={handleLogout}
           disabled={logoutLoading}
         >
           {logoutLoading ?
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Text style={styles.logoutButtonText}>로그아웃</Text>}
+            <ActivityIndicator size="small" color="#8CA0BC" />
+          : <>
+              <Ionicons name="log-out-outline" size={22} color="#8CA0BC" />
+              <Text style={styles.logoutText}>로그아웃</Text>
+            </>
+          }
         </TouchableOpacity>
-
-        <Text style={styles.notice}>
-          프로필 상세 편집 기능은 추후 구현 예정입니다.
-        </Text>
       </View>
     </SafeAreaView>
   );
@@ -143,128 +147,136 @@ const styles = StyleSheet.create({
 
   container: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 34,
+    paddingHorizontal: 21,
+    paddingTop: 30,
     paddingBottom: 120,
   },
 
   logo: {
     color: "#202938",
-    fontSize: 36,
+    fontSize: 40,
     fontWeight: "900",
     textAlign: "center",
-    marginBottom: 36,
+    letterSpacing: -1.1,
+    marginBottom: 35,
   },
 
-  card: {
-    minHeight: 260,
-    borderRadius: 24,
+  profileCard: {
+    minHeight: 100,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E3EAF3",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-    paddingVertical: 30,
     shadowColor: "#E7EEF8",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 6,
     },
-    shadowOpacity: 0.5,
-    shadowRadius: 16,
-    elevation: 4,
-  },
-
-  loadingBox: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  loadingText: {
-    marginTop: 10,
-    color: "#7A8BA3",
-    fontSize: 13,
-    fontWeight: "600",
+    shadowOpacity: 0.32,
+    shadowRadius: 12,
+    elevation: 2,
   },
 
   avatar: {
-    width: 78,
-    height: 78,
-    borderRadius: 39,
-    backgroundColor: "#E9F3FF",
+    width: 62,
+    height: 62,
+    borderRadius: 31,
+    backgroundColor: "#273142",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 18,
+    marginRight: 16,
   },
 
-  avatarText: {
-    color: "#2158E8",
-    fontSize: 30,
-    fontWeight: "900",
+  profileTextBox: {
+    flex: 1,
+    justifyContent: "center",
   },
 
   nickname: {
     color: "#202938",
-    fontSize: 22,
+    fontSize: 21,
     fontWeight: "900",
+    marginBottom: 4,
   },
 
   email: {
-    marginTop: 7,
-    color: "#7A8BA3",
+    color: "#5F6E83",
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "500",
   },
 
-  infoBox: {
-    width: "100%",
-    marginTop: 28,
-    borderRadius: 16,
-    backgroundColor: "#F7F9FC",
-    paddingHorizontal: 18,
-    paddingVertical: 15,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-
-  infoLabel: {
-    color: "#7A8BA3",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  infoValue: {
-    color: "#202938",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  logoutButton: {
-    height: 54,
-    borderRadius: 16,
-    backgroundColor: "#273142",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 24,
-  },
-
-  disabledButton: {
-    opacity: 0.7,
-  },
-
-  logoutButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-
-  notice: {
-    marginTop: 18,
+  loadingText: {
+    marginTop: 6,
     color: "#8FA0B7",
     fontSize: 12,
     fontWeight: "600",
-    textAlign: "center",
+  },
+
+  settingCard: {
+    marginTop: 20,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 18,
+    paddingHorizontal: 18,
+    paddingBottom: 6,
+    shadowColor: "#E7EEF8",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 2,
+  },
+
+  sectionTitle: {
+    color: "#202938",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 18,
+  },
+
+  settingRow: {
+    minHeight: 50,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  settingLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  settingText: {
+    color: "#202938",
+    fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 16,
+  },
+
+  logoutButton: {
+    height: 60,
+    marginTop: 20,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#DDE6F2",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  disabledButton: {
+    opacity: 0.65,
+  },
+
+  logoutText: {
+    color: "#8CA0BC",
+    fontSize: 15,
+    fontWeight: "800",
+    marginLeft: 8,
   },
 });
