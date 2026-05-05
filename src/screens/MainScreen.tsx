@@ -25,6 +25,8 @@ import OngoingScheduleCard, {
 import UpcomingTripCard, {
   UpcomingTrip,
 } from "../components/home/UpcomingTripCard";
+import RadialBackground from "../components/RadialBackground";
+import CalendarIcon from "../assets/calendar.svg";
 
 type Props = {
   navigation: any;
@@ -123,6 +125,7 @@ export default function MainScreen({ navigation }: Props) {
   const firstUpcomingTrip = upcomingTrips[0];
 
   const hasOngoingSchedule = Boolean(ongoingSchedule);
+  const hasAnySchedule = hasOngoingSchedule || Boolean(firstUpcomingTrip);
   const statusText = getHomeStatusText({
     hasOngoingSchedule,
     firstUpcomingTrip,
@@ -213,35 +216,55 @@ export default function MainScreen({ navigation }: Props) {
                     onPress={() => handleOpenUpcomingTrip(firstUpcomingTrip)}
                   />
                 </View>
-              : <View style={styles.emptyTripCard}>
-                  <Ionicons name="calendar-outline" size={28} color="#9AA8BA" />
-                  <Text style={styles.emptyTitle}>예정된 여행이 없어요</Text>
-                  <Text style={styles.emptyDescription}>
-                    새로운 여행 일정을 추가해보세요.
-                  </Text>
+              : null}
 
-                  <TouchableOpacity
-                    style={styles.addScheduleButton}
-                    activeOpacity={0.82}
-                    onPress={handleOpenAddSchedule}
+              {!hasAnySchedule ?
+                <View style={styles.emptyStateContainer}>
+                  <View
+                    style={styles.emptyRadialBackground}
+                    pointerEvents="none"
                   >
-                    <Text style={styles.addScheduleButtonText}>
-                      여행 일정 추가
+                    <RadialBackground />
+                  </View>
+
+                  <View style={styles.emptyContent}>
+                    <View style={styles.emptyIconWrapper}>
+                      <CalendarIcon width={80} height={80} />
+                    </View>
+
+                    <Text style={styles.emptyTitle}>
+                      등록된 일정이 없습니다
                     </Text>
-                  </TouchableOpacity>
+
+                    <Text style={styles.emptyDescription}>
+                      새로운 여행 일정을 추가해보세요
+                    </Text>
+
+                    <TouchableOpacity
+                      style={styles.addScheduleButton}
+                      activeOpacity={0.82}
+                      onPress={handleOpenAddSchedule}
+                    >
+                      <Text style={styles.addScheduleButtonText}>
+                        일정 추가하기
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-              }
+              : null}
             </>
           }
         </ScrollView>
 
-        <TouchableOpacity
-          style={styles.floatingAddButton}
-          activeOpacity={0.85}
-          onPress={handleOpenAddSchedule}
-        >
-          <Ionicons name="add" size={27} color="#FFFFFF" />
-        </TouchableOpacity>
+        {hasAnySchedule ?
+          <TouchableOpacity
+            style={styles.floatingAddButton}
+            activeOpacity={0.85}
+            onPress={handleOpenAddSchedule}
+          >
+            <Ionicons name="add" size={27} color="#FFFFFF" />
+          </TouchableOpacity>
+        : null}
       </View>
     </SafeAreaView>
   );
@@ -314,53 +337,73 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  emptyTripCard: {
-    minHeight: 190,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E3EAF3",
+  emptyStateContainer: {
+    flex: 1,
+    minHeight: 520,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    paddingVertical: 28,
-    shadowColor: "#E7EEF8",
-    shadowOffset: {
-      width: 0,
-      height: 7,
-    },
-    shadowOpacity: 0.45,
-    shadowRadius: 14,
-    elevation: 3,
+    paddingHorizontal: 24,
+    paddingBottom: 120,
+    position: "relative",
+    overflow: "hidden",
+  },
+
+  emptyRadialBackground: {
+    position: "absolute",
+    top: 42,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 0,
+  },
+
+  emptyContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+
+  emptyIconWrapper: {
+    marginBottom: 18,
   },
 
   emptyTitle: {
-    marginTop: 12,
-    color: "#111827",
+    color: "#202938",
     fontSize: 16,
     fontWeight: "900",
+    textAlign: "center",
+    marginBottom: 8,
   },
 
   emptyDescription: {
-    marginTop: 7,
-    color: "#7A8BA3",
-    fontSize: 13,
+    color: "#9AA8BA",
+    fontSize: 14,
     fontWeight: "600",
+    textAlign: "center",
+    marginBottom: 28,
   },
 
   addScheduleButton: {
-    height: 40,
-    marginTop: 20,
-    paddingHorizontal: 20,
-    borderRadius: 20,
+    minWidth: 132,
+    height: 46,
+    borderRadius: 10,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
+    paddingHorizontal: 20,
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
+    elevation: 4,
   },
 
   addScheduleButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "900",
   },
 
