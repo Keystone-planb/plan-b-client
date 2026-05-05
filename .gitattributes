@@ -1,0 +1,22 @@
+# GitHub language stats cleanup
+
+# React Native / Expo generated native projects
+android/** linguist-generated=true
+ios/** linguist-generated=true
+
+# Native build / wrapper scripts
+gradlew linguist-generated=true
+*.gradle linguist-generated=true
+*.sh linguist-generated=true
+
+# Generated lock / build files
+package-lock.json linguist-generated=true
+yarn.lock linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+
+# Assets should not dominate language stats
+*.svg linguist-generated=true
+*.png linguist-generated=true
+*.jpg linguist-generated=true
+*.jpeg linguist-generated=true
+*.webp linguist-generated=true
