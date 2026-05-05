@@ -12,6 +12,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
+import RadialBackground from "../components/RadialBackground";
 import { getTrips, TripSummary } from "../../api/schedules/server";
 
 type Props = {
@@ -145,10 +146,21 @@ export default function PlanXScreen({ navigation }: Props) {
 
           {!loading && !hasTrips ?
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyTitle}>아직 저장된 여행이 없어요</Text>
-              <Text style={styles.emptyDescription}>
-                여행 일정을 추가하면 이곳에서 다시 확인할 수 있어요.
-              </Text>
+              <View style={styles.emptyRadialBackground} pointerEvents="none">
+                <RadialBackground />
+              </View>
+
+              <View style={styles.emptyContent}>
+                <View style={styles.emptyIconCircle}>
+                  <Ionicons name="time-outline" size={34} color="#2158E8" />
+                </View>
+
+                <Text style={styles.emptyTitle}>아직 지난 여행이 없어요</Text>
+
+                <Text style={styles.emptyDescription}>
+                  완료된 여행이 생기면 이곳에서 다시 확인할 수 있어요.
+                </Text>
+              </View>
             </View>
           : null}
 
@@ -249,29 +261,52 @@ const styles = StyleSheet.create({
   },
 
   emptyBox: {
-    minHeight: 180,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E1E7EF",
+    minHeight: 430,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-    paddingVertical: 32,
+    position: "relative",
+    overflow: "hidden",
+  },
+
+  emptyRadialBackground: {
+    position: "absolute",
+    top: 34,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 0,
+  },
+
+  emptyContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+
+  emptyIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#CFE3FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
   },
 
   emptyTitle: {
-    color: "#1C2534",
-    fontSize: 17,
+    color: "#202938",
+    fontSize: 16,
     fontWeight: "900",
+    textAlign: "center",
     marginBottom: 8,
   },
 
   emptyDescription: {
-    color: "#728197",
-    fontSize: 13,
+    color: "#9AA8BA",
+    fontSize: 14,
     fontWeight: "600",
-    lineHeight: 20,
+    lineHeight: 21,
     textAlign: "center",
   },
 });
