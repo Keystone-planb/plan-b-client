@@ -141,10 +141,10 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
-    console.log("PlanA 화면이 아직 등록되지 않았습니다.", ongoingSchedule);
+    return;
   };
-  const handleOpenUpcomingTrip = (trip: UpcomingTrip) => {
-    console.log("PlanA 화면이 아직 등록되지 않았습니다.", trip);
+  const handleOpenUpcomingTrip = (_trip: UpcomingTrip) => {
+    return;
   };
 
   return (
