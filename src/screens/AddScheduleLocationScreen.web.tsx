@@ -359,7 +359,7 @@ export default function AddScheduleLocationScreen({
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        상세 정보 보기
+                        이 장소 선택
                       </Text>
                       <Ionicons name="eye-outline" size={15} color="#6F7F95" />
                     </>
