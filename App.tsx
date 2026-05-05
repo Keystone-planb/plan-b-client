@@ -19,6 +19,7 @@ import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 
 import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
+import PlanAScreen from "./src/screens/PlanAScreen";
 import ProfileEditScreen from "./src/screens/ProfileEditScreen";
 
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
@@ -34,6 +35,15 @@ export type RootStackParamList = {
   OAuthRedirect: undefined;
 
   MainTabs: undefined;
+
+  PlanA: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    tripId?: string;
+    scheduleId?: string;
+  };
 
   PlanXDetail: {
     tripId?: string;
@@ -67,6 +77,7 @@ const linking = {
       Login: "login",
       SignUp: "signup",
       MainTabs: "main",
+      PlanA: "plan-a",
       PlanXDetail: "plan-x-detail",
       ProfileEdit: "profile-edit",
       OAuthRedirect: {
@@ -186,6 +197,16 @@ export default function App() {
             animation: "fade",
             animationDuration: 250,
             gestureEnabled: false,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanA"
+          component={PlanAScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
           }}
         />
 

@@ -21,7 +21,7 @@ type RefreshResponse = {
 
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
-  timeout: 5000,
+  timeout: 15000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -77,7 +77,7 @@ apiClient.interceptors.response.use(
             refreshToken,
           },
           {
-            timeout: 5000,
+            timeout: 15000,
             headers: {
               "Content-Type": "application/json",
             },

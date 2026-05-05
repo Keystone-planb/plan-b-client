@@ -141,10 +141,21 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
-    return;
+    navigation.navigate("PlanA", {
+      tripName: ongoingSchedule.title,
+      startDate: ongoingSchedule.startDate,
+      endDate: ongoingSchedule.endDate,
+      location: ongoingSchedule.location,
+    });
   };
-  const handleOpenUpcomingTrip = (_trip: UpcomingTrip) => {
-    return;
+  const handleOpenUpcomingTrip = (trip: UpcomingTrip) => {
+    navigation.navigate("PlanA", {
+      tripName: trip.title,
+      startDate: trip.startDate,
+      endDate: trip.endDate,
+      location: trip.location,
+      tripId: trip.id,
+    });
   };
 
   return (
