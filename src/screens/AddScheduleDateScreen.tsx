@@ -86,7 +86,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
             onPress={() => setCalendarVisible(true)}
           >
             <Text style={styles.dateText}>
-              {startDate ? formatDate(startDate) : "0000.00.00"}
+              {startDate ? formatDate(startDate) : "출발일 선택"}
             </Text>
             <View style={styles.calendarButton}>
               <Ionicons name="calendar-outline" size={20} color="#2158E8" />
@@ -102,7 +102,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
             onPress={() => setCalendarVisible(true)}
           >
             <Text style={styles.dateText}>
-              {endDate ? formatDate(endDate) : "0000.00.00"}
+              {endDate ? formatDate(endDate) : "종료일 선택"}
             </Text>
             <View style={styles.calendarButton}>
               <Ionicons name="calendar-outline" size={20} color="#2158E8" />

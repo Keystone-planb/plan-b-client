@@ -69,10 +69,26 @@ function buildMarkedDates(startDate?: string, endDate?: string): MarkedDates {
     const isFirst = index === 0;
     const isLast = index === dates.length - 1;
 
+    if (isFirst) {
+      marked[date] = {
+        startingDay: true,
+        color: PRIMARY,
+        textColor: "#FFFFFF",
+      };
+      return;
+    }
+
+    if (isLast) {
+      marked[date] = {
+        endingDay: true,
+        color: PRIMARY,
+        textColor: "#FFFFFF",
+      };
+      return;
+    }
+
     marked[date] = {
-      startingDay: isFirst,
-      endingDay: isLast,
-      color: PRIMARY,
+      color: "#D7E3FF",
       textColor: "#FFFFFF",
     };
   });
@@ -119,6 +135,71 @@ export default function TravelDateRangeModal({
   };
 
   const isApplyDisabled = !startDate || !endDate;
+  const renderDay = ({
+    date,
+    state,
+  }: {
+    date?: DateData;
+    state?: string;
+  }) => {
+    if (!date) {
+      return <View style={styles.dayCell} />;
+    }
+
+    const dateString = date.dateString;
+    const isDisabled = state === "disabled";
+    const hasRange = Boolean(startDate && endDate);
+    const isSingleSelected = startDate === dateString && !endDate;
+    const isStart = startDate === dateString;
+    const isEnd = endDate === dateString;
+    const isInRange =
+      hasRange && dateString >= startDate && dateString <= endDate;
+    const isMiddle = isInRange && !isStart && !isEnd;
+    const isSelectedCircle = isSingleSelected || isStart || isEnd;
+
+    const handlePress = () => {
+      handleDayPress(date);
+    };
+
+    return (
+      <TouchableOpacity
+        style={styles.dayCell}
+        activeOpacity={0.85}
+        onPress={handlePress}
+        disabled={isDisabled}
+      >
+        {isInRange && !isSingleSelected ? (
+          <View
+            style={[
+              styles.rangeBackground,
+              isStart && styles.rangeBackgroundStart,
+              isEnd && styles.rangeBackgroundEnd,
+              isMiddle && styles.rangeBackgroundMiddle,
+            ]}
+          />
+        ) : null}
+
+        <View
+          style={[
+            styles.dayCircle,
+            isSelectedCircle && styles.selectedDayCircle,
+          ]}
+        >
+          <Text
+            style={[
+              styles.dayText,
+              isDisabled && styles.disabledDayText,
+              isMiddle && styles.rangeDayText,
+              isSelectedCircle && styles.selectedDayText,
+            ]}
+          >
+            {date.day}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  };
+
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -158,6 +239,7 @@ export default function TravelDateRangeModal({
           <Calendar
             markingType="period"
             markedDates={markedDates}
+            dayComponent={renderDay}
             onDayPress={handleDayPress}
             hideExtraDays
             firstDay={0}
@@ -212,38 +294,35 @@ export default function TravelDateRangeModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(28, 37, 52, 0.24)",
-    justifyContent: "flex-end",
+    backgroundColor: "rgba(28, 37, 52, 0.22)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
   },
 
   sheet: {
+    width: 310,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 28,
+    borderRadius: 22,
+    paddingHorizontal: 14,
+    paddingTop: 18,
+    paddingBottom: 22,
   },
 
   handle: {
-    alignSelf: "center",
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#D6DFEA",
-    marginBottom: 16,
+    display: "none",
   },
 
   headerRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 18,
+    marginBottom: 14,
   },
 
   title: {
-    fontSize: 22,
-    fontWeight: "800",
+    fontSize: 20,
+    fontWeight: "900",
     color: TEXT_MAIN,
   },
 
@@ -295,11 +374,77 @@ const styles = StyleSheet.create({
   },
 
   calendar: {
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: BORDER,
+    width: 282,
+    alignSelf: "center",
+    borderRadius: 18,
     paddingBottom: 8,
     marginBottom: 18,
+    overflow: "hidden",
+  },
+
+  dayCell: {
+    width: 40,
+    height: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+
+  rangeBackground: {
+    position: "absolute",
+    top: 3,
+    bottom: 3,
+    left: 0,
+    right: 0,
+    backgroundColor: "#D7E3FF",
+  },
+
+  rangeBackgroundStart: {
+    left: 20,
+    right: 0,
+  },
+
+  rangeBackgroundEnd: {
+    left: 0,
+    right: 20,
+  },
+
+  rangeBackgroundMiddle: {
+    left: 0,
+    right: 0,
+  },
+
+  dayCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 1,
+  },
+
+  selectedDayCircle: {
+    backgroundColor: PRIMARY,
+  },
+
+  dayText: {
+    color: TEXT_MAIN,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+
+  selectedDayText: {
+    color: "#FFFFFF",
+    fontWeight: "800",
+  },
+
+  rangeDayText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+  },
+
+  disabledDayText: {
+    color: "#C3CDD9",
   },
 
   buttonRow: {
