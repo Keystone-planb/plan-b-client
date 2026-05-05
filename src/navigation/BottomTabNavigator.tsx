@@ -130,7 +130,6 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     alignItems: "center",
-    zIndex: 100,
   },
   tabBarContainer: {
     width: "100%",

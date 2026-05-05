@@ -480,7 +480,7 @@ const styles = StyleSheet.create({
 
   resultContent: {
     paddingHorizontal: 16,
-    paddingBottom: 96,
+    paddingBottom: 160,
   },
 
   placeCard: {
@@ -549,7 +549,7 @@ const styles = StyleSheet.create({
   nextButton: {
     position: "absolute",
     right: 19,
-    bottom: 24,
+    bottom: 88,
     width: 52,
     height: 52,
     borderRadius: 26,
@@ -564,7 +564,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 5,
-    zIndex: 3,
+    zIndex: 999,
   },
 
   disabledNextButton: {

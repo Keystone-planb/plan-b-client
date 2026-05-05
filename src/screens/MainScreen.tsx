@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
   floatingAddButton: {
     position: "absolute",
     right: 24,
-    bottom: 31,
+    bottom: 104,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -370,6 +370,7 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.22,
     shadowRadius: 10,
-    elevation: 6,
+    elevation: 20,
+    zIndex: 999,
   },
 });

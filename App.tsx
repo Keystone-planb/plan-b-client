@@ -16,6 +16,8 @@ import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
+
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 
 export type RootStackParamList = {
@@ -34,6 +36,11 @@ export type RootStackParamList = {
   AddScheduleDate: {
     tripName?: string;
   };
+  AddScheduleLocation: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+  };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -51,6 +58,7 @@ const linking = {
       },
       AddSchedule: "add-schedule",
       AddScheduleDate: "add-schedule-date",
+      AddScheduleLocation: "add-schedule-location",
     },
   },
 };
@@ -178,6 +186,16 @@ export default function App() {
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AddScheduleLocation"
+          component={AddScheduleLocationScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",

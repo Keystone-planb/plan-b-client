@@ -436,7 +436,7 @@ const styles = StyleSheet.create({
 
   resultContent: {
     paddingHorizontal: 16,
-    paddingBottom: 96,
+    paddingBottom: 190,
   },
 
   placeCard: {
@@ -504,11 +504,11 @@ const styles = StyleSheet.create({
 
   nextButton: {
     position: "absolute",
-    right: 19,
-    bottom: 24,
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    right: 24,
+    bottom: 112,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#273142",
     alignItems: "center",
     justifyContent: "center",
@@ -519,9 +519,9 @@ const styles = StyleSheet.create({
     },
     shadowOpacity: 0.2,
     shadowRadius: 8,
-    elevation: 5,
+    elevation: 20,
+    zIndex: 999,
   },
-
   disabledNextButton: {
     opacity: 0.75,
   },
