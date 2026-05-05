@@ -1,6 +1,7 @@
 import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Keyboard,
   ScrollView,
   StyleSheet,
@@ -18,6 +19,7 @@ import "leaflet/dist/leaflet.css";
 
 import { getPlaceDetail, searchPlaces } from "../../api/places/searchPlaces";
 import { PlaceSearchResult } from "../../api/places/place";
+import { createTrip } from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
@@ -93,6 +95,7 @@ export default function AddScheduleLocationScreen({
 
   const [keyword, setKeyword] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
+  const [submitLoading, setSubmitLoading] = useState(false);
   const [detailLoadingPlaceId, setDetailLoadingPlaceId] = useState<
     string | null
   >(null);
@@ -116,7 +119,7 @@ export default function AddScheduleLocationScreen({
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
 
-    if (!trimmedKeyword || searchLoading) {
+    if (!trimmedKeyword || searchLoading || submitLoading) {
       return;
     }
 
@@ -153,8 +156,16 @@ export default function AddScheduleLocationScreen({
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: detail.lat ?? place.latitude ?? INITIAL_CENTER.latitude,
-        longitude: detail.lng ?? place.longitude ?? INITIAL_CENTER.longitude,
+        latitude:
+          detail.lat ??
+          detail.latitude ??
+          place.latitude ??
+          INITIAL_CENTER.latitude,
+        longitude:
+          detail.lng ??
+          detail.longitude ??
+          place.longitude ??
+          INITIAL_CENTER.longitude,
       };
 
       setSelectedPlace(nextPlace);
@@ -179,17 +190,42 @@ export default function AddScheduleLocationScreen({
     }
   };
 
-  const handleNext = () => {
-    if (!selectedPlace) {
+  const handleNext = async () => {
+    if (!selectedPlace || submitLoading) {
       return;
     }
 
-    navigation.navigate("PlanA", {
-      tripName,
-      startDate,
-      endDate,
-      location: selectedPlace.name,
-    });
+    if (!tripName || !startDate || !endDate) {
+      Alert.alert("알림", "여행 이름과 날짜 정보가 없습니다.");
+      return;
+    }
+
+    try {
+      setSubmitLoading(true);
+
+      await createTrip({
+        title: tripName,
+        startDate,
+        endDate,
+        travelStyles: ["HEALING"],
+      });
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "MainTabs" }],
+      });
+    } catch (error) {
+      console.log("여행 생성 실패:", error);
+
+      const message =
+        error instanceof Error ?
+          error.message
+        : "여행 일정을 생성하지 못했습니다.";
+
+      Alert.alert("일정 생성 실패", message);
+    } finally {
+      setSubmitLoading(false);
+    }
   };
 
   const placesToRender =
@@ -241,6 +277,7 @@ export default function AddScheduleLocationScreen({
               style={styles.backButton}
               activeOpacity={0.75}
               onPress={handleBack}
+              disabled={submitLoading}
             >
               <Ionicons name="chevron-back" size={25} color="#6F7F95" />
             </TouchableOpacity>
@@ -256,13 +293,14 @@ export default function AddScheduleLocationScreen({
               autoCapitalize="none"
               autoCorrect={false}
               onSubmitEditing={handleSubmitEditing}
+              editable={!submitLoading}
             />
 
             <TouchableOpacity
               style={styles.searchButton}
               activeOpacity={0.75}
               onPress={handleSearch}
-              disabled={searchLoading}
+              disabled={searchLoading || submitLoading}
             >
               {searchLoading ?
                 <ActivityIndicator size="small" color="#5D6E86" />
@@ -314,7 +352,7 @@ export default function AddScheduleLocationScreen({
                     isPreview && styles.disabledDetailButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isDetailLoading}
+                  disabled={isPreview || isDetailLoading || submitLoading}
                   onPress={() => handlePlaceDetail(place)}
                 >
                   {isDetailLoading ?
@@ -335,11 +373,17 @@ export default function AddScheduleLocationScreen({
 
       {selectedPlace && (
         <TouchableOpacity
-          style={styles.nextButton}
+          style={[
+            styles.nextButton,
+            submitLoading && styles.disabledNextButton,
+          ]}
           activeOpacity={0.85}
           onPress={handleNext}
+          disabled={submitLoading}
         >
-          <Ionicons name="checkmark" size={23} color="#FFFFFF" />
+          {submitLoading ?
+            <ActivityIndicator size="small" color="#FFFFFF" />
+          : <Ionicons name="checkmark" size={23} color="#FFFFFF" />}
         </TouchableOpacity>
       )}
     </View>
@@ -521,5 +565,9 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 5,
     zIndex: 3,
+  },
+
+  disabledNextButton: {
+    opacity: 0.75,
   },
 });

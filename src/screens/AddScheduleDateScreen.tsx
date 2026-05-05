@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import {
+  Alert,
   View,
   ScrollView,
   Text,
@@ -27,7 +28,16 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
   };
 
   const handleComplete = () => {
-    navigation.navigate("MainTabs");
+    if (!startDate || !endDate) {
+      Alert.alert("알림", "여행 날짜를 선택해주세요.");
+      return;
+    }
+
+    navigation.navigate("AddScheduleLocation", {
+      tripName,
+      startDate,
+      endDate,
+    });
   };
 
   const formatDate = (value: string) => value.replace(/-/g, ".");
@@ -111,7 +121,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
             onPress={handleComplete}
             activeOpacity={0.85}
           >
-            <Text style={styles.nextButtonText}>완료</Text>
+            <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
