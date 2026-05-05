@@ -93,7 +93,14 @@ const MOCK_DAYS: DayPlan[] = [
 
 export default function PlanXDetailScreen({ navigation }: Props) {
   const handleBack = () => {
-    navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate("MainTabs", {
+      screen: "PlanX",
+    });
   };
 
   return (

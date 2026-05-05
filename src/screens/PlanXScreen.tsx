@@ -80,7 +80,12 @@ export default function PlanXScreen({ navigation }: Props) {
   );
 
   const handleBack = () => {
-    navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate("MainTabs");
   };
 
   const handlePressTrip = (trip: PlanXTrip) => {
