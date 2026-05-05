@@ -87,8 +87,6 @@ function MapFocus({ selectedPlace }: { selectedPlace: SelectedPlace | null }) {
       selectedPlace.longitude,
     ];
 
-    console.log("[웹 지도] 장소 좌표로 이동:", nextCenter);
-
     window.setTimeout(() => {
       map.invalidateSize();
       map.flyTo(nextCenter, DEFAULT_ZOOM, {
