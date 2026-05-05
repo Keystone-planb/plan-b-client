@@ -12,37 +12,44 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
-import { loadLatestPlanASchedule } from "../api/schedules/planAStorage";
-import { TravelSchedule } from "../types/schedule";
+import { getTrips, TripSummary } from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
 };
 
 type PlanXDisplayTrip = PlanXTrip & {
-  source: "saved";
-  scheduleId: string;
+  source: "server";
+  tripId: string;
 };
 
-const getPlaceCount = (schedule: TravelSchedule) => {
-  return schedule.days.reduce((total, day) => {
-    return total + day.places.length;
-  }, 0);
+const formatDateForPlanX = (date: string) => {
+  return date.replace(/-/g, ".");
 };
 
-const convertScheduleToPlanXTrip = (
-  schedule: TravelSchedule,
-): PlanXDisplayTrip => {
+const guessLocationFromTitle = (title: string) => {
+  const trimmedTitle = title.trim();
+
+  if (!trimmedTitle) {
+    return "지역 미정";
+  }
+
+  const [firstWord] = trimmedTitle.split(/\s+/);
+
+  return firstWord || "지역 미정";
+};
+
+const convertTripToPlanXTrip = (trip: TripSummary): PlanXDisplayTrip => {
   return {
-    id: schedule.id,
-    scheduleId: schedule.id,
-    title: schedule.tripName,
-    startDate: schedule.startDate,
-    endDate: schedule.endDate,
-    location: schedule.location || "지역 미정",
-    placeCount: getPlaceCount(schedule),
+    id: String(trip.tripId),
+    tripId: String(trip.tripId),
+    title: trip.title,
+    startDate: formatDateForPlanX(trip.startDate),
+    endDate: formatDateForPlanX(trip.endDate),
+    location: guessLocationFromTitle(trip.title),
+    placeCount: 0,
     emoji: "🧳",
-    source: "saved",
+    source: "server",
   };
 };
 
@@ -56,17 +63,12 @@ export default function PlanXScreen({ navigation }: Props) {
         try {
           setLoading(true);
 
-          const latestSchedule = await loadLatestPlanASchedule();
+          const serverTrips = await getTrips("PAST");
+          const nextTrips = serverTrips.map(convertTripToPlanXTrip);
 
-          if (!latestSchedule) {
-            setTrips([]);
-            return;
-          }
-
-          const savedTrip = convertScheduleToPlanXTrip(latestSchedule);
-
-          setTrips([savedTrip]);
-        } catch {
+          setTrips(nextTrips);
+        } catch (error) {
+          console.log("Plan.X 여행 목록 조회 실패:", error);
           setTrips([]);
         } finally {
           setLoading(false);
@@ -91,7 +93,7 @@ export default function PlanXScreen({ navigation }: Props) {
     }
 
     navigation.navigate("PlanXDetail", {
-      scheduleId: selectedTrip.scheduleId,
+      tripId: selectedTrip.tripId,
       tripName: selectedTrip.title,
       startDate: selectedTrip.startDate,
       endDate: selectedTrip.endDate,
@@ -132,9 +134,7 @@ export default function PlanXScreen({ navigation }: Props) {
           {loading ?
             <View style={styles.loadingBox}>
               <ActivityIndicator color="#2158E8" />
-              <Text style={styles.loadingText}>
-                저장된 여행을 불러오는 중...
-              </Text>
+              <Text style={styles.loadingText}>여행 목록을 불러오는 중...</Text>
             </View>
           : null}
 
@@ -142,7 +142,7 @@ export default function PlanXScreen({ navigation }: Props) {
             <View style={styles.emptyBox}>
               <Text style={styles.emptyTitle}>아직 저장된 여행이 없어요</Text>
               <Text style={styles.emptyDescription}>
-                Plan.A에서 일정을 저장하면 이곳에서 다시 확인할 수 있어요.
+                여행 일정을 추가하면 이곳에서 다시 확인할 수 있어요.
               </Text>
             </View>
           : null}
