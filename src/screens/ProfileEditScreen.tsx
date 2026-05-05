@@ -65,7 +65,14 @@ export default function ProfileEditScreen({ navigation }: Props) {
   );
 
   const handleBack = () => {
-    navigation.goBack();
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+      return;
+    }
+
+    navigation.navigate("MainTabs", {
+      screen: "Profile",
+    });
   };
 
   const nickname = me?.nickname || "김플랜";
