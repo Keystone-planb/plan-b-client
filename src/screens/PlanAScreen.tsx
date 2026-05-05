@@ -120,17 +120,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
     resetEditingState();
   };
 
-  const handleAddPlace = () => {
-    navigation.navigate("AddPlace", {
-      day: selectedDay,
-      scheduleId: schedule.id,
-      tripName: schedule.tripName,
-      startDate: schedule.startDate,
-      endDate: schedule.endDate,
-      location: schedule.location,
-    });
-  };
-
   const renderPlaceCard = (place: PlaceItem, index: number) => {
     return (
       <PlanAPlaceCard
@@ -254,17 +243,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
               currentPlaces.map((place, index) => renderPlaceCard(place, index))
             : <PlanAEmptyPlaceCard
                 selectedDay={selectedDay}
-                onPress={handleAddPlace}
+
               />
             }
 
-            <TouchableOpacity
-              style={styles.addPlaceButton}
-              activeOpacity={0.85}
-              onPress={handleAddPlace}
-            >
-              <Text style={styles.addPlaceButtonText}>장소 추가</Text>
-            </TouchableOpacity>
           </View>
         </ScrollView>
       </View>
@@ -402,27 +384,4 @@ const styles = StyleSheet.create({
     backgroundColor: "#D6DFEA",
   },
 
-  addPlaceButton: {
-    marginTop: 4,
-    marginLeft: 44,
-    minHeight: 44,
-    borderRadius: 12,
-    backgroundColor: "#ECF5FF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.18,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 10,
-    elevation: 4,
-  },
-
-  addPlaceButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "900",
-  },
 });
