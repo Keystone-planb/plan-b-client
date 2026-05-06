@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -60,6 +60,22 @@ export default function RecommendationStreamCard() {
       },
     );
   };
+
+  useEffect(() => {
+    let autoStartedRecommendation = true;
+
+    const start = async () => {
+      if (!autoStartedRecommendation) return;
+      await handleStartRecommend();
+    };
+
+    start();
+
+    return () => {
+      autoStartedRecommendation = false;
+    };
+  }, []);
+
 
   return (
     <View style={styles.card}>
