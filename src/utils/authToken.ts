@@ -67,7 +67,6 @@ export const handleOAuthSuccessUrl = async (url: string) => {
 
   await saveOAuthTokens(tokens);
 
-  
   return tokens;
 };
 

@@ -43,7 +43,6 @@ export const createSocialAuthUrl = (
 
   const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodedRedirectUri}`;
 
-        
   return {
     provider,
     redirectUri,
