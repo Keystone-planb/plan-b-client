@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -29,6 +28,7 @@ export default function GapRecommendationCard({ tripId }: Props) {
   const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
   const [selectedGap, setSelectedGap] = useState<TripScheduleGap | null>(null);
   const [places, setPlaces] = useState<RecommendedPlace[]>([]);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number | string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState(
     "일정 사이에 비는 시간을 찾아 추천 장소를 받아보세요.",
@@ -38,8 +38,25 @@ export default function GapRecommendationCard({ tripId }: Props) {
 
   useEffect(() => {
     const loadGaps = async () => {
-      if (!tripId) {
-        const mockGaps = await getTripGaps("mock-trip");
+      if (!tripId || String(tripId) === "mock-trip") {
+        const mockGaps: TripScheduleGap[] = [
+          {
+            beforePlanId: 101,
+            afterPlanId: 102,
+            beforePlanTitle: "투썸플레이스 부평역점",
+            afterPlanTitle: "스타벅스 부평역점",
+            beforePlanEndTime: "14:00",
+            afterPlanStartTime: "15:00",
+            beforePlaceLat: 37.4895,
+            beforePlaceLng: 126.7245,
+            afterPlaceLat: 37.4903,
+            afterPlaceLng: 126.7251,
+            availableMinutes: 45,
+            gapMinutes: 60,
+            transportMode: "WALK",
+          },
+        ];
+
         setGaps(mockGaps);
         setMessage("서버 여행 ID가 없어 mock 틈새 시간을 표시합니다.");
         return;
@@ -100,7 +117,8 @@ export default function GapRecommendationCard({ tripId }: Props) {
   };
 
   const handleSelectPlace = (place: RecommendedPlace) => {
-    Alert.alert("장소 선택", `${place.name}을(를) 틈새 추천 장소로 선택했습니다.`);
+    setSelectedPlaceId(place.placeId);
+    setMessage(`${place.name}을(를) 틈새 추천 장소로 임시 반영했습니다.`);
   };
 
   return (
@@ -180,8 +198,15 @@ export default function GapRecommendationCard({ tripId }: Props) {
 
       {places.length > 0 ? (
         <View style={styles.placeList}>
-          {places.map((place) => (
-            <View key={String(place.placeId)} style={styles.placeCard}>
+          {places.map((place) => {
+            const isSelectedPlace =
+              String(selectedPlaceId) === String(place.placeId);
+
+            return (
+            <View
+              key={String(place.placeId)}
+              style={[styles.placeCard, isSelectedPlace && styles.selectedPlaceCard]}
+            >
               <View style={styles.placeHeader}>
                 <Text style={styles.placeName}>{place.name}</Text>
 
@@ -205,15 +230,32 @@ export default function GapRecommendationCard({ tripId }: Props) {
                 <Text style={styles.reason}>{place.reason}</Text>
               ) : null}
 
+              {isSelectedPlace ? (
+                <View style={styles.selectedBadge}>
+                  <Text style={styles.selectedBadgeText}>선택 완료</Text>
+                </View>
+              ) : null}
+
               <TouchableOpacity
-                style={styles.selectButton}
+                style={[
+                  styles.selectButton,
+                  isSelectedPlace && styles.selectedSelectButton,
+                ]}
                 activeOpacity={0.85}
                 onPress={() => handleSelectPlace(place)}
               >
-                <Text style={styles.selectButtonText}>이 장소 추가하기</Text>
+                <Text
+                  style={[
+                    styles.selectButtonText,
+                    isSelectedPlace && styles.selectedSelectButtonText,
+                  ]}
+                >
+                  {isSelectedPlace ? "선택 완료" : "이 장소 추가하기"}
+                </Text>
               </TouchableOpacity>
             </View>
-          ))}
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -365,6 +407,11 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
 
+  selectedPlaceCard: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+
   placeHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -419,6 +466,21 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
+  selectedBadge: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  selectedBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+
   selectButton: {
     marginTop: 12,
     alignSelf: "flex-start",
@@ -428,9 +490,17 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
 
+  selectedSelectButton: {
+    backgroundColor: "#2563EB",
+  },
+
   selectButtonText: {
     fontSize: 12,
     fontWeight: "900",
     color: "#2563EB",
+  },
+
+  selectedSelectButtonText: {
+    color: "#FFFFFF",
   },
 });

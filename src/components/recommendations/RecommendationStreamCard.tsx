@@ -187,7 +187,7 @@ export default function RecommendationStreamCard() {
 
                 {isSelected ? (
                   <View style={styles.replacedBadge}>
-                    <Text style={styles.replacedBadgeText}>대체 완료</Text>
+                    <Text style={styles.replacedBadgeText}>✓ 대체 완료</Text>
                   </View>
                 ) : (
                   <TouchableOpacity
@@ -376,7 +376,9 @@ const styles = StyleSheet.create({
   replacedBadge: {
     marginTop: 10,
     alignSelf: "flex-start",
-    backgroundColor: "#2563EB",
+    backgroundColor: "#ECFDF5",
+    borderWidth: 1,
+    borderColor: "#A7F3D0",
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 999,
@@ -385,7 +387,7 @@ const styles = StyleSheet.create({
   replacedBadgeText: {
     fontSize: 11,
     fontWeight: "900",
-    color: "#FFFFFF",
+    color: "#047857",
   },
 
   selectButton: {

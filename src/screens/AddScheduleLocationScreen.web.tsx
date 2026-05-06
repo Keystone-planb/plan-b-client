@@ -578,7 +578,7 @@ export default function AddScheduleLocationScreen({
                     {isDetailLoading ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     : <Text style={styles.expandedSelectButtonText}>
-                        이 장소 선택
+                        {selectedPlace ? "선택 완료" : "이 장소 선택"}
                       </Text>
                     }
                   </TouchableOpacity>
