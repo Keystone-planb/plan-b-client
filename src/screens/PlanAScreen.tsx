@@ -87,8 +87,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     handleCancelEditPlace,
     handleSaveEditPlace,
     handleDeletePlace,
-    handleChangeEditingPlaceName,
-    handleChangeEditingPlaceTime,
+    setEditingPlaceName,
+    setEditingPlaceTime,
     handleUpdatePlaceTime,
     handleStartEditMemo,
     handleCancelEditMemo,
@@ -265,8 +265,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onCancelEditPlace={handleCancelEditPlace}
         onSaveEditPlace={handleSaveEditPlace}
         onDeletePlace={handleDeletePlace}
-        onChangeEditingPlaceName={handleChangeEditingPlaceName}
-        onChangeEditingPlaceTime={handleChangeEditingPlaceTime}
+        onChangeEditingPlaceName={setEditingPlaceName}
+        onChangeEditingPlaceTime={setEditingPlaceTime}
         onChangeMemoDraft={handleChangeMemoDraft}
         onAddMemo={handleAddMemo}
         onClearMemo={handleClearMemo}
