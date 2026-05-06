@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -375,6 +376,55 @@ export default function AddScheduleLocationScreen({
         } as PlaceSearchResult,
       ];
 
+  const detailModalPlace = searchResults.find((place) => {
+    const googlePlaceId = String(place.googlePlaceId ?? place.placeId);
+
+    return googlePlaceId === expandedPlaceId;
+  });
+
+  const detailModalPlaceId =
+    detailModalPlace ?
+      String(detailModalPlace.googlePlaceId ?? detailModalPlace.placeId)
+    : "";
+
+  const detailModalReviewInfo =
+    detailModalPlaceId ? placeReviewMap[detailModalPlaceId] : undefined;
+
+  const detailModalSummary = detailModalReviewInfo?.summary as any;
+  const detailModalFreshness = detailModalReviewInfo?.freshness as any;
+
+  const detailModalAiSummary =
+    detailModalSummary?.aiSummary ||
+    detailModalSummary?.reviewSummary ||
+    "아직 요약 정보가 없습니다.";
+
+  const detailModalGoogleReview =
+    detailModalSummary?.googleReview ||
+    detailModalSummary?.googleReviewSummary ||
+    detailModalSummary?.platformSummaries?.google ||
+    "구글 리뷰 요약을 준비 중입니다.";
+
+  const detailModalNaverReview =
+    detailModalSummary?.naverReview ||
+    detailModalSummary?.naverReviewSummary ||
+    detailModalSummary?.platformSummaries?.naver ||
+    "네이버 리뷰 요약을 준비 중입니다.";
+
+  const detailModalInstaReview =
+    detailModalSummary?.instaReview ||
+    detailModalSummary?.instagramReviewSummary ||
+    detailModalSummary?.instaReviewSummary ||
+    detailModalSummary?.platformSummaries?.instagram ||
+    detailModalSummary?.platformSummaries?.insta ||
+    "인스타그램 리뷰 요약을 준비 중입니다.";
+
+  const detailModalFreshnessText =
+    detailModalFreshness?.status === "FRESH" || detailModalFreshness?.isFresh ?
+      "최신 정보"
+    : detailModalFreshness?.lastSyncedAt || detailModalFreshness?.last_updated ?
+      "최근 업데이트 확인"
+    : "최신성 확인 중";
+
   return (
     <View style={styles.screen}>
       <View style={styles.mapSection}>
@@ -454,7 +504,7 @@ export default function AddScheduleLocationScreen({
             const isSelected = selectedPlace?.placeId === placeId;
             const isDetailLoading = detailLoadingPlaceId === placeId;
             const isReviewLoading = reviewLoadingPlaceId === googlePlaceId;
-            const isExpanded = expandedPlaceId === googlePlaceId;
+            const isExpanded = false;
             const reviewInfo = placeReviewMap[googlePlaceId];
             const summary = reviewInfo?.summary;
             const freshness = reviewInfo?.freshness;
@@ -537,10 +587,10 @@ export default function AddScheduleLocationScreen({
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        {isExpanded ? "간략히" : "상세 정보 보기"}
+                        상세 정보 보기
                       </Text>
                       <Ionicons
-                        name={isExpanded ? "chevron-up-outline" : "eye-outline"}
+                        name="eye-outline"
                         size={15}
                         color="#6F7F95"
                       />
@@ -654,6 +704,123 @@ export default function AddScheduleLocationScreen({
           })}
         </ScrollView>
       </View>
+
+      <Modal
+        visible={Boolean(detailModalPlace)}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setExpandedPlaceId(null)}
+      >
+        <View style={styles.detailModalBackdrop}>
+          <View style={styles.detailModalCard}>
+            <View style={styles.detailModalHeader}>
+              <View style={styles.detailModalIconCircle}>
+                <Text style={styles.detailModalEmoji}>🎡</Text>
+              </View>
+
+              <View style={styles.detailModalTitleBox}>
+                <Text style={styles.detailModalTitle} numberOfLines={2}>
+                  {detailModalPlace?.name ?? "장소 상세 정보"}
+                </Text>
+
+                <Text style={styles.detailModalAddress} numberOfLines={1}>
+                  {detailModalPlace?.address ?? "주소 정보 없음"}
+                </Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.detailModalCloseButton}
+                activeOpacity={0.75}
+                onPress={() => setExpandedPlaceId(null)}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.detailModalMetaRow}>
+              <Ionicons name="star" size={14} color="#FACC15" />
+
+              <Text style={styles.detailModalMetaText}>
+                {typeof detailModalPlace?.rating === "number" ?
+                  detailModalPlace.rating.toFixed(2)
+                : "평점 정보 없음"}
+              </Text>
+
+              <Text style={styles.detailModalDot}>·</Text>
+
+              <Ionicons name="time-outline" size={14} color="#60A5FA" />
+
+              <Text style={styles.detailModalMetaText}>
+                {detailModalFreshnessText}
+              </Text>
+            </View>
+
+            {reviewLoadingPlaceId === detailModalPlaceId ?
+              <View style={styles.detailModalLoadingBox}>
+                <ActivityIndicator size="large" color="#2563EB" />
+                <Text style={styles.detailModalLoadingText}>
+                  리뷰 불러오는 중...
+                </Text>
+              </View>
+            : <>
+                <View style={styles.detailAiReviewBox}>
+                  <Text style={styles.detailAiReviewText}>
+                    📊 {detailModalAiSummary}
+                  </Text>
+
+                  <View style={styles.detailAiBadge}>
+                    <Text style={styles.detailAiBadgeText}>AI</Text>
+                  </View>
+                </View>
+
+                <View style={styles.detailPlatformList}>
+                  <View style={styles.detailPlatformCard}>
+                    <Text style={styles.detailPlatformText}>
+                      🟢 {detailModalGoogleReview}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailPlatformCard}>
+                    <Text style={styles.detailPlatformText}>
+                      📸 {detailModalNaverReview}
+                    </Text>
+                  </View>
+
+                  <View style={styles.detailPlatformCard}>
+                    <Text style={styles.detailPlatformText}>
+                      🌈 {detailModalInstaReview}
+                    </Text>
+                  </View>
+                </View>
+              </>
+            }
+
+            {detailModalPlace ?
+              <TouchableOpacity
+                style={styles.detailModalSelectButton}
+                activeOpacity={0.85}
+                disabled={
+                  detailLoadingPlaceId === String(detailModalPlace.placeId) ||
+                  submitLoading
+                }
+                onPress={async () => {
+                  await handlePlaceDetail(detailModalPlace);
+                  setExpandedPlaceId(null);
+                }}
+              >
+                {detailLoadingPlaceId === String(detailModalPlace.placeId) ?
+                  <ActivityIndicator size="small" color="#FFFFFF" />
+                : <Text style={styles.detailModalSelectButtonText}>
+                    {selectedPlace?.placeId === String(detailModalPlace.placeId) ?
+                      "선택 완료"
+                    : "이 장소 선택"}
+                  </Text>
+                }
+              </TouchableOpacity>
+            : null}
+          </View>
+        </View>
+      </Modal>
 
       {selectedPlace && (
         <TouchableOpacity
@@ -1041,4 +1208,182 @@ const styles = StyleSheet.create({
     elevation: 20,
     zIndex: 9999,
   },
+  detailModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+
+  detailModalCard: {
+    maxHeight: "82%",
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 18,
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 24,
+  },
+
+  detailModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  detailModalIconCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#F8C8F4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+
+  detailModalEmoji: {
+    fontSize: 28,
+  },
+
+  detailModalTitleBox: {
+    flex: 1,
+  },
+
+  detailModalTitle: {
+    color: "#111827",
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+
+  detailModalAddress: {
+    color: "#8A9BB2",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+
+  detailModalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 10,
+  },
+
+  detailModalMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+
+  detailModalMetaText: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "800",
+    marginLeft: 5,
+  },
+
+  detailModalDot: {
+    marginHorizontal: 8,
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  detailModalLoadingBox: {
+    minHeight: 210,
+    borderRadius: 18,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+
+  detailModalLoadingText: {
+    marginTop: 12,
+    color: "#617087",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  detailAiReviewBox: {
+    position: "relative",
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#CFE0FF",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+  },
+
+  detailAiReviewText: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+
+  detailAiBadge: {
+    position: "absolute",
+    right: -10,
+    top: -10,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#5B3DFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  detailAiBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  detailPlatformList: {
+    gap: 10,
+    marginBottom: 16,
+  },
+
+  detailPlatformCard: {
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DDE5EF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  detailPlatformText: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 20,
+  },
+
+  detailModalSelectButton: {
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  detailModalSelectButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
 });
