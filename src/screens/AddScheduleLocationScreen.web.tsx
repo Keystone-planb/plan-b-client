@@ -143,6 +143,8 @@ export default function AddScheduleLocationScreen({
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
+  const transportMode = route?.params?.transportMode ?? "TRANSIT";
+  const transportLabel = route?.params?.transportLabel ?? "대중교통";
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -150,7 +152,7 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
-    navigation.navigate("MainTabs");
+    navigation.navigate("Main");
   };
 
 
@@ -337,9 +339,22 @@ export default function AddScheduleLocationScreen({
         travelStyles: ["HEALING"],
       });
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "MainTabs" }],
+      navigation.navigate("PlanA", {
+        tripName,
+        startDate,
+        endDate,
+        location:
+          selectedPlace.name ||
+          selectedPlace.address ||
+          "선택한 장소",
+        transportMode,
+        transportLabel,
+        selectedPlace: {
+          id: selectedPlace.placeId,
+          name: selectedPlace.name,
+          time: "",
+          day: route?.params?.day ?? route?.params?.selectedDay ?? 1,
+        },
       });
     } catch (error) {
       console.log("여행 생성 실패:", error);
