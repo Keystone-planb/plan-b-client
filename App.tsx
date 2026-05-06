@@ -16,6 +16,7 @@ import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
+import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -24,6 +25,7 @@ type RootStackParamList = {
   OnboardingFourth: undefined;
   Login: undefined;
   SignUp: undefined;
+  OAuthRedirect: undefined;
 
   Main: undefined;
 
@@ -76,6 +78,17 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const linking = {
+  prefixes: ["planb://", "http://localhost:8081", "http://localhost:8082"],
+  config: {
+    screens: {
+      OAuthRedirect: {
+        path: "oauth/success",
+      },
+    },
+  },
+};
+
 // 화면 플로우 테스트용.
 // 커밋 전 반드시 null로 변경.
 // 예: const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null = null;
@@ -119,7 +132,7 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       <Stack.Navigator
         id={undefined}
         initialRouteName={initialRoute}
@@ -164,6 +177,16 @@ export default function App() {
           options={{
             animation: "fade",
             animationDuration: 300,
+          }}
+        />
+
+        <Stack.Screen
+          name="OAuthRedirect"
+          component={OAuthRedirectScreen}
+          options={{
+            headerShown: false,
+            animation: "fade",
+            animationDuration: 200,
           }}
         />
 
