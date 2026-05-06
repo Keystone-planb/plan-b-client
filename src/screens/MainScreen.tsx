@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 
 import CalendarSvg from "../assets/calendar.svg";
 import RadialBackground from "../components/RadialBackground";
@@ -19,6 +20,7 @@ import {
   getSchedules,
   SavedSchedule,
 } from "../../api/schedules/storage";
+import { loadLatestPlanASchedule } from "../api/schedules/planAStorage";
 
 type Props = {
   navigation: any;
@@ -65,10 +67,40 @@ export default function MainScreen({ navigation }: Props) {
       setLoadingSchedules(true);
 
       const savedSchedules = await getSchedules();
+      const latestPlanASchedule = await loadLatestPlanASchedule();
 
-      console.log("[메인 일정 목록]", savedSchedules);
+      const latestPlanACard: SavedSchedule | null =
+        latestPlanASchedule ?
+          {
+            id: latestPlanASchedule.id,
+            tripName: latestPlanASchedule.tripName,
+            startDate: latestPlanASchedule.startDate,
+            endDate: latestPlanASchedule.endDate,
+            location: latestPlanASchedule.location,
+            createdAt:
+              latestPlanASchedule.updatedAt ||
+              latestPlanASchedule.createdAt ||
+              new Date().toISOString(),
+          }
+        : null;
 
-      setSchedules(savedSchedules);
+      const mergedSchedules =
+        latestPlanACard ?
+          [
+            latestPlanACard,
+            ...savedSchedules.filter(
+              (schedule) => schedule.id !== latestPlanACard.id,
+            ),
+          ]
+        : savedSchedules;
+
+      console.log("[메인 일정 목록]", {
+        savedSchedules,
+        latestPlanASchedule,
+        mergedSchedules,
+      });
+
+      setSchedules(mergedSchedules);
     } catch (error) {
       console.log("메인 일정 목록 불러오기 실패:", error);
       setSchedules([]);
@@ -86,6 +118,16 @@ export default function MainScreen({ navigation }: Props) {
   const formatDate = (value: string) => {
     if (!value) return "";
     return value.replace(/-/g, ".");
+  };
+
+  const handleOpenSchedule = (schedule: SavedSchedule) => {
+    navigation.navigate("PlanA", {
+      scheduleId: schedule.id,
+      tripName: schedule.tripName,
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
+      location: schedule.location,
+    });
   };
 
   const handleDeleteSchedule = (schedule: SavedSchedule) => {
@@ -153,42 +195,96 @@ export default function MainScreen({ navigation }: Props) {
       );
     }
 
+    const ongoingSchedule = schedules[0];
+    const nextSchedule = schedules[1];
+
     return (
-      <View style={styles.scheduleList}>
-        {schedules.map((schedule) => (
+      <View style={styles.planSection}>
+        <View style={styles.todayInfoPill}>
+          <Text style={styles.todayInfoText}>☀️ 23°</Text>
+          <Text style={styles.todayInfoDivider}>|</Text>
+          <Text style={styles.todayInfoText}>📅 2026.04.30</Text>
+          <Text style={styles.todayInfoDivider}>|</Text>
+          <Text style={styles.todayInfoText}>🗺️ Day 1</Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>진행중인 일정</Text>
+
           <TouchableOpacity
-            key={schedule.id}
-            style={styles.scheduleCard}
+            style={styles.ongoingCard}
             activeOpacity={0.85}
+            onPress={() => handleOpenSchedule(ongoingSchedule)}
           >
-            <View style={styles.scheduleThumbnail}>
-              <Text style={styles.scheduleEmoji}>🏝️</Text>
+            <View style={styles.pinCircle}>
+              <Text style={styles.pinEmoji}>📌</Text>
             </View>
 
-            <View style={styles.scheduleInfo}>
-              <Text style={styles.scheduleTitle} numberOfLines={1}>
-                {schedule.tripName}
+            <View style={styles.tripCardInfo}>
+              <Text style={styles.tripTitle} numberOfLines={1}>
+                {ongoingSchedule.tripName || "신나는 여행"}
               </Text>
 
-              <Text style={styles.scheduleMeta} numberOfLines={1}>
-                {formatDate(schedule.startDate)} -{" "}
-                {formatDate(schedule.endDate)}
+              <Text style={styles.tripLocation} numberOfLines={1}>
+                {ongoingSchedule.location || "지역 미정"}
               </Text>
 
-              <Text style={styles.scheduleMeta} numberOfLines={1}>
-                {schedule.location || "지역 미정"}
-              </Text>
+              <View style={styles.tripDateRow}>
+                <Ionicons name="calendar-outline" size={13} color="#9BAAC0" />
+                <Text style={styles.tripDateText} numberOfLines={1}>
+                  {formatDate(ongoingSchedule.startDate)} -{" "}
+                  {formatDate(ongoingSchedule.endDate)}
+                </Text>
+              </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.deleteButton}
-              activeOpacity={0.75}
-              onPress={() => handleDeleteSchedule(schedule)}
-            >
-              <Text style={styles.deleteButtonText}>삭제</Text>
-            </TouchableOpacity>
+            <Ionicons name="chevron-forward" size={20} color="#C5CFDC" />
           </TouchableOpacity>
-        ))}
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>다음 여행</Text>
+
+          {nextSchedule ?
+            <TouchableOpacity
+              style={styles.nextTripCard}
+              activeOpacity={0.85}
+              onPress={() => handleOpenSchedule(nextSchedule)}
+            >
+              <View style={styles.nextTripThumbnail}>
+                <Text style={styles.nextTripEmoji}>🏝️</Text>
+              </View>
+
+              <View style={styles.tripCardInfo}>
+                <Text style={styles.tripTitle} numberOfLines={1}>
+                  {nextSchedule.tripName || "다음 여행"}
+                </Text>
+
+                <View style={styles.tripDateRow}>
+                  <Ionicons name="calendar-outline" size={13} color="#9BAAC0" />
+                  <Text style={styles.tripDateText} numberOfLines={1}>
+                    {formatDate(nextSchedule.startDate)} -{" "}
+                    {formatDate(nextSchedule.endDate)}
+                  </Text>
+                </View>
+
+                <View style={styles.tripDateRow}>
+                  <Ionicons name="location-outline" size={13} color="#9BAAC0" />
+                  <Text style={styles.tripDateText} numberOfLines={1}>
+                    {nextSchedule.location || "지역 미정"}
+                  </Text>
+                </View>
+              </View>
+
+              <Ionicons name="chevron-forward" size={20} color="#C5CFDC" />
+            </TouchableOpacity>
+          : <View style={styles.nextTripEmptyBox}>
+              <Text style={styles.nextTripEmptyText}>
+                다음 여행을 추가해보세요
+              </Text>
+            </View>
+          }
+        </View>
       </View>
     );
   };
@@ -208,20 +304,8 @@ export default function MainScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.contentArea}>
-          <View style={styles.iconArea}>
-            <View style={styles.backgroundLayer}>
-              <RadialBackground />
-            </View>
-
-            <View style={styles.iconWrapper}>
-              <CalendarSvg width={100} height={100} />
-            </View>
-          </View>
-
           <View style={styles.textGroup}>
             {renderScheduleSection()}
-
-            <View style={styles.userInfoBox}>{renderUserSection()}</View>
           </View>
 
           <View style={styles.bottomActionGroup}>
@@ -230,7 +314,7 @@ export default function MainScreen({ navigation }: Props) {
               activeOpacity={0.85}
               onPress={() => navigation.navigate("AddSchedule")}
             >
-              <Text style={styles.addButtonText}>일정 추가하기</Text>
+              <Text style={styles.addButtonText}>새 일정 추가하기</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -253,9 +337,8 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 24,
     paddingTop: 36,
-    paddingBottom: 150,
+    paddingBottom: 110,
     alignItems: "center",
-    justifyContent: "center",
   },
 
   header: {
@@ -316,7 +399,7 @@ const styles = StyleSheet.create({
   textGroup: {
     width: "100%",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 12,
   },
 
   mainText: {
@@ -434,7 +517,7 @@ const styles = StyleSheet.create({
   },
 
   addButton: {
-    width: "45%",
+    width: "100%",
     height: 52,
     justifyContent: "center",
     alignItems: "center",
@@ -452,4 +535,150 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#FFFFFF",
   },
+  planSection: {
+    width: "100%",
+    gap: 16,
+  },
+
+  todayInfoPill: {
+    width: "100%",
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 14,
+    borderWidth: 1,
+    borderColor: "#EEF3FA",
+    gap: 8,
+  },
+
+  todayInfoText: {
+    color: "#1E293B",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  todayInfoDivider: {
+    color: "#D8E0EB",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  sectionCard: {
+    width: "100%",
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: "#E6EEF9",
+  },
+
+  sectionTitle: {
+    color: "#1E293B",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 14,
+  },
+
+  ongoingCard: {
+    minHeight: 88,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#BBDDFF",
+    shadowColor: "#60A5FA",
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+
+  pinCircle: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 12,
+  },
+
+  pinEmoji: {
+    fontSize: 16,
+  },
+
+  tripCardInfo: {
+    flex: 1,
+  },
+
+  tripTitle: {
+    color: "#1E293B",
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  tripLocation: {
+    color: "#8FA0B7",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 5,
+  },
+
+  tripDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+
+  tripDateText: {
+    color: "#8FA0B7",
+    fontSize: 11,
+    fontWeight: "700",
+  },
+
+  nextTripCard: {
+    minHeight: 78,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  nextTripThumbnail: {
+    width: 56,
+    height: 56,
+    borderRadius: 13,
+    backgroundColor: "#DDF0FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+
+  nextTripEmoji: {
+    fontSize: 30,
+  },
+
+  nextTripEmptyBox: {
+    height: 56,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  nextTripEmptyText: {
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
 });
