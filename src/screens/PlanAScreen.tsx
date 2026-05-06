@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
+  Modal,
   ScrollView,
   StyleSheet,
   Text,
@@ -47,6 +48,12 @@ const formatDisplayDate = (value: string) => {
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
+    null,
+  );
+  const [timePickerHour, setTimePickerHour] = useState(12);
+  const [timePickerMinute, setTimePickerMinute] = useState(0);
+  const [timePickerPeriod, setTimePickerPeriod] = useState<"AM" | "PM">("AM");
 
   const scheduleId = route?.params?.scheduleId;
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
@@ -82,6 +89,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     handleDeletePlace,
     handleChangeEditingPlaceName,
     handleChangeEditingPlaceTime,
+    handleUpdatePlaceTime,
     handleStartEditMemo,
     handleCancelEditMemo,
     handleSaveEditMemo,
@@ -111,6 +119,77 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const handleChangeDay = (dayId: number) => {
     setSelectedDay(dayId);
     resetEditingState();
+  };
+
+  const padTimeUnit = (value: number) => {
+    return String(value).padStart(2, "0");
+  };
+
+  const parseTimeForPicker = (value?: string) => {
+    const normalized = value?.trim();
+    const match = normalized?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+    if (!match) {
+      return {
+        hour: 12,
+        minute: 0,
+        period: "AM" as const,
+      };
+    }
+
+    const rawHour = Number(match[1]);
+    const rawMinute = Number(match[2]);
+    const period = match[3].toUpperCase() === "PM" ? "PM" : "AM";
+
+    return {
+      hour: Math.min(Math.max(rawHour, 1), 12),
+      minute: Math.min(Math.max(rawMinute, 0), 55),
+      period: period as "AM" | "PM",
+    };
+  };
+
+  const openTimePicker = (place: PlaceItem) => {
+    const parsed = parseTimeForPicker(place.time);
+
+    setTimePickerPlace(place);
+    setTimePickerHour(parsed.hour);
+    setTimePickerMinute(parsed.minute);
+    setTimePickerPeriod(parsed.period);
+  };
+
+  const closeTimePicker = () => {
+    setTimePickerPlace(null);
+  };
+
+  const increaseHour = () => {
+    setTimePickerHour((prev) => (prev >= 12 ? 1 : prev + 1));
+  };
+
+  const decreaseHour = () => {
+    setTimePickerHour((prev) => (prev <= 1 ? 12 : prev - 1));
+  };
+
+  const increaseMinute = () => {
+    setTimePickerMinute((prev) => (prev >= 55 ? 0 : prev + 5));
+  };
+
+  const decreaseMinute = () => {
+    setTimePickerMinute((prev) => (prev <= 0 ? 55 : prev - 5));
+  };
+
+  const toggleTimePeriod = () => {
+    setTimePickerPeriod((prev) => (prev === "AM" ? "PM" : "AM"));
+  };
+
+  const handleSaveTimePicker = () => {
+    if (!timePickerPlace) return;
+
+    const nextTime = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
+      timePickerMinute,
+    )} ${timePickerPeriod}`;
+
+    handleUpdatePlaceTime(timePickerPlace.id, nextTime);
+    closeTimePicker();
   };
 
   const handleAddPlace = () => {
@@ -149,12 +228,22 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          <View style={styles.simpleTimeRow}>
+          <TouchableOpacity
+            style={styles.simpleTimeRow}
+            activeOpacity={0.75}
+            onPress={() => openTimePicker(place)}
+          >
             <Ionicons name="time-outline" size={16} color="#94A3B8" />
             <Text style={styles.simplePlaceTime}>
               {place.time || "시간을 설정해주세요"}
             </Text>
-          </View>
+
+            <View style={styles.simpleTimeAction}>
+              <Text style={styles.simpleTimeActionText}>
+                {place.time ? "변경" : "설정"}
+              </Text>
+            </View>
+          </TouchableOpacity>
         </View>
       </View>
     );
@@ -329,6 +418,138 @@ export default function PlanAScreen({ navigation, route }: Props) {
           </View>
         </ScrollView>
       </View>
+
+      <Modal
+        visible={Boolean(timePickerPlace)}
+        transparent
+        animationType="fade"
+        onRequestClose={closeTimePicker}
+      >
+        <View style={styles.timeModalBackdrop}>
+          <View style={styles.timeModalCard}>
+            <View style={styles.timeModalHeader}>
+              <Text style={styles.timeModalTitle}>방문 시간 설정</Text>
+
+              <TouchableOpacity
+                style={styles.timeModalCloseButton}
+                activeOpacity={0.75}
+                onPress={closeTimePicker}
+              >
+                <Ionicons name="close" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.timeModalPlaceName} numberOfLines={1}>
+              {timePickerPlace?.name ?? "장소"}
+            </Text>
+
+            <View style={styles.timePickerPreview}>
+              <Text style={styles.timePickerPreviewText}>
+                {padTimeUnit(timePickerHour)}:{padTimeUnit(timePickerMinute)}{" "}
+                {timePickerPeriod}
+              </Text>
+            </View>
+
+            <View style={styles.timePickerControls}>
+              <View style={styles.timePickerColumn}>
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={increaseHour}
+                >
+                  <Ionicons name="chevron-up" size={22} color="#64748B" />
+                </TouchableOpacity>
+
+                <View style={styles.timePickerValueBox}>
+                  <Text style={styles.timePickerValueText}>
+                    {padTimeUnit(timePickerHour)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={decreaseHour}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.timePickerColon}>:</Text>
+
+              <View style={styles.timePickerColumn}>
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={increaseMinute}
+                >
+                  <Ionicons name="chevron-up" size={22} color="#64748B" />
+                </TouchableOpacity>
+
+                <View style={styles.timePickerValueBox}>
+                  <Text style={styles.timePickerValueText}>
+                    {padTimeUnit(timePickerMinute)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={decreaseMinute}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <View style={styles.timePickerColumn}>
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={toggleTimePeriod}
+                >
+                  <Ionicons name="chevron-up" size={22} color="#64748B" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.timePickerPeriodBox}
+                  activeOpacity={0.8}
+                  onPress={toggleTimePeriod}
+                >
+                  <Text style={styles.timePickerPeriodText}>
+                    {timePickerPeriod}
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={toggleTimePeriod}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            </View>
+
+            <View style={styles.timeModalButtonRow}>
+              <TouchableOpacity
+                style={styles.timeModalCancelButton}
+                activeOpacity={0.85}
+                onPress={closeTimePicker}
+              >
+                <Text style={styles.timeModalCancelText}>취소</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.timeModalSaveButton}
+                activeOpacity={0.85}
+                onPress={handleSaveTimePicker}
+              >
+                <Text style={styles.timeModalSaveText}>저장</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -651,6 +872,191 @@ const styles = StyleSheet.create({
 
   editModeButtonTextActive: {
     color: "#FFFFFF",
+  },
+
+  simpleTimeAction: {
+    marginLeft: 8,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+
+  simpleTimeActionText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  timeModalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(15, 23, 42, 0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
+  timeModalCard: {
+    width: "100%",
+    maxWidth: 340,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 18,
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 24,
+    elevation: 24,
+  },
+
+  timeModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+
+  timeModalTitle: {
+    color: "#1E293B",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+
+  timeModalCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timeModalPlaceName: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "800",
+    marginBottom: 16,
+  },
+
+  timePickerPreview: {
+    height: 46,
+    borderRadius: 12,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 18,
+  },
+
+  timePickerPreviewText: {
+    color: "#111827",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: 0.4,
+  },
+
+  timePickerControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginBottom: 20,
+  },
+
+  timePickerColumn: {
+    alignItems: "center",
+    gap: 8,
+  },
+
+  timePickerArrow: {
+    width: 54,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timePickerValueBox: {
+    width: 54,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timePickerValueText: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+
+  timePickerColon: {
+    color: "#64748B",
+    fontSize: 24,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+
+  timePickerPeriodBox: {
+    width: 58,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timePickerPeriodText: {
+    color: "#2158E8",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  timeModalButtonRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  timeModalCancelButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timeModalCancelText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  timeModalSaveButton: {
+    flex: 1,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  timeModalSaveText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
 });

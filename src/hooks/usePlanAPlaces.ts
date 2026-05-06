@@ -381,6 +381,22 @@ export function usePlanAPlaces({
     hasLoadedSavedSchedule,
   ]);
 
+  const handleUpdatePlaceTime = (placeId: string, time: string) => {
+    const nextTime = time.trim();
+
+    updatePlacesForDay(selectedDay, (targetPlaces) =>
+      targetPlaces.map((place) =>
+        place.id === placeId ?
+          {
+            ...place,
+            time: nextTime,
+            updatedAt: createNow(),
+          }
+        : place,
+      ),
+    );
+  };
+
   const resetEditingState = () => {
     setEditingMemo(null);
     setEditingMemoText("");
@@ -672,6 +688,7 @@ export function usePlanAPlaces({
 
     handleStartEditPlace,
     handleCancelEditPlace,
+    handleUpdatePlaceTime,
     handleSaveEditPlace,
     handleDeletePlace,
 
