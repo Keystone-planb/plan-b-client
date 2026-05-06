@@ -304,9 +304,7 @@ export default function MainScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.contentArea}>
-          <View style={styles.textGroup}>
-            {renderScheduleSection()}
-          </View>
+          <View style={styles.textGroup}>{renderScheduleSection()}</View>
 
           <View style={styles.bottomActionGroup}>
             <TouchableOpacity
@@ -680,5 +678,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
   },
-
 });
