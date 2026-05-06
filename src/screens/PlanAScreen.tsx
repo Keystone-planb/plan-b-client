@@ -12,6 +12,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 import PlanADayTabs from "../components/planA/PlanADayTabs";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
+import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
@@ -45,6 +46,7 @@ const formatDisplayDate = (value: string) => {
 
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
+  const [isEditMode, setIsEditMode] = useState(false);
 
   const scheduleId = route?.params?.scheduleId;
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
@@ -62,6 +64,29 @@ export default function PlanAScreen({ navigation, route }: Props) {
     loadingSchedule,
     loadError,
     currentPlaces,
+
+    memoDrafts,
+    editingPlaceId,
+    editingPlaceName,
+    editingPlaceTime,
+    editingMemo,
+    editingMemoText,
+
+    setEditingMemoText,
+    handleChangeMemoDraft,
+    handleAddMemo,
+    handleClearMemo,
+    handleStartEditPlace,
+    handleCancelEditPlace,
+    handleSaveEditPlace,
+    handleDeletePlace,
+    handleChangeEditingPlaceName,
+    handleChangeEditingPlaceTime,
+    handleStartEditMemo,
+    handleCancelEditMemo,
+    handleSaveEditMemo,
+    handleDeleteMemo,
+
     resetEditingState,
   } = usePlanAPlaces({
     selectedDay,
@@ -105,17 +130,63 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const renderPlaceCard = (place: PlaceItem, index: number) => {
     return (
       <View key={place.id} style={styles.simplePlaceRow}>
-        <View style={styles.timelineDot}>
-          <Text style={styles.timelineDotText}>{index + 1}</Text>
+        <View style={styles.timelineColumn}>
+          <View style={styles.timelineDot}>
+            <Text style={styles.timelineDotText}>{index + 1}</Text>
+          </View>
+
+          <View style={styles.timelineLine} />
         </View>
 
         <View style={styles.simplePlaceCard}>
-          <Text style={styles.simplePlaceTitle}>{place.name}</Text>
-          <Text style={styles.simplePlaceTime}>
-            {place.time || "시간을 설정해주세요"}
-          </Text>
+          <View style={styles.simplePlaceHeader}>
+            <Text style={styles.simplePlaceTitle} numberOfLines={1}>
+              {place.name}
+            </Text>
+
+            <View style={styles.placeOrderBadge}>
+              <Text style={styles.placeOrderBadgeText}>Day {selectedDay}</Text>
+            </View>
+          </View>
+
+          <View style={styles.simpleTimeRow}>
+            <Ionicons name="time-outline" size={16} color="#94A3B8" />
+            <Text style={styles.simplePlaceTime}>
+              {place.time || "시간을 설정해주세요"}
+            </Text>
+          </View>
         </View>
       </View>
+    );
+  };
+
+  const renderEditablePlaceCard = (place: PlaceItem, index: number) => {
+    return (
+      <PlanAPlaceCard
+        key={place.id}
+        place={place}
+        index={index}
+        memoDraft={memoDrafts[place.id] ?? ""}
+        editingMemo={editingMemo}
+        editingMemoText={editingMemoText}
+        editingPlaceId={editingPlaceId}
+        editingPlaceName={editingPlaceName}
+        editingPlaceTime={editingPlaceTime}
+        onStartEditPlace={handleStartEditPlace}
+        onCancelEditPlace={handleCancelEditPlace}
+        onSaveEditPlace={handleSaveEditPlace}
+        onDeletePlace={handleDeletePlace}
+        onChangeEditingPlaceName={handleChangeEditingPlaceName}
+        onChangeEditingPlaceTime={handleChangeEditingPlaceTime}
+        onChangeMemoDraft={handleChangeMemoDraft}
+        onAddMemo={handleAddMemo}
+        onClearMemo={handleClearMemo}
+        onStartEditMemo={handleStartEditMemo}
+        onCancelEditMemo={handleCancelEditMemo}
+        onSaveEditMemo={handleSaveEditMemo}
+        onDeleteMemo={handleDeleteMemo}
+        onChangeEditingMemoText={setEditingMemoText}
+      />
     );
   };
 
@@ -203,7 +274,45 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             {currentPlaces.length > 0 ?
-              currentPlaces.map((place, index) => renderPlaceCard(place, index))
+              <View style={styles.editModeHeader}>
+                <Text style={styles.editModeTitle}>
+                  {isEditMode ? "일정 수정" : "오늘의 일정"}
+                </Text>
+
+                <TouchableOpacity
+                  style={[
+                    styles.editModeButton,
+                    isEditMode && styles.editModeButtonActive,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    resetEditingState();
+                    setIsEditMode((prev) => !prev);
+                  }}
+                >
+                  <Ionicons
+                    name={isEditMode ? "checkmark" : "create-outline"}
+                    size={14}
+                    color={isEditMode ? "#FFFFFF" : "#2158E8"}
+                  />
+                  <Text
+                    style={[
+                      styles.editModeButtonText,
+                      isEditMode && styles.editModeButtonTextActive,
+                    ]}
+                  >
+                    {isEditMode ? "완료" : "수정"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            : null}
+
+            {currentPlaces.length > 0 ?
+              currentPlaces.map((place, index) =>
+                isEditMode ?
+                  renderEditablePlaceCard(place, index)
+                : renderPlaceCard(place, index),
+              )
             : <PlanAEmptyPlaceCard
                 selectedDay={selectedDay}
                 onPress={handleAddPlace}
@@ -410,24 +519,37 @@ const styles = StyleSheet.create({
   simplePlaceRow: {
     width: "100%",
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "stretch",
     marginBottom: 14,
   },
 
+  timelineColumn: {
+    width: 34,
+    alignItems: "center",
+    marginRight: 12,
+  },
+
   timelineDot: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#2563EB",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
-    marginTop: 16,
+    marginTop: 18,
     shadowColor: "#2563EB",
     shadowOpacity: 0.25,
     shadowRadius: 8,
     shadowOffset: { width: 0, height: 4 },
     elevation: 3,
+  },
+
+  timelineLine: {
+    flex: 1,
+    width: 2,
+    marginTop: 8,
+    borderRadius: 999,
+    backgroundColor: "#DDE7F2",
   },
 
   timelineDotText: {
@@ -438,27 +560,97 @@ const styles = StyleSheet.create({
 
   simplePlaceCard: {
     flex: 1,
-    minHeight: 78,
-    borderRadius: 12,
+    minHeight: 88,
+    borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 18,
     paddingVertical: 16,
     justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 2,
+  },
+
+  simplePlaceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 10,
   },
 
   simplePlaceTitle: {
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#334155",
-    marginBottom: 8,
+    flex: 1,
+    fontSize: 17,
+    fontWeight: "900",
+    color: "#1E293B",
+  },
+
+  placeOrderBadge: {
+    borderRadius: 999,
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+
+  placeOrderBadgeText: {
+    color: "#2563EB",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  simpleTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
   },
 
   simplePlaceTime: {
     fontSize: 14,
-    fontWeight: "600",
+    fontWeight: "700",
     color: "#94A3B8",
+  },
+
+  editModeHeader: {
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  editModeTitle: {
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  editModeButton: {
+    height: 32,
+    borderRadius: 10,
+    backgroundColor: "#EAF3FF",
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+
+  editModeButtonActive: {
+    backgroundColor: "#2158E8",
+  },
+
+  editModeButtonText: {
+    color: "#2158E8",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  editModeButtonTextActive: {
+    color: "#FFFFFF",
   },
 
 });
