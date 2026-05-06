@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   ScrollView,
@@ -27,6 +27,12 @@ import UpcomingTripCard, {
 } from "../components/home/UpcomingTripCard";
 import RadialBackground from "../components/RadialBackground";
 import CalendarIcon from "../assets/calendar.svg";
+import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
+import {
+  dismissNotification,
+  getWeatherNotifications,
+} from "../../api/notifications/notifications";
+import type { WeatherNotification } from "../types/notification";
 
 type Props = {
   navigation: any;
@@ -90,6 +96,21 @@ const getHomeStatusText = ({
 };
 
 export default function MainScreen({ navigation }: Props) {
+
+  const [weatherNotifications, setWeatherNotifications] = useState<
+    WeatherNotification[]
+  >([]);
+
+
+  useEffect(() => {
+    const loadWeatherNotifications = async () => {
+      const notifications = await getWeatherNotifications(1);
+      setWeatherNotifications(notifications);
+    };
+
+    loadWeatherNotifications();
+  }, []);
+
   const [loading, setLoading] = useState(true);
   const [homeData, setHomeData] = useState<HomeScheduleResponse>({
     ongoingPlaces: [],
@@ -161,6 +182,25 @@ export default function MainScreen({ navigation }: Props) {
     });
   };
 
+  const handleDismissWeatherNotification = async (
+    notification: WeatherNotification,
+  ) => {
+    await dismissNotification(notification.notificationId);
+
+    setWeatherNotifications((prev) =>
+      prev.filter(
+        (item) => item.notificationId !== notification.notificationId,
+      ),
+    );
+  };
+
+  const handlePressWeatherRecommend = (notification: WeatherNotification) => {
+    navigation.navigate("PlanA", {
+      tripId: String(notification.tripId ?? ""),
+    });
+  };
+
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
@@ -169,6 +209,16 @@ export default function MainScreen({ navigation }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+
+        {weatherNotifications.map((notification) => (
+          <WeatherNotificationCard
+            key={String(notification.notificationId)}
+            notification={notification}
+            onDismiss={handleDismissWeatherNotification}
+            onPressRecommend={handlePressWeatherRecommend}
+          />
+        ))}
+
           <Text style={styles.logo}>Plan.B</Text>
 
           {loading ?

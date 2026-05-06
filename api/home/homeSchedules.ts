@@ -2,7 +2,7 @@ import { getTrips, TripSummary } from "../schedules/server";
 
 // true  = mock 데이터 사용, 실제 홈/일정 API 호출 안 함
 // false = 실제 홈/일정 API 호출
-const USE_HOME_MOCK = false;
+const USE_HOME_MOCK = true;
 
 export type OngoingPlace = {
   id: string;
