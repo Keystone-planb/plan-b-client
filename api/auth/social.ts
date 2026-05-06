@@ -1,8 +1,6 @@
 import { Platform } from "react-native";
 import * as Linking from "expo-linking";
 
-import { API_CONFIG } from "../config";
-
 export type SocialProvider = "kakao" | "google";
 
 type SocialAuthUrlResult = {
@@ -11,6 +9,8 @@ type SocialAuthUrlResult = {
   encodedRedirectUri: string;
   authUrl: string;
 };
+
+const SOCIAL_AUTH_BASE_URL = "https://api-dev.planb-travel.cloud";
 
 const SOCIAL_AUTH_PATH: Record<SocialProvider, string> = {
   kakao: "/oauth2/authorization/kakao",
@@ -41,7 +41,7 @@ export const createSocialAuthUrl = (
   const redirectUri = getSocialRedirectUri();
   const encodedRedirectUri = encodeRedirectUriForOAuth(redirectUri);
 
-  const authUrl = `${API_CONFIG.BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodedRedirectUri}`;
+  const authUrl = `${SOCIAL_AUTH_BASE_URL}${SOCIAL_AUTH_PATH[provider]}?redirect_uri=${encodedRedirectUri}`;
 
   return {
     provider,
