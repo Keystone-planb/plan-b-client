@@ -97,9 +97,10 @@ export default function RecommendationStreamCard() {
 
       await reportPreferenceFeedback({
         userId: 1,
-        placeId: nextPlaceId,
-        feedbackType: "REPLACE",
-        reason: "WEATHER_RECOMMENDATION_REPLACE",
+        shownPlaceIds: places
+          .map((item) => item.placeId)
+          .filter((id) => id !== undefined && id !== null && id !== ""),
+        selectedPlaceId: nextPlaceId,
       });
 
       setSelectedPlaceId(nextPlaceId);

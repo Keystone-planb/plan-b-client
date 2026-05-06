@@ -53,7 +53,8 @@ export default function GapRecommendationCard({ tripId }: Props) {
             afterPlaceLng: 126.7251,
             availableMinutes: 45,
             gapMinutes: 60,
-            transportMode: "WALK",
+            estimatedTravelMinutes: 0,
+        transportMode: "WALK",
           },
         ];
 

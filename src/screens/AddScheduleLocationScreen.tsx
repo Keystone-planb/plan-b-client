@@ -119,12 +119,12 @@ export default function AddScheduleLocationScreen({
       setSelectedPlace(null);
 
     reportPreferenceFeedback({
-      userId: 1,
-      placeId:
-        String((null as any)?.placeId ?? (null as any)?.googlePlaceId ?? "unknown"),
-      feedbackType: "SELECT",
-      reason: "ADD_SCHEDULE_LOCATION_SELECT",
-    }).catch((error) => {
+        userId: 1,
+        shownPlaceIds: searchResults
+          .map((item) => item.placeId)
+          .filter((id) => id !== undefined && id !== null && id !== ""),
+        selectedPlaceId: String((null as any)?.placeId ?? (null as any)?.googlePlaceId ?? "unknown"),
+      }).catch((error) => {
       console.log("[preference feedback] ignored:", error);
     });
       setExpandedPlaceId(null);

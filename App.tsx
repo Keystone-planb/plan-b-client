@@ -21,6 +21,8 @@ import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import ProfileEditScreen from "./src/screens/ProfileEditScreen";
+import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
+import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
 
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 
@@ -65,6 +67,27 @@ export type RootStackParamList = {
     startDate?: string;
     endDate?: string;
   };
+
+  AIAnalysisLoading:
+    | {
+        userId?: number | string;
+        tripId?: number | string;
+        limit?: number;
+        reason?: string;
+        transportMode?: "WALK" | "TRANSIT" | "CAR";
+        title?: string;
+        subtitle?: string;
+      }
+    | undefined;
+
+  RecommendationResult:
+    | {
+        placesJson?: string;
+        fromAIAnalysis?: boolean;
+        hasError?: boolean;
+        title?: string;
+      }
+    | undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -86,6 +109,8 @@ const linking = {
       AddSchedule: "add-schedule",
       AddScheduleDate: "add-schedule-date",
       AddScheduleLocation: "add-schedule-location",
+      AIAnalysisLoading: "ai-analysis-loading",
+      RecommendationResult: "recommendation-result",
     },
   },
 };
@@ -253,6 +278,26 @@ export default function App() {
         <Stack.Screen
           name="AddScheduleLocation"
           component={AddScheduleLocationScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AIAnalysisLoading"
+          component={AIAnalysisLoadingScreen}
+          options={{
+            headerShown: false,
+            animation: "fade",
+            animationDuration: 220,
+          }}
+        />
+
+        <Stack.Screen
+          name="RecommendationResult"
+          component={RecommendationResultScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",
