@@ -82,6 +82,8 @@ function CustomBottomTabBar({
           return (
             <TouchableOpacity
               key={route.key}
+              testID={`bottom-tab-${route.name}`}
+              accessibilityLabel={`bottom-tab-${route.name}`}
               accessibilityRole="button"
               accessibilityState={focused ? { selected: true } : {}}
               accessibilityLabel={options.tabBarAccessibilityLabel}

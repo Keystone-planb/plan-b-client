@@ -91,16 +91,31 @@ test.describe("MVP 자동 QA", () => {
   test.skip("Profile 화면으로 이동하고 로그아웃할 수 있다", async ({ page }) => {
     await mockLogin(page);
 
-    await page.goto(`${BASE_URL}/profile`);
+    const profileTab = page
+      .locator(
+        '[data-testid="bottom-tab-Profile"], [aria-label="bottom-tab-Profile"]',
+      )
+      .first();
 
-    await expect(page.getByText(/로그아웃|프로필|선호 여행 스타일/)).toBeVisible({
+    if (await profileTab.isVisible().catch(() => false)) {
+      await profileTab.click();
+    } else {
+      await page.getByText(/Profile|프로필|마이/).first().click();
+    }
+
+    await expect(page.getByText(/로그아웃|선호 여행 스타일|프로필/)).toBeVisible({
       timeout: 15000,
     });
 
     const logoutButton = page.getByText("로그아웃").first();
+    await expect(logoutButton).toBeVisible({
+      timeout: 15000,
+    });
 
-    if (await logoutButton.isVisible().catch(() => false)) {
-      await logoutButton.click();
-    }
+    await logoutButton.click();
+
+    await expect(page.getByText(/로그인|간편 로그인|이메일/)).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

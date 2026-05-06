@@ -19,6 +19,7 @@ import PlanAScheduleInfoEditor from "../components/planA/PlanAScheduleInfoEditor
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
 import RecommendationStreamCard from "../components/recommendations/RecommendationStreamCard";
+import TransportModeSelector from "../components/planA/TransportModeSelector";
 
 type Props = {
   navigation: any;
@@ -30,6 +31,7 @@ type Props = {
       endDate?: string;
       location?: string;
       selectedPlace?: SelectedPlaceParam;
+      tripId?: number | string;
     };
   };
 };
@@ -49,6 +51,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const endDate = route?.params?.endDate ?? "04.23";
   const location = route?.params?.location ?? "";
   const selectedPlace = route?.params?.selectedPlace;
+  const routeTripId = route?.params?.tripId;
 
   const {
     schedule,
@@ -186,6 +189,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 : <Text style={styles.saveButtonText}>저장</Text>}
               </TouchableOpacity>
             </View>
+
+            <TransportModeSelector
+              tripId={routeTripId ?? (schedule as any).serverTripId}
+            />
 
             <PlanAScheduleInfoEditor
               tripName={schedule.tripName}
