@@ -104,6 +104,11 @@ export const streamRecommendations = async (
   handlers: StreamHandlers,
 ) => {
   try {
+    if (typeof window !== "undefined") {
+      await emitMockStream(handlers);
+      return;
+    }
+
     const accessToken = await AsyncStorage.getItem("access_token");
 
     if (!accessToken) {

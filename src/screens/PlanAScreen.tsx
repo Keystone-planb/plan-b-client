@@ -18,6 +18,7 @@ import PlanAScheduleInfoEditor from "../components/planA/PlanAScheduleInfoEditor
 
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
+import RecommendationStreamCard from "../components/recommendations/RecommendationStreamCard";
 
 type Props = {
   navigation: any;
@@ -159,6 +160,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
           bounces={false}
         >
+
+        <RecommendationStreamCard />
+
           <View style={styles.headerSection}>
             <View style={styles.headerRow}>
               <TouchableOpacity
