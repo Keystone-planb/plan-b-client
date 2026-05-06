@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
@@ -124,19 +124,7 @@ const createInitialSchedule = ({
     days: [
       {
         day: 1,
-        places: [
-          createPlace({
-            id: "place-1",
-            name: "강릉역",
-            time: "10:00",
-            order: 1,
-            memos: [
-              createMemo("내일 매점 까먹지 말기"),
-              createMemo("강릉역 근처 맛집 확인하기"),
-              createMemo("카페 예약 시간 확인하기"),
-            ],
-          }),
-        ],
+        places: [],
       },
       {
         day: 2,
@@ -195,6 +183,7 @@ export function usePlanAPlaces({
   const [loadError, setLoadError] = useState("");
   const [hasLoadedSavedSchedule, setHasLoadedSavedSchedule] = useState(false);
   const [loadedSavedSchedule, setLoadedSavedSchedule] = useState(false);
+  const savedSelectedPlaceKeyRef = useRef<string | null>(null);
 
   const placesByDay = useMemo(() => {
     return convertScheduleToPlacesByDay(schedule);
@@ -308,6 +297,8 @@ export function usePlanAPlaces({
   ]);
 
   useEffect(() => {
+    if (!hasLoadedSavedSchedule) return;
+
     if (!selectedPlace?.id || !selectedPlace.name) return;
 
     const targetDay = selectedPlace.day ?? 1;
@@ -335,7 +326,7 @@ export function usePlanAPlaces({
         createPlace({
           id: selectedPlace.id,
           name: selectedPlace.name,
-          time: selectedPlace.time ?? "10:00",
+          time: selectedPlace.time ?? "",
           order: targetPlaces.length + 1,
         }),
       ];
@@ -345,6 +336,49 @@ export function usePlanAPlaces({
     selectedPlace?.name,
     selectedPlace?.time,
     selectedPlace?.day,
+    hasLoadedSavedSchedule,
+  ]);
+
+  useEffect(() => {
+    if (!hasLoadedSavedSchedule) return;
+
+    if (!selectedPlace?.id || !selectedPlace.name) return;
+
+    const targetDay = selectedPlace.day ?? 1;
+    const selectedPlaceKey = `${targetDay}:${selectedPlace.id}:${
+      selectedPlace.time ?? ""
+    }`;
+
+    if (savedSelectedPlaceKeyRef.current === selectedPlaceKey) return;
+
+    const hasSelectedPlace = schedule.days
+      .find((day) => day.day === targetDay)
+      ?.places.some((place) => place.id === selectedPlace.id);
+
+    if (!hasSelectedPlace) return;
+
+    savedSelectedPlaceKeyRef.current = selectedPlaceKey;
+
+    savePlanASchedule(schedule)
+      .then(() => {
+        setLoadedSavedSchedule(true);
+        console.log("[PlanA 선택 장소 로컬 저장 완료]", {
+          scheduleId: schedule.id,
+          placeId: selectedPlace.id,
+          targetDay,
+        });
+      })
+      .catch((error) => {
+        savedSelectedPlaceKeyRef.current = null;
+        console.log("[PlanA 선택 장소 로컬 저장 실패]", error);
+      });
+  }, [
+    schedule,
+    selectedPlace?.id,
+    selectedPlace?.name,
+    selectedPlace?.time,
+    selectedPlace?.day,
+    hasLoadedSavedSchedule,
   ]);
 
   const resetEditingState = () => {

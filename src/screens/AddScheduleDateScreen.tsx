@@ -35,7 +35,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
 
   const handleNext = () => {
     if (!canGoNext) {
-      console.log("[지역 선택 이동 중단]", {
+      console.log("[여행 수단 선택 이동 중단]", {
         tripName,
         startDate,
         endDate,
@@ -43,7 +43,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
       return;
     }
 
-    navigation.navigate("AddScheduleLocation", {
+    navigation.navigate("AddScheduleTransport", {
       tripName: tripName.trim(),
       startDate,
       endDate,

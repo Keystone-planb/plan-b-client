@@ -13,6 +13,7 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import MainScreen from "./src/screens/MainScreen";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
+import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 
@@ -32,21 +33,54 @@ type RootStackParamList = {
     tripName: string;
   };
 
+  AddScheduleTransport: {
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+
   AddScheduleLocation: {
-    tripName: string;
-    startDate: string;
-    endDate: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    day?: number;
+    selectedDay?: number;
+    scheduleId?: string;
+    location?: string;
+    transportMode?: "WALK" | "TRANSIT" | "CAR";
+    transportLabel?: string;
   };
 
   PlanA: {
+    scheduleId?: string;
     tripName?: string;
     startDate?: string;
     endDate?: string;
     location?: string;
+    transportMode?: "WALK" | "TRANSIT" | "CAR";
+    transportLabel?: string;
+    selectedPlace?: {
+      id: string;
+      placeId?: string;
+      googlePlaceId?: string;
+      name: string;
+      address?: string;
+      category?: string;
+      latitude?: number;
+      longitude?: number;
+      day?: number;
+      time?: string;
+    };
   };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
+
+// 화면 플로우 테스트용.
+// 커밋 전 반드시 null로 변경.
+// 예: const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null = null;
+const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null =
+  null;
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<
@@ -55,6 +89,15 @@ export default function App() {
 
   useEffect(() => {
     const bootstrapAuth = async () => {
+      if (FORCE_INITIAL_ROUTE_FOR_FLOW_TEST) {
+        console.log(
+          "[App] 화면 플로우 테스트용 초기 라우트:",
+          FORCE_INITIAL_ROUTE_FOR_FLOW_TEST,
+        );
+        setInitialRoute(FORCE_INITIAL_ROUTE_FOR_FLOW_TEST);
+        return;
+      }
+
       try {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
@@ -145,6 +188,16 @@ export default function App() {
         <Stack.Screen
           name="AddScheduleDate"
           component={AddScheduleDateScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AddScheduleTransport"
+          component={AddScheduleTransportScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",

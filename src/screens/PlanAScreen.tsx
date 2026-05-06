@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,9 +11,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import PlanADayTabs from "../components/planA/PlanADayTabs";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
-import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
-import PlanAScheduleInfoEditor from "../components/planA/PlanAScheduleInfoEditor";
 
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
@@ -28,6 +25,8 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
+      transportMode?: "WALK" | "TRANSIT" | "CAR";
+      transportLabel?: string;
       selectedPlace?: SelectedPlaceParam;
     };
   };
@@ -39,6 +38,11 @@ const DAY_OPTIONS: DayOption[] = [
   { id: 3, label: "Day 3" },
 ];
 
+const formatDisplayDate = (value: string) => {
+  if (!value) return "";
+  return value.replace(/-/g, ".");
+};
+
 export default function PlanAScreen({ navigation, route }: Props) {
   const [selectedDay, setSelectedDay] = useState(1);
 
@@ -47,49 +51,18 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "04.23";
   const location = route?.params?.location ?? "";
+  const transportMode = route?.params?.transportMode ?? "WALK";
+  const transportLabel = route?.params?.transportLabel ?? "도보";
   const selectedPlace = route?.params?.selectedPlace;
 
   const {
     schedule,
-    updateScheduleInfo,
-
-    saving,
     saveError,
     saveSuccessMessage,
-    handleSaveSchedule,
-
     loadingSchedule,
     loadError,
-
     currentPlaces,
-
-    memoDrafts,
-
-    editingMemo,
-    editingMemoText,
-    setEditingMemoText,
-
-    editingPlaceId,
-    editingPlaceName,
-    setEditingPlaceName,
-    editingPlaceTime,
-    setEditingPlaceTime,
-
     resetEditingState,
-
-    handleStartEditPlace,
-    handleCancelEditPlace,
-    handleSaveEditPlace,
-    handleDeletePlace,
-
-    handleChangeMemoDraft,
-    handleAddMemo,
-    handleClearMemo,
-
-    handleStartEditMemo,
-    handleCancelEditMemo,
-    handleSaveEditMemo,
-    handleDeleteMemo,
   } = usePlanAPlaces({
     selectedDay,
     selectedPlace,
@@ -116,43 +89,33 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const handleAddPlace = () => {
-    navigation.navigate("AddPlace", {
+    navigation.navigate("AddScheduleLocation", {
       day: selectedDay,
+      selectedDay,
       scheduleId: schedule.id,
       tripName: schedule.tripName,
       startDate: schedule.startDate,
       endDate: schedule.endDate,
       location: schedule.location,
+      transportMode,
+      transportLabel,
     });
   };
 
   const renderPlaceCard = (place: PlaceItem, index: number) => {
     return (
-      <PlanAPlaceCard
-        key={place.id}
-        place={place}
-        index={index}
-        memoDraft={memoDrafts[place.id] ?? ""}
-        editingMemo={editingMemo}
-        editingMemoText={editingMemoText}
-        editingPlaceId={editingPlaceId}
-        editingPlaceName={editingPlaceName}
-        editingPlaceTime={editingPlaceTime}
-        onStartEditPlace={handleStartEditPlace}
-        onCancelEditPlace={handleCancelEditPlace}
-        onSaveEditPlace={handleSaveEditPlace}
-        onDeletePlace={handleDeletePlace}
-        onChangeEditingPlaceName={setEditingPlaceName}
-        onChangeEditingPlaceTime={setEditingPlaceTime}
-        onChangeMemoDraft={handleChangeMemoDraft}
-        onAddMemo={handleAddMemo}
-        onClearMemo={handleClearMemo}
-        onStartEditMemo={handleStartEditMemo}
-        onCancelEditMemo={handleCancelEditMemo}
-        onSaveEditMemo={handleSaveEditMemo}
-        onDeleteMemo={handleDeleteMemo}
-        onChangeEditingMemoText={setEditingMemoText}
-      />
+      <View key={place.id} style={styles.simplePlaceRow}>
+        <View style={styles.timelineDot}>
+          <Text style={styles.timelineDotText}>{index + 1}</Text>
+        </View>
+
+        <View style={styles.simplePlaceCard}>
+          <Text style={styles.simplePlaceTitle}>{place.name}</Text>
+          <Text style={styles.simplePlaceTime}>
+            {place.time || "시간을 설정해주세요"}
+          </Text>
+        </View>
+      </View>
     );
   };
 
@@ -172,30 +135,24 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 onPress={handleBack}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-back" size={22} color="#64748B" />
+                <Ionicons name="chevron-back" size={24} color="#64748B" />
               </TouchableOpacity>
 
               <Text style={styles.logoText}>Plan.A</Text>
 
-              <TouchableOpacity
-                style={[styles.saveButton, saving && styles.saveButtonDisabled]}
-                activeOpacity={0.85}
-                onPress={handleSaveSchedule}
-                disabled={saving}
-              >
-                {saving ?
-                  <ActivityIndicator size="small" color="#2158E8" />
-                : <Text style={styles.saveButtonText}>저장</Text>}
-              </TouchableOpacity>
+              <View style={styles.headerSpacer} />
             </View>
 
-            <PlanAScheduleInfoEditor
-              tripName={schedule.tripName}
-              startDate={schedule.startDate}
-              endDate={schedule.endDate}
-              location={schedule.location}
-              onSave={updateScheduleInfo}
-            />
+            <View style={styles.scheduleSummary}>
+              <Text style={styles.planTitle}>{schedule.tripName}</Text>
+              <Text style={styles.planDate}>
+                {formatDisplayDate(schedule.startDate)} -{" "}
+                {formatDisplayDate(schedule.endDate)}
+              </Text>
+              <Text style={styles.planTransport}>
+                이동수단 · {transportLabel}
+              </Text>
+            </View>
 
             {saveSuccessMessage ?
               <View style={styles.saveFeedbackBox}>
@@ -306,6 +263,36 @@ const styles = StyleSheet.create({
     height: 34,
     alignItems: "flex-start",
     justifyContent: "center",
+  },
+
+  headerSpacer: {
+    width: 34,
+    height: 34,
+  },
+
+  scheduleSummary: {
+    marginTop: 16,
+    marginBottom: 20,
+  },
+
+  planTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#1C2534",
+    marginBottom: 8,
+  },
+
+  planDate: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#8C9BB1",
+  },
+
+  planTransport: {
+    marginTop: 6,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#2158E8",
   },
 
   logoText: {
@@ -420,4 +407,58 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+  simplePlaceRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
+
+  timelineDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+    marginTop: 16,
+    shadowColor: "#2563EB",
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 3,
+  },
+
+  timelineDotText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  simplePlaceCard: {
+    flex: 1,
+    minHeight: 78,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    justifyContent: "center",
+  },
+
+  simplePlaceTitle: {
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#334155",
+    marginBottom: 8,
+  },
+
+  simplePlaceTime: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
 });
