@@ -162,15 +162,17 @@ export default function LoginScreen({ navigation }: any) {
     if (isBusy) return;
 
     try {
-      setSocialLoadingProvider("kakao");
-
       const { authUrl } = createSocialAuthUrl("kakao");
 
       if (Platform.OS === "web") {
-        window.location.assign(authUrl);
+        if (typeof window !== "undefined") {
+          window.location.href = authUrl;
+        }
+
         return;
       }
 
+      setSocialLoadingProvider("kakao");
       setKakaoAuthUrl(authUrl);
       setWebViewVisible(true);
     } catch (error) {
@@ -183,14 +185,17 @@ export default function LoginScreen({ navigation }: any) {
     if (isBusy) return;
 
     try {
-      setSocialLoadingProvider("google");
-
       const { authUrl, redirectUri } = createSocialAuthUrl("google");
 
       if (Platform.OS === "web") {
-        window.location.assign(authUrl);
+        if (typeof window !== "undefined") {
+          window.location.href = authUrl;
+        }
+
         return;
       }
+
+      setSocialLoadingProvider("google");
 
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
@@ -203,11 +208,13 @@ export default function LoginScreen({ navigation }: any) {
       }
 
       if (result.type === "cancel" || result.type === "dismiss") {
+        setSocialLoadingProvider(null);
         return;
       }
+
+      setSocialLoadingProvider(null);
     } catch (error) {
       handleLoginError("구글 로그인 실패", error);
-    } finally {
       setSocialLoadingProvider(null);
     }
   };
