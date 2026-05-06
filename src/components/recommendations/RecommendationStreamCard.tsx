@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -22,6 +21,7 @@ export default function RecommendationStreamCard() {
     "날씨나 일정 상황에 맞는 대안 장소를 추천받아보세요.",
   );
   const [places, setPlaces] = useState<RecommendedPlace[]>([]);
+  const [replacedPlaceId, setReplacedPlaceId] = useState<number | string | null>(null);
   const [replacingPlaceId, setReplacingPlaceId] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
@@ -86,6 +86,8 @@ export default function RecommendationStreamCard() {
   }, []);
 
   const handleReplacePlace = async (place: RecommendedPlace) => {
+    setReplacedPlaceId(place.placeId);
+    setMessage(`${place.name}을(를) 대체 장소로 임시 반영했습니다.`);
     const nextPlaceId = String(place.placeId);
 
     try {
@@ -103,15 +105,8 @@ export default function RecommendationStreamCard() {
       setSelectedPlaceId(nextPlaceId);
       setStatus("replaced");
       setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
-
-      Alert.alert("대체 완료", `${place.name}으로 일정을 대체했습니다.`);
     } catch (error) {
       console.log("[recommendation replace] ignored:", error);
-      Alert.alert(
-        "대체 완료",
-        "서버 연결이 불안정하지만 MVP 흐름에서는 대체된 것으로 처리했습니다.",
-      );
-
       setSelectedPlaceId(nextPlaceId);
       setStatus("replaced");
       setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
@@ -190,28 +185,26 @@ export default function RecommendationStreamCard() {
                   <Text style={styles.reason}>{place.reason}</Text>
                 ) : null}
 
-                <TouchableOpacity
-                  style={[
-                    styles.selectButton,
-                    isSelected && styles.selectedButton,
-                  ]}
-                  activeOpacity={0.85}
-                  onPress={() => handleReplacePlace(place)}
-                  disabled={isReplacing || isSelected}
-                >
-                  {isReplacing ? (
-                    <ActivityIndicator size="small" color="#2563EB" />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.selectButtonText,
-                        isSelected && styles.selectedButtonText,
-                      ]}
-                    >
-                      {isSelected ? "대체 완료" : "이 장소로 대체"}
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                {isSelected ? (
+                  <View style={styles.replacedBadge}>
+                    <Text style={styles.replacedBadgeText}>대체 완료</Text>
+                  </View>
+                ) : (
+                  <TouchableOpacity
+                    style={styles.selectButton}
+                    activeOpacity={0.85}
+                    onPress={() => handleReplacePlace(place)}
+                    disabled={isReplacing}
+                  >
+                    {isReplacing ? (
+                      <ActivityIndicator size="small" color="#2563EB" />
+                    ) : (
+                      <Text style={styles.selectButtonText}>
+                        이 장소로 대체
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
@@ -308,6 +301,11 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
+  replacedPlaceCard: {
+    borderColor: "#2563EB",
+    backgroundColor: "#EFF6FF",
+  },
+
   placeCard: {
     backgroundColor: "#F8FAFC",
     borderRadius: 18,
@@ -373,6 +371,21 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#334155",
     lineHeight: 19,
+  },
+
+  replacedBadge: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    backgroundColor: "#2563EB",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+  },
+
+  replacedBadgeText: {
+    fontSize: 11,
+    fontWeight: "900",
+    color: "#FFFFFF",
   },
 
   selectButton: {
