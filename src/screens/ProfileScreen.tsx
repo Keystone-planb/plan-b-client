@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -12,12 +12,27 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import { getMe, MeResponse } from "../../api/users/me";
 import { requestLogout } from "../../api/auth/logout";
+import { getPreferenceSummary } from "../../api/preferences/preferences";
+import type { PreferenceSummary } from "../types/preference";
 
 type Props = {
   navigation: any;
 };
 
 export default function ProfileScreen({ navigation }: Props) {
+
+  const [preferenceSummary, setPreferenceSummary] =
+    useState<PreferenceSummary | null>(null);
+
+  useEffect(() => {
+    const loadPreferenceSummary = async () => {
+      const summary = await getPreferenceSummary(1);
+      setPreferenceSummary(summary);
+    };
+
+    loadPreferenceSummary();
+  }, []);
+
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
@@ -75,6 +90,27 @@ export default function ProfileScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
+
+        {preferenceSummary ? (
+          <View style={styles.preferenceCard}>
+            <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
+            <Text style={styles.preferenceDescription}>
+              {preferenceSummary.summary ||
+                "아직 충분한 취향 데이터가 없어요. 장소를 선택하면 더 정확해져요."}
+            </Text>
+
+            {preferenceSummary.keywords?.length ? (
+              <View style={styles.preferenceKeywordRow}>
+                {preferenceSummary.keywords.slice(0, 3).map((keyword) => (
+                  <View key={keyword} style={styles.preferenceKeyword}>
+                    <Text style={styles.preferenceKeywordText}>{keyword}</Text>
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </View>
+        ) : null}
+
         <Text style={styles.logo}>Plan.B</Text>
 
         <TouchableOpacity
@@ -140,6 +176,51 @@ export default function ProfileScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
+
+  preferenceCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 22,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+
+  preferenceTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+
+  preferenceDescription: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+    lineHeight: 20,
+  },
+
+  preferenceKeywordRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+
+  preferenceKeyword: {
+    backgroundColor: "#E9F3FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  preferenceKeywordText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+
+
   safeArea: {
     flex: 1,
     backgroundColor: "#F7F9FC",
