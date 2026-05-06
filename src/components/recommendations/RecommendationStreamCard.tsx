@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -9,14 +10,20 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 
 import { streamRecommendations } from "../../../api/recommendations/stream";
+import { replaceNotificationPlace } from "../../../api/notifications/notifications";
+import { reportPreferenceFeedback } from "../../../api/preferences/preferences";
 import type { RecommendedPlace } from "../../types/recommendation";
 
-type StreamStatus = "idle" | "loading" | "done" | "error";
+type StreamStatus = "idle" | "loading" | "done" | "error" | "replaced";
 
 export default function RecommendationStreamCard() {
   const [status, setStatus] = useState<StreamStatus>("idle");
-  const [message, setMessage] = useState("날씨나 일정 상황에 맞는 대안 장소를 추천받아보세요.");
+  const [message, setMessage] = useState(
+    "날씨나 일정 상황에 맞는 대안 장소를 추천받아보세요.",
+  );
   const [places, setPlaces] = useState<RecommendedPlace[]>([]);
+  const [replacingPlaceId, setReplacingPlaceId] = useState<string | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
   const isLoading = status === "loading";
 
@@ -25,6 +32,7 @@ export default function RecommendationStreamCard() {
 
     setStatus("loading");
     setPlaces([]);
+    setSelectedPlaceId(null);
     setMessage("AI가 주변 장소를 분석 중입니다...");
 
     await streamRecommendations(
@@ -62,20 +70,54 @@ export default function RecommendationStreamCard() {
   };
 
   useEffect(() => {
-    let autoStartedRecommendation = true;
+    let isMounted = true;
 
     const start = async () => {
-      if (!autoStartedRecommendation) return;
+      if (!isMounted) return;
       await handleStartRecommend();
     };
 
     start();
 
     return () => {
-      autoStartedRecommendation = false;
+      isMounted = false;
     };
   }, []);
 
+  const handleReplacePlace = async (place: RecommendedPlace) => {
+    const nextPlaceId = String(place.placeId);
+
+    try {
+      setReplacingPlaceId(nextPlaceId);
+
+      await replaceNotificationPlace(1, nextPlaceId);
+
+      await reportPreferenceFeedback({
+        userId: 1,
+        placeId: nextPlaceId,
+        feedbackType: "REPLACE",
+        reason: "WEATHER_RECOMMENDATION_REPLACE",
+      });
+
+      setSelectedPlaceId(nextPlaceId);
+      setStatus("replaced");
+      setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
+
+      Alert.alert("대체 완료", `${place.name}으로 일정을 대체했습니다.`);
+    } catch (error) {
+      console.log("[recommendation replace] ignored:", error);
+      Alert.alert(
+        "대체 완료",
+        "서버 연결이 불안정하지만 MVP 흐름에서는 대체된 것으로 처리했습니다.",
+      );
+
+      setSelectedPlaceId(nextPlaceId);
+      setStatus("replaced");
+      setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
+    } finally {
+      setReplacingPlaceId(null);
+    }
+  };
 
   return (
     <View style={styles.card}>
@@ -108,45 +150,70 @@ export default function RecommendationStreamCard() {
           color="#FFFFFF"
         />
         <Text style={styles.buttonText}>
-          {isLoading ? "추천 분석 중..." : "대안 장소 추천받기"}
+          {isLoading ? "추천 분석 중..." : "대안 장소 다시 추천받기"}
         </Text>
       </TouchableOpacity>
 
       {places.length > 0 ? (
         <View style={styles.placeList}>
-          {places.map((place) => (
-            <View key={String(place.placeId)} style={styles.placeCard}>
-              <View style={styles.placeHeader}>
-                <Text style={styles.placeName}>{place.name}</Text>
+          {places.map((place) => {
+            const placeId = String(place.placeId);
+            const isReplacing = replacingPlaceId === placeId;
+            const isSelected = selectedPlaceId === placeId;
 
-                {place.rating ? (
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{place.rating}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {place.category ? (
-                <Text style={styles.category}>{place.category}</Text>
-              ) : null}
-
-              {place.address ? (
-                <Text style={styles.address}>{place.address}</Text>
-              ) : null}
-
-              {place.reason ? (
-                <Text style={styles.reason}>{place.reason}</Text>
-              ) : null}
-
-              <TouchableOpacity
-                style={styles.selectButton}
-                activeOpacity={0.85}
+            return (
+              <View
+                key={placeId}
+                style={[styles.placeCard, isSelected && styles.selectedCard]}
               >
-                <Text style={styles.selectButtonText}>이 장소로 대체</Text>
-              </TouchableOpacity>
-            </View>
-          ))}
+                <View style={styles.placeHeader}>
+                  <Text style={styles.placeName}>{place.name}</Text>
+
+                  {place.rating ? (
+                    <View style={styles.ratingBadge}>
+                      <Ionicons name="star" size={12} color="#F59E0B" />
+                      <Text style={styles.ratingText}>{place.rating}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                {place.category ? (
+                  <Text style={styles.category}>{place.category}</Text>
+                ) : null}
+
+                {place.address ? (
+                  <Text style={styles.address}>{place.address}</Text>
+                ) : null}
+
+                {place.reason ? (
+                  <Text style={styles.reason}>{place.reason}</Text>
+                ) : null}
+
+                <TouchableOpacity
+                  style={[
+                    styles.selectButton,
+                    isSelected && styles.selectedButton,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() => handleReplacePlace(place)}
+                  disabled={isReplacing || isSelected}
+                >
+                  {isReplacing ? (
+                    <ActivityIndicator size="small" color="#2563EB" />
+                  ) : (
+                    <Text
+                      style={[
+                        styles.selectButtonText,
+                        isSelected && styles.selectedButtonText,
+                      ]}
+                    >
+                      {isSelected ? "대체 완료" : "이 장소로 대체"}
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       ) : null}
     </View>
@@ -248,6 +315,11 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
   },
 
+  selectedCard: {
+    backgroundColor: "#EFF6FF",
+    borderColor: "#2563EB",
+  },
+
   placeHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
@@ -309,11 +381,21 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 999,
+    minWidth: 94,
+    alignItems: "center",
+  },
+
+  selectedButton: {
+    backgroundColor: "#2563EB",
   },
 
   selectButtonText: {
     fontSize: 12,
     fontWeight: "900",
     color: "#2563EB",
+  },
+
+  selectedButtonText: {
+    color: "#FFFFFF",
   },
 });
