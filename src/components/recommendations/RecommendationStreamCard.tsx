@@ -41,6 +41,7 @@ export default function RecommendationStreamCard() {
         tripId: 1,
         limit: 5,
         reason: "WEATHER_ALTERNATIVE",
+        transportMode: "WALK",
       },
       {
         onProgress: (nextMessage) => {

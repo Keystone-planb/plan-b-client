@@ -1,5 +1,7 @@
 export type RecommendationStreamEventType = "progress" | "place" | "done";
 
+export type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
 export type RecommendationProgressEvent = {
   type: "progress";
   message: string;
@@ -42,4 +44,5 @@ export type RecommendRequest = {
   category?: string;
   limit?: number;
   reason?: string;
+  transportMode?: TransportMode;
 };
