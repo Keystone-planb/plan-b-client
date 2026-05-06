@@ -2,7 +2,7 @@
  * src/screens/LoginScreen.tsx
  */
 
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   View,
   Text,
@@ -61,6 +61,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const [webViewVisible, setWebViewVisible] = useState(false);
   const [kakaoAuthUrl, setKakaoAuthUrl] = useState("");
+  const oauthHandledRef = useRef(false);
 
   const isPasswordLongEnough = password.length >= 8;
   const hasPasswordLetter = /[A-Za-z]/.test(password);
@@ -84,12 +85,12 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const goMainWithAlert = (message: string) => {
-    Alert.alert("성공", message, [
-      {
-        text: "확인",
-        onPress: () => navigation.replace("Main"),
-      },
-    ]);
+    console.log("[LoginScreen] 로그인 성공:", message);
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Main" }],
+    });
   };
 
   // 토큰 저장 후 메인 화면으로 이동
@@ -173,33 +174,80 @@ export default function LoginScreen({ navigation }: any) {
     setKakaoAuthUrl("");
   };
 
+  const isOAuthRedirectUrl = (url?: string | null) => {
+    if (!url) return false;
+
+    return (
+      url.includes("oauth/success") ||
+      url.includes("oauth/failure") ||
+      url.startsWith("planb://oauth/success") ||
+      url.startsWith("planb://oauth/failure")
+    );
+  };
+
   // OAuth 성공/실패 redirect URL에서 토큰 또는 에러 메시지 추출
   const handleOAuthRedirect = async (url: string) => {
-    if (!url.includes("/oauth/success") && !url.includes("/oauth/failure")) {
+    console.log("[OAuthRedirect] received:", url);
+
+    if (!isOAuthRedirectUrl(url)) {
       return;
     }
 
+    if (oauthHandledRef.current) {
+      console.log("[OAuthRedirect] already handled. skip.");
+      return;
+    }
+
+    oauthHandledRef.current = true;
+
     try {
+      setLoading(true);
+
       const parsedUrl = new URL(url);
       const accessToken = parsedUrl.searchParams.get("access_token");
       const refreshToken = parsedUrl.searchParams.get("refresh_token");
+      const userId = parsedUrl.searchParams.get("user_id");
+      const nickname = parsedUrl.searchParams.get("nickname");
       const errorMessage = parsedUrl.searchParams.get("error");
+
+      console.log("[OAuthRedirect] parsed:", {
+        hasAccessToken: Boolean(accessToken),
+        hasRefreshToken: Boolean(refreshToken),
+        userId,
+        nickname,
+        isFailure: url.includes("oauth/failure"),
+      });
 
       closeKakaoWebView();
 
-      if (url.includes("/oauth/failure")) {
+      if (url.includes("oauth/failure")) {
         throw new Error(errorMessage ?? "소셜 로그인에 실패했습니다.");
       }
 
-      await completeLogin(
-        {
-          access_token: accessToken ?? "",
-          refresh_token: refreshToken ?? "",
-        },
-        "소셜 로그인되었습니다.",
-      );
+      if (!accessToken || !refreshToken) {
+        throw new Error("소셜 로그인 토큰이 없습니다.");
+      }
+
+      await AsyncStorage.multiSet([
+        ["access_token", accessToken],
+        ["refresh_token", refreshToken],
+        ["user_id", userId ?? ""],
+        ["nickname", nickname ? decodeURIComponent(nickname) : ""],
+      ]);
+
+      console.log("[OAuthRedirect] token saved. move Main");
+
+      navigation.reset({
+        index: 0,
+        routes: [{ name: "Main" }],
+      });
     } catch (error) {
+      console.log("[OAuthRedirect] failed:", error);
+      oauthHandledRef.current = false;
+      closeKakaoWebView();
       showError("소셜 로그인 실패", error);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -347,9 +395,50 @@ export default function LoginScreen({ navigation }: any) {
           {kakaoAuthUrl ?
             <WebView
               source={{ uri: kakaoAuthUrl }}
+              originWhitelist={["*"]}
+              setSupportMultipleWindows={false}
+              javaScriptEnabled
+              domStorageEnabled
+              onShouldStartLoadWithRequest={(request) => {
+                const url = request.url;
+
+                console.log("WebView 요청 URL:", url);
+
+                if (isOAuthRedirectUrl(url)) {
+                  handleOAuthRedirect(url);
+                  return false;
+                }
+
+                if (url.startsWith("planb://")) {
+                  return false;
+                }
+
+                return true;
+              }}
+              onLoadStart={(event) => {
+                const url = event.nativeEvent.url;
+
+                console.log("WebView 로드 시작 URL:", url);
+
+                if (isOAuthRedirectUrl(url)) {
+                  handleOAuthRedirect(url);
+                }
+              }}
               onNavigationStateChange={({ url }) => {
                 console.log("WebView 현재 URL:", url);
-                handleOAuthRedirect(url);
+
+                if (isOAuthRedirectUrl(url)) {
+                  handleOAuthRedirect(url);
+                }
+              }}
+              onError={(event) => {
+                const url = event.nativeEvent.url;
+
+                console.log("WebView 에러 URL:", url);
+
+                if (isOAuthRedirectUrl(url)) {
+                  handleOAuthRedirect(url);
+                }
               }}
               startInLoadingState
               renderLoading={() => (
