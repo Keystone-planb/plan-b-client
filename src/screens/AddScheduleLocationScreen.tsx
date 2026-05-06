@@ -15,9 +15,19 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 
-import { getPlaceDetail, searchPlaces } from "../../api/places/searchPlaces";
-import { PlaceSearchResult } from "../../api/places/place";
+import {
+  getPlaceDetail,
+  getPlaceFreshness,
+  getPlaceSummary,
+  searchPlaces,
+} from "../../api/places/searchPlaces";
+import {
+  PlaceFreshnessResponse,
+  PlaceSearchResult,
+  PlaceSummaryResponse,
+} from "../../api/places/place";
 import { createTrip } from "../../api/schedules/server";
+import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 
 type Props = {
   navigation: any;
@@ -33,6 +43,12 @@ type SelectedPlace = {
   latitude: number;
   longitude: number;
 };
+
+type PlaceReviewInfo = {
+  summary?: PlaceSummaryResponse;
+  freshness?: PlaceFreshnessResponse;
+};
+
 
 const INITIAL_REGION = {
   latitude: 37.7519,
@@ -59,6 +75,9 @@ export default function AddScheduleLocationScreen({
     string | null
   >(null);
   const [expandedPlaceId, setExpandedPlaceId] = useState<string | null>(null);
+  const [placeReviewMap, setPlaceReviewMap] = useState<
+    Record<string, PlaceReviewInfo>
+  >({});
   const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
     null,
   );
@@ -98,6 +117,16 @@ export default function AddScheduleLocationScreen({
     try {
       setSearchLoading(true);
       setSelectedPlace(null);
+
+    reportPreferenceFeedback({
+      userId: 1,
+      placeId:
+        String((null as any)?.placeId ?? (null as any)?.googlePlaceId ?? "unknown"),
+      feedbackType: "SELECT",
+      reason: "ADD_SCHEDULE_LOCATION_SELECT",
+    }).catch((error) => {
+      console.log("[preference feedback] ignored:", error);
+    });
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
@@ -157,20 +186,50 @@ export default function AddScheduleLocationScreen({
     }
   };
 
-  const handleTogglePlaceReview = (placeId: string) => {
-    if (expandedPlaceId === placeId) {
-      setExpandedPlaceId(null);
-      setReviewLoadingPlaceId(null);
+  const handleTogglePlaceReview = async (placeId: string) => {
+    if (reviewLoadingPlaceId) {
       return;
     }
 
-    setReviewLoadingPlaceId(placeId);
-    setExpandedPlaceId(null);
+    if (expandedPlaceId === placeId) {
+      setExpandedPlaceId(null);
+      return;
+    }
 
-    setTimeout(() => {
-      setReviewLoadingPlaceId(null);
+    try {
+      setReviewLoadingPlaceId(placeId);
+
+      const [summary, freshness] = await Promise.all([
+        getPlaceSummary(placeId),
+        getPlaceFreshness(placeId),
+      ]);
+
+      setPlaceReviewMap((prev) => ({
+        ...prev,
+        [placeId]: {
+          summary,
+          freshness,
+        },
+      }));
+
       setExpandedPlaceId(placeId);
-    }, 1000);
+    } catch (error) {
+      console.log("장소 요약 정보 조회 실패:", error);
+
+      setPlaceReviewMap((prev) => ({
+        ...prev,
+        [placeId]: {
+          summary: {
+            placeId,
+            aiSummary: "아직 요약 정보가 없습니다.",
+          },
+        },
+      }));
+
+      setExpandedPlaceId(placeId);
+    } finally {
+      setReviewLoadingPlaceId(null);
+    }
   };
 
   const handleNext = async () => {
@@ -301,6 +360,25 @@ export default function AddScheduleLocationScreen({
             const isDetailLoading = detailLoadingPlaceId === place.placeId;
             const isReviewLoading = reviewLoadingPlaceId === place.placeId;
             const isExpanded = expandedPlaceId === place.placeId;
+            const reviewInfo = placeReviewMap[place.placeId];
+            const summary = reviewInfo?.summary;
+            const freshness = reviewInfo?.freshness;
+            const aiSummary =
+              summary?.aiSummary ||
+              summary?.reviewSummary ||
+              "아직 요약 정보가 없습니다.";
+            const googleReview =
+              summary?.googleReview || "구글 리뷰 요약을 준비 중입니다.";
+            const naverReview =
+              summary?.naverReview || "네이버 리뷰 요약을 준비 중입니다.";
+            const instaReview =
+              summary?.instaReview || "인스타그램 리뷰 요약을 준비 중입니다.";
+            const freshnessText =
+              freshness?.status === "FRESH" || freshness?.isFresh
+                ? "최신 정보"
+                : freshness?.lastSyncedAt || freshness?.last_updated
+                  ? "최근 업데이트 확인"
+                  : "최신성 확인 중";
 
             return (
               <View
@@ -404,17 +482,14 @@ export default function AddScheduleLocationScreen({
                           />
 
                           <Text style={styles.expandedMetaText}>
-                            10:00 - 21:00
+                            {freshnessText}
                           </Text>
                         </View>
                       </View>
                     </View>
 
                     <View style={styles.aiReviewBox}>
-                      <Text style={styles.aiReviewText}>
-                        📊 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
-                        좋아요
-                      </Text>
+                      <Text style={styles.aiReviewText}>📊 {aiSummary}</Text>
 
                       <View style={styles.aiBadge}>
                         <Text style={styles.aiBadgeText}>AI</Text>
@@ -426,22 +501,19 @@ export default function AddScheduleLocationScreen({
 
                       <View style={styles.platformReviewCard}>
                         <Text style={styles.platformReviewText}>
-                          🟢 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
-                          좋아요
+                          🟢 {googleReview}
                         </Text>
                       </View>
 
                       <View style={styles.platformReviewCard}>
                         <Text style={styles.platformReviewText}>
-                          📸 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
-                          좋아요
+                          📸 {naverReview}
                         </Text>
                       </View>
 
                       <View style={styles.platformReviewCard}>
                         <Text style={styles.platformReviewText}>
-                          🌈 아이들과 함께 가기 너무 좋아요! 구경거리도 많아서
-                          좋아요
+                          🌈 {instaReview}
                         </Text>
                       </View>
                     </View>

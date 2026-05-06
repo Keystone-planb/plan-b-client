@@ -19,7 +19,7 @@ export const reportPreferenceFeedback = async (
     await apiClient.post("/api/preferences/feedback", payload);
     return true;
   } catch (error) {
-    console.log("[preferences/feedback] mock fallback:", error);
+    if (__DEV__) console.warn("[preferences/feedback] mock fallback");
     return true;
   }
 };
@@ -36,7 +36,7 @@ export const getPreferenceSummary = async (
 
     return response.data as PreferenceSummary;
   } catch (error) {
-    console.log("[preferences/summary] mock fallback:", error);
+    if (__DEV__) console.warn("[preferences/summary] mock fallback");
     return {
       ...MOCK_PREFERENCE_SUMMARY,
       userId,
