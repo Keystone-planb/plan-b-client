@@ -20,12 +20,18 @@ type Props = {
 export default function OnboardingFourthScreen({ navigation }: Props) {
   const handleSkip = async () => {
     await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.replace("Login");
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
   };
 
   const handleStart = async () => {
     await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.replace("Login");
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
   };
 
   return (
