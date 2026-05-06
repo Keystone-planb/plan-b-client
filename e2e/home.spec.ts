@@ -10,7 +10,6 @@ test.describe("홈 화면 smoke test", () => {
       console.log("[browser:pageerror]", error.message);
     });
 
-    // 웹 E2E에서는 서버/CORS에 흔들리지 않도록 내 정보 조회 API를 mock 처리
     await page.route("**/api/users/me", async (route) => {
       await route.fulfill({
         status: 200,
@@ -27,7 +26,6 @@ test.describe("홈 화면 smoke test", () => {
       waitUntil: "domcontentloaded",
     });
 
-    // AsyncStorage web fallback용 토큰 주입
     await page.evaluate(() => {
       window.localStorage.setItem("access_token", "e2e-test-access-token");
       window.localStorage.setItem("refresh_token", "e2e-test-refresh-token");
@@ -70,10 +68,14 @@ test.describe("홈 화면 smoke test", () => {
 
     await page.getByText("일정 추가하기").click();
 
-    await expect(
-      page.getByPlaceholder(/여행 이름|일정 이름|여행 제목/),
-    ).toBeVisible({
+    const tripNameInput = page.locator("input").first();
+
+    await expect(tripNameInput).toBeVisible({
       timeout: 15000,
     });
+
+    await tripNameInput.fill("E2E 테스트 여행");
+
+    await expect(tripNameInput).toHaveValue("E2E 테스트 여행");
   });
 });
