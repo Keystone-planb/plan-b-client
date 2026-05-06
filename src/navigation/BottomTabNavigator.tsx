@@ -115,11 +115,32 @@ export default function BottomTabNavigator() {
         tabBarShowLabel: false,
       }}
     >
-      <Tab.Screen name="PlanX" component={PlanXScreen} />
+      <Tab.Screen
+        name="PlanX"
+        component={PlanXScreen}
+        options={{
+          tabBarButtonTestID: "bottom-tab-PlanX",
+          tabBarAccessibilityLabel: "bottom-tab-PlanX",
+        }}
+      />
 
-      <Tab.Screen name="Home" component={MainScreen} />
+      <Tab.Screen
+        name="Home"
+        component={MainScreen}
+        options={{
+          tabBarButtonTestID: "bottom-tab-Home",
+          tabBarAccessibilityLabel: "bottom-tab-Home",
+        }}
+      />
 
-      <Tab.Screen name="Profile" component={ProfileScreen} />
+      <Tab.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          tabBarButtonTestID: "bottom-tab-Profile",
+          tabBarAccessibilityLabel: "bottom-tab-Profile",
+        }}
+      />
     </Tab.Navigator>
   );
 }

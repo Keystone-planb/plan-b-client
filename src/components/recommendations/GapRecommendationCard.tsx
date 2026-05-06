@@ -157,11 +157,21 @@ export default function GapRecommendationCard({ tripId }: Props) {
                   </Text>
                 </View>
 
-                <Ionicons
-                  name="chevron-forward"
-                  size={18}
-                  color={isSelected ? "#FFFFFF" : "#94A3B8"}
-                />
+                <View style={styles.gapActionBox}>
+                  <Text
+                    style={[
+                      styles.gapActionText,
+                      isSelected && styles.selectedGapActionText,
+                    ]}
+                  >
+                    추천 받기
+                  </Text>
+                  <Ionicons
+                    name="chevron-forward"
+                    size={18}
+                    color="#1D4ED8"
+                  />
+                </View>
               </TouchableOpacity>
             );
           })}
@@ -277,13 +287,13 @@ const styles = StyleSheet.create({
   },
 
   gapButton: {
-    minHeight: 58,
+    minHeight: 68,
     borderRadius: 16,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -292,6 +302,28 @@ const styles = StyleSheet.create({
   selectedGap: {
     backgroundColor: "#2563EB",
     borderColor: "#2563EB",
+  },
+
+  gapActionBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+
+  gapActionText: {
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#1D4ED8",
+  },
+
+  selectedGapActionText: {
+    color: "#1D4ED8",
   },
 
   gapTextBox: {

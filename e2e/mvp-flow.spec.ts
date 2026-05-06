@@ -1,8 +1,8 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, Page } from "@playwright/test";
 
-const BASE_URL = "http://localhost:8081";
+const BASE_URL = process.env.E2E_BASE_URL ?? "http://localhost:8082";
 
-async function goToLogin(page: any) {
+async function goToLogin(page: Page) {
   await page.goto(BASE_URL);
 
   const skipButton = page.getByText("건너뛰기").first();
@@ -16,7 +16,7 @@ async function goToLogin(page: any) {
   }
 }
 
-async function mockLogin(page: any) {
+async function mockLogin(page: Page) {
   await goToLogin(page);
 
   const emailInput = page.getByPlaceholder(/example|이메일|planb/i).first();
@@ -27,7 +27,9 @@ async function mockLogin(page: any) {
 
   await page.getByText("로그인").first().click();
 
-  await expect(page.getByText(/등록된 일정이 없습니다|일정 추가하기|Plan\.B|날씨 알림/)).toBeVisible({
+  await expect(
+    page.getByText(/등록된 일정이 없습니다|일정 추가하기|Plan\.B|날씨 알림/),
+  ).toBeVisible({
     timeout: 15000,
   });
 }
@@ -51,14 +53,20 @@ test.describe("MVP 자동 QA", () => {
       timeout: 15000,
     });
 
-    const closeButton = page.locator("text=날씨 알림").locator("..").getByRole("button").first();
+    const closeButton = page
+      .locator("text=날씨 알림")
+      .locator("..")
+      .getByRole("button")
+      .first();
 
     if (await closeButton.isVisible().catch(() => false)) {
       await closeButton.click();
     }
   });
 
-  test("Home에서 대안 추천 보기로 Plan.A에 진입할 수 있다", async ({ page }) => {
+  test("Home에서 대안 추천 보기로 Plan.A에 진입할 수 있다", async ({
+    page,
+  }) => {
     await mockLogin(page);
 
     const recommendButton = page.getByText("대안 추천 보기").first();
@@ -83,24 +91,38 @@ test.describe("MVP 자동 QA", () => {
       timeout: 15000,
     });
 
-    await expect(page.getByText(/대안 장소 추천이 완료되었습니다|비 오는 날|국립현대미술관/)).toBeVisible({
+    await expect(
+      page.getByText(/대안 장소 추천이 완료되었습니다|비 오는 날|국립현대미술관/),
+    ).toBeVisible({
       timeout: 15000,
     });
   });
 
-  test.skip("Profile 화면으로 이동하고 로그아웃할 수 있다", async ({ page }) => {
+  test("Profile 화면으로 이동하고 로그아웃할 수 있다", async ({ page }) => {
     await mockLogin(page);
 
-    await page.goto(`${BASE_URL}/profile`);
+    const profileTab = page.getByTestId("bottom-tab-Profile").first();
 
-    await expect(page.getByText(/로그아웃|프로필|선호 여행 스타일/)).toBeVisible({
+    await expect(profileTab).toBeVisible({
       timeout: 15000,
     });
 
+    await profileTab.click();
+
     const logoutButton = page.getByText("로그아웃").first();
 
-    if (await logoutButton.isVisible().catch(() => false)) {
-      await logoutButton.click();
-    }
+    await expect(logoutButton).toBeVisible({
+      timeout: 15000,
+    });
+
+    await expect(logoutButton).toBeVisible({
+      timeout: 15000,
+    });
+
+    await logoutButton.click();
+
+    await expect(page.getByText("간편 로그인")).toBeVisible({
+      timeout: 15000,
+    });
   });
 });

@@ -19,6 +19,7 @@ import PlanAScheduleInfoEditor from "../components/planA/PlanAScheduleInfoEditor
 import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
 import RecommendationStreamCard from "../components/recommendations/RecommendationStreamCard";
+import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 
 type Props = {
   navigation: any;
@@ -30,6 +31,7 @@ type Props = {
       endDate?: string;
       location?: string;
       selectedPlace?: SelectedPlaceParam;
+      tripId?: number | string;
     };
   };
 };
@@ -162,6 +164,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
         >
 
         <RecommendationStreamCard />
+
+        <GapRecommendationCard
+          tripId={(schedule as any).serverTripId ?? route?.params?.tripId}
+        />
 
           <View style={styles.headerSection}>
             <View style={styles.headerRow}>
