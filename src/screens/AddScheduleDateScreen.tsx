@@ -1,130 +1,160 @@
 import React, { useState } from "react";
 import {
-  Alert,
   View,
   ScrollView,
   Text,
   TouchableOpacity,
   StyleSheet,
 } from "react-native";
-
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+
 import TravelDateRangeModal from "../components/TravelDateRangeModal";
 
 type Props = {
   navigation: any;
-  route: any;
+  route: {
+    params?: {
+      tripName?: string;
+    };
+  };
 };
 
 export default function AddScheduleDateScreen({ navigation, route }: Props) {
-  const tripName = route?.params?.tripName ?? "";
+  const tripName = route.params?.tripName ?? "";
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [calendarVisible, setCalendarVisible] = useState(false);
+
+  const canGoNext = Boolean(tripName.trim() && startDate && endDate);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const handleComplete = () => {
-    if (!startDate || !endDate) {
-      Alert.alert("알림", "여행 날짜를 선택해주세요.");
+  const handleNext = () => {
+    if (!canGoNext) {
+      console.log("[여행 수단 선택 이동 중단]", {
+        tripName,
+        startDate,
+        endDate,
+      });
       return;
     }
 
-    navigation.navigate("AddScheduleLocation", {
-      tripName,
+    navigation.navigate("AddScheduleTransport", {
+      tripName: tripName.trim(),
       startDate,
       endDate,
     });
   };
 
-  const formatDate = (value: string) => value.replace(/-/g, ".");
+  const formatDate = (value: string) => {
+    if (!value) return "";
+    return value.replace(/-/g, ".");
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
-      >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.iconButton}
-            onPress={handleBack}
-            activeOpacity={0.8}
-          >
-            <Ionicons name="chevron-back" size={24} color="#1C2534" />
-          </TouchableOpacity>
+      <View style={styles.screen}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.headerRow}>
+            <TouchableOpacity
+              style={styles.iconButton}
+              onPress={handleBack}
+              activeOpacity={0.8}
+            >
+              <Ionicons name="chevron-back" size={24} color="#1C2534" />
+            </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Plan.A</Text>
+            <Text style={styles.headerTitle}>Plan.A</Text>
 
-          <View style={styles.iconPlaceholder} />
-        </View>
-
-        <View style={styles.centerSection}>
-          <View style={[styles.illustrationWrapper, styles.calendarBg]}>
-            <Text style={styles.illustrationEmoji}>📅</Text>
+            <View style={styles.iconPlaceholder} />
           </View>
 
-          <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
-
-          <Text style={styles.description}>
-            {tripName ?
-              `"${tripName}" 여행은 언제 떠나시나요?`
-            : "언제부터 언제까지 여행하시나요?"}
-          </Text>
-        </View>
-
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>출발일</Text>
-          <TouchableOpacity
-            style={styles.dateField}
-            activeOpacity={0.85}
-            onPress={() => setCalendarVisible(true)}
-          >
-            <Text style={styles.dateText}>
-              {startDate ? formatDate(startDate) : "출발일 선택"}
-            </Text>
-            <View style={styles.calendarButton}>
-              <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+          <View style={styles.topSection}>
+            <View style={styles.illustrationWrapper}>
+              <Text style={styles.illustrationEmoji}>📅</Text>
             </View>
-          </TouchableOpacity>
-        </View>
 
-        <View style={styles.fieldGroup}>
-          <Text style={styles.fieldLabel}>종료일</Text>
-          <TouchableOpacity
-            style={styles.dateField}
-            activeOpacity={0.85}
-            onPress={() => setCalendarVisible(true)}
-          >
-            <Text style={styles.dateText}>
-              {endDate ? formatDate(endDate) : "종료일 선택"}
+            <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
+
+            <Text style={styles.description}>
+              {tripName ?
+                `"${tripName}" 여행은 언제 떠나시나요?`
+              : "언제부터 언제까지 여행하시나요?"}
             </Text>
-            <View style={styles.calendarButton}>
-              <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+          </View>
+
+          <View style={styles.inputSection}>
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>출발일</Text>
+
+              <TouchableOpacity
+                style={styles.dateField}
+                activeOpacity={0.85}
+                onPress={() => setCalendarVisible(true)}
+              >
+                <Text
+                  style={[
+                    styles.dateText,
+                    startDate && styles.selectedDateText,
+                  ]}
+                >
+                  {startDate ? formatDate(startDate) : "0000.00.00"}
+                </Text>
+
+                <View style={styles.calendarButton}>
+                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                </View>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </View>
+
+            <View style={styles.fieldGroup}>
+              <Text style={styles.fieldLabel}>종료일</Text>
+
+              <TouchableOpacity
+                style={styles.dateField}
+                activeOpacity={0.85}
+                onPress={() => setCalendarVisible(true)}
+              >
+                <Text
+                  style={[styles.dateText, endDate && styles.selectedDateText]}
+                >
+                  {endDate ? formatDate(endDate) : "0000.00.00"}
+                </Text>
+
+                <View style={styles.calendarButton}>
+                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                </View>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </ScrollView>
 
         <View style={styles.footerSection}>
           <View style={styles.pagination}>
             <View style={styles.dot} />
             <View style={styles.activeDot} />
+            <View style={styles.dot} />
           </View>
 
           <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleComplete}
+            style={[styles.nextButton, !canGoNext && styles.disabledButton]}
+            onPress={handleNext}
             activeOpacity={0.85}
+            disabled={!canGoNext}
           >
             <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
-      </ScrollView>
+      </View>
 
       <TravelDateRangeModal
         visible={calendarVisible}
@@ -143,87 +173,65 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F7F9FB",
   },
-
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: "#F7F9FB",
   },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingTop: 18,
-    paddingBottom: 36,
-    paddingHorizontal: 21,
+  container: {
+    flex: 1,
   },
-
+  scrollContent: {
+    paddingTop: 18,
+    paddingHorizontal: 21,
+    paddingBottom: 24,
+  },
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 56,
+    marginBottom: 42,
     paddingHorizontal: 4,
   },
-
   iconButton: {
     width: 30,
     height: 30,
     alignItems: "center",
     justifyContent: "center",
   },
-
   iconPlaceholder: {
     width: 30,
     height: 30,
   },
-
   headerTitle: {
     color: "#1C2534",
     fontSize: 40,
     fontWeight: "900",
     textAlign: "center",
   },
-
-  centerSection: {
+  topSection: {
     alignItems: "center",
-    marginBottom: 40,
+    marginBottom: 34,
   },
-
   illustrationWrapper: {
-    width: 214,
-    height: 214,
-    borderRadius: 999,
+    width: 170,
+    height: 170,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 40,
-    shadowColor: "#000000",
-    shadowOpacity: 0.12,
-    shadowOffset: {
-      width: 0,
-      height: 5,
-    },
-    shadowRadius: 15,
-    elevation: 12,
+    marginBottom: 30,
   },
-
-  calendarBg: {
-    backgroundColor: "#FFEDD2",
-  },
-
   illustrationEmoji: {
-    fontSize: 80,
+    fontSize: 96,
   },
-
   title: {
     color: "#000000",
     fontSize: 30,
     fontWeight: "800",
     textAlign: "center",
     lineHeight: 40,
-    marginBottom: 20,
+    marginBottom: 16,
   },
-
   description: {
     color: "#627187",
     fontSize: 16,
@@ -231,18 +239,18 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 8,
   },
-
-  fieldGroup: {
+  inputSection: {
     marginBottom: 20,
   },
-
+  fieldGroup: {
+    marginBottom: 18,
+  },
   fieldLabel: {
     color: "#252D3C",
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 8,
   },
-
   dateField: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -254,13 +262,15 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
   },
-
   dateText: {
     color: "#8C9BB1",
     fontSize: 16,
     fontWeight: "500",
   },
-
+  selectedDateText: {
+    color: "#1C2534",
+    fontWeight: "700",
+  },
   calendarButton: {
     width: 40,
     height: 40,
@@ -269,33 +279,30 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   footerSection: {
-    marginTop: "auto",
+    paddingHorizontal: 21,
+    paddingBottom: 24,
+    backgroundColor: "#F7F9FB",
   },
-
   pagination: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    marginBottom: 24,
   },
-
   activeDot: {
     width: 24,
     height: 6,
     borderRadius: 999,
     backgroundColor: "#2158E8",
+    marginHorizontal: 8,
   },
-
   dot: {
     width: 6,
     height: 6,
     borderRadius: 999,
     backgroundColor: "#E1E7EF",
-    marginRight: 8,
   },
-
   nextButton: {
     alignItems: "center",
     justifyContent: "center",
@@ -311,7 +318,9 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
-
+  disabledButton: {
+    opacity: 0.45,
+  },
   nextButtonText: {
     color: "#FFFFFF",
     fontSize: 16,

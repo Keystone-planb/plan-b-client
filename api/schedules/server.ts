@@ -268,3 +268,22 @@ export const replacePlanPlace = async (
 
   return response.data as ReplacePlanResponse;
 };
+
+export const addLocationToTripDay = async ({
+  tripId,
+  day,
+  payload,
+}: {
+  tripId: number | string;
+  day: number;
+  payload: AddTripLocationRequest;
+}): Promise<AddTripLocationResponse> => {
+  const response = await apiClient.post<unknown>(
+    `/api/trips/${tripId}/days/${day}/locations`,
+    payload,
+  );
+
+  assertNotHtmlResponse(response.data, "여행 장소 추가");
+
+  return response.data as AddTripLocationResponse;
+};

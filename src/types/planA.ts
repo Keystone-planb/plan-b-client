@@ -28,7 +28,13 @@ export type PlacesByDay = Record<number, PlaceItem[]>;
  */
 export type SelectedPlaceParam = {
   id: string;
+  placeId?: string;
+  googlePlaceId?: string;
   name: string;
+  address?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
   time?: string;
   day?: number;
 };

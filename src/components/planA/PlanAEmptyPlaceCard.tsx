@@ -3,7 +3,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
   selectedDay: number;
-  onPress?: () => void;
+  onPress: () => void;
 };
 
 export default function PlanAEmptyPlaceCard({ selectedDay, onPress }: Props) {
@@ -21,7 +21,6 @@ export default function PlanAEmptyPlaceCard({ selectedDay, onPress }: Props) {
         style={styles.emptyPlaceCardLarge}
         activeOpacity={0.85}
         onPress={onPress}
-      disabled={!onPress}
       >
         <Text style={styles.emptyPlaceTitle}>장소를 추가해주세요</Text>
 

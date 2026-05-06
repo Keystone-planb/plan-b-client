@@ -30,6 +30,7 @@ import {
 } from "../../api/places/place";
 import { createTrip } from "../../api/schedules/server";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = {
   navigation: any;
@@ -142,6 +143,8 @@ export default function AddScheduleLocationScreen({
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
+  const transportMode = route?.params?.transportMode ?? "TRANSIT";
+  const transportLabel = route?.params?.transportLabel ?? "대중교통";
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -149,7 +152,39 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
-    navigation.navigate("MainTabs");
+    navigation.navigate("Main");
+  };
+
+
+  const toNumericPlaceId = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && /^\d+$/.test(value)) {
+      return Number(value);
+    }
+
+    return null;
+  };
+
+
+  const getFeedbackPlaceId = (value: unknown): number | null => {
+    const target = value as {
+      id?: unknown;
+      placeId?: unknown;
+      place_id?: unknown;
+      dbPlaceId?: unknown;
+      serverPlaceId?: unknown;
+    };
+
+    return (
+      toNumericPlaceId(target?.id) ??
+      toNumericPlaceId(target?.placeId) ??
+      toNumericPlaceId(target?.place_id) ??
+      toNumericPlaceId(target?.dbPlaceId) ??
+      toNumericPlaceId(target?.serverPlaceId)
+    );
   };
 
   const handleSearch = async () => {
@@ -163,15 +198,6 @@ export default function AddScheduleLocationScreen({
       setSearchLoading(true);
       setSelectedPlace(null);
 
-    reportPreferenceFeedback({
-        userId: 1,
-        shownPlaceIds: searchResults
-          .map((item) => item.placeId)
-          .filter((id) => id !== undefined && id !== null && id !== ""),
-        selectedPlaceId: String((null as any)?.placeId ?? (null as any)?.googlePlaceId ?? "unknown"),
-      }).catch((error) => {
-      console.log("[preference feedback] ignored:", error);
-    });
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
@@ -195,12 +221,12 @@ export default function AddScheduleLocationScreen({
 
   const handlePlaceDetail = async (place: PlaceSearchResult) => {
     try {
-      setDetailLoadingPlaceId(place.placeId);
+      setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getPlaceDetail(place.placeId);
+      const detail = await getPlaceDetail(place.googlePlaceId ?? String(place.placeId));
 
       const nextPlace: SelectedPlace = {
-        placeId: place.placeId,
+        placeId: String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -211,9 +237,27 @@ export default function AddScheduleLocationScreen({
 
       setSelectedPlace(nextPlace);
       setKeyword(place.name);
+
+      const storedUserId = await AsyncStorage.getItem("user_id");
+
+      if (!storedUserId) {
+        console.warn("[preference feedback] user_id 없음. feedback 호출 생략");
+        return;
+      }
+
+      const feedbackPlaceId = String(place.googlePlaceId ?? place.placeId);
+
+      reportPreferenceFeedback({
+        userId: storedUserId,
+        placeId: feedbackPlaceId,
+        feedbackType: "SELECT",
+        reason: "ADD_SCHEDULE_LOCATION_SELECT",
+      }).catch((error) => {
+        console.log("[preference feedback] ignored:", error);
+      });
     } catch {
       const fallbackPlace: SelectedPlace = {
-        placeId: place.placeId,
+        placeId: String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -295,9 +339,22 @@ export default function AddScheduleLocationScreen({
         travelStyles: ["HEALING"],
       });
 
-      navigation.reset({
-        index: 0,
-        routes: [{ name: "MainTabs" }],
+      navigation.navigate("PlanA", {
+        tripName,
+        startDate,
+        endDate,
+        location:
+          selectedPlace.name ||
+          selectedPlace.address ||
+          "선택한 장소",
+        transportMode,
+        transportLabel,
+        selectedPlace: {
+          id: selectedPlace.placeId,
+          name: selectedPlace.name,
+          time: "",
+          day: route?.params?.day ?? route?.params?.selectedDay ?? 1,
+        },
       });
     } catch (error) {
       console.log("여행 생성 실패:", error);
@@ -404,8 +461,8 @@ export default function AddScheduleLocationScreen({
         >
           {placesToRender.map((place) => {
             const isPreview = place.placeId === "empty-preview-1";
-            const isSelected = selectedPlace?.placeId === place.placeId;
-            const isDetailLoading = detailLoadingPlaceId === place.placeId;
+            const isSelected = selectedPlace?.placeId === String(place.placeId);
+            const isDetailLoading = detailLoadingPlaceId === String(place.placeId);
             const isReviewLoading = reviewLoadingPlaceId === place.placeId;
             const isExpanded = expandedPlaceId === place.placeId;
             const reviewInfo = placeReviewMap[place.placeId];
@@ -415,12 +472,27 @@ export default function AddScheduleLocationScreen({
               summary?.aiSummary ||
               summary?.reviewSummary ||
               "아직 요약 정보가 없습니다.";
+            const keywords = summary?.keywords ?? [];
+
             const googleReview =
-              summary?.googleReview || "구글 리뷰 요약을 준비 중입니다.";
+              summary?.googleReview ||
+              summary?.googleReviewSummary ||
+              summary?.platformSummaries?.google ||
+              "구글 리뷰 요약을 준비 중입니다.";
+
             const naverReview =
-              summary?.naverReview || "네이버 리뷰 요약을 준비 중입니다.";
+              summary?.naverReview ||
+              summary?.naverReviewSummary ||
+              summary?.platformSummaries?.naver ||
+              "네이버 리뷰 요약을 준비 중입니다.";
+
             const instaReview =
-              summary?.instaReview || "인스타그램 리뷰 요약을 준비 중입니다.";
+              summary?.instaReview ||
+              summary?.instagramReviewSummary ||
+              summary?.instaReviewSummary ||
+              summary?.platformSummaries?.instagram ||
+              summary?.platformSummaries?.insta ||
+              "인스타그램 리뷰 요약을 준비 중입니다.";
             const freshnessText =
               freshness?.status === "FRESH" || freshness?.isFresh
                 ? "최신 정보"
@@ -430,7 +502,7 @@ export default function AddScheduleLocationScreen({
 
             return (
               <View
-                key={place.placeId}
+                key={`place-${String(place.placeId)}`}
                 style={[
                   styles.placeCard,
                   isExpanded && styles.expandedPlaceCard,
@@ -465,7 +537,7 @@ export default function AddScheduleLocationScreen({
                   ]}
                   activeOpacity={0.8}
                   disabled={isPreview || isReviewLoading}
-                  onPress={() => handleTogglePlaceReview(place.placeId)}
+                  onPress={() => handleTogglePlaceReview(place.googlePlaceId ?? String(place.placeId))}
                 >
                   {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
@@ -973,6 +1045,26 @@ const styles = StyleSheet.create({
     bottom: 0,
     width: 1,
     backgroundColor: "#DDE5EF",
+  },
+
+  keywordWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+  },
+
+  keywordChip: {
+    borderRadius: 999,
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+
+  keywordText: {
+    color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "800",
   },
 
   platformReviewCard: {

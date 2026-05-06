@@ -21,13 +21,14 @@ export const getSchedules = async (): Promise<SavedSchedule[]> => {
   try {
     return JSON.parse(rawSchedules) as SavedSchedule[];
   } catch (error) {
+    console.log("일정 목록 파싱 실패:", error);
     return [];
   }
 };
 
 export const saveSchedule = async (
   schedule: Omit<SavedSchedule, "id" | "createdAt">,
-): Promise<SavedSchedule> => {
+) => {
   const prevSchedules = await getSchedules();
 
   const newSchedule: SavedSchedule = {
@@ -46,6 +47,21 @@ export const saveSchedule = async (
   return newSchedule;
 };
 
-export const clearSchedules = async (): Promise<void> => {
+export const deleteSchedule = async (scheduleId: string) => {
+  const prevSchedules = await getSchedules();
+
+  const nextSchedules = prevSchedules.filter(
+    (schedule) => schedule.id !== scheduleId,
+  );
+
+  await AsyncStorage.setItem(
+    SCHEDULES_STORAGE_KEY,
+    JSON.stringify(nextSchedules),
+  );
+
+  return nextSchedules;
+};
+
+export const clearSchedules = async () => {
   await AsyncStorage.removeItem(SCHEDULES_STORAGE_KEY);
 };

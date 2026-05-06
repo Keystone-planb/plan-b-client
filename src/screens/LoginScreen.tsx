@@ -77,7 +77,7 @@ export default function LoginScreen({ navigation }: any) {
   const moveToMain = () => {
     navigation.reset({
       index: 0,
-      routes: [{ name: "MainTabs" }],
+      routes: [{ name: "Main" }],
     });
   };
 

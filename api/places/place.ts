@@ -3,7 +3,8 @@ export type PlaceSearchResult = {
    * 검색 응답의 placeId는 Google Place ID 문자열로 사용한다.
    * 이후 GET /api/places/{googlePlaceId} 호출에 그대로 전달한다.
    */
-  placeId: string;
+  placeId: number | string;
+  googlePlaceId?: string;
   name: string;
   address: string;
   rating?: number;
@@ -19,7 +20,7 @@ export type PlaceDetailReview = {
 };
 
 export type PlaceDetail = {
-  placeId: string;
+  placeId: number | string;
   googlePlaceId?: string;
   name: string;
   address: string;
@@ -43,17 +44,31 @@ export type PlaceDetail = {
 };
 
 export type PlaceSummary = {
-  placeId: string;
+  placeId: number | string;
   aiSummary?: string;
   reviewSummary?: string;
+
   googleReview?: string;
   naverReview?: string;
   instaReview?: string;
+
+  googleReviewSummary?: string;
+  naverReviewSummary?: string;
+  instagramReviewSummary?: string;
+  instaReviewSummary?: string;
+
+  platformSummaries?: {
+    google?: string;
+    naver?: string;
+    instagram?: string;
+    insta?: string;
+  };
+
   keywords?: string[];
 };
 
 export type PlaceFreshness = {
-  placeId: string;
+  placeId: number | string;
   lastSyncedAt?: string;
   last_updated?: string;
   isFresh?: boolean;

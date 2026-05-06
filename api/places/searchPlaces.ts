@@ -9,7 +9,7 @@ import {
 
 // true  = mock 데이터 사용, 실제 장소 API 호출 안 함
 // false = 실제 장소 API 호출
-const USE_PLACE_MOCK = true;
+const USE_PLACE_MOCK = false;
 
 const MOCK_PLACES: PlaceSearchResult[] = [
   {
@@ -114,7 +114,9 @@ const MOCK_PLACE_SUMMARY_MAP: Record<string, PlaceSummaryResponse> = {
 };
 
 type RawPlaceSearchResult = {
-  placeId?: string;
+  placeId?: number | string;
+  id?: number | string;
+  googlePlaceId?: string;
   name?: string;
   address?: string;
   rating?: number;
@@ -143,7 +145,8 @@ const assertNotHtmlResponse = (data: unknown, apiName: string) => {
 
 const normalizePlace = (place: RawPlaceSearchResult): PlaceSearchResult => {
   return {
-    placeId: place.placeId ?? "",
+    placeId: place.placeId ?? place.id ?? "",
+    googlePlaceId: place.googlePlaceId,
     name: place.name ?? "이름 없는 장소",
     address: place.address ?? "",
     rating: place.rating,
@@ -177,6 +180,8 @@ export const searchPlaces = async (
     return getMockPlaces(trimmedQuery);
   }
 
+  console.log("[places/search] request query:", trimmedQuery);
+
   const response = await apiClient.get<PlaceSearchResponse>(
     "/api/places/search",
     {
@@ -186,15 +191,21 @@ export const searchPlaces = async (
     },
   );
 
+  console.log("[places/search] response:", response.data);
+
   assertNotHtmlResponse(response.data, "장소 검색");
 
   const places = response.data?.places ?? [];
 
-  return places.map(normalizePlace).filter((place) => place.placeId);
+  const normalizedPlaces = places
+    .map(normalizePlace)
+    .filter((place) => place.placeId);
+
+  return normalizedPlaces;
 };
 
 export const getPlaceDetail = async (
-  googlePlaceId: string,
+  googlePlaceId: number | string,
 ): Promise<PlaceDetail> => {
   if (USE_PLACE_MOCK) {
     return (
@@ -213,7 +224,7 @@ export const getPlaceDetail = async (
   }
 
   const response = await apiClient.get<PlaceDetail>(
-    `/api/places/${googlePlaceId}`,
+    `/api/places/${String(googlePlaceId)}`,
   );
 
   assertNotHtmlResponse(response.data, "장소 상세");
