@@ -3,8 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
-  Modal,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,9 +11,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
+import L from "leaflet";
+
+import "leaflet/dist/leaflet.css";
 
 import {
   getPlaceDetail,
@@ -28,30 +28,17 @@ import {
   PlaceSearchResult,
   PlaceSummaryResponse,
 } from "../../api/places/place";
+import { createTrip } from "../../api/schedules/server";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = {
   navigation: any;
-  route: {
-    params?: {
-      scheduleId?: string;
-      day?: number;
-      selectedDay?: number;
-      tripName?: string;
-      startDate?: string;
-      endDate?: string;
-      location?: string;
-      tripId?: number | string;
-      serverTripId?: number | string;
-      transportMode?: "WALK" | "TRANSIT" | "CAR";
-      transportLabel?: string;
-    };
-  };
+  route: any;
 };
 
 type SelectedPlace = {
   placeId: string;
-  googlePlaceId?: string;
   name: string;
   address?: string;
   rating?: number;
@@ -61,392 +48,79 @@ type SelectedPlace = {
 };
 
 type PlaceReviewInfo = {
-  detail?: unknown;
   summary?: PlaceSummaryResponse;
   freshness?: PlaceFreshnessResponse;
 };
 
-type ReviewItem = {
-  text: string;
-  rating?: number;
-  relativeTimeDescription?: string;
-  authorName?: string;
-};
 
 const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
-  latitudeDelta: 0.014,
-  longitudeDelta: 0.014,
 };
 
-const MOCK_LIKE_SUMMARY_PATTERNS = [
-  "분위기 있는 인테리어",
-  "친절한 직원으로 유명한 카페",
-  "커피 퀄리티가 높고",
-  "디저트도 맛있습니다",
-  "힐링 분위기와 잘 맞는 조용한 카페",
-  "오후 방문을 추천합니다",
-];
-
-const REVIEW_TEXT_MAX_LENGTH = 120;
-
-const getReviewPlaceKey = (place: PlaceSearchResult) => {
-  return String(place.googlePlaceId ?? place.placeId);
+const INITIAL_CENTER = {
+  latitude: INITIAL_REGION.latitude,
+  longitude: INITIAL_REGION.longitude,
 };
 
-const unwrapApiData = (source: unknown) => {
-  if (!source || typeof source !== "object") {
-    return source;
-  }
+const DEFAULT_ZOOM = 15;
 
-  const objectSource = source as Record<string, unknown>;
+const markerIcon = L.divIcon({
+  className: "custom-place-marker",
+  html: `
+    <div style="
+      width: 34px;
+      height: 34px;
+      border-radius: 17px;
+      background: #2158E8;
+      border: 3px solid white;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.24);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+    ">
+      📍
+    </div>
+  `,
+  iconSize: [34, 34],
+  iconAnchor: [17, 34],
+});
 
-  return (
-    objectSource.data ??
-    objectSource.result ??
-    objectSource.response ??
-    objectSource.payload ??
-    objectSource.body ??
-    objectSource
-  );
-};
+function MapFocus({ selectedPlace }: { selectedPlace: SelectedPlace | null }) {
+  const map = useMap();
 
-const getValueByPath = (source: unknown, path: string): unknown => {
-  if (!source || typeof source !== "object") {
-    return undefined;
-  }
+  React.useEffect(() => {
+    map.invalidateSize();
 
-  return path.split(".").reduce<unknown>((current, key) => {
-    if (!current || typeof current !== "object") {
-      return undefined;
+    if (!selectedPlace) {
+      return;
     }
 
-    return (current as Record<string, unknown>)[key];
-  }, source);
-};
+    const nextCenter: [number, number] = [
+      selectedPlace.latitude,
+      selectedPlace.longitude,
+    ];
 
-const normalizeTextValue = (value: unknown): string => {
-  if (typeof value === "string") {
-    return value.trim();
-  }
+    window.setTimeout(() => {
+      map.invalidateSize();
+      map.flyTo(nextCenter, DEFAULT_ZOOM, {
+        animate: true,
+        duration: 0.8,
+      });
+    }, 80);
+  }, [map, selectedPlace]);
 
-  if (typeof value === "number") {
-    return String(value);
-  }
-
-  if (Array.isArray(value)) {
-    return value
-      .map((item) => normalizeTextValue(item))
-      .filter(Boolean)
-      .join(" ");
-  }
-
-  if (value && typeof value === "object") {
-    const objectValue = value as Record<string, unknown>;
-
-    const preferred =
-      objectValue.text ??
-      objectValue.summary ??
-      objectValue.reviewSummary ??
-      objectValue.content ??
-      objectValue.review ??
-      objectValue.message ??
-      objectValue.description ??
-      objectValue.aiSummary;
-
-    return normalizeTextValue(preferred);
-  }
-
-  return "";
-};
-
-const getFirstText = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = normalizeTextValue(getValueByPath(source, path));
-
-    if (value) {
-      return value;
-    }
-  }
-
-  return "";
-};
-
-const getFirstArray = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = getValueByPath(source, path);
-
-    if (Array.isArray(value)) {
-      const normalized = value
-        .map((item) => normalizeTextValue(item))
-        .filter(Boolean);
-
-      if (normalized.length > 0) {
-        return normalized;
-      }
-    }
-  }
-
-  return [];
-};
-
-const getNumberByPath = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = getValueByPath(source, path);
-
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string") {
-      const parsed = Number(value);
-
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return undefined;
-};
-
-const truncateText = (text: string, maxLength = REVIEW_TEXT_MAX_LENGTH) => {
-  const normalized = text.trim().replace(/\s+/g, " ");
-
-  if (normalized.length <= maxLength) {
-    return normalized;
-  }
-
-  return `${normalized.slice(0, maxLength).trim()}...`;
-};
-
-const getReviewArrayByPath = (source: unknown, path: string): ReviewItem[] => {
-  const value = getValueByPath(source, path);
-
-  if (!Array.isArray(value)) {
-    return [];
-  }
-
-  return value
-    .map((item) => {
-      if (!item || typeof item !== "object") {
-        return null;
-      }
-
-      const itemObject = item as Record<string, unknown>;
-
-      const text = normalizeTextValue(
-        itemObject.text ??
-          itemObject.reviewText ??
-          itemObject.content ??
-          itemObject.review ??
-          itemObject.comment ??
-          itemObject.message,
-      );
-
-      if (!text) {
-        return null;
-      }
-
-      const ratingRaw = itemObject.rating;
-      const parsedRating =
-        typeof ratingRaw === "number" ? ratingRaw
-        : typeof ratingRaw === "string" ? Number(ratingRaw)
-        : undefined;
-
-      return {
-        text,
-        rating:
-          typeof parsedRating === "number" && Number.isFinite(parsedRating) ?
-            parsedRating
-          : undefined,
-        relativeTimeDescription: normalizeTextValue(
-          itemObject.relativeTimeDescription ??
-            itemObject.relativeTime ??
-            itemObject.timeDescription ??
-            itemObject.createdAt,
-        ),
-        authorName: normalizeTextValue(
-          itemObject.authorName ??
-            itemObject.userName ??
-            itemObject.author ??
-            itemObject.name,
-        ),
-      };
-    })
-    .filter(Boolean) as ReviewItem[];
-};
-
-const getDetailReviews = (detail: unknown) => {
-  const unwrappedDetail = unwrapApiData(detail);
-
-  const reviewPaths = [
-    "reviews",
-    "googleReviews",
-    "reviewList",
-    "data.reviews",
-    "data.googleReviews",
-    "result.reviews",
-    "result.googleReviews",
-    "payload.reviews",
-    "payload.googleReviews",
-  ];
-
-  for (const path of reviewPaths) {
-    const reviews = getReviewArrayByPath(unwrappedDetail, path);
-
-    if (reviews.length > 0) {
-      return reviews;
-    }
-  }
-
-  return [];
-};
-
-const isMockLikeSummary = (summary: string) => {
-  const normalized = summary.trim();
-
-  if (!normalized) {
-    return false;
-  }
-
-  return MOCK_LIKE_SUMMARY_PATTERNS.some((pattern) =>
-    normalized.includes(pattern),
-  );
-};
-
-const createKeywordsFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return [];
-  }
-
-  const reviewText = reviews.map((review) => review.text).join(" ");
-
-  const keywordCandidates = [
-    "분위기",
-    "맛집",
-    "친절",
-    "커피",
-    "디저트",
-    "가성비",
-    "웨이팅",
-    "깔끔",
-    "뷰",
-    "사진",
-    "데이트",
-    "가족",
-    "혼밥",
-    "주차",
-    "추천",
-    "재방문",
-    "양",
-    "가격",
-    "서비스",
-  ];
-
-  return keywordCandidates
-    .filter((keyword) => reviewText.includes(keyword))
-    .slice(0, 5);
-};
-
-const createReviewSummaryFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return "";
-  }
-
-  const validRatings = reviews
-    .map((review) => review.rating)
-    .filter(
-      (rating): rating is number =>
-        typeof rating === "number" && Number.isFinite(rating),
-    );
-
-  const averageRating =
-    validRatings.length > 0 ?
-      validRatings.reduce((sum, rating) => sum + rating, 0) /
-      validRatings.length
-    : undefined;
-
-  const keywords = createKeywordsFromReviews(reviews);
-  const keywordPart =
-    keywords.length > 0 ?
-      `${keywords.slice(0, 3).join(", ")} 관련 언급이 많습니다.`
-    : "";
-
-  const ratingPart =
-    typeof averageRating === "number" ?
-      `실제 리뷰 평균 평점은 ${averageRating.toFixed(1)}점입니다.`
-    : `실제 리뷰 ${reviews.length}개를 기준으로 요약했습니다.`;
-
-  const firstReview = truncateText(reviews[0].text, 52);
-
-  return [ratingPart, keywordPart, `대표 리뷰: ${firstReview}`]
-    .filter(Boolean)
-    .join(" ");
-};
-
-const formatConfidenceScore = (score?: number) => {
-  if (typeof score !== "number" || !Number.isFinite(score)) {
-    return "";
-  }
-
-  if (score <= 1) {
-    return `${Math.round(score * 100)}%`;
-  }
-
-  return `${Math.round(score)}%`;
-};
-
-const getFreshnessLabel = (status: string) => {
-  if (!status) return "";
-
-  const normalized = status.toUpperCase();
-
-  if (normalized === "FRESH") return "FRESH";
-  if (normalized === "STALE") return "STALE";
-  if (normalized === "UNKNOWN") return "UNKNOWN";
-
-  return status;
-};
-
-const shortenAddress = (address?: string) => {
-  if (!address) return "주소 정보 없음";
-
-  return address
-    .replace(/^대한민국\s*/, "")
-    .replace(/^서울특별시\s*/, "서울 ")
-    .replace(/^부산광역시\s*/, "부산 ")
-    .replace(/^경기도\s*/, "경기 ")
-    .replace(/^전북특별자치도\s*/, "전북 ")
-    .replace(/^전라북도\s*/, "전북 ")
-    .trim();
-};
+  return null;
+}
 
 export default function AddScheduleLocationScreen({
   navigation,
   route,
 }: Props) {
   const inputRef = useRef<TextInput>(null);
-  const mapRef = useRef<MapView>(null);
-
-  const tripName = route?.params?.tripName ?? "";
-  const startDate = route?.params?.startDate ?? "";
-  const endDate = route?.params?.endDate ?? "";
-  const scheduleId = route?.params?.scheduleId;
-  const existingTripId = route?.params?.tripId;
-  const existingServerTripId = route?.params?.serverTripId;
-  const existingLocation = route?.params?.location ?? "";
-  const day = route?.params?.day;
-  const selectedDay = route?.params?.selectedDay ?? day ?? 1;
-  const transportMode = route?.params?.transportMode ?? "WALK";
-  const transportLabel = route?.params?.transportLabel ?? "도보";
-
-  const hasExistingSchedule = Boolean(
-    scheduleId || existingTripId || existingServerTripId,
-  );
-
-  const resolvedExistingTripId = existingServerTripId ?? existingTripId;
 
   const [keyword, setKeyword] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -462,7 +136,15 @@ export default function AddScheduleLocationScreen({
   const [placeReviewMap, setPlaceReviewMap] = useState<
     Record<string, PlaceReviewInfo>
   >({});
-  const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
+  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
+    null,
+  );
+
+  const tripName = route?.params?.tripName ?? "";
+  const startDate = route?.params?.startDate ?? "";
+  const endDate = route?.params?.endDate ?? "";
+  const transportMode = route?.params?.transportMode ?? "TRANSIT";
+  const transportLabel = route?.params?.transportLabel ?? "대중교통";
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -470,54 +152,43 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
-    navigation.navigate("PlanA", {
-      scheduleId,
-      tripId: resolvedExistingTripId,
-      serverTripId: resolvedExistingTripId,
-      tripName,
-      startDate,
-      endDate,
-      location: existingLocation,
-      transportMode,
-      transportLabel,
-    });
+    navigation.navigate("Main");
   };
 
-  const moveMapToPlace = (place: SelectedPlace) => {
-    mapRef.current?.animateToRegion(
-      {
-        latitude: place.latitude,
-        longitude: place.longitude,
-        latitudeDelta: 0.014,
-        longitudeDelta: 0.014,
-      },
-      350,
+
+  const toNumericPlaceId = (value: unknown): number | null => {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && /^\d+$/.test(value)) {
+      return Number(value);
+    }
+
+    return null;
+  };
+
+
+  const getFeedbackPlaceId = (value: unknown): number | null => {
+    const target = value as {
+      id?: unknown;
+      placeId?: unknown;
+      place_id?: unknown;
+      dbPlaceId?: unknown;
+      serverPlaceId?: unknown;
+    };
+
+    return (
+      toNumericPlaceId(target?.id) ??
+      toNumericPlaceId(target?.placeId) ??
+      toNumericPlaceId(target?.place_id) ??
+      toNumericPlaceId(target?.dbPlaceId) ??
+      toNumericPlaceId(target?.serverPlaceId)
     );
-  };
-
-  const toggleSelectedPlace = (place: SelectedPlace) => {
-    setSelectedPlaces((prev) => {
-      const alreadySelected = prev.some(
-        (item) => item.placeId === place.placeId,
-      );
-
-      if (alreadySelected) {
-        return prev.filter((item) => item.placeId !== place.placeId);
-      }
-
-      return [...prev, place];
-    });
   };
 
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
-
-    console.log("[AddScheduleLocation] handleSearch start:", {
-      keyword,
-      trimmedKeyword,
-      searchLoading,
-      submitLoading,
-    });
 
     if (!trimmedKeyword || searchLoading || submitLoading) {
       return;
@@ -525,19 +196,18 @@ export default function AddScheduleLocationScreen({
 
     try {
       setSearchLoading(true);
+      setSelectedPlace(null);
+
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
       const places = await searchPlaces(trimmedKeyword);
-
-      console.log("[AddScheduleLocation] searchPlaces result:", places);
-
       setSearchResults(places);
-      Keyboard.dismiss();
-    } catch (error) {
-      console.log("[AddScheduleLocation] searchPlaces failed:", error);
 
+      Keyboard.dismiss();
+    } catch {
       setSearchResults([]);
+      setSelectedPlace(null);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
     } finally {
@@ -550,17 +220,13 @@ export default function AddScheduleLocationScreen({
   };
 
   const handlePlaceDetail = async (place: PlaceSearchResult) => {
-    const placeId = String(place.placeId);
-    const googlePlaceId = String(place.googlePlaceId ?? place.placeId);
-
     try {
-      setDetailLoadingPlaceId(placeId);
+      setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getPlaceDetail(googlePlaceId);
+      const detail = await getPlaceDetail(place.googlePlaceId ?? String(place.placeId));
 
       const nextPlace: SelectedPlace = {
-        placeId,
-        googlePlaceId,
+        placeId: String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -569,9 +235,8 @@ export default function AddScheduleLocationScreen({
         longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      toggleSelectedPlace(nextPlace);
+      setSelectedPlace(nextPlace);
       setKeyword(place.name);
-      moveMapToPlace(nextPlace);
 
       const storedUserId = await AsyncStorage.getItem("user_id");
 
@@ -580,20 +245,19 @@ export default function AddScheduleLocationScreen({
         return;
       }
 
+      const feedbackPlaceId = String(place.googlePlaceId ?? place.placeId);
+
       reportPreferenceFeedback({
         userId: storedUserId,
-        placeId: googlePlaceId,
+        placeId: feedbackPlaceId,
         feedbackType: "SELECT",
         reason: "ADD_SCHEDULE_LOCATION_SELECT",
       }).catch((error) => {
-        console.warn("[preferences/feedback] 호출 실패", error);
+        console.log("[preference feedback] ignored:", error);
       });
-    } catch (error) {
-      console.log("[AddScheduleLocation] getPlaceDetail failed:", error);
-
+    } catch {
       const fallbackPlace: SelectedPlace = {
-        placeId,
-        googlePlaceId,
+        placeId: String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -602,130 +266,61 @@ export default function AddScheduleLocationScreen({
         longitude: place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      toggleSelectedPlace(fallbackPlace);
+      setSelectedPlace(fallbackPlace);
       setKeyword(place.name);
-      moveMapToPlace(fallbackPlace);
     } finally {
       setDetailLoadingPlaceId(null);
     }
   };
 
-  const handleTogglePlaceReview = async (place: PlaceSearchResult) => {
-    const placeKey = getReviewPlaceKey(place);
-
-    console.log("[AddScheduleLocation] review button clicked:", {
-      placeName: place.name,
-      placeId: place.placeId,
-      googlePlaceId: place.googlePlaceId,
-      placeKey,
-    });
-
+  const handleTogglePlaceReview = async (placeId: string) => {
     if (reviewLoadingPlaceId) {
       return;
     }
 
-    if (expandedPlaceId === placeKey) {
+    if (expandedPlaceId === placeId) {
       setExpandedPlaceId(null);
       return;
     }
 
     try {
-      setReviewLoadingPlaceId(placeKey);
+      setReviewLoadingPlaceId(placeId);
 
-      const [detail, summary, freshness] = await Promise.all([
-        getPlaceDetail(placeKey),
-        getPlaceSummary(placeKey),
-        getPlaceFreshness(placeKey),
+      const [summary, freshness] = await Promise.all([
+        getPlaceSummary(placeId),
+        getPlaceFreshness(placeId),
       ]);
-
-      console.log("[AddScheduleLocation] review response:", {
-        placeKey,
-        detail,
-        summary,
-        freshness,
-      });
-
-      console.log("[AddScheduleLocation] review response keys:", {
-        detailKeys:
-          detail && typeof detail === "object" ?
-            Object.keys(detail as object)
-          : [],
-        summaryKeys:
-          summary && typeof summary === "object" ?
-            Object.keys(summary as object)
-          : [],
-        freshnessKeys:
-          freshness && typeof freshness === "object" ?
-            Object.keys(freshness as object)
-          : [],
-      });
 
       setPlaceReviewMap((prev) => ({
         ...prev,
-        [placeKey]: {
-          detail,
+        [placeId]: {
           summary,
           freshness,
         },
       }));
 
-      setExpandedPlaceId(placeKey);
+      setExpandedPlaceId(placeId);
     } catch (error) {
-      console.log("장소 상세 정보 조회 실패:", error);
+      console.log("장소 요약 정보 조회 실패:", error);
 
       setPlaceReviewMap((prev) => ({
         ...prev,
-        [placeKey]: {},
+        [placeId]: {
+          summary: {
+            placeId,
+            aiSummary: "아직 요약 정보가 없습니다.",
+          },
+        },
       }));
 
-      setExpandedPlaceId(placeKey);
+      setExpandedPlaceId(placeId);
     } finally {
       setReviewLoadingPlaceId(null);
     }
   };
 
-  const navigateToPlanAWithPlaces = ({
-    targetScheduleId,
-    targetTripId,
-    targetServerTripId,
-    targetLocation,
-  }: {
-    targetScheduleId?: string;
-    targetTripId?: number | string;
-    targetServerTripId?: number | string;
-    targetLocation: string;
-  }) => {
-    if (selectedPlaces.length === 0) {
-      return;
-    }
-
-    navigation.navigate("PlanA", {
-      scheduleId: targetScheduleId,
-      tripId: targetTripId,
-      serverTripId: targetServerTripId,
-      tripName,
-      startDate,
-      endDate,
-      location: targetLocation,
-      transportMode,
-      transportLabel,
-      selectedPlaces: selectedPlaces.map((place) => ({
-        id: place.placeId,
-        placeId: place.placeId,
-        googlePlaceId: place.googlePlaceId ?? place.placeId,
-        name: place.name,
-        address: place.address,
-        category: place.category,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        day: selectedDay,
-        time: "",
-      })),
-    });
-  };
-
   const handleNext = async () => {
-    if (selectedPlaces.length === 0 || submitLoading) {
+    if (!selectedPlace || submitLoading) {
       return;
     }
 
@@ -734,58 +329,42 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
-    const primaryPlace = selectedPlaces[0];
-
-    const nextLocation =
-      primaryPlace?.name ||
-      primaryPlace?.address ||
-      existingLocation ||
-      "선택한 장소";
-
     try {
       setSubmitLoading(true);
 
-      if (hasExistingSchedule) {
-        console.log("[AddScheduleLocation] 기존 일정에 장소 여러 개 추가:", {
-          scheduleId,
-          tripId: existingTripId,
-          serverTripId: existingServerTripId,
-          selectedDay,
-          count: selectedPlaces.length,
-          places: selectedPlaces.map((place) => place.name),
-        });
-
-        navigateToPlanAWithPlaces({
-          targetScheduleId: scheduleId,
-          targetTripId: resolvedExistingTripId,
-          targetServerTripId: resolvedExistingTripId,
-          targetLocation: existingLocation || nextLocation,
-        });
-
-        return;
-      }
-
-      console.log("[AddScheduleLocation] 새 일정 장소 선택 완료:", {
-        selectedDay,
-        count: selectedPlaces.length,
-        places: selectedPlaces.map((place) => place.name),
+      await createTrip({
+        title: tripName,
+        startDate,
+        endDate,
+        travelStyles: ["HEALING"],
       });
 
-      navigateToPlanAWithPlaces({
-        targetScheduleId: scheduleId,
-        targetTripId: resolvedExistingTripId,
-        targetServerTripId: resolvedExistingTripId,
-        targetLocation: nextLocation,
+      navigation.navigate("PlanA", {
+        tripName,
+        startDate,
+        endDate,
+        location:
+          selectedPlace.name ||
+          selectedPlace.address ||
+          "선택한 장소",
+        transportMode,
+        transportLabel,
+        selectedPlace: {
+          id: selectedPlace.placeId,
+          name: selectedPlace.name,
+          time: "",
+          day: route?.params?.day ?? route?.params?.selectedDay ?? 1,
+        },
       });
     } catch (error) {
-      console.log("일정 저장 실패:", error);
+      console.log("여행 생성 실패:", error);
 
       const message =
-        error instanceof Error ?
-          error.message
-        : "여행 일정을 저장하지 못했습니다.";
+        error instanceof Error
+          ? error.message
+          : "여행 일정을 생성하지 못했습니다.";
 
-      Alert.alert("일정 저장 실패", message);
+      Alert.alert("일정 생성 실패", message);
     } finally {
       setSubmitLoading(false);
     }
@@ -801,209 +380,38 @@ export default function AddScheduleLocationScreen({
           address: "검색어를 입력하면 장소 후보가 표시됩니다.",
           rating: undefined,
           category: "preview",
-        } as PlaceSearchResult,
+        },
       ];
-
-  const detailModalPlace = searchResults.find((place) => {
-    return getReviewPlaceKey(place) === expandedPlaceId;
-  });
-
-  const detailModalPlaceId =
-    detailModalPlace ? getReviewPlaceKey(detailModalPlace) : "";
-
-  const detailModalReviewInfo =
-    detailModalPlaceId ? placeReviewMap[detailModalPlaceId] : undefined;
-
-  const rawDetailModalDetail = detailModalReviewInfo?.detail as unknown;
-  const rawDetailModalSummary = detailModalReviewInfo?.summary as unknown;
-  const rawDetailModalFreshness = detailModalReviewInfo?.freshness as unknown;
-
-  const detailModalDetail = unwrapApiData(rawDetailModalDetail);
-  const detailModalSummary = unwrapApiData(rawDetailModalSummary);
-  const detailModalFreshness = unwrapApiData(rawDetailModalFreshness);
-
-  const rawAiSummary = getFirstText(detailModalSummary, [
-    "aiSummary",
-    "summary",
-    "reviewSummary",
-    "placeSummary",
-    "content",
-    "message",
-    "description",
-    "overallSummary",
-    "totalSummary",
-    "data.aiSummary",
-    "data.summary",
-    "data.reviewSummary",
-    "data.placeSummary",
-    "result.aiSummary",
-    "result.summary",
-    "payload.aiSummary",
-    "payload.summary",
-  ]);
-
-  const detailModalReviews = useMemo(() => {
-    return getDetailReviews(detailModalDetail).slice(0, 2);
-  }, [detailModalDetail]);
-
-  const reviewBasedSummary = useMemo(() => {
-    return createReviewSummaryFromReviews(detailModalReviews);
-  }, [detailModalReviews]);
-
-  const detailModalAiSummary =
-    rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
-      truncateText(rawAiSummary, 120)
-    : reviewBasedSummary;
-
-  const detailModalKeywords = useMemo(() => {
-    const serverKeywords = getFirstArray(detailModalSummary, [
-      "keywords",
-      "keywordList",
-      "tags",
-      "data.keywords",
-      "data.keywordList",
-      "result.keywords",
-      "payload.keywords",
-    ]);
-
-    if (serverKeywords.length > 0 && !isMockLikeSummary(rawAiSummary)) {
-      return serverKeywords.slice(0, 4);
-    }
-
-    const reviewKeywords = createKeywordsFromReviews(detailModalReviews);
-
-    return reviewKeywords.length > 0 ?
-        reviewKeywords.slice(0, 4)
-      : serverKeywords.slice(0, 4);
-  }, [detailModalSummary, rawAiSummary, detailModalReviews]);
-
-  const detailModalFreshnessStatus = getFirstText(detailModalFreshness, [
-    "status",
-    "freshnessStatus",
-    "data.status",
-    "result.status",
-  ]);
-
-  const detailModalFreshnessLabel = getFreshnessLabel(
-    detailModalFreshnessStatus,
-  );
-
-  const detailModalLastUpdated = getFirstText(detailModalFreshness, [
-    "lastUpdated",
-    "updatedAt",
-    "lastSyncedAt",
-    "data.lastUpdated",
-    "data.updatedAt",
-    "data.lastSyncedAt",
-    "result.lastUpdated",
-    "result.updatedAt",
-    "result.lastSyncedAt",
-  ]);
-
-  const detailModalConfidenceScore = formatConfidenceScore(
-    getNumberByPath(detailModalFreshness, [
-      "confidenceScore",
-      "score",
-      "data.confidenceScore",
-      "result.confidenceScore",
-    ]),
-  );
-
-  const hasFreshnessInfo = Boolean(
-    detailModalFreshnessLabel ||
-    detailModalLastUpdated ||
-    detailModalConfidenceScore,
-  );
-
-  const detailModalOpeningHours =
-    getFirstText(detailModalDetail, [
-      "openingHours",
-      "businessHours",
-      "hours",
-      "openHours",
-      "operatingHours",
-      "data.openingHours",
-      "data.businessHours",
-      "result.openingHours",
-      "result.businessHours",
-    ]) ||
-    getFirstText(detailModalSummary, [
-      "openingHours",
-      "businessHours",
-      "hours",
-      "openHours",
-      "operatingHours",
-      "data.openingHours",
-      "data.businessHours",
-      "result.openingHours",
-      "result.businessHours",
-    ]) ||
-    getFirstText(detailModalFreshness, [
-      "openingHours",
-      "businessHours",
-      "hours",
-      "openHours",
-      "operatingHours",
-      "data.openingHours",
-      "data.businessHours",
-      "result.openingHours",
-      "result.businessHours",
-    ]) ||
-    getFirstText(detailModalPlace, [
-      "openingHours",
-      "businessHours",
-      "hours",
-    ]) ||
-    "운영 시간 정보 없음";
-
-  const modalAddress = shortenAddress(
-    getFirstText(detailModalDetail, [
-      "address",
-      "formattedAddress",
-      "data.address",
-      "result.address",
-    ]) || detailModalPlace?.address,
-  );
-
-  const modalRating =
-    getNumberByPath(detailModalDetail, [
-      "rating",
-      "data.rating",
-      "result.rating",
-    ]) ?? detailModalPlace?.rating;
-
-  const hasAnyRealDetailContent = Boolean(
-    detailModalAiSummary ||
-    detailModalKeywords.length > 0 ||
-    detailModalReviews.length > 0 ||
-    hasFreshnessInfo,
-  );
 
   return (
     <View style={styles.screen}>
       <View style={styles.mapSection}>
-        <MapView
-          ref={mapRef}
-          style={styles.map}
-          provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
-          initialRegion={INITIAL_REGION}
-          showsUserLocation
-          showsMyLocationButton={false}
-          showsCompass={false}
-          rotateEnabled={false}
-        >
-          {selectedPlaces.map((place) => (
-            <Marker
-              key={`marker-${place.placeId}`}
-              coordinate={{
-                latitude: place.latitude,
-                longitude: place.longitude,
-              }}
-              title={place.name}
-              description={place.address}
+        <View style={styles.mapLayer}>
+          <MapContainer
+            center={[INITIAL_CENTER.latitude, INITIAL_CENTER.longitude]}
+            zoom={DEFAULT_ZOOM}
+            scrollWheelZoom
+            zoomControl={false}
+            style={{
+              width: "100%",
+              height: "100%",
+            }}
+          >
+            <TileLayer
+              attribution="&copy; OpenStreetMap contributors"
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
-          ))}
-        </MapView>
+
+            <MapFocus selectedPlace={selectedPlace} />
+
+            {selectedPlace && (
+              <Marker
+                position={[selectedPlace.latitude, selectedPlace.longitude]}
+                icon={markerIcon}
+              />
+            )}
+          </MapContainer>
+        </View>
 
         <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
           <View style={styles.searchBar}>
@@ -1051,103 +459,104 @@ export default function AddScheduleLocationScreen({
           contentContainerStyle={styles.resultContent}
           showsVerticalScrollIndicator={false}
         >
-          {selectedPlaces.length > 0 ?
-            <View style={styles.selectedSummaryBox}>
-              <Text style={styles.selectedSummaryTitle}>
-                선택한 장소 {selectedPlaces.length}개
-              </Text>
-
-              <Text style={styles.selectedSummaryText} numberOfLines={2}>
-                {selectedPlaces.map((place) => place.name).join(" · ")}
-              </Text>
-            </View>
-          : null}
-
           {placesToRender.map((place) => {
-            const placeId = String(place.placeId);
-            const reviewPlaceKey = getReviewPlaceKey(place);
+            const isPreview = place.placeId === "empty-preview-1";
+            const isSelected = selectedPlace?.placeId === String(place.placeId);
+            const isDetailLoading = detailLoadingPlaceId === String(place.placeId);
+            const isReviewLoading = reviewLoadingPlaceId === place.placeId;
+            const isExpanded = expandedPlaceId === place.placeId;
+            const reviewInfo = placeReviewMap[place.placeId];
+            const summary = reviewInfo?.summary;
+            const freshness = reviewInfo?.freshness;
+            const aiSummary =
+              summary?.aiSummary ||
+              summary?.reviewSummary ||
+              "아직 요약 정보가 없습니다.";
+            const keywords = summary?.keywords ?? [];
 
-            const isPreview = placeId === "empty-preview-1";
-            const isSelected = selectedPlaces.some(
-              (item) => item.placeId === placeId,
-            );
-            const isDetailLoading = detailLoadingPlaceId === placeId;
-            const isReviewLoading = reviewLoadingPlaceId === reviewPlaceKey;
+            const googleReview =
+              summary?.googleReview ||
+              summary?.googleReviewSummary ||
+              summary?.platformSummaries?.google ||
+              "구글 리뷰 요약을 준비 중입니다.";
+
+            const naverReview =
+              summary?.naverReview ||
+              summary?.naverReviewSummary ||
+              summary?.platformSummaries?.naver ||
+              "네이버 리뷰 요약을 준비 중입니다.";
+
+            const instaReview =
+              summary?.instaReview ||
+              summary?.instagramReviewSummary ||
+              summary?.instaReviewSummary ||
+              summary?.platformSummaries?.instagram ||
+              summary?.platformSummaries?.insta ||
+              "인스타그램 리뷰 요약을 준비 중입니다.";
+            const freshnessText =
+              freshness?.status === "FRESH" || freshness?.isFresh
+                ? "최신 정보"
+                : freshness?.lastSyncedAt || freshness?.last_updated
+                  ? "최근 업데이트 확인"
+                  : "최신성 확인 중";
 
             return (
               <View
-                key={`place-${placeId}`}
+                key={`place-${String(place.placeId)}`}
                 style={[
                   styles.placeCard,
+                  isExpanded && styles.expandedPlaceCard,
                   isReviewLoading && styles.reviewLoadingPlaceCard,
                   isSelected && styles.selectedPlaceCard,
                 ]}
               >
-                <Text style={styles.placeName}>{place.name}</Text>
+                {!isExpanded && (
+                  <>
+                    <Text style={styles.placeName}>{place.name}</Text>
 
-                <Text style={styles.placeAddress} numberOfLines={1}>
-                  {place.address}
-                </Text>
-
-                {!isPreview && typeof place.rating === "number" && (
-                  <View style={styles.ratingRow}>
-                    <Ionicons name="star" size={13} color="#FACC15" />
-                    <Text style={styles.ratingText}>
-                      {place.rating.toFixed(2)}
+                    <Text style={styles.placeAddress} numberOfLines={1}>
+                      {place.address}
                     </Text>
-                  </View>
+
+                    {!isPreview && typeof place.rating === "number" && (
+                      <View style={styles.ratingRow}>
+                        <Ionicons name="star" size={13} color="#FACC15" />
+                        <Text style={styles.ratingText}>
+                          {place.rating.toFixed(2)}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
 
                 <TouchableOpacity
                   style={[
                     styles.detailButton,
                     isPreview && styles.disabledDetailButton,
+                    isExpanded && styles.compactButton,
                   ]}
                   activeOpacity={0.8}
                   disabled={isPreview || isReviewLoading}
-                  onPress={() => handleTogglePlaceReview(place)}
+                  onPress={() => handleTogglePlaceReview(place.googlePlaceId ?? String(place.placeId))}
                 >
                   {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        상세 정보 보기
+                        {isExpanded ? "간략히" : "상세 정보 보기"}
                       </Text>
-                      <Ionicons name="eye-outline" size={15} color="#6F7F95" />
+                      <Ionicons
+                        name={isExpanded ? "chevron-up-outline" : "eye-outline"}
+                        size={15}
+                        color="#6F7F95"
+                      />
                     </>
                   }
                 </TouchableOpacity>
 
-                {!isPreview ?
-                  <TouchableOpacity
-                    style={[
-                      styles.selectPlaceButton,
-                      isSelected && styles.selectPlaceButtonActive,
-                    ]}
-                    activeOpacity={0.85}
-                    disabled={isDetailLoading || submitLoading}
-                    onPress={() => handlePlaceDetail(place)}
-                  >
-                    {isDetailLoading ?
-                      <ActivityIndicator
-                        size="small"
-                        color={isSelected ? "#FFFFFF" : "#2158E8"}
-                      />
-                    : <Text
-                        style={[
-                          styles.selectPlaceButtonText,
-                          isSelected && styles.selectPlaceButtonTextActive,
-                        ]}
-                      >
-                        {isSelected ? "선택 완료" : "이 장소 선택"}
-                      </Text>
-                    }
-                  </TouchableOpacity>
-                : null}
-
                 {isReviewLoading ?
                   <View style={styles.reviewLoadingPanel}>
-                    <ActivityIndicator size="large" color="#2158E8" />
+                    <ActivityIndicator size="large" color="#2563EB" />
 
                     <Text style={styles.reviewLoadingText}>
                       리뷰 불러오는 중...
@@ -1158,216 +567,112 @@ export default function AddScheduleLocationScreen({
                     </View>
                   </View>
                 : null}
+
+                {isExpanded ?
+                  <View style={styles.reviewPanel}>
+                    <View style={styles.placeExpandedHeader}>
+                      <View style={styles.placeIconCircle}>
+                        <Text style={styles.placeIconEmoji}>🎡</Text>
+                      </View>
+
+                      <View style={styles.placeExpandedInfo}>
+                        <Text style={styles.expandedPlaceName}>
+                          {place.name}
+                        </Text>
+
+                        <Text style={styles.expandedAddress} numberOfLines={1}>
+                          {place.address}
+                        </Text>
+
+                        <View style={styles.expandedMetaRow}>
+                          <Ionicons name="star" size={13} color="#FACC15" />
+
+                          <Text style={styles.expandedMetaText}>
+                            {typeof place.rating === "number" ?
+                              place.rating.toFixed(2)
+                            : "4.58"}
+                          </Text>
+
+                          <Text style={styles.expandedDot}>·</Text>
+
+                          <Ionicons
+                            name="time-outline"
+                            size={14}
+                            color="#60A5FA"
+                          />
+
+                          <Text style={styles.expandedMetaText}>
+                            {freshnessText}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <View style={styles.aiReviewBox}>
+                      <Text style={styles.aiReviewText}>📊 {aiSummary}</Text>
+
+                      <View style={styles.aiBadge}>
+                        <Text style={styles.aiBadgeText}>AI</Text>
+                      </View>
+                    </View>
+
+                    <View style={styles.reviewLineArea}>
+                      <View style={styles.reviewVerticalLine} />
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          🟢 {googleReview}
+                        </Text>
+                      </View>
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          📸 {naverReview}
+                        </Text>
+                      </View>
+
+                      <View style={styles.platformReviewCard}>
+                        <Text style={styles.platformReviewText}>
+                          🌈 {instaReview}
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+                : null}
+
+                {!isPreview && isExpanded && (
+                  <TouchableOpacity
+                    style={styles.expandedSelectButton}
+                    activeOpacity={0.8}
+                    disabled={isDetailLoading || submitLoading}
+                    onPress={() => handlePlaceDetail(place)}
+                  >
+                    {isDetailLoading ?
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text style={styles.expandedSelectButtonText}>
+                        {selectedPlace ? "선택 완료" : "이 장소 선택"}
+                      </Text>
+                    }
+                  </TouchableOpacity>
+                )}
               </View>
             );
           })}
         </ScrollView>
       </View>
 
-      <Modal
-        visible={Boolean(detailModalPlace)}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setExpandedPlaceId(null)}
-      >
-        <View style={styles.detailModalBackdrop}>
-          <View style={styles.detailModalCard}>
-            <ScrollView
-              showsVerticalScrollIndicator={false}
-              contentContainerStyle={styles.detailModalScrollContent}
-            >
-              <View style={styles.detailHeaderRow}>
-                <View style={styles.detailIconCircle}>
-                  <Text style={styles.detailIconEmoji}>🎡</Text>
-                </View>
-
-                <View style={styles.detailTitleArea}>
-                  <Text style={styles.detailTitle} numberOfLines={1}>
-                    {detailModalPlace?.name ?? "장소 상세 정보"}
-                  </Text>
-
-                  <Text style={styles.detailAddress} numberOfLines={1}>
-                    {modalAddress}
-                  </Text>
-
-                  <View style={styles.detailMetaRow}>
-                    <Ionicons name="star" size={14} color="#FFD600" />
-
-                    <Text style={styles.detailMetaText}>
-                      {typeof modalRating === "number" ?
-                        modalRating.toFixed(2)
-                      : "평점 정보 없음"}
-                    </Text>
-
-                    <Text style={styles.detailMetaDot}>·</Text>
-
-                    <Ionicons name="time-outline" size={15} color="#8DC7FF" />
-
-                    <Text style={styles.detailMetaText} numberOfLines={1}>
-                      {detailModalOpeningHours}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              {reviewLoadingPlaceId === detailModalPlaceId ?
-                <View style={styles.detailLoadingBox}>
-                  <ActivityIndicator size="large" color="#2158E8" />
-                  <Text style={styles.detailLoadingText}>
-                    리뷰 불러오는 중...
-                  </Text>
-                </View>
-              : <>
-                  {detailModalAiSummary ?
-                    <View style={styles.aiSummaryCard}>
-                      <Text style={styles.aiSummaryText} numberOfLines={4}>
-                        📊 {detailModalAiSummary}
-                      </Text>
-
-                      <View style={styles.aiCircleBadge}>
-                        <Text style={styles.aiCircleText}>AI</Text>
-                      </View>
-                    </View>
-                  : null}
-
-                  {detailModalKeywords.length > 0 ?
-                    <View style={styles.keywordSection}>
-                      <View style={styles.keywordWrap}>
-                        {detailModalKeywords.map((keywordItem) => (
-                          <View
-                            key={`keyword-${keywordItem}`}
-                            style={styles.keywordChip}
-                          >
-                            <Text style={styles.keywordChipText}>
-                              #{keywordItem}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  : null}
-
-                  {detailModalReviews.length > 0 ?
-                    <View style={styles.reviewSection}>
-                      <View style={styles.reviewSectionHeader}>
-                        <Text style={styles.reviewSectionTitle}>실제 리뷰</Text>
-                        <Text style={styles.reviewSectionSubtitle}>
-                          Google 기반
-                        </Text>
-                      </View>
-
-                      <View style={styles.reviewList}>
-                        {detailModalReviews.map((review, index) => (
-                          <View
-                            key={`detail-review-${index}-${review.text}`}
-                            style={styles.reviewCard}
-                          >
-                            <View style={styles.reviewIconCircle}>
-                              <Text style={styles.googleIcon}>G</Text>
-                            </View>
-
-                            <View style={styles.platformTextBox}>
-                              <View style={styles.reviewMetaRow}>
-                                {typeof review.rating === "number" ?
-                                  <>
-                                    <Ionicons
-                                      name="star"
-                                      size={12}
-                                      color="#FFD600"
-                                    />
-                                    <Text style={styles.reviewRatingText}>
-                                      {review.rating.toFixed(1)}
-                                    </Text>
-                                  </>
-                                : null}
-
-                                {review.relativeTimeDescription ?
-                                  <Text style={styles.reviewTimeText}>
-                                    {review.relativeTimeDescription}
-                                  </Text>
-                                : null}
-                              </View>
-
-                              <Text
-                                style={styles.platformText}
-                                numberOfLines={3}
-                              >
-                                {truncateText(review.text)}
-                              </Text>
-                            </View>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  : null}
-
-                  {hasFreshnessInfo ?
-                    <View style={styles.freshnessCard}>
-                      <View style={styles.freshnessIconBox}>
-                        <Ionicons
-                          name="shield-checkmark-outline"
-                          size={18}
-                          color="#2158E8"
-                        />
-                      </View>
-
-                      <View style={styles.freshnessContent}>
-                        <Text style={styles.freshnessTitle}>정보 최신성</Text>
-
-                        <Text style={styles.freshnessText} numberOfLines={2}>
-                          {detailModalFreshnessLabel}
-                          {detailModalConfidenceScore ?
-                            ` · 신뢰도 ${detailModalConfidenceScore}`
-                          : ""}
-                          {detailModalLastUpdated ?
-                            ` · ${detailModalLastUpdated} 기준`
-                          : ""}
-                        </Text>
-                      </View>
-                    </View>
-                  : null}
-
-                  {!hasAnyRealDetailContent ?
-                    <View style={styles.emptyDetailBox}>
-                      <Ionicons
-                        name="information-circle-outline"
-                        size={24}
-                        color="#94A3B8"
-                      />
-                      <Text style={styles.emptyDetailText}>
-                        표시할 상세 정보가 없습니다.
-                      </Text>
-                    </View>
-                  : null}
-                </>
-              }
-
-              <TouchableOpacity
-                style={styles.compactButton}
-                activeOpacity={0.85}
-                onPress={() => setExpandedPlaceId(null)}
-              >
-                <Text style={styles.compactButtonText}>간략히</Text>
-                <Ionicons name="chevron-up" size={18} color="#7A889B" />
-              </TouchableOpacity>
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
-
-      {selectedPlaces.length > 0 && (
+      {selectedPlace && (
         <TouchableOpacity
-          style={[
-            styles.nextButton,
-            submitLoading && styles.disabledNextButton,
-          ]}
+          style={[styles.nextButton, submitLoading && styles.disabledNextButton]}
           activeOpacity={0.85}
           onPress={handleNext}
           disabled={submitLoading}
         >
-          {submitLoading ?
+          {submitLoading ? (
             <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Ionicons name="checkmark" size={23} color="#FFFFFF" />}
+          ) : (
+            <Ionicons name="checkmark" size={23} color="#FFFFFF" />
+          )}
         </TouchableOpacity>
       )}
     </View>
@@ -1386,8 +691,63 @@ const styles = StyleSheet.create({
     position: "relative",
   },
 
-  map: {
+  mapLayer: {
     ...StyleSheet.absoluteFillObject,
+    zIndex: 0,
+  },
+
+  webMapMock: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "#DDE7F2",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  mapGridLineHorizontal: {
+    position: "absolute",
+    top: 168,
+    left: 0,
+    right: 0,
+    height: 1,
+    backgroundColor: "#C9D6E5",
+  },
+
+  mapGridLineVertical: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    left: "50%",
+    width: 1,
+    backgroundColor: "#C9D6E5",
+  },
+
+  markerBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  markerLabel: {
+    marginTop: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
+    color: "#172132",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  mapEmptyBox: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  mapEmptyText: {
+    marginTop: 8,
+    color: "#74859B",
+    fontSize: 14,
+    fontWeight: "800",
   },
 
   searchOverlay: {
@@ -1426,6 +786,7 @@ const styles = StyleSheet.create({
     color: "#263244",
     fontSize: 17,
     fontWeight: "700",
+    outlineStyle: "none" as any,
   },
 
   searchButton: {
@@ -1463,48 +824,20 @@ const styles = StyleSheet.create({
     paddingBottom: 190,
   },
 
-  selectedSummaryBox: {
-    borderRadius: 15,
-    backgroundColor: "#EAF3FF",
-    borderWidth: 1,
-    borderColor: "#CFE3FF",
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-    marginBottom: 14,
-  },
-
-  selectedSummaryTitle: {
-    color: "#2158E8",
-    fontSize: 13,
-    fontWeight: "900",
-    marginBottom: 5,
-  },
-
-  selectedSummaryText: {
-    color: "#334155",
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 18,
-  },
-
   placeCard: {
     minHeight: 178,
-    borderRadius: 18,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DCE5F1",
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 20,
+    paddingHorizontal: 23,
+    paddingTop: 25,
+    paddingBottom: 24,
     marginBottom: 16,
-    shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.05,
-    shadowRadius: 16,
-    elevation: 2,
+  },
+
+  expandedPlaceCard: {
+    minHeight: 620,
   },
 
   reviewLoadingPlaceCard: {
@@ -1513,12 +846,11 @@ const styles = StyleSheet.create({
 
   selectedPlaceCard: {
     borderColor: "#2158E8",
-    backgroundColor: "#F8FBFF",
   },
 
   placeName: {
     color: "#111827",
-    fontSize: 17,
+    fontSize: 16,
     fontWeight: "900",
     marginBottom: 8,
   },
@@ -1526,7 +858,7 @@ const styles = StyleSheet.create({
   placeAddress: {
     color: "#8A9BB2",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "600",
     marginBottom: 14,
   },
 
@@ -1540,17 +872,22 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     color: "#111827",
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
   },
 
   detailButton: {
-    height: 38,
-    borderRadius: 12,
+    height: 36,
+    borderRadius: 10,
     backgroundColor: "#F1F4F8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 9,
+  },
+
+  compactButton: {
+    marginTop: 4,
+    marginBottom: 18,
   },
 
   disabledDetailButton: {
@@ -1560,43 +897,8 @@ const styles = StyleSheet.create({
   detailButtonText: {
     color: "#6F7F95",
     fontSize: 13,
-    fontWeight: "800",
+    fontWeight: "700",
     marginRight: 5,
-  },
-
-  selectPlaceButton: {
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: "#ECF5FF",
-    borderWidth: 1,
-    borderColor: "#D7E9FF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-
-  selectPlaceButtonActive: {
-    backgroundColor: "#2158E8",
-    borderColor: "#2158E8",
-    shadowOpacity: 0.18,
-    elevation: 4,
-  },
-
-  selectPlaceButtonText: {
-    color: "#2158E8",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  selectPlaceButtonTextActive: {
-    color: "#FFFFFF",
   },
 
   reviewLoadingPanel: {
@@ -1629,7 +931,171 @@ const styles = StyleSheet.create({
     width: "74%",
     height: "100%",
     borderRadius: 999,
+    backgroundColor: "#2563EB",
+  },
+
+  reviewPanel: {
+    marginTop: 20,
+    marginBottom: 12,
+  },
+
+  placeExpandedHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 22,
+  },
+
+  placeIconCircle: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#F8C8F4",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+
+  placeIconEmoji: {
+    fontSize: 30,
+  },
+
+  placeExpandedInfo: {
+    flex: 1,
+  },
+
+  expandedPlaceName: {
+    color: "#111827",
+    fontSize: 22,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  expandedAddress: {
+    color: "#8A9BB2",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  expandedMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  expandedMetaText: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: 5,
+  },
+
+  expandedDot: {
+    marginHorizontal: 8,
+    color: "#8A9BB2",
+    fontSize: 15,
+    fontWeight: "700",
+  },
+
+  aiReviewBox: {
+    position: "relative",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#CFE0FF",
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    marginBottom: 20,
+  },
+
+  aiReviewText: {
+    color: "#2158E8",
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 23,
+  },
+
+  aiBadge: {
+    position: "absolute",
+    right: -12,
+    top: -12,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#5B3DFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  aiBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  reviewLineArea: {
+    position: "relative",
+    paddingLeft: 36,
+    gap: 12,
+  },
+
+  reviewVerticalLine: {
+    position: "absolute",
+    left: 8,
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: "#DDE5EF",
+  },
+
+  keywordWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+  },
+
+  keywordChip: {
+    borderRadius: 999,
+    backgroundColor: "#EEF4FF",
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+  },
+
+  keywordText: {
+    color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  platformReviewCard: {
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DDE5EF",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+  },
+
+  platformReviewText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+
+  expandedSelectButton: {
+    height: 48,
+    borderRadius: 14,
     backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 18,
+  },
+
+  expandedSelectButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   disabledNextButton: {
@@ -1643,364 +1109,17 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#2158E8",
+    backgroundColor: "#273142",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2158E8",
+    shadowColor: "#1E293B",
     shadowOffset: {
       width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 20,
-    zIndex: 9999,
-  },
-
-  detailModalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.24)",
-    justifyContent: "center",
-    paddingHorizontal: 26,
-  },
-
-  detailModalCard: {
-    maxHeight: "78%",
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingTop: 18,
-    paddingBottom: 14,
-    borderWidth: 1,
-    borderColor: "#DDE6F1",
-    shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 24,
-    elevation: 14,
-  },
-
-  detailModalScrollContent: {
-    paddingBottom: 2,
-  },
-
-  detailHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 16,
-  },
-
-  detailIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: "#FFD0F7",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 13,
-  },
-
-  detailIconEmoji: {
-    fontSize: 26,
-  },
-
-  detailTitleArea: {
-    flex: 1,
-    paddingTop: 1,
-  },
-
-  detailTitle: {
-    color: "#000000",
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: -0.3,
-    marginBottom: 6,
-  },
-
-  detailAddress: {
-    color: "#A7B2C3",
-    fontSize: 15,
-    fontWeight: "800",
-    marginBottom: 9,
-  },
-
-  detailMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  detailMetaText: {
-    flexShrink: 1,
-    color: "#111827",
-    fontSize: 13,
-    fontWeight: "900",
-    marginLeft: 4,
-  },
-
-  detailMetaDot: {
-    color: "#A7B2C3",
-    fontSize: 13,
-    fontWeight: "900",
-    marginHorizontal: 7,
-  },
-
-  detailLoadingBox: {
-    minHeight: 180,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-
-  detailLoadingText: {
-    marginTop: 12,
-    color: "#617087",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  aiSummaryCard: {
-    position: "relative",
-    minHeight: 78,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#C7DCFF",
-    backgroundColor: "#EEF5FF",
-    paddingLeft: 15,
-    paddingRight: 52,
-    paddingVertical: 13,
-    justifyContent: "center",
-    marginBottom: 11,
-    overflow: "visible",
-  },
-
-  aiSummaryText: {
-    color: "#2F6BFF",
-    fontSize: 14,
-    fontWeight: "900",
-    lineHeight: 21,
-  },
-
-  aiCircleBadge: {
-    position: "absolute",
-    right: 12,
-    top: 12,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 3,
+      height: 4,
     },
     shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 6,
-  },
-
-  aiCircleText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "900",
-  },
-
-  keywordSection: {
-    marginBottom: 12,
-  },
-
-  keywordWrap: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
-  },
-
-  keywordChip: {
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
-
-  keywordChipText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  reviewSection: {
-    marginBottom: 2,
-  },
-
-  reviewSectionHeader: {
-    flexDirection: "row",
-    alignItems: "flex-end",
-    justifyContent: "space-between",
-    marginBottom: 9,
-  },
-
-  reviewSectionTitle: {
-    color: "#1E293B",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  reviewSectionSubtitle: {
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  reviewList: {
-    gap: 9,
-    marginBottom: 12,
-  },
-
-  reviewCard: {
-    minHeight: 72,
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DDE6F1",
-    paddingHorizontal: 13,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-
-  reviewIconCircle: {
-    width: 25,
-    height: 25,
-    borderRadius: 12.5,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
-  },
-
-  platformTextBox: {
-    flex: 1,
-    marginLeft: 9,
-  },
-
-  reviewMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 4,
-    gap: 3,
-  },
-
-  reviewRatingText: {
-    color: "#1E293B",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  reviewTimeText: {
-    marginLeft: 5,
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  platformText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 19,
-  },
-
-  googleIcon: {
-    color: "#4285F4",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-
-  freshnessCard: {
-    minHeight: 58,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DDE6F1",
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  freshnessIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#EAF3FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  freshnessContent: {
-    flex: 1,
-  },
-
-  freshnessTitle: {
-    color: "#1E293B",
-    fontSize: 12,
-    fontWeight: "900",
-    marginBottom: 3,
-  },
-
-  freshnessText: {
-    color: "#8A97A8",
-    fontSize: 11,
-    fontWeight: "800",
-    lineHeight: 16,
-  },
-
-  emptyDetailBox: {
-    minHeight: 96,
-    borderRadius: 14,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 14,
-    gap: 8,
-  },
-
-  emptyDetailText: {
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
-  },
-
-  compactButton: {
-    alignSelf: "center",
-    width: "92%",
-    height: 46,
-    borderRadius: 13,
-    backgroundColor: "#F4F7FA",
-    alignItems: "center",
-    justifyContent: "center",
-    flexDirection: "row",
-    gap: 7,
-    marginTop: 1,
-  },
-
-  compactButtonText: {
-    color: "#8A97A8",
-    fontSize: 17,
-    fontWeight: "900",
+    shadowRadius: 8,
+    elevation: 20,
+    zIndex: 9999,
   },
 });
