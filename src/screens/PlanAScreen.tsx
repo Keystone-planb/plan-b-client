@@ -526,7 +526,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          <PlanAMapPreview />
+          <PlanAMapPreview places={currentPlaces} />
 
           <View style={styles.sheet}>
             <View style={styles.sheetHandleWrapper}>

@@ -1,44 +1,195 @@
-import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import React, { useMemo } from "react";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import MapView, {
+  Marker,
+  Polyline,
+  PROVIDER_GOOGLE,
+  Region,
+} from "react-native-maps";
 
-export default function PlanAMapPreview() {
+import { PlaceItem } from "../../types/planA";
+
+type Props = {
+  places?: PlaceItem[];
+};
+
+type MapPlace = PlaceItem & {
+  latitude: number;
+  longitude: number;
+};
+
+const DEFAULT_REGION: Region = {
+  latitude: 37.5665,
+  longitude: 126.978,
+  latitudeDelta: 0.08,
+  longitudeDelta: 0.08,
+};
+
+const hasValidCoordinate = (place: PlaceItem): place is MapPlace => {
   return (
-    <View style={styles.mapArea}>
+    typeof place.latitude === "number" &&
+    typeof place.longitude === "number" &&
+    Number.isFinite(place.latitude) &&
+    Number.isFinite(place.longitude)
+  );
+};
+
+const createRegionFromPlaces = (places: MapPlace[]): Region => {
+  if (places.length === 0) {
+    return DEFAULT_REGION;
+  }
+
+  if (places.length === 1) {
+    return {
+      latitude: places[0].latitude,
+      longitude: places[0].longitude,
+      latitudeDelta: 0.018,
+      longitudeDelta: 0.018,
+    };
+  }
+
+  const latitudes = places.map((place) => place.latitude);
+  const longitudes = places.map((place) => place.longitude);
+
+  const minLat = Math.min(...latitudes);
+  const maxLat = Math.max(...latitudes);
+  const minLng = Math.min(...longitudes);
+  const maxLng = Math.max(...longitudes);
+
+  const latitudeDelta = Math.max((maxLat - minLat) * 1.8, 0.018);
+  const longitudeDelta = Math.max((maxLng - minLng) * 1.8, 0.018);
+
+  return {
+    latitude: (minLat + maxLat) / 2,
+    longitude: (minLng + maxLng) / 2,
+    latitudeDelta,
+    longitudeDelta,
+  };
+};
+
+function MockMapPreview() {
+  return (
+    <View style={styles.mockMapArea}>
       <View style={styles.mapRoadHorizontal} />
       <View style={styles.mapRoadVertical} />
       <View style={styles.mapRoadDiagonal} />
 
       <View style={styles.mapGreenAreaOne}>
-        <Text style={styles.mapAreaText}>강릉종합{"\n"}운동장</Text>
+        <Text style={styles.mapAreaText}>장소 좌표{"\n"}대기 중</Text>
       </View>
 
       <View style={styles.mapGreenAreaTwo} />
 
-      <Text style={[styles.mapPlaceLabel, styles.mapLabelOne]}>강릉세무서</Text>
-
-      <Text style={[styles.mapPlaceLabel, styles.mapLabelTwo]}>
-        하슬라중학교
+      <Text style={[styles.mapPlaceLabel, styles.mapLabelOne]}>
+        장소를 추가하면
       </Text>
 
-      <Text style={[styles.mapPlaceLabel, styles.mapLabelThree]}>교2동</Text>
+      <Text style={[styles.mapPlaceLabel, styles.mapLabelTwo]}>
+        지도에 표시돼요
+      </Text>
 
       <View style={[styles.mapPin, styles.mapPinOne]}>
         <Text style={styles.mapPinText}>1</Text>
       </View>
+    </View>
+  );
+}
 
-      <View style={[styles.mapPin, styles.mapPinTwo]}>
-        <Text style={styles.mapPinText}>2</Text>
-      </View>
+export default function PlanAMapPreview({ places = [] }: Props) {
+  const mapPlaces = useMemo(() => {
+    return places.filter(hasValidCoordinate);
+  }, [places]);
 
-      <View style={[styles.mapPin, styles.mapPinThree]}>
-        <Text style={styles.mapPinText}>3</Text>
-      </View>
+  const initialRegion = useMemo(() => {
+    return createRegionFromPlaces(mapPlaces);
+  }, [mapPlaces]);
+
+  const routeCoordinates = useMemo(() => {
+    return mapPlaces.map((place) => ({
+      latitude: place.latitude,
+      longitude: place.longitude,
+    }));
+  }, [mapPlaces]);
+
+  if (Platform.OS === "web") {
+    return <MockMapPreview />;
+  }
+
+  if (mapPlaces.length === 0) {
+    return <MockMapPreview />;
+  }
+
+  return (
+    <View style={styles.mapArea}>
+      <MapView
+        style={styles.realMap}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+        initialRegion={initialRegion}
+        showsUserLocation={false}
+        showsMyLocationButton={false}
+        showsCompass={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
+        scrollEnabled
+        zoomEnabled
+      >
+        {routeCoordinates.length >= 2 ?
+          <Polyline
+            coordinates={routeCoordinates}
+            strokeWidth={4}
+            strokeColor="#2158E8"
+          />
+        : null}
+
+        {mapPlaces.map((place, index) => (
+          <Marker
+            key={`${place.id}-${place.latitude}-${place.longitude}`}
+            coordinate={{
+              latitude: place.latitude,
+              longitude: place.longitude,
+            }}
+            title={place.name}
+            description={place.address}
+          >
+            <View style={styles.marker}>
+              <Text style={styles.markerText}>{index + 1}</Text>
+            </View>
+          </Marker>
+        ))}
+      </MapView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   mapArea: {
+    height: 128,
+    backgroundColor: "#EEF3F7",
+    overflow: "hidden",
+  },
+
+  realMap: {
+    flex: 1,
+  },
+
+  marker: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+
+  markerText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  mockMapArea: {
     height: 128,
     backgroundColor: "#EEF3F7",
     overflow: "hidden",
@@ -136,11 +287,6 @@ const styles = StyleSheet.create({
     color: "#4A8BEA",
   },
 
-  mapLabelThree: {
-    left: 154,
-    bottom: 16,
-  },
-
   mapPin: {
     position: "absolute",
     width: 24,
@@ -156,16 +302,6 @@ const styles = StyleSheet.create({
   mapPinOne: {
     right: 82,
     top: 52,
-  },
-
-  mapPinTwo: {
-    right: 48,
-    bottom: 12,
-  },
-
-  mapPinThree: {
-    left: 76,
-    top: 58,
   },
 
   mapPinText: {
