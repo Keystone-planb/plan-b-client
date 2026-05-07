@@ -95,11 +95,10 @@ export default function AddScheduleTransportScreen({
       return;
     }
 
-    navigation.navigate("PlanA", {
+    navigation.navigate("AddScheduleLocation", {
       tripName: tripName.trim(),
       startDate,
       endDate,
-      location: "",
       transportMode: selectedOption.mode,
       transportLabel: selectedOption.label,
     });

@@ -20,7 +20,13 @@ import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 
-import { DayOption, PlaceItem, SelectedPlaceParam } from "../types/planA";
+import {
+  DayOption,
+  PlaceItem,
+  SelectedPlaceParam,
+  SelectedPlacesParam,
+} from "../types/planA";
+import { TravelSchedule } from "../types/schedule";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
 
 type Props = {
@@ -28,13 +34,24 @@ type Props = {
   route?: {
     params?: {
       scheduleId?: string;
+      tripId?: number | string;
+      serverTripId?: number | string;
       tripName?: string;
       startDate?: string;
       endDate?: string;
       location?: string;
       transportMode?: "WALK" | "TRANSIT" | "CAR";
       transportLabel?: string;
+
+      /**
+       * 기존 단일 장소 추가 호환용
+       */
       selectedPlace?: SelectedPlaceParam;
+
+      /**
+       * AddScheduleLocation에서 여러 장소를 한 번에 선택했을 때 사용
+       */
+      selectedPlaces?: SelectedPlacesParam;
     };
   };
 };
@@ -83,6 +100,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [timePickerPeriod, setTimePickerPeriod] = useState<"AM" | "PM">("AM");
 
   const scheduleId = route?.params?.scheduleId;
+  const tripId = route?.params?.tripId ?? route?.params?.serverTripId;
+  const serverTripId = route?.params?.serverTripId ?? route?.params?.tripId;
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "04.23";
@@ -90,11 +109,16 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const transportMode = route?.params?.transportMode ?? "WALK";
   const transportLabel = route?.params?.transportLabel ?? "도보";
   const selectedPlace = route?.params?.selectedPlace;
+  const selectedPlaces = route?.params?.selectedPlaces;
+
+  const resolvedTripId = tripId ?? serverTripId;
 
   const {
     schedule,
     saveError,
     saveSuccessMessage,
+    saving,
+    handleSaveSchedule,
     loadingSchedule,
     loadError,
     currentPlaces,
@@ -126,6 +150,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   } = usePlanAPlaces({
     selectedDay,
     selectedPlace,
+    selectedPlaces,
     tripName,
     startDate,
     endDate,
@@ -134,16 +159,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
   });
 
   useEffect(() => {
-    if (!selectedPlace?.day) return;
+    const firstSelectedDay = selectedPlaces?.[0]?.day ?? selectedPlace?.day;
 
-    setSelectedDay(selectedPlace.day);
-  }, [selectedPlace?.day]);
+    if (!firstSelectedDay) return;
+
+    setSelectedDay(firstSelectedDay);
+  }, [selectedPlace?.day, selectedPlaces]);
 
   const handleBack = () => {
     navigation.goBack();
   };
 
-  const moveToMain = () => {
+  const moveToMain = (savedSchedule: TravelSchedule = schedule) => {
+    const nextTripId =
+      savedSchedule.serverTripId ?? resolvedTripId ?? serverTripId ?? tripId;
+
     navigation.reset({
       index: 0,
       routes: [
@@ -151,50 +181,68 @@ export default function PlanAScreen({ navigation, route }: Props) {
           name: "Main",
           params: {
             refreshSchedules: true,
-            savedScheduleId: schedule.id,
+            savedScheduleId: savedSchedule.id,
+            tripId: nextTripId,
+            serverTripId: nextTripId,
           },
         },
       ],
     });
   };
 
-  const handleSavePlanA = () => {
+  const handleSavePlanA = async () => {
     resetEditingState();
 
-    console.log("[PlanA] 저장 완료 후 Main으로 이동", {
-      scheduleId: schedule.id,
-      tripName: schedule.tripName,
-    });
+    try {
+      const savedSchedule = await handleSaveSchedule();
 
-    if (Platform.OS === "web") {
-      const browserWindow = globalThis as typeof globalThis & {
-        alert?: (message?: string) => void;
-      };
+      console.log("[PlanA] 저장 완료 후 Main으로 이동", {
+        scheduleId: savedSchedule.id,
+        tripId: savedSchedule.serverTripId,
+        tripName: savedSchedule.tripName,
+      });
 
-      if (typeof browserWindow.alert === "function") {
-        browserWindow.alert("일정이 저장되었습니다.");
+      if (Platform.OS === "web") {
+        const browserWindow = globalThis as typeof globalThis & {
+          alert?: (message?: string) => void;
+        };
+
+        if (typeof browserWindow.alert === "function") {
+          browserWindow.alert("일정이 저장되었습니다.");
+        }
+
+        moveToMain(savedSchedule);
+        return;
       }
 
-      moveToMain();
-      return;
-    }
+      Alert.alert("저장 완료", "일정이 저장되었습니다.", [
+        {
+          text: "확인",
+          onPress: () => moveToMain(savedSchedule),
+        },
+      ]);
+    } catch (error) {
+      console.log("[PlanA] 저장 후 이동 실패:", error);
 
-    Alert.alert("저장 완료", "일정이 저장되었습니다.", [
-      {
-        text: "확인",
-        onPress: moveToMain,
-      },
-    ]);
+      Alert.alert(
+        "저장 실패",
+        "일정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
+    }
   };
 
   const handleBottomTabPress = (tabName: BottomTabName) => {
     if (tabName === "Home") {
-      moveToMain();
+      moveToMain(schedule);
       return;
     }
 
     navigation.navigate("Main", {
       screen: tabName,
+      params: {
+        tripId: resolvedTripId,
+        serverTripId: resolvedTripId,
+      },
     });
   };
 
@@ -279,6 +327,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
       day: selectedDay,
       selectedDay,
       scheduleId: schedule.id,
+      tripId: schedule.serverTripId ?? resolvedTripId,
+      serverTripId: schedule.serverTripId ?? resolvedTripId,
       tripName: schedule.tripName,
       startDate: schedule.startDate,
       endDate: schedule.endDate,
@@ -292,40 +342,39 @@ export default function PlanAScreen({ navigation, route }: Props) {
     return (
       <View key={place.id} style={styles.simplePlaceRow}>
         <View style={styles.timelineColumn}>
-          <View style={styles.timelineDot}>
-            <Text style={styles.timelineDotText}>{index + 1}</Text>
-          </View>
-
-          <View style={styles.timelineLine} />
+          <View style={styles.timelineCircle} />
         </View>
 
         <View style={styles.simplePlaceCard}>
-          <View style={styles.simplePlaceHeader}>
-            <Text style={styles.simplePlaceTitle} numberOfLines={1}>
-              {place.name}
-            </Text>
-
-            <View style={styles.placeOrderBadge}>
-              <Text style={styles.placeOrderBadgeText}>Day {selectedDay}</Text>
-            </View>
+          <View style={styles.placeNumberBadge}>
+            <Text style={styles.placeNumberBadgeText}>{index + 1}</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.simpleTimeRow}
-            activeOpacity={0.75}
-            onPress={() => openTimePicker(place)}
-          >
-            <Ionicons name="time-outline" size={16} color="#94A3B8" />
-            <Text style={styles.simplePlaceTime}>
-              {place.time || "시간을 설정해주세요"}
-            </Text>
-
-            <View style={styles.simpleTimeAction}>
-              <Text style={styles.simpleTimeActionText}>
-                {place.time ? "변경" : "설정"}
+          <View style={styles.simplePlaceContent}>
+            <View style={styles.simplePlaceHeader}>
+              <Text style={styles.simplePlaceTitle} numberOfLines={1}>
+                {place.name}
               </Text>
             </View>
-          </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.simpleTimeRow}
+              activeOpacity={0.75}
+              onPress={() => openTimePicker(place)}
+            >
+              <Ionicons name="time-outline" size={16} color="#94A3B8" />
+
+              <Text style={styles.simplePlaceTime}>
+                {place.time || "시간을 설정해주세요"}
+              </Text>
+
+              <View style={styles.simpleTimeAction}>
+                <Text style={styles.simpleTimeActionText}>
+                  {place.time ? "변경" : "설정"}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -410,12 +459,19 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
 
                 <TouchableOpacity
-                  style={styles.headerIconButton}
+                  style={[
+                    styles.headerIconButton,
+                    (loadingSchedule || saving) && styles.headerIconDisabled,
+                  ]}
                   activeOpacity={0.8}
                   onPress={handleSavePlanA}
-                  disabled={loadingSchedule}
+                  disabled={loadingSchedule || saving}
                 >
-                  <Ionicons name="download-outline" size={22} color="#2158E8" />
+                  <Ionicons
+                    name="download-outline"
+                    size={22}
+                    color={loadingSchedule || saving ? "#94A3B8" : "#2158E8"}
+                  />
                 </TouchableOpacity>
               </View>
             </View>
@@ -447,6 +503,13 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             : null}
 
+            {saving ?
+              <View style={styles.saveFeedbackBox}>
+                <Ionicons name="sync-outline" size={14} color="#2158E8" />
+                <Text style={styles.loadingText}>일정을 저장하는 중...</Text>
+              </View>
+            : null}
+
             {loadError ?
               <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
                 <Ionicons name="alert-circle" size={14} color="#EF4444" />
@@ -471,15 +534,18 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             {currentPlaces.length > 0 ?
-              currentPlaces.map((place, index) =>
-                isEditMode ?
-                  renderEditablePlaceCard(place, index)
-                : renderPlaceCard(place, index),
-              )
+              <View style={styles.roadmapList}>
+                <View pointerEvents="none" style={styles.roadmapLine} />
+
+                {currentPlaces.map((place, index) =>
+                  isEditMode ?
+                    renderEditablePlaceCard(place, index)
+                  : renderPlaceCard(place, index),
+                )}
+              </View>
             : <View style={styles.emptyScheduleRow}>
                 <View style={styles.timelineColumn}>
-                  <View style={styles.timelineEmptyDot} />
-                  <View style={styles.timelineLine} />
+                  <View style={styles.timelineCircle} />
                 </View>
 
                 <View style={styles.emptyScheduleContent}>
@@ -672,41 +738,26 @@ export default function PlanAScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-
-  screen: {
-    flex: 1,
-    backgroundColor: "#F7F9FB",
-    position: "relative",
-  },
-
-  container: {
-    flex: 1,
-  },
-
+  safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
+  screen: { flex: 1, backgroundColor: "#F7F9FB", position: "relative" },
+  container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
     backgroundColor: "#F7F9FB",
     paddingBottom: 130,
   },
-
   headerSection: {
     backgroundColor: "#FFFFFF",
     paddingTop: 26,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
-
   topHeaderRow: {
     minHeight: 86,
     flexDirection: "row",
     alignItems: "flex-start",
     paddingHorizontal: 0,
   },
-
   backButton: {
     width: 32,
     height: 40,
@@ -714,13 +765,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 2,
   },
-
-  headerInfo: {
-    flex: 1,
-    paddingLeft: 6,
-    paddingRight: 8,
-  },
-
+  headerInfo: { flex: 1, paddingLeft: 6, paddingRight: 8 },
   planTitle: {
     color: "#1C2534",
     fontSize: 25,
@@ -728,20 +773,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.7,
     marginBottom: 7,
   },
-
   planDate: {
     color: "#627187",
     fontSize: 15,
     fontWeight: "700",
     marginBottom: 6,
   },
-
-  planTransport: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
+  planTransport: { color: "#627187", fontSize: 15, fontWeight: "700" },
   headerActionRow: {
     width: 82,
     flexDirection: "row",
@@ -751,14 +789,15 @@ const styles = StyleSheet.create({
     paddingRight: 0,
     paddingTop: 6,
   },
-
   headerIconButton: {
     width: 28,
     height: 28,
     alignItems: "center",
     justifyContent: "center",
   },
-
+  headerIconDisabled: {
+    opacity: 0.55,
+  },
   saveFeedbackBox: {
     marginHorizontal: 0,
     marginTop: 8,
@@ -772,33 +811,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-
-  saveErrorBox: {
-    backgroundColor: "#FEF2F2",
-    borderColor: "#FECACA",
-  },
-
+  saveErrorBox: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
   saveSuccessText: {
     flex: 1,
     color: "#16A34A",
     fontSize: 12,
     fontWeight: "800",
   },
-
   saveErrorText: {
     flex: 1,
     color: "#EF4444",
     fontSize: 12,
     fontWeight: "800",
   },
-
   loadingText: {
     flex: 1,
     color: "#2158E8",
     fontSize: 12,
     fontWeight: "800",
   },
-
   dayTabsWrapper: {
     width: "100%",
     alignItems: "flex-start",
@@ -806,7 +837,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
     paddingLeft: 0,
   },
-
   sheet: {
     minHeight: 430,
     marginTop: -1,
@@ -817,31 +847,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 36,
   },
-
-  sheetHandleWrapper: {
-    alignItems: "center",
-    marginBottom: 20,
-  },
-
+  sheetHandleWrapper: { alignItems: "center", marginBottom: 20 },
   sheetHandle: {
     width: 44,
     height: 5,
     borderRadius: 999,
     backgroundColor: "#D6DFEA",
   },
-
   emptyScheduleRow: {
     width: "100%",
     flexDirection: "row",
     alignItems: "stretch",
     paddingHorizontal: 0,
   },
-
-  emptyScheduleContent: {
-    flex: 1,
-    paddingRight: 0,
-  },
-
+  emptyScheduleContent: { flex: 1, paddingRight: 0 },
   addPlaceButton: {
     marginTop: 10,
     marginLeft: 43,
@@ -853,73 +872,60 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     shadowColor: "#2158E8",
     shadowOpacity: 0.18,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
+    shadowOffset: { width: 0, height: 4 },
     shadowRadius: 10,
     elevation: 4,
   },
+  addPlaceButtonText: { color: "#2158E8", fontSize: 15, fontWeight: "900" },
 
-  addPlaceButtonText: {
-    color: "#2158E8",
-    fontSize: 15,
-    fontWeight: "900",
+  // ===== 로드맵 리스트 전체 컨테이너 =====
+  roadmapList: {
+    position: "relative",
+    width: "100%",
   },
 
+  // ===== 장소 리스트 전체를 관통하는 하나의 세로선 =====
+  roadmapLine: {
+    position: "absolute",
+    left: 16,
+    top: 22,
+    bottom: 26,
+    width: 2,
+    borderRadius: 999,
+    backgroundColor: "#2563EB",
+  },
+
+  // ===== 장소 한 줄 =====
   simplePlaceRow: {
     width: "100%",
     flexDirection: "row",
-    alignItems: "stretch",
-    marginBottom: 14,
+    alignItems: "center",
+    marginBottom: 18,
     paddingHorizontal: 0,
+    position: "relative",
+    zIndex: 1,
   },
 
+  // ===== 왼쪽 빈 원 영역 =====
   timelineColumn: {
     width: 34,
     alignItems: "center",
+    justifyContent: "center",
     marginRight: 10,
   },
 
-  timelineDot: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-    shadowColor: "#2563EB",
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 3,
-  },
-
-  timelineEmptyDot: {
+  // ===== 왼쪽 빈 원 =====
+  timelineCircle: {
     width: 17,
     height: 17,
     borderRadius: 8.5,
     borderWidth: 4,
     borderColor: "#2563EB",
     backgroundColor: "#FFFFFF",
-    marginTop: 20,
+    zIndex: 2,
   },
 
-  timelineLine: {
-    flex: 1,
-    width: 2,
-    marginTop: 4,
-    borderRadius: 999,
-    backgroundColor: "#2563EB",
-  },
-
-  timelineDotText: {
-    color: "#FFFFFF",
-    fontSize: 10,
-    fontWeight: "800",
-  },
-
+  // ===== 장소 카드 =====
   simplePlaceCard: {
     flex: 1,
     minHeight: 88,
@@ -930,7 +936,8 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 18,
     paddingVertical: 16,
-    justifyContent: "center",
+    flexDirection: "row",
+    alignItems: "center",
     shadowColor: "#0F172A",
     shadowOpacity: 0.05,
     shadowRadius: 12,
@@ -938,46 +945,37 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
+  // ===== 카드 내부 번호 배지 =====
+  placeNumberBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 14,
+  },
+  placeNumberBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  simplePlaceContent: {
+    flex: 1,
+  },
   simplePlaceHeader: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     marginBottom: 12,
-    gap: 10,
   },
-
   simplePlaceTitle: {
     flex: 1,
     fontSize: 17,
     fontWeight: "900",
     color: "#1E293B",
   },
-
-  placeOrderBadge: {
-    borderRadius: 999,
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-  },
-
-  placeOrderBadgeText: {
-    color: "#2563EB",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  simpleTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-
-  simplePlaceTime: {
-    fontSize: 14,
-    fontWeight: "700",
-    color: "#94A3B8",
-  },
-
+  simpleTimeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  simplePlaceTime: { fontSize: 14, fontWeight: "700", color: "#94A3B8" },
   simpleTimeAction: {
     marginLeft: 8,
     borderRadius: 999,
@@ -985,13 +983,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
   },
-
-  simpleTimeActionText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
+  simpleTimeActionText: { color: "#64748B", fontSize: 11, fontWeight: "900" },
   bottomTabOuter: {
     position: "absolute",
     left: 24,
@@ -1000,7 +992,6 @@ const styles = StyleSheet.create({
     zIndex: 999,
     elevation: 999,
   },
-
   bottomTabContainer: {
     width: "100%",
     height: 58,
@@ -1012,22 +1003,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DDE6F2",
     shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
+    shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.12,
     shadowRadius: 16,
     elevation: 12,
   },
-
   bottomTabButton: {
     flex: 1,
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
   },
-
   timeModalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(15, 23, 42, 0.5)",
@@ -1035,7 +1021,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-
   timeModalCard: {
     width: "100%",
     maxWidth: 340,
@@ -1045,28 +1030,18 @@ const styles = StyleSheet.create({
     paddingTop: 20,
     paddingBottom: 18,
     shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
+    shadowOffset: { width: 0, height: 12 },
     shadowOpacity: 0.22,
     shadowRadius: 24,
     elevation: 24,
   },
-
   timeModalHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginBottom: 10,
   },
-
-  timeModalTitle: {
-    color: "#1E293B",
-    fontSize: 20,
-    fontWeight: "900",
-  },
-
+  timeModalTitle: { color: "#1E293B", fontSize: 20, fontWeight: "900" },
   timeModalCloseButton: {
     width: 36,
     height: 36,
@@ -1075,14 +1050,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   timeModalPlaceName: {
     color: "#64748B",
     fontSize: 13,
     fontWeight: "800",
     marginBottom: 16,
   },
-
   timePickerPreview: {
     height: 46,
     borderRadius: 12,
@@ -1093,14 +1066,12 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 18,
   },
-
   timePickerPreviewText: {
     color: "#111827",
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 0.4,
   },
-
   timePickerControls: {
     flexDirection: "row",
     alignItems: "center",
@@ -1108,12 +1079,7 @@ const styles = StyleSheet.create({
     gap: 10,
     marginBottom: 20,
   },
-
-  timePickerColumn: {
-    alignItems: "center",
-    gap: 8,
-  },
-
+  timePickerColumn: { alignItems: "center", gap: 8 },
   timePickerArrow: {
     width: 54,
     height: 36,
@@ -1122,7 +1088,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
   timePickerValueBox: {
     width: 54,
     height: 44,
@@ -1133,20 +1098,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  timePickerValueText: {
-    color: "#111827",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-
+  timePickerValueText: { color: "#111827", fontSize: 18, fontWeight: "900" },
   timePickerColon: {
     color: "#64748B",
     fontSize: 24,
     fontWeight: "900",
     marginTop: 2,
   },
-
   timePickerPeriodBox: {
     width: 58,
     height: 44,
@@ -1157,18 +1115,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  timePickerPeriodText: {
-    color: "#2158E8",
-    fontSize: 16,
-    fontWeight: "900",
-  },
-
-  timeModalButtonRow: {
-    flexDirection: "row",
-    gap: 10,
-  },
-
+  timePickerPeriodText: { color: "#2158E8", fontSize: 16, fontWeight: "900" },
+  timeModalButtonRow: { flexDirection: "row", gap: 10 },
   timeModalCancelButton: {
     flex: 1,
     height: 48,
@@ -1177,13 +1125,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  timeModalCancelText: {
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
+  timeModalCancelText: { color: "#64748B", fontSize: 14, fontWeight: "900" },
   timeModalSaveButton: {
     flex: 1,
     height: 48,
@@ -1192,10 +1134,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-  timeModalSaveText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
+  timeModalSaveText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
 });

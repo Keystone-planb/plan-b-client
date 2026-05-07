@@ -6,10 +6,10 @@ import {
   PlaceItem,
   PlacesByDay,
   SelectedPlaceParam,
+  SelectedPlacesParam,
 } from "../types/planA";
 import { TravelSchedule } from "../types/schedule";
 import {
-  loadLatestPlanASchedule,
   loadPlanASchedule,
   savePlanASchedule,
 } from "../api/schedules/planAStorage";
@@ -31,6 +31,7 @@ type EditingMemoState = {
 type UsePlanAPlacesParams = {
   selectedDay: number;
   selectedPlace?: SelectedPlaceParam;
+  selectedPlaces?: SelectedPlacesParam;
   tripName: string;
   startDate: string;
   endDate: string;
@@ -44,6 +45,30 @@ type UpdateScheduleInfoPayload = {
   endDate?: string;
   location?: string;
 };
+
+type CreatedTripLocationResult = {
+  tripPlaceId?: number | string;
+  placeId?: string;
+  name?: string;
+  visitOrder?: number;
+  visitTime?: string | null;
+  endTime?: string | null;
+  memo?: string | null;
+};
+
+type CreatedLocationWithDay = {
+  day: number;
+  createdLocation: CreatedTripLocationResult;
+};
+
+const NEW_SCHEDULE_ROUTE_KEY = "__new_plan_a_schedule__";
+
+/**
+ * 저장 전 Plan.A draft 보존용 메모리 캐시.
+ * AddScheduleLocation → PlanA 왕복 중 screen이 새로 mount되어도
+ * 기존 장소 배열이 날아가지 않게 유지한다.
+ */
+const DRAFT_SCHEDULE_CACHE: Record<string, TravelSchedule> = {};
 
 const createNow = () => new Date().toISOString();
 
@@ -64,13 +89,29 @@ const createMemo = (text: string): MemoItem => {
 
 const createPlace = ({
   id,
+  tripPlaceId,
+  serverTripPlaceId,
+  placeId,
+  googlePlaceId,
   name,
+  address,
+  category,
+  latitude,
+  longitude,
   time,
   order,
   memos = [],
 }: {
   id: string;
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+  placeId?: string;
+  googlePlaceId?: string;
   name: string;
+  address?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
   time: string;
   order: number;
   memos?: MemoItem[];
@@ -79,7 +120,15 @@ const createPlace = ({
 
   return {
     id,
+    tripPlaceId,
+    serverTripPlaceId,
+    placeId,
+    googlePlaceId,
     name,
+    address,
+    category,
+    latitude,
+    longitude,
     time,
     order,
     memos,
@@ -147,24 +196,130 @@ const convertScheduleToPlacesByDay = (
   }, {});
 };
 
+const cacheDraftSchedule = (schedule: TravelSchedule) => {
+  DRAFT_SCHEDULE_CACHE[schedule.id] = schedule;
+};
+
+const getCachedDraftSchedule = (scheduleId?: string) => {
+  if (!scheduleId) return null;
+  return DRAFT_SCHEDULE_CACHE[scheduleId] ?? null;
+};
+
+const clearCachedDraftSchedule = (scheduleId?: string) => {
+  if (!scheduleId) return;
+  delete DRAFT_SCHEDULE_CACHE[scheduleId];
+};
+
+const findCreatedLocationForPlace = (
+  place: PlaceItem,
+  createdPlacesForDay: CreatedLocationWithDay[],
+) => {
+  return createdPlacesForDay.find(({ createdLocation }) => {
+    const matchedByPlaceId =
+      createdLocation.placeId !== undefined &&
+      (createdLocation.placeId === place.id ||
+        createdLocation.placeId === place.placeId ||
+        createdLocation.placeId === place.googlePlaceId);
+
+    const matchedByOrder =
+      createdLocation.visitOrder !== undefined &&
+      createdLocation.visitOrder === place.order;
+
+    const matchedByName =
+      createdLocation.name !== undefined && createdLocation.name === place.name;
+
+    return Boolean(matchedByPlaceId || (matchedByOrder && matchedByName));
+  });
+};
+
+const hasValidServerPlaceId = (value?: number | string) => {
+  return value !== undefined && value !== null && value !== "";
+};
+
+const applyServerPlaceIdsToSchedule = ({
+  schedule,
+  createdLocations,
+}: {
+  schedule: TravelSchedule;
+  createdLocations: CreatedLocationWithDay[];
+}): TravelSchedule => {
+  return {
+    ...schedule,
+    days: schedule.days.map((day) => {
+      const createdPlacesForDay = createdLocations.filter(
+        (item) => item.day === day.day,
+      );
+
+      return {
+        ...day,
+        places: day.places.map((place) => {
+          const matchedCreatedPlace = findCreatedLocationForPlace(
+            place,
+            createdPlacesForDay,
+          );
+
+          const tripPlaceId =
+            matchedCreatedPlace?.createdLocation.tripPlaceId ??
+            place.tripPlaceId ??
+            place.serverTripPlaceId;
+
+          if (!hasValidServerPlaceId(tripPlaceId)) {
+            return place;
+          }
+
+          const externalPlaceId =
+            matchedCreatedPlace?.createdLocation.placeId ??
+            place.placeId ??
+            place.googlePlaceId ??
+            place.id;
+
+          return {
+            ...place,
+            tripPlaceId,
+            serverTripPlaceId: tripPlaceId,
+            placeId: externalPlaceId ? String(externalPlaceId) : place.placeId,
+            googlePlaceId:
+              place.googlePlaceId ??
+              (externalPlaceId ? String(externalPlaceId) : undefined),
+            updatedAt: createNow(),
+          };
+        }),
+      };
+    }),
+  };
+};
+
+const getSelectedPlaceKey = (day: number, place: SelectedPlaceParam) => {
+  return `${day}:${place.id}:${place.placeId ?? ""}:${
+    place.googlePlaceId ?? ""
+  }`;
+};
+
 export function usePlanAPlaces({
   selectedDay,
   selectedPlace,
+  selectedPlaces,
   tripName,
   startDate,
   endDate,
   location,
   scheduleId,
 }: UsePlanAPlacesParams) {
-  const [schedule, setSchedule] = useState<TravelSchedule>(() =>
-    createInitialSchedule({
-      scheduleId,
-      tripName,
-      startDate,
-      endDate,
-      location,
-    }),
+  const initialSchedule = useMemo(
+    () =>
+      getCachedDraftSchedule(scheduleId) ??
+      createInitialSchedule({
+        scheduleId,
+        tripName,
+        startDate,
+        endDate,
+        location,
+      }),
+    [scheduleId, tripName, startDate, endDate, location],
   );
+
+  const [schedule, setSchedule] = useState<TravelSchedule>(initialSchedule);
+  const scheduleRef = useRef<TravelSchedule>(initialSchedule);
 
   const [memoDrafts, setMemoDrafts] = useState<Record<string, string>>({});
 
@@ -183,7 +338,25 @@ export function usePlanAPlaces({
   const [loadError, setLoadError] = useState("");
   const [hasLoadedSavedSchedule, setHasLoadedSavedSchedule] = useState(false);
   const [loadedSavedSchedule, setLoadedSavedSchedule] = useState(false);
-  const savedSelectedPlaceKeyRef = useRef<string | null>(null);
+
+  const loadedRouteKeyRef = useRef<string | null>(null);
+  const savedSelectedPlaceKeyRef = useRef<Set<string>>(new Set());
+
+  const setScheduleSafely = (
+    next:
+      | TravelSchedule
+      | ((previousSchedule: TravelSchedule) => TravelSchedule),
+  ) => {
+    setSchedule((previousSchedule) => {
+      const nextSchedule =
+        typeof next === "function" ? next(previousSchedule) : next;
+
+      scheduleRef.current = nextSchedule;
+      cacheDraftSchedule(nextSchedule);
+
+      return nextSchedule;
+    });
+  };
 
   const placesByDay = useMemo(() => {
     return convertScheduleToPlacesByDay(schedule);
@@ -194,29 +367,64 @@ export function usePlanAPlaces({
 
   useEffect(() => {
     const loadSavedSchedule = async () => {
+      const routeKey = scheduleId ?? NEW_SCHEDULE_ROUTE_KEY;
+
+      if (loadedRouteKeyRef.current === routeKey) {
+        return;
+      }
+
+      const cachedDraft = getCachedDraftSchedule(scheduleId);
+
+      if (cachedDraft) {
+        console.log("[PlanA hook draft cache 사용]", {
+          scheduleId: cachedDraft.id,
+          placeCount: cachedDraft.days.reduce(
+            (sum, day) => sum + day.places.length,
+            0,
+          ),
+        });
+
+        scheduleRef.current = cachedDraft;
+        setSchedule(cachedDraft);
+        setLoadedSavedSchedule(true);
+        setHasLoadedSavedSchedule(true);
+        loadedRouteKeyRef.current = routeKey;
+        return;
+      }
+
       try {
         setLoadingSchedule(true);
         setLoadError("");
 
         const savedSchedule =
-          scheduleId ?
-            await loadPlanASchedule(scheduleId)
-          : await loadLatestPlanASchedule();
+          scheduleId ? await loadPlanASchedule(scheduleId) : null;
 
         console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
 
         if (savedSchedule) {
+          scheduleRef.current = savedSchedule;
+          cacheDraftSchedule(savedSchedule);
           setSchedule(savedSchedule);
           setLoadedSavedSchedule(true);
         } else {
+          scheduleRef.current = initialSchedule;
+          cacheDraftSchedule(initialSchedule);
+          setSchedule(initialSchedule);
           setLoadedSavedSchedule(false);
         }
 
+        loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } catch (error) {
         console.log("Plan.A 일정 불러오기 실패:", error);
+
         setLoadError("저장된 Plan.A 일정을 불러오지 못했습니다.");
+        scheduleRef.current = initialSchedule;
+        cacheDraftSchedule(initialSchedule);
+        setSchedule(initialSchedule);
         setLoadedSavedSchedule(false);
+
+        loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } finally {
         setLoadingSchedule(false);
@@ -224,10 +432,10 @@ export function usePlanAPlaces({
     };
 
     loadSavedSchedule();
-  }, [scheduleId]);
+  }, [scheduleId, initialSchedule]);
 
   const updateScheduleInfo = (payload: UpdateScheduleInfoPayload) => {
-    setSchedule((prev) => ({
+    setScheduleSafely((prev) => ({
       ...prev,
       tripName: payload.tripName ?? prev.tripName,
       startDate: payload.startDate ?? prev.startDate,
@@ -244,7 +452,7 @@ export function usePlanAPlaces({
     dayNumber: number,
     updater: (places: PlaceItem[]) => PlaceItem[],
   ) => {
-    setSchedule((prev) => {
+    setScheduleSafely((prev) => {
       const hasTargetDay = prev.days.some((day) => day.day === dayNumber);
 
       const nextDays =
@@ -253,7 +461,7 @@ export function usePlanAPlaces({
             day.day === dayNumber ?
               {
                 ...day,
-                places: updater(day.places),
+                places: reorderPlaces(updater(day.places)),
               }
             : day,
           )
@@ -261,7 +469,7 @@ export function usePlanAPlaces({
             ...prev.days,
             {
               day: dayNumber,
-              places: updater([]),
+              places: reorderPlaces(updater([])),
             },
           ];
 
@@ -278,7 +486,6 @@ export function usePlanAPlaces({
 
   useEffect(() => {
     if (!hasLoadedSavedSchedule) return;
-
     if (loadedSavedSchedule) return;
 
     updateScheduleInfo({
@@ -299,93 +506,82 @@ export function usePlanAPlaces({
   useEffect(() => {
     if (!hasLoadedSavedSchedule) return;
 
-    if (!selectedPlace?.id || !selectedPlace.name) return;
+    const placesToAdd =
+      selectedPlaces && selectedPlaces.length > 0 ? selectedPlaces
+      : selectedPlace ? [selectedPlace]
+      : [];
 
-    const targetDay = selectedPlace.day ?? 1;
+    const validPlacesToAdd = placesToAdd.filter(
+      (place) => place.id && place.name,
+    );
 
-    updatePlacesForDay(targetDay, (targetPlaces) => {
-      const alreadyExists = targetPlaces.some(
-        (place) => place.id === selectedPlace.id,
-      );
+    if (validPlacesToAdd.length === 0) return;
 
-      if (alreadyExists) {
-        return targetPlaces.map((place) =>
-          place.id === selectedPlace.id ?
-            {
-              ...place,
-              name: selectedPlace.name,
-              time: selectedPlace.time ?? place.time,
-              updatedAt: createNow(),
-            }
-          : place,
-        );
+    validPlacesToAdd.forEach((placeToAdd) => {
+      const targetDay = placeToAdd.day ?? selectedDay ?? 1;
+      const selectedPlaceKey = getSelectedPlaceKey(targetDay, placeToAdd);
+
+      if (savedSelectedPlaceKeyRef.current.has(selectedPlaceKey)) {
+        return;
       }
 
-      return [
-        ...targetPlaces,
-        createPlace({
-          id: selectedPlace.id,
-          name: selectedPlace.name,
-          time: selectedPlace.time ?? "",
-          order: targetPlaces.length + 1,
-        }),
-      ];
-    });
-  }, [
-    selectedPlace?.id,
-    selectedPlace?.name,
-    selectedPlace?.time,
-    selectedPlace?.day,
-    hasLoadedSavedSchedule,
-  ]);
+      savedSelectedPlaceKeyRef.current.add(selectedPlaceKey);
 
-  useEffect(() => {
-    if (!hasLoadedSavedSchedule) return;
+      updatePlacesForDay(targetDay, (targetPlaces) => {
+        const alreadyExists = targetPlaces.some((place) => {
+          const sameId = place.id === placeToAdd.id;
+          const samePlaceId =
+            placeToAdd.placeId !== undefined &&
+            place.placeId === placeToAdd.placeId;
+          const sameGooglePlaceId =
+            placeToAdd.googlePlaceId !== undefined &&
+            place.googlePlaceId === placeToAdd.googlePlaceId;
 
-    if (!selectedPlace?.id || !selectedPlace.name) return;
-
-    const targetDay = selectedPlace.day ?? 1;
-    const selectedPlaceKey = `${targetDay}:${selectedPlace.id}:${
-      selectedPlace.time ?? ""
-    }`;
-
-    if (savedSelectedPlaceKeyRef.current === selectedPlaceKey) return;
-
-    const hasSelectedPlace = schedule.days
-      .find((day) => day.day === targetDay)
-      ?.places.some((place) => place.id === selectedPlace.id);
-
-    if (!hasSelectedPlace) return;
-
-    savedSelectedPlaceKeyRef.current = selectedPlaceKey;
-
-    savePlanASchedule(schedule)
-      .then(() => {
-        setLoadedSavedSchedule(true);
-        console.log("[PlanA 선택 장소 로컬 저장 완료]", {
-          scheduleId: schedule.id,
-          placeId: selectedPlace.id,
-          targetDay,
+          return sameId || samePlaceId || sameGooglePlaceId;
         });
-      })
-      .catch((error) => {
-        savedSelectedPlaceKeyRef.current = null;
-        console.log("[PlanA 선택 장소 로컬 저장 실패]", error);
+
+        if (alreadyExists) {
+          return targetPlaces;
+        }
+
+        console.log("[PlanA 선택 장소 추가 완료]", {
+          day: targetDay,
+          placeId: placeToAdd.id,
+          placeName: placeToAdd.name,
+        });
+
+        return [
+          ...targetPlaces,
+          createPlace({
+            id: placeToAdd.id,
+
+            tripPlaceId: placeToAdd.tripPlaceId,
+            serverTripPlaceId:
+              placeToAdd.serverTripPlaceId ?? placeToAdd.tripPlaceId,
+
+            placeId:
+              placeToAdd.placeId ?? placeToAdd.googlePlaceId ?? placeToAdd.id,
+            googlePlaceId:
+              placeToAdd.googlePlaceId ?? placeToAdd.placeId ?? placeToAdd.id,
+
+            name: placeToAdd.name,
+            address: placeToAdd.address,
+            category: placeToAdd.category,
+            latitude: placeToAdd.latitude,
+            longitude: placeToAdd.longitude,
+            time: placeToAdd.time ?? "",
+            order: targetPlaces.length + 1,
+          }),
+        ];
       });
-  }, [
-    schedule,
-    selectedPlace?.id,
-    selectedPlace?.name,
-    selectedPlace?.time,
-    selectedPlace?.day,
-    hasLoadedSavedSchedule,
-  ]);
+    });
+  }, [hasLoadedSavedSchedule, selectedDay, selectedPlace, selectedPlaces]);
 
   const handleUpdatePlaceTime = (placeId: string, time: string) => {
     const nextTime = time.trim();
 
-    updatePlacesForDay(selectedDay, (targetPlaces) =>
-      targetPlaces.map((place) =>
+    updatePlacesForDay(selectedDay, (places) =>
+      places.map((place) =>
         place.id === placeId ?
           {
             ...place,
@@ -395,6 +591,12 @@ export function usePlanAPlaces({
         : place,
       ),
     );
+
+    console.log("[PlanA 장소 시간 변경 완료]", {
+      day: selectedDay,
+      placeId,
+      time: nextTime,
+    });
   };
 
   const resetEditingState = () => {
@@ -405,11 +607,15 @@ export function usePlanAPlaces({
     setEditingPlaceTime("");
   };
 
-  const handleSaveSchedule = async () => {
-    const scheduleBase = {
-      ...schedule,
+  const handleSaveSchedule = async (): Promise<TravelSchedule> => {
+    const scheduleBase: TravelSchedule = {
+      ...scheduleRef.current,
       updatedAt: createNow(),
     };
+
+    scheduleRef.current = scheduleBase;
+    cacheDraftSchedule(scheduleBase);
+    setSchedule(scheduleBase);
 
     try {
       setSaving(true);
@@ -427,11 +633,13 @@ export function usePlanAPlaces({
 
         await savePlanASchedule(scheduleBase);
 
+        scheduleRef.current = scheduleBase;
+        cacheDraftSchedule(scheduleBase);
         setSchedule(scheduleBase);
         setLoadedSavedSchedule(true);
         setSaveSuccessMessage("로그인 토큰이 없어 로컬에만 저장되었습니다.");
 
-        return;
+        return scheduleBase;
       }
 
       console.log("[PlanA 서버 저장 시도]", {
@@ -441,10 +649,18 @@ export function usePlanAPlaces({
       });
 
       if (scheduleBase.serverTripId) {
-        await deleteTrip(scheduleBase.serverTripId);
-        console.log("[PlanA 기존 서버 여행 삭제 완료]", {
-          serverTripId: scheduleBase.serverTripId,
-        });
+        try {
+          await deleteTrip(scheduleBase.serverTripId);
+
+          console.log("[PlanA 기존 서버 여행 삭제 완료]", {
+            serverTripId: scheduleBase.serverTripId,
+          });
+        } catch (deleteError) {
+          console.log("[PlanA 기존 서버 여행 삭제 실패 - 재생성 계속 진행]", {
+            serverTripId: scheduleBase.serverTripId,
+            error: deleteError,
+          });
+        }
       }
 
       const createdTrip = await createTrip(toCreateTripRequest(scheduleBase));
@@ -452,6 +668,7 @@ export function usePlanAPlaces({
       console.log("[PlanA 서버 여행 생성 완료]", createdTrip);
 
       const locationRequests = toAddLocationRequests(scheduleBase);
+      const createdLocations: CreatedLocationWithDay[] = [];
 
       for (const item of locationRequests) {
         const createdLocation = await addLocationToTripDay({
@@ -460,11 +677,21 @@ export function usePlanAPlaces({
           payload: item.payload,
         });
 
+        createdLocations.push({
+          day: item.day,
+          createdLocation,
+        });
+
         console.log("[PlanA 서버 장소 추가 완료]", createdLocation);
       }
 
-      const scheduleToSave = {
-        ...scheduleBase,
+      const scheduleWithServerPlaces = applyServerPlaceIdsToSchedule({
+        schedule: scheduleBase,
+        createdLocations,
+      });
+
+      const scheduleToSave: TravelSchedule = {
+        ...scheduleWithServerPlaces,
         serverTripId: createdTrip.tripId,
         tripName: createdTrip.title,
         startDate: createdTrip.startDate,
@@ -474,23 +701,50 @@ export function usePlanAPlaces({
 
       await savePlanASchedule(scheduleToSave);
 
+      scheduleRef.current = scheduleToSave;
+      cacheDraftSchedule(scheduleToSave);
       setSchedule(scheduleToSave);
       setLoadedSavedSchedule(true);
       setSaveSuccessMessage("Plan.A 변경사항이 서버와 로컬에 저장되었습니다.");
+
+      console.log("[PlanA 서버/로컬 저장 완료]", {
+        scheduleId: scheduleToSave.id,
+        serverTripId: scheduleToSave.serverTripId,
+        places: scheduleToSave.days.flatMap((day) =>
+          day.places.map((place) => ({
+            day: day.day,
+            name: place.name,
+            placeId: place.placeId,
+            googlePlaceId: place.googlePlaceId,
+            tripPlaceId: place.tripPlaceId,
+            serverTripPlaceId: place.serverTripPlaceId,
+          })),
+        ),
+      });
+
+      clearCachedDraftSchedule(scheduleBase.id);
+
+      return scheduleToSave;
     } catch (error) {
       console.log("Plan.A 서버 저장 실패:", error);
 
       try {
         await savePlanASchedule(scheduleBase);
 
+        scheduleRef.current = scheduleBase;
+        cacheDraftSchedule(scheduleBase);
         setSchedule(scheduleBase);
         setLoadedSavedSchedule(true);
         setSaveError(
           "서버 저장은 실패했지만, 변경사항은 로컬에 저장되었습니다.",
         );
+
+        return scheduleBase;
       } catch (localSaveError) {
         console.log("Plan.A 로컬 백업 저장 실패:", localSaveError);
         setSaveError("Plan.A 변경사항 저장에 실패했습니다.");
+
+        throw localSaveError;
       }
     } finally {
       setSaving(false);
@@ -534,10 +788,9 @@ export function usePlanAPlaces({
   };
 
   const handleDeletePlace = (placeId: string) => {
-    updatePlacesForDay(selectedDay, (places) => {
-      const nextPlaces = places.filter((place) => place.id !== placeId);
-      return reorderPlaces(nextPlaces);
-    });
+    updatePlacesForDay(selectedDay, (places) =>
+      places.filter((place) => place.id !== placeId),
+    );
 
     setMemoDrafts((prev) => {
       const next = { ...prev };
@@ -658,7 +911,7 @@ export function usePlanAPlaces({
 
   return {
     schedule,
-    setSchedule,
+    setSchedule: setScheduleSafely,
     updateScheduleInfo,
 
     saving,

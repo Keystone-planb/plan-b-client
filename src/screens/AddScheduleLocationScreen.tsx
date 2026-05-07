@@ -28,8 +28,6 @@ import {
   PlaceSearchResult,
   PlaceSummaryResponse,
 } from "../../api/places/place";
-import { createTrip } from "../../api/schedules/server";
-import { saveSchedule } from "../../api/schedules/storage";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 
 type Props = {
@@ -43,6 +41,8 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
+      tripId?: number | string;
+      serverTripId?: number | string;
       transportMode?: "WALK" | "TRANSIT" | "CAR";
       transportLabel?: string;
     };
@@ -83,11 +83,19 @@ export default function AddScheduleLocationScreen({
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
   const scheduleId = route?.params?.scheduleId;
+  const existingTripId = route?.params?.tripId;
+  const existingServerTripId = route?.params?.serverTripId;
   const existingLocation = route?.params?.location ?? "";
   const day = route?.params?.day;
   const selectedDay = route?.params?.selectedDay ?? day ?? 1;
   const transportMode = route?.params?.transportMode ?? "WALK";
   const transportLabel = route?.params?.transportLabel ?? "도보";
+
+  const hasExistingSchedule = Boolean(
+    scheduleId || existingTripId || existingServerTripId,
+  );
+
+  const resolvedExistingTripId = existingServerTripId ?? existingTripId;
 
   const [keyword, setKeyword] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -103,9 +111,7 @@ export default function AddScheduleLocationScreen({
   const [placeReviewMap, setPlaceReviewMap] = useState<
     Record<string, PlaceReviewInfo>
   >({});
-  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
-    null,
-  );
+  const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -115,6 +121,8 @@ export default function AddScheduleLocationScreen({
 
     navigation.navigate("PlanA", {
       scheduleId,
+      tripId: resolvedExistingTripId,
+      serverTripId: resolvedExistingTripId,
       tripName,
       startDate,
       endDate,
@@ -136,6 +144,20 @@ export default function AddScheduleLocationScreen({
     );
   };
 
+  const toggleSelectedPlace = (place: SelectedPlace) => {
+    setSelectedPlaces((prev) => {
+      const alreadySelected = prev.some(
+        (item) => item.placeId === place.placeId,
+      );
+
+      if (alreadySelected) {
+        return prev.filter((item) => item.placeId !== place.placeId);
+      }
+
+      return [...prev, place];
+    });
+  };
+
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
 
@@ -152,7 +174,8 @@ export default function AddScheduleLocationScreen({
 
     try {
       setSearchLoading(true);
-      setSelectedPlace(null);
+
+      // 여러 장소를 누적 선택해야 하므로 검색할 때 selectedPlaces는 초기화하지 않는다.
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
@@ -166,7 +189,6 @@ export default function AddScheduleLocationScreen({
       console.log("[AddScheduleLocation] searchPlaces failed:", error);
 
       setSearchResults([]);
-      setSelectedPlace(null);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
     } finally {
@@ -198,7 +220,7 @@ export default function AddScheduleLocationScreen({
         longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(nextPlace);
+      toggleSelectedPlace(nextPlace);
       setKeyword(place.name);
       moveMapToPlace(nextPlace);
 
@@ -215,7 +237,7 @@ export default function AddScheduleLocationScreen({
         feedbackType: "SELECT",
         reason: "ADD_SCHEDULE_LOCATION_SELECT",
       }).catch((error) => {
-        console.warn("[preferences/feedback] mock fallback", error);
+        console.warn("[preferences/feedback] 호출 실패", error);
       });
     } catch (error) {
       console.log("[AddScheduleLocation] getPlaceDetail failed:", error);
@@ -231,7 +253,7 @@ export default function AddScheduleLocationScreen({
         longitude: place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(fallbackPlace);
+      toggleSelectedPlace(fallbackPlace);
       setKeyword(place.name);
       moveMapToPlace(fallbackPlace);
     } finally {
@@ -276,7 +298,7 @@ export default function AddScheduleLocationScreen({
         [placeId]: {
           summary: {
             placeId,
-            aiSummary: "아직 요약 정보가 없습니다.",
+            aiSummary: "요약 정보를 불러오지 못했습니다.",
           },
         },
       }));
@@ -287,8 +309,48 @@ export default function AddScheduleLocationScreen({
     }
   };
 
+  const navigateToPlanAWithPlaces = ({
+    targetScheduleId,
+    targetTripId,
+    targetServerTripId,
+    targetLocation,
+  }: {
+    targetScheduleId?: string;
+    targetTripId?: number | string;
+    targetServerTripId?: number | string;
+    targetLocation: string;
+  }) => {
+    if (selectedPlaces.length === 0) {
+      return;
+    }
+
+    navigation.navigate("PlanA", {
+      scheduleId: targetScheduleId,
+      tripId: targetTripId,
+      serverTripId: targetServerTripId,
+      tripName,
+      startDate,
+      endDate,
+      location: targetLocation,
+      transportMode,
+      transportLabel,
+      selectedPlaces: selectedPlaces.map((place) => ({
+        id: place.placeId,
+        placeId: place.placeId,
+        googlePlaceId: place.googlePlaceId ?? place.placeId,
+        name: place.name,
+        address: place.address,
+        category: place.category,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        day: selectedDay,
+        time: "",
+      })),
+    });
+  };
+
   const handleNext = async () => {
-    if (!selectedPlace || submitLoading) {
+    if (selectedPlaces.length === 0 || submitLoading) {
       return;
     }
 
@@ -297,57 +359,48 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
+    const primaryPlace = selectedPlaces[0];
+
+    const nextLocation =
+      primaryPlace?.name ||
+      primaryPlace?.address ||
+      existingLocation ||
+      "선택한 장소";
+
     try {
       setSubmitLoading(true);
 
-      try {
-        const createdTrip = await createTrip({
-          title: tripName,
-          startDate,
-          endDate,
-          travelStyles: ["HEALING"],
+      if (hasExistingSchedule) {
+        console.log("[AddScheduleLocation] 기존 일정에 장소 여러 개 추가:", {
+          scheduleId,
+          tripId: existingTripId,
+          serverTripId: existingServerTripId,
+          selectedDay,
+          count: selectedPlaces.length,
+          places: selectedPlaces.map((place) => place.name),
         });
 
-        console.log("[AddScheduleLocation] 여행 생성 완료:", createdTrip);
-      } catch (error) {
-        console.log(
-          "[AddScheduleLocation] 서버 여행 생성 실패, Plan.A 복귀 계속 진행:",
-          error,
-        );
+        navigateToPlanAWithPlaces({
+          targetScheduleId: scheduleId,
+          targetTripId: resolvedExistingTripId,
+          targetServerTripId: resolvedExistingTripId,
+          targetLocation: existingLocation || nextLocation,
+        });
+
+        return;
       }
 
-      const savedSchedule = await saveSchedule({
-        tripName,
-        startDate,
-        endDate,
-        location: selectedPlace.name || selectedPlace.address || "선택한 장소",
+      console.log("[AddScheduleLocation] 새 일정 장소 선택 완료:", {
+        selectedDay,
+        count: selectedPlaces.length,
+        places: selectedPlaces.map((place) => place.name),
       });
 
-      console.log(
-        "[AddScheduleLocation] 메인 카드용 일정 저장 완료:",
-        savedSchedule,
-      );
-
-      navigation.navigate("PlanA", {
-        scheduleId: scheduleId ?? savedSchedule.id,
-        tripName,
-        startDate,
-        endDate,
-        location: selectedPlace.name || selectedPlace.address || "선택한 장소",
-        transportMode,
-        transportLabel,
-        selectedPlace: {
-          id: selectedPlace.placeId,
-          placeId: selectedPlace.placeId,
-          googlePlaceId: selectedPlace.googlePlaceId ?? selectedPlace.placeId,
-          name: selectedPlace.name,
-          address: selectedPlace.address,
-          category: selectedPlace.category,
-          latitude: selectedPlace.latitude,
-          longitude: selectedPlace.longitude,
-          day: selectedDay,
-          time: "",
-        },
+      navigateToPlanAWithPlaces({
+        targetScheduleId: scheduleId,
+        targetTripId: resolvedExistingTripId,
+        targetServerTripId: resolvedExistingTripId,
+        targetLocation: nextLocation,
       });
     } catch (error) {
       console.log("일정 저장 실패:", error);
@@ -395,19 +448,19 @@ export default function AddScheduleLocationScreen({
   const detailModalAiSummary =
     detailModalSummary?.aiSummary ||
     detailModalSummary?.reviewSummary ||
-    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
+    "요약 정보가 없습니다.";
 
   const detailModalGoogleReview =
     detailModalSummary?.googleReview ||
     detailModalSummary?.googleReviewSummary ||
     detailModalSummary?.platformSummaries?.google ||
-    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
+    "Google 리뷰 요약 정보가 없습니다.";
 
   const detailModalNaverReview =
     detailModalSummary?.naverReview ||
     detailModalSummary?.naverReviewSummary ||
     detailModalSummary?.platformSummaries?.naver ||
-    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
+    "Naver 리뷰 요약 정보가 없습니다.";
 
   const detailModalInstaReview =
     detailModalSummary?.instaReview ||
@@ -415,7 +468,7 @@ export default function AddScheduleLocationScreen({
     detailModalSummary?.instaReviewSummary ||
     detailModalSummary?.platformSummaries?.instagram ||
     detailModalSummary?.platformSummaries?.insta ||
-    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
+    "Instagram 리뷰 요약 정보가 없습니다.";
 
   const detailModalOpeningHours =
     detailModalSummary?.openingHours ||
@@ -423,7 +476,7 @@ export default function AddScheduleLocationScreen({
     detailModalSummary?.hours ||
     (detailModalPlace as any)?.openingHours ||
     (detailModalPlace as any)?.businessHours ||
-    "10:00 - 21:00";
+    "운영 시간 정보 없음";
 
   return (
     <View style={styles.screen}>
@@ -438,16 +491,17 @@ export default function AddScheduleLocationScreen({
           showsCompass={false}
           rotateEnabled={false}
         >
-          {selectedPlace && (
+          {selectedPlaces.map((place) => (
             <Marker
+              key={`marker-${place.placeId}`}
               coordinate={{
-                latitude: selectedPlace.latitude,
-                longitude: selectedPlace.longitude,
+                latitude: place.latitude,
+                longitude: place.longitude,
               }}
-              title={selectedPlace.name}
-              description={selectedPlace.address}
+              title={place.name}
+              description={place.address}
             />
-          )}
+          ))}
         </MapView>
 
         <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
@@ -496,12 +550,26 @@ export default function AddScheduleLocationScreen({
           contentContainerStyle={styles.resultContent}
           showsVerticalScrollIndicator={false}
         >
+          {selectedPlaces.length > 0 ?
+            <View style={styles.selectedSummaryBox}>
+              <Text style={styles.selectedSummaryTitle}>
+                선택한 장소 {selectedPlaces.length}개
+              </Text>
+
+              <Text style={styles.selectedSummaryText} numberOfLines={2}>
+                {selectedPlaces.map((place) => place.name).join(" · ")}
+              </Text>
+            </View>
+          : null}
+
           {placesToRender.map((place) => {
             const placeId = String(place.placeId);
             const googlePlaceId = String(place.googlePlaceId ?? place.placeId);
 
             const isPreview = placeId === "empty-preview-1";
-            const isSelected = selectedPlace?.placeId === placeId;
+            const isSelected = selectedPlaces.some(
+              (item) => item.placeId === placeId,
+            );
             const isDetailLoading = detailLoadingPlaceId === placeId;
             const isReviewLoading = reviewLoadingPlaceId === googlePlaceId;
 
@@ -623,7 +691,7 @@ export default function AddScheduleLocationScreen({
                   <Text style={styles.detailMetaText}>
                     {typeof detailModalPlace?.rating === "number" ?
                       detailModalPlace.rating.toFixed(2)
-                    : "4.58"}
+                    : "평점 정보 없음"}
                   </Text>
 
                   <Text style={styles.detailMetaDot}>·</Text>
@@ -699,7 +767,7 @@ export default function AddScheduleLocationScreen({
         </View>
       </Modal>
 
-      {selectedPlace && (
+      {selectedPlaces.length > 0 && (
         <TouchableOpacity
           style={[
             styles.nextButton,
@@ -805,6 +873,30 @@ const styles = StyleSheet.create({
   resultContent: {
     paddingHorizontal: 16,
     paddingBottom: 190,
+  },
+
+  selectedSummaryBox: {
+    borderRadius: 15,
+    backgroundColor: "#EAF3FF",
+    borderWidth: 1,
+    borderColor: "#CFE3FF",
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    marginBottom: 14,
+  },
+
+  selectedSummaryTitle: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "900",
+    marginBottom: 5,
+  },
+
+  selectedSummaryText: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
   },
 
   placeCard: {

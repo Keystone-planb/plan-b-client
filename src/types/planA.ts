@@ -24,20 +24,54 @@ export type PlaceItem = SchedulePlace;
 export type PlacesByDay = Record<number, PlaceItem[]>;
 
 /**
- * AddPlace → PlanA로 돌아올 때 전달하는 장소 params
+ * AddPlace / AddScheduleLocation → PlanA로 돌아올 때 전달하는 단일 장소 params
  */
 export type SelectedPlaceParam = {
   id: string;
+
+  /**
+   * 서버 장소 ID
+   * 대안 추천 payload의 tripPlaceId/currentPlanId로 사용
+   */
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+
+  /**
+   * 외부 장소 ID
+   * Google Place ID 계열
+   * 대안 추천 payload의 placeId로 사용
+   */
   placeId?: string;
   googlePlaceId?: string;
+
   name: string;
   address?: string;
   category?: string;
   latitude?: number;
   longitude?: number;
+
+  /**
+   * 기존 UI 호환용 단일 표시 시간
+   */
   time?: string;
+
+  /**
+   * 서버 명세 기준 방문 시작/종료 시간
+   * 이후 time 단일값 대신 visitTime/endTime 중심으로 전환 예정
+   */
+  visitTime?: string | null;
+  endTime?: string | null;
+
+  /**
+   * 추가될 Day 번호
+   */
   day?: number;
 };
+
+/**
+ * AddScheduleLocation에서 여러 장소를 한 번에 선택해 PlanA로 넘길 때 사용
+ */
+export type SelectedPlacesParam = SelectedPlaceParam[];
 
 /**
  * Plan.A 화면에서 관리할 전체 일정 타입

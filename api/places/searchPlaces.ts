@@ -7,112 +7,6 @@ import {
   PlaceSummaryResponse,
 } from "./place";
 
-// true  = mock 데이터 사용, 실제 장소 API 호출 안 함
-// false = 실제 장소 API 호출
-const USE_PLACE_MOCK = false;
-
-const MOCK_PLACES: PlaceSearchResult[] = [
-  {
-    placeId: "mock-gangneung-station",
-    name: "강릉역",
-    address: "강원특별자치도 강릉시 용지로 176",
-    rating: 4.58,
-    category: "train_station",
-    latitude: 37.7644,
-    longitude: 128.8995,
-  },
-  {
-    placeId: "mock-gangneung-cafe-street",
-    name: "강릉 안목해변 카페거리",
-    address: "강원특별자치도 강릉시 창해로14번길",
-    rating: 4.58,
-    category: "cafe",
-    latitude: 37.7715,
-    longitude: 128.9476,
-  },
-  {
-    placeId: "mock-gyeongpo-beach",
-    name: "경포해변",
-    address: "강원특별자치도 강릉시 강문동",
-    rating: 4.58,
-    category: "tourist_attraction",
-    latitude: 37.8056,
-    longitude: 128.9089,
-  },
-];
-
-const MOCK_PLACE_DETAIL_MAP: Record<string, PlaceDetail> = {
-  "mock-gangneung-station": {
-    placeId: "mock-gangneung-station",
-    name: "강릉역",
-    address: "강원특별자치도 강릉시 용지로 176",
-    rating: 4.58,
-    category: "train_station",
-    openingHours: "매일 00:00~24:00",
-    lat: 37.7644,
-    lng: 128.8995,
-    reviews: [
-      {
-        text: "강릉 여행의 시작점으로 좋아요.",
-        rating: 5,
-        relativeTimeDescription: "1개월 전",
-      },
-    ],
-  },
-  "mock-gangneung-cafe-street": {
-    placeId: "mock-gangneung-cafe-street",
-    name: "강릉 안목해변 카페거리",
-    address: "강원특별자치도 강릉시 창해로14번길",
-    rating: 4.58,
-    category: "cafe",
-    openingHours: "매일 09:00~22:00",
-    lat: 37.7715,
-    lng: 128.9476,
-    reviews: [
-      {
-        text: "바다 보면서 커피 마시기 좋아요.",
-        rating: 5,
-        relativeTimeDescription: "2개월 전",
-      },
-    ],
-  },
-  "mock-gyeongpo-beach": {
-    placeId: "mock-gyeongpo-beach",
-    name: "경포해변",
-    address: "강원특별자치도 강릉시 강문동",
-    rating: 4.58,
-    category: "tourist_attraction",
-    openingHours: "매일 00:00~24:00",
-    lat: 37.8056,
-    lng: 128.9089,
-    reviews: [
-      {
-        text: "산책하기 좋고 바다가 예뻐요.",
-        rating: 5,
-        relativeTimeDescription: "3개월 전",
-      },
-    ],
-  },
-};
-
-const MOCK_PLACE_SUMMARY_MAP: Record<string, PlaceSummaryResponse> = {
-  "mock-gangneung-station": {
-    placeId: "mock-gangneung-station",
-    aiSummary: "강릉 여행의 시작점으로 접근성이 좋은 장소입니다.",
-    keywords: ["교통", "기차역", "접근성"],
-  },
-  "mock-gangneung-cafe-street": {
-    placeId: "mock-gangneung-cafe-street",
-    aiSummary: "바다를 보며 카페를 즐기기 좋은 감성적인 장소입니다.",
-    keywords: ["카페", "바다", "감성"],
-  },
-  "mock-gyeongpo-beach": {
-    placeId: "mock-gyeongpo-beach",
-    aiSummary: "산책과 바다 감상을 함께 즐기기 좋은 대표 해변입니다.",
-    keywords: ["해변", "산책", "자연"],
-  },
-};
-
 type RawPlaceSearchResult = {
   placeId?: number | string;
   id?: number | string;
@@ -144,9 +38,11 @@ const assertNotHtmlResponse = (data: unknown, apiName: string) => {
 };
 
 const normalizePlace = (place: RawPlaceSearchResult): PlaceSearchResult => {
+  const rawPlaceId = place.placeId ?? place.googlePlaceId ?? place.id ?? "";
+
   return {
-    placeId: place.placeId ?? place.id ?? "",
-    googlePlaceId: place.googlePlaceId,
+    placeId: String(rawPlaceId),
+    googlePlaceId: String(place.googlePlaceId ?? rawPlaceId),
     name: place.name ?? "이름 없는 장소",
     address: place.address ?? "",
     rating: place.rating,
@@ -156,15 +52,41 @@ const normalizePlace = (place: RawPlaceSearchResult): PlaceSearchResult => {
   };
 };
 
-const getMockPlaces = (query: string) => {
-  const normalizedQuery = query.toLowerCase();
+const normalizeBaseUrl = (baseUrl?: string) => {
+  return (baseUrl ?? "").replace(/\/+$/, "");
+};
 
-  const filteredPlaces = MOCK_PLACES.filter((place) => {
-    const target = `${place.name} ${place.address} ${place.category ?? ""}`;
-    return target.toLowerCase().includes(normalizedQuery);
-  });
+const getAxiosRequestUrl = (path: string) => {
+  const baseURL = normalizeBaseUrl(apiClient.defaults.baseURL);
+  return `${baseURL}${path}`;
+};
 
-  return filteredPlaces.length > 0 ? filteredPlaces : MOCK_PLACES;
+const getAxiosErrorStatus = (error: unknown) => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as any).response === "object" &&
+    (error as any).response !== null
+  ) {
+    return (error as any).response.status;
+  }
+
+  return undefined;
+};
+
+const getAxiosErrorData = (error: unknown) => {
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "response" in error &&
+    typeof (error as any).response === "object" &&
+    (error as any).response !== null
+  ) {
+    return (error as any).response.data;
+  }
+
+  return undefined;
 };
 
 export const searchPlaces = async (
@@ -176,100 +98,123 @@ export const searchPlaces = async (
     return [];
   }
 
-  if (USE_PLACE_MOCK) {
-    return getMockPlaces(trimmedQuery);
-  }
+  const path = "/api/places/search";
+  const requestUrl = `${getAxiosRequestUrl(path)}?query=${encodeURIComponent(
+    trimmedQuery,
+  )}`;
 
+  console.log("[places/search] request url:", requestUrl);
   console.log("[places/search] request query:", trimmedQuery);
 
-  const response = await apiClient.get<PlaceSearchResponse>(
-    "/api/places/search",
-    {
+  try {
+    const response = await apiClient.get<PlaceSearchResponse>(path, {
       params: {
         query: trimmedQuery,
       },
-    },
-  );
+    });
 
-  console.log("[places/search] response:", response.data);
+    console.log("[places/search] response:", response.data);
 
-  assertNotHtmlResponse(response.data, "장소 검색");
+    assertNotHtmlResponse(response.data, "장소 검색");
 
-  const places = response.data?.places ?? [];
+    const places = response.data?.places ?? [];
 
-  const normalizedPlaces = places
-    .map(normalizePlace)
-    .filter((place) => place.placeId);
+    return places.map(normalizePlace).filter((place) => place.placeId);
+  } catch (error) {
+    console.log("[places/search] failed:", {
+      status: getAxiosErrorStatus(error),
+      data: getAxiosErrorData(error),
+      url: requestUrl,
+      query: trimmedQuery,
+    });
 
-  return normalizedPlaces;
+    throw error;
+  }
 };
 
 export const getPlaceDetail = async (
   googlePlaceId: number | string,
 ): Promise<PlaceDetail> => {
-  if (USE_PLACE_MOCK) {
-    return (
-      MOCK_PLACE_DETAIL_MAP[googlePlaceId] ?? {
-        placeId: googlePlaceId,
-        name: "임시 장소",
-        address: "주소 정보 없음",
-        rating: 0,
-        openingHours: "운영시간 정보 없음",
-        lat: 37.7519,
-        lng: 128.8761,
-        category: "place",
-        reviews: [],
-      }
-    );
+  const encodedPlaceId = encodeURIComponent(String(googlePlaceId));
+  const path = `/api/places/${encodedPlaceId}`;
+  const requestUrl = getAxiosRequestUrl(path);
+
+  console.log("[places/detail] request url:", requestUrl);
+
+  try {
+    const response = await apiClient.get<PlaceDetail>(path);
+
+    console.log("[places/detail] response:", response.data);
+
+    assertNotHtmlResponse(response.data, "장소 상세");
+
+    return response.data;
+  } catch (error) {
+    console.log("[places/detail] failed:", {
+      status: getAxiosErrorStatus(error),
+      data: getAxiosErrorData(error),
+      url: requestUrl,
+      googlePlaceId,
+    });
+
+    throw error;
   }
-
-  const response = await apiClient.get<PlaceDetail>(
-    `/api/places/${String(googlePlaceId)}`,
-  );
-
-  assertNotHtmlResponse(response.data, "장소 상세");
-
-  return response.data;
 };
 
 export const getPlaceSummary = async (
   googlePlaceId: string,
 ): Promise<PlaceSummaryResponse> => {
-  if (USE_PLACE_MOCK) {
-    return (
-      MOCK_PLACE_SUMMARY_MAP[googlePlaceId] ?? {
-        placeId: googlePlaceId,
-        aiSummary: "아직 요약 정보가 없습니다.",
-        keywords: [],
-      }
-    );
+  const encodedPlaceId = encodeURIComponent(String(googlePlaceId));
+  const path = `/api/places/${encodedPlaceId}/summary`;
+  const requestUrl = getAxiosRequestUrl(path);
+
+  console.log("[places/summary] request url:", requestUrl);
+
+  try {
+    const response = await apiClient.get<PlaceSummaryResponse>(path);
+
+    console.log("[places/summary] response:", response.data);
+
+    assertNotHtmlResponse(response.data, "장소 AI 요약");
+
+    return response.data;
+  } catch (error) {
+    console.log("[places/summary] failed:", {
+      status: getAxiosErrorStatus(error),
+      data: getAxiosErrorData(error),
+      url: requestUrl,
+      googlePlaceId,
+    });
+
+    throw error;
   }
-
-  const response = await apiClient.get<PlaceSummaryResponse>(
-    `/api/places/${googlePlaceId}/summary`,
-  );
-
-  assertNotHtmlResponse(response.data, "장소 AI 요약");
-
-  return response.data;
 };
 
 export const getPlaceFreshness = async (
   googlePlaceId: string,
 ): Promise<PlaceFreshnessResponse> => {
-  if (USE_PLACE_MOCK) {
-    return {
-      placeId: googlePlaceId,
-      lastSyncedAt: new Date().toISOString(),
-      isFresh: true,
-    };
+  const encodedPlaceId = encodeURIComponent(String(googlePlaceId));
+  const path = `/api/places/${encodedPlaceId}/freshness`;
+  const requestUrl = getAxiosRequestUrl(path);
+
+  console.log("[places/freshness] request url:", requestUrl);
+
+  try {
+    const response = await apiClient.get<PlaceFreshnessResponse>(path);
+
+    console.log("[places/freshness] response:", response.data);
+
+    assertNotHtmlResponse(response.data, "장소 정보 최신성");
+
+    return response.data;
+  } catch (error) {
+    console.log("[places/freshness] failed:", {
+      status: getAxiosErrorStatus(error),
+      data: getAxiosErrorData(error),
+      url: requestUrl,
+      googlePlaceId,
+    });
+
+    throw error;
   }
-
-  const response = await apiClient.get<PlaceFreshnessResponse>(
-    `/api/places/${googlePlaceId}/freshness`,
-  );
-
-  assertNotHtmlResponse(response.data, "장소 정보 최신성");
-
-  return response.data;
 };
