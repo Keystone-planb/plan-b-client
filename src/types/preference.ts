@@ -7,14 +7,18 @@ export type PreferenceFeedbackType =
   | string;
 
 export type PreferenceFeedbackRequest = {
-  shownPlaceIds?: Array<number | string>;
-  selectedPlaceId?: number | string;
   userId: number | string;
+
+  // 기존 선호도 피드백 API용
   placeId?: number | string;
   feedbackType?: PreferenceFeedbackType;
   tripId?: number | string;
   tripPlaceId?: number | string;
   reason?: string;
+
+  // 추천 결과 선택 피드백용
+  shownPlaceIds?: Array<number | string>;
+  selectedPlaceId?: number | string;
 };
 
 export type PreferenceSummary = {

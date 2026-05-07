@@ -35,68 +35,97 @@ export const MOCK_RECOMMENDED_PLACES: RecommendedPlace[] = [
     category: "실내 관광지",
     reason: "날씨 영향을 적게 받는 대체 관광지예요.",
     latitude: 37.5788,
-    longitude: 126.9800,
+    longitude: 126.98,
   },
 ];
 
-const emitMockStream = async (handlers: StreamHandlers) => {
-  handlers.onProgress?.("AI가 주변 장소를 분석 중입니다...", 2);
+const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
+  const lines = block.split(/\r?\n/).map((line) => line.trimEnd());
 
-  for (const place of MOCK_RECOMMENDED_PLACES) {
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    handlers.onPlace?.(place);
+  let eventName = "";
+  const dataLines: string[] = [];
+
+  for (const line of lines) {
+    if (line.startsWith("event:")) {
+      eventName = line.slice("event:".length).trim();
+      continue;
+    }
+
+    if (line.startsWith("data:")) {
+      dataLines.push(line.slice("data:".length).trim());
+    }
   }
 
-  handlers.onDone?.();
+  const dataText = dataLines.join("\n").trim();
+
+  if (eventName === "done" || dataText === "[DONE]") {
+    return { type: "done" };
+  }
+
+  if (!dataText) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(dataText);
+
+    const inferredEventName =
+      eventName ||
+      parsed.type ||
+      parsed.event ||
+      (parsed.place || parsed.placeId || parsed.googlePlaceId || parsed.name ?
+        "place"
+      : parsed.message || parsed.total ? "progress"
+      : "");
+
+    if (inferredEventName === "progress") {
+      return {
+        type: "progress",
+        message: parsed.message ?? "AI가 주변 장소를 분석 중입니다...",
+        total: parsed.total,
+      };
+    }
+
+    if (inferredEventName === "place") {
+      return {
+        type: "place",
+        place: parsed.place ?? parsed,
+      };
+    }
+
+    if (inferredEventName === "done") {
+      return { type: "done" };
+    }
+  } catch (error) {
+    console.log("[recommendations/stream] SSE parse failed:", {
+      block,
+      error,
+    });
+  }
+
+  return null;
 };
 
-const parseSseChunk = (chunk: string): RecommendationStreamEvent[] => {
-  const events: RecommendationStreamEvent[] = [];
-  const blocks = chunk.split("\n\n").filter(Boolean);
-
-  for (const block of blocks) {
-    const lines = block.split("\n");
-    const eventLine = lines.find((line) => line.startsWith("event:"));
-    const dataLine = lines.find((line) => line.startsWith("data:"));
-
-    if (!eventLine || !dataLine) continue;
-
-    const eventName = eventLine.replace("event:", "").trim();
-    const dataText = dataLine.replace("data:", "").trim();
-
-    if (eventName === "done") {
-      events.push({ type: "done" });
-      continue;
-    }
-
-    if (dataText === "[DONE]") {
-      events.push({ type: "done" });
-      continue;
-    }
-
-    try {
-      const parsed = JSON.parse(dataText);
-
-      if (eventName === "progress") {
-        events.push({
-          type: "progress",
-          message: parsed.message ?? "AI가 주변 장소를 분석 중입니다...",
-          total: parsed.total,
-        });
-      }
-
-      if (eventName === "place") {
-        events.push({
-          type: "place",
-          place: parsed,
-        });
-      }
-    } catch {
-      // ignore malformed SSE block
-    }
+const dispatchStreamEvent = (
+  event: RecommendationStreamEvent,
+  handlers: StreamHandlers,
+): boolean => {
+  if (event.type === "progress") {
+    handlers.onProgress?.(event.message, event.total);
+    return false;
   }
 
-  return events;
+  if (event.type === "place") {
+    handlers.onPlace?.(event.place);
+    return false;
+  }
+
+  if (event.type === "done") {
+    handlers.onDone?.();
+    return true;
+  }
+
+  return false;
 };
 
 export const streamRecommendations = async (
@@ -104,16 +133,10 @@ export const streamRecommendations = async (
   handlers: StreamHandlers,
 ) => {
   try {
-    if (typeof window !== "undefined") {
-      await emitMockStream(handlers);
-      return;
-    }
-
     const accessToken = await AsyncStorage.getItem("access_token");
 
     if (!accessToken) {
-      await emitMockStream(handlers);
-      return;
+      throw new Error("access_token이 없습니다.");
     }
 
     const response = await fetch(
@@ -141,28 +164,37 @@ export const streamRecommendations = async (
     while (true) {
       const { value, done } = await reader.read();
 
-      if (done) break;
+      if (done) {
+        break;
+      }
 
       buffer += decoder.decode(value, { stream: true });
 
-      const events = parseSseChunk(buffer);
+      const blocks = buffer.split(/\r?\n\r?\n/);
+      buffer = blocks.pop() ?? "";
 
-      if (buffer.includes("\n\n")) {
-        const lastSeparator = buffer.lastIndexOf("\n\n");
-        buffer = buffer.slice(lastSeparator + 2);
+      for (const block of blocks) {
+        const event = parseSseBlock(block);
+
+        if (!event) {
+          continue;
+        }
+
+        const shouldStop = dispatchStreamEvent(event, handlers);
+
+        if (shouldStop) {
+          return;
+        }
       }
+    }
 
-      for (const event of events) {
-        if (event.type === "progress") {
-          handlers.onProgress?.(event.message, event.total);
-        }
+    if (buffer.trim()) {
+      const event = parseSseBlock(buffer);
 
-        if (event.type === "place") {
-          handlers.onPlace?.(event.place);
-        }
+      if (event) {
+        const shouldStop = dispatchStreamEvent(event, handlers);
 
-        if (event.type === "done") {
-          handlers.onDone?.();
+        if (shouldStop) {
           return;
         }
       }
@@ -170,8 +202,12 @@ export const streamRecommendations = async (
 
     handlers.onDone?.();
   } catch (error) {
-    console.log("[recommendations/stream] mock fallback:", error);
+    console.log("[recommendations/stream] failed:", error);
+
+    if (error instanceof Error) {
+      console.log("[recommendations/stream] error message:", error.message);
+    }
+
     handlers.onError?.(error);
-    await emitMockStream(handlers);
   }
 };
