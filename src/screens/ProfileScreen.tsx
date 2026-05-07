@@ -20,22 +20,26 @@ type Props = {
 };
 
 export default function ProfileScreen({ navigation }: Props) {
-
   const [preferenceSummary, setPreferenceSummary] =
     useState<PreferenceSummary | null>(null);
-
-  useEffect(() => {
-    const loadPreferenceSummary = async () => {
-      const summary = await getPreferenceSummary(1);
-      setPreferenceSummary(summary);
-    };
-
-    loadPreferenceSummary();
-  }, []);
 
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
+
+  useEffect(() => {
+    const loadPreferenceSummary = async () => {
+      try {
+        const summary = await getPreferenceSummary(1);
+        setPreferenceSummary(summary);
+      } catch (error) {
+        console.log("[Profile] 선호 여행 스타일 조회 실패:", error);
+        setPreferenceSummary(null);
+      }
+    };
+
+    loadPreferenceSummary();
+  }, []);
 
   const loadMe = useCallback(async () => {
     try {
@@ -44,7 +48,7 @@ export default function ProfileScreen({ navigation }: Props) {
       const result = await getMe();
       setMe(result);
     } catch (error) {
-      console.log("프로필 유저 정보 조회 실패:", error);
+      console.log("[Profile] 프로필 유저 정보 조회 실패:", error);
       setMe(null);
     } finally {
       setLoading(false);
@@ -57,25 +61,26 @@ export default function ProfileScreen({ navigation }: Props) {
     }, [loadMe]),
   );
 
+  const handleOpenProfileEdit = () => {
+    if (loading) {
+      return;
+    }
+
+    navigation.navigate("ProfileEdit");
+  };
+
   const handleLogout = async () => {
     if (logoutLoading) {
       return;
     }
 
-    console.log("[Profile] 로그아웃 버튼 클릭");
-
     try {
       setLogoutLoading(true);
-
-      console.log("[Profile] requestLogout 시작");
       await requestLogout();
-      console.log("[Profile] requestLogout 완료");
     } catch (error) {
       console.log("[Profile] 로그아웃 요청 실패:", error);
     } finally {
       setLogoutLoading(false);
-
-      console.log("[Profile] Login 화면으로 이동");
 
       navigation.reset({
         index: 0,
@@ -90,37 +95,16 @@ export default function ProfileScreen({ navigation }: Props) {
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
-
-        {preferenceSummary ? (
-          <View style={styles.preferenceCard}>
-            <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
-            <Text style={styles.preferenceDescription}>
-              {preferenceSummary.summary ||
-                "아직 충분한 취향 데이터가 없어요. 장소를 선택하면 더 정확해져요."}
-            </Text>
-
-            {preferenceSummary.keywords?.length ? (
-              <View style={styles.preferenceKeywordRow}>
-                {preferenceSummary.keywords.slice(0, 3).map((keyword) => (
-                  <View key={keyword} style={styles.preferenceKeyword}>
-                    <Text style={styles.preferenceKeywordText}>{keyword}</Text>
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
         <Text style={styles.logo}>Plan.B</Text>
 
         <TouchableOpacity
           style={styles.profileCard}
-          activeOpacity={0.8}
-          onPress={() => navigation.navigate("ProfileEdit")}
+          activeOpacity={0.82}
+          onPress={handleOpenProfileEdit}
           disabled={loading}
         >
           <View style={styles.avatar}>
-            <Ionicons name="person-outline" size={31} color="#FFFFFF" />
+            <Ionicons name="person-outline" size={30} color="#FFFFFF" />
           </View>
 
           <View style={styles.profileTextBox}>
@@ -138,6 +122,27 @@ export default function ProfileScreen({ navigation }: Props) {
 
           <Ionicons name="chevron-forward" size={22} color="#B8C4D5" />
         </TouchableOpacity>
+
+        {preferenceSummary ?
+          <View style={styles.preferenceCard}>
+            <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
+
+            <Text style={styles.preferenceDescription}>
+              {preferenceSummary.summary ||
+                "아직 충분한 취향 데이터가 없어요. 장소를 선택하면 더 정확해져요."}
+            </Text>
+
+            {preferenceSummary.keywords?.length ?
+              <View style={styles.preferenceKeywordRow}>
+                {preferenceSummary.keywords.slice(0, 3).map((keyword) => (
+                  <View key={keyword} style={styles.preferenceKeyword}>
+                    <Text style={styles.preferenceKeywordText}>{keyword}</Text>
+                  </View>
+                ))}
+              </View>
+            : null}
+          </View>
+        : null}
 
         <View style={styles.settingCard}>
           <Text style={styles.sectionTitle}>설정</Text>
@@ -158,7 +163,7 @@ export default function ProfileScreen({ navigation }: Props) {
 
         <TouchableOpacity
           style={[styles.logoutButton, logoutLoading && styles.disabledButton]}
-          activeOpacity={0.8}
+          activeOpacity={0.82}
           onPress={handleLogout}
           disabled={logoutLoading}
         >
@@ -176,51 +181,6 @@ export default function ProfileScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-
-  preferenceCard: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 22,
-    padding: 18,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: "#DBEAFE",
-  },
-
-  preferenceTitle: {
-    fontSize: 15,
-    fontWeight: "900",
-    color: "#1E293B",
-    marginBottom: 8,
-  },
-
-  preferenceDescription: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#64748B",
-    lineHeight: 20,
-  },
-
-  preferenceKeywordRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-    marginTop: 12,
-  },
-
-  preferenceKeyword: {
-    backgroundColor: "#E9F3FF",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-  },
-
-  preferenceKeywordText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-
-
   safeArea: {
     flex: 1,
     backgroundColor: "#F7F9FC",
@@ -244,12 +204,14 @@ const styles = StyleSheet.create({
 
   profileCard: {
     minHeight: 100,
-    borderRadius: 10,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#E6EDF7",
     shadowColor: "#E7EEF8",
     shadowOffset: {
       width: 0,
@@ -295,13 +257,58 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 
+  preferenceCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    padding: 18,
+    marginTop: 18,
+    borderWidth: 1,
+    borderColor: "#DBEAFE",
+  },
+
+  preferenceTitle: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#1E293B",
+    marginBottom: 8,
+  },
+
+  preferenceDescription: {
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#64748B",
+    lineHeight: 20,
+  },
+
+  preferenceKeywordRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+  },
+
+  preferenceKeyword: {
+    backgroundColor: "#E9F3FF",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+
+  preferenceKeywordText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
+
   settingCard: {
-    marginTop: 20,
-    borderRadius: 10,
+    marginTop: 18,
+    borderRadius: 14,
     backgroundColor: "#FFFFFF",
     paddingTop: 18,
     paddingHorizontal: 18,
     paddingBottom: 6,
+    borderWidth: 1,
+    borderColor: "#E6EDF7",
     shadowColor: "#E7EEF8",
     shadowOffset: {
       width: 0,
@@ -339,9 +346,9 @@ const styles = StyleSheet.create({
   },
 
   logoutButton: {
-    height: 60,
-    marginTop: 20,
-    borderRadius: 10,
+    height: 58,
+    marginTop: 18,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#DDE6F2",
     backgroundColor: "#FFFFFF",

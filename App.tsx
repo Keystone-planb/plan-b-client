@@ -21,14 +21,16 @@ import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
+import ProfileEditScreen from "./src/screens/ProfileEditScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
 type PlaceScope = "INDOOR" | "OUTDOOR";
+type RecommendationType = "PLACE" | "GAP";
 
 type TodayPlace = {
-  id?: string;
+  id?: string | number;
   name?: string;
   address?: string;
   time?: string;
@@ -49,6 +51,7 @@ type RootStackParamList = {
   };
 
   Main: undefined;
+  ProfileEdit: undefined;
 
   AddSchedule: undefined;
 
@@ -117,6 +120,9 @@ type RootStackParamList = {
     transportMode?: TransportMode;
     transportLabel?: string;
     targetPlace?: TodayPlace;
+    recommendationType?: RecommendationType;
+    beforePlanId?: string | number;
+    afterPlanId?: string | number;
   };
 
   AlternativeLoading: {
@@ -126,12 +132,16 @@ type RootStackParamList = {
     endDate?: string;
     location?: string;
     transportMode?: TransportMode;
+    transportLabel?: string;
     moveTime?: MoveTime;
     considerDistance?: boolean;
     considerCrowd?: boolean;
     changeCategory?: boolean;
     placeScope?: PlaceScope;
     targetPlace?: TodayPlace;
+    recommendationType?: RecommendationType;
+    beforePlanId?: string | number;
+    afterPlanId?: string | number;
   };
 
   RecommendationResult: {
@@ -141,12 +151,21 @@ type RootStackParamList = {
     endDate?: string;
     location?: string;
     transportMode?: TransportMode;
+    transportLabel?: string;
     moveTime?: MoveTime;
     considerDistance?: boolean;
     considerCrowd?: boolean;
     changeCategory?: boolean;
     placeScope?: PlaceScope;
     targetPlace?: TodayPlace;
+    recommendationType?: RecommendationType;
+    beforePlanId?: string | number;
+    afterPlanId?: string | number;
+
+    placesJson?: string;
+    fromAIAnalysis?: boolean;
+    hasError?: boolean;
+    title?: string;
   };
 };
 
@@ -281,6 +300,16 @@ export default function App() {
         />
 
         <Stack.Screen
+          name="ProfileEdit"
+          component={ProfileEditScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
           name="AddSchedule"
           component={AddScheduleNameScreen}
           options={{
@@ -352,7 +381,7 @@ export default function App() {
 
         <Stack.Screen
           name="AlternativeLoading"
-          component={AIAnalysisLoadingScreen}
+          component={AIAnalysisLoadingScreen as React.ComponentType<any>}
           options={{
             headerShown: false,
             animation: "slide_from_right",
@@ -362,7 +391,7 @@ export default function App() {
 
         <Stack.Screen
           name="RecommendationResult"
-          component={RecommendationResultScreen}
+          component={RecommendationResultScreen as React.ComponentType<any>}
           options={{
             headerShown: false,
             animation: "slide_from_right",
