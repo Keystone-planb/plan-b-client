@@ -86,7 +86,7 @@ export default function PlanXScreen({ navigation }: Props) {
       return;
     }
 
-    navigation.navigate("MainTabs");
+    navigation.navigate("Main");
   };
 
   const handlePressTrip = (trip: PlanXTrip) => {
@@ -104,6 +104,8 @@ export default function PlanXScreen({ navigation }: Props) {
       startDate: selectedTrip.startDate,
       endDate: selectedTrip.endDate,
       location: selectedTrip.location,
+      placeCount: selectedTrip.placeCount,
+      emoji: selectedTrip.emoji,
     });
   };
 

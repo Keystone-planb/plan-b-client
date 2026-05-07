@@ -1,11 +1,10 @@
 import React from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
   ScrollView,
+  StyleSheet,
+  Text,
   TouchableOpacity,
-  StatusBar,
+  View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,7 +22,7 @@ type Place = {
   memos?: Memo[];
 };
 
-type DayPlan = {
+type DaySchedule = {
   id: string;
   dayLabel: string;
   date: string;
@@ -32,27 +31,47 @@ type DayPlan = {
 
 type Props = {
   navigation: any;
+  route?: {
+    params?: {
+      tripId?: string;
+      tripName?: string;
+      startDate?: string;
+      endDate?: string;
+      location?: string;
+      placeCount?: number;
+      emoji?: string;
+    };
+  };
 };
 
-const MOCK_DAYS: DayPlan[] = [
+const DEFAULT_DAYS: DaySchedule[] = [
   {
     id: "day-1",
     dayLabel: "Day 1",
     date: "2024.03.15",
     places: [
       {
-        id: "1-1",
+        id: "place-1",
         order: 1,
         name: "강릉역",
         time: "10:00",
         memos: [
-          { id: "m1", text: "내릴 때 짐 가까이 말기" },
-          { id: "m2", text: "내릴 때 짐 가까이 말기" },
-          { id: "m3", text: "내릴 때 짐 가까이 말기" },
+          {
+            id: "memo-1",
+            text: "내릴 때 짐 까먹지 말기",
+          },
+          {
+            id: "memo-2",
+            text: "내릴 때 짐 까먹지 말기",
+          },
+          {
+            id: "memo-3",
+            text: "내릴 때 짐 까먹지 말기",
+          },
         ],
       },
       {
-        id: "1-2",
+        id: "place-2",
         order: 2,
         name: "강릉역",
         time: "10:00",
@@ -65,24 +84,33 @@ const MOCK_DAYS: DayPlan[] = [
     date: "2024.03.16",
     places: [
       {
-        id: "2-1",
+        id: "place-3",
         order: 2,
         name: "강릉역",
         time: "10:00",
       },
       {
-        id: "2-2",
+        id: "place-4",
         order: 1,
         name: "강릉역",
         time: "10:00",
         memos: [
-          { id: "m4", text: "내릴 때 짐 가까이 말기" },
-          { id: "m5", text: "내릴 때 짐 가까이 말기" },
-          { id: "m6", text: "내릴 때 짐 가까이 말기" },
+          {
+            id: "memo-4",
+            text: "내릴 때 짐 까먹지 말기",
+          },
+          {
+            id: "memo-5",
+            text: "내릴 때 짐 까먹지 말기",
+          },
+          {
+            id: "memo-6",
+            text: "내릴 때 짐 까먹지 말기",
+          },
         ],
       },
       {
-        id: "2-3",
+        id: "place-5",
         order: 2,
         name: "강릉역",
         time: "10:00",
@@ -91,102 +119,113 @@ const MOCK_DAYS: DayPlan[] = [
   },
 ];
 
-export default function PlanXDetailScreen({ navigation }: Props) {
-  const handleBack = () => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-      return;
-    }
+export default function PlanXDetailScreen({ navigation, route }: Props) {
+  const params = route?.params ?? {};
 
-    navigation.navigate("MainTabs", {
-      screen: "PlanX",
-    });
+  const title = params.tripName || "제주도 힐링여행";
+  const startDate = params.startDate || "2024.03.15";
+  const endDate = params.endDate || "2024.03.18";
+  const location = params.location || "제주";
+  const placeCount = params.placeCount ?? 8;
+  const emoji = params.emoji || "🏝️";
+
+  const handleBack = () => {
+    navigation.goBack();
   };
 
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.contentContainer}
-        showsVerticalScrollIndicator={false}
-      >
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <View style={styles.screen}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.backButton}
             activeOpacity={0.75}
             onPress={handleBack}
           >
-            <Ionicons name="chevron-back" size={28} color="#71809A" />
+            <Ionicons name="chevron-back" size={25} color="#64748B" />
           </TouchableOpacity>
 
-          <Text style={styles.screenTitle}>Plan.X</Text>
+          <Text style={styles.logoText}>Plan.X</Text>
+
+          <View style={styles.headerRightSpace} />
         </View>
 
-        <View style={styles.tripHeader}>
-          <View style={styles.thumbnailBox}>
-            <Text style={styles.thumbnailEmoji}>🏝️</Text>
-          </View>
-
-          <View style={styles.tripInfo}>
-            <Text style={styles.tripTitle}>제주도 힐링여행</Text>
-
-            <View style={styles.metaRow}>
-              <Ionicons name="calendar-outline" size={14} color="#7B8BA6" />
-              <Text style={styles.metaText}>2024.03.15 - 2024.03.18</Text>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.tripHeader}>
+            <View style={styles.tripImageBox}>
+              <Text style={styles.tripEmoji}>{emoji}</Text>
             </View>
 
-            <View style={styles.metaRow}>
-              <Ionicons name="location-outline" size={14} color="#7B8BA6" />
-              <Text style={styles.metaText}>제주 · 8개 장소</Text>
-            </View>
-          </View>
-        </View>
+            <View style={styles.tripInfoBox}>
+              <Text style={styles.tripTitle}>{title}</Text>
 
-        <View style={styles.timelineSection}>
-          <View style={styles.timelineLine} />
-
-          {MOCK_DAYS.map((day) => (
-            <View key={day.id} style={styles.dayBlock}>
-              <View style={styles.dayHeader}>
-                <View style={styles.dayPill}>
-                  <Text style={styles.dayPillText}>{day.dayLabel}</Text>
-                </View>
-                <Text style={styles.dayDate}>{day.date}</Text>
+              <View style={styles.metaRow}>
+                <Ionicons name="calendar-outline" size={14} color="#94A3B8" />
+                <Text style={styles.metaText}>
+                  {startDate} - {endDate}
+                </Text>
               </View>
 
-              {day.places.map((place) => (
-                <View key={place.id} style={styles.placeRow}>
-                  <View style={styles.orderCircle}>
-                    <Text style={styles.orderText}>{place.order}</Text>
-                  </View>
-
-                  <View style={styles.placeCard}>
-                    <Text style={styles.placeName}>{place.name}</Text>
-                    <Text style={styles.placeTime}>{place.time}</Text>
-
-                    {place.memos && place.memos.length > 0 && (
-                      <View style={styles.memoList}>
-                        {place.memos.map((memo) => (
-                          <View key={memo.id} style={styles.memoBox}>
-                            <Ionicons
-                              name="document-text-outline"
-                              size={15}
-                              color="#72819A"
-                            />
-                            <Text style={styles.memoText}>{memo.text}</Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-                </View>
-              ))}
+              <View style={styles.metaRow}>
+                <Ionicons name="location-outline" size={14} color="#94A3B8" />
+                <Text style={styles.metaText}>
+                  {location} · {placeCount}개 장소
+                </Text>
+              </View>
             </View>
-          ))}
-        </View>
-      </ScrollView>
+          </View>
+
+          <View style={styles.timelinePanel}>
+            {DEFAULT_DAYS.map((day) => (
+              <View key={day.id} style={styles.dayBlock}>
+                <View style={styles.dayHeaderRow}>
+                  <View style={styles.dayBadge}>
+                    <Text style={styles.dayBadgeText}>{day.dayLabel}</Text>
+                  </View>
+
+                  <Text style={styles.dayDate}>{day.date}</Text>
+                </View>
+
+                <View style={styles.dayTimelineBody}>
+                  <View style={styles.verticalLine} />
+
+                  {day.places.map((place) => (
+                    <View key={place.id} style={styles.placeRow}>
+                      <View style={styles.orderBadge}>
+                        <Text style={styles.orderBadgeText}>{place.order}</Text>
+                      </View>
+
+                      <View style={styles.placeCard}>
+                        <Text style={styles.placeName}>{place.name}</Text>
+                        <Text style={styles.placeTime}>{place.time}</Text>
+
+                        {place.memos?.length ?
+                          <View style={styles.memoList}>
+                            {place.memos.map((memo) => (
+                              <View key={memo.id} style={styles.memoCard}>
+                                <Ionicons
+                                  name="reader-outline"
+                                  size={15}
+                                  color="#64748B"
+                                />
+                                <Text style={styles.memoText}>{memo.text}</Text>
+                              </View>
+                            ))}
+                          </View>
+                        : null}
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -196,204 +235,231 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#FFFFFF",
   },
-  container: {
+
+  screen: {
     flex: 1,
-    backgroundColor: "#F5F7FA",
-  },
-  contentContainer: {
-    paddingBottom: 72,
-  },
-  header: {
-    height: 90,
     backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    alignItems: "center",
   },
+
+  header: {
+    height: 82,
+    paddingHorizontal: 24,
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+  },
+
   backButton: {
-    position: "absolute",
-    left: 24,
-    top: 30,
-    width: 36,
-    height: 36,
+    width: 40,
+    height: 40,
+    alignItems: "flex-start",
     justifyContent: "center",
-    alignItems: "center",
   },
-  screenTitle: {
-    fontSize: 38,
+
+  logoText: {
+    flex: 1,
+    color: "#1C2534",
+    fontSize: 34,
     fontWeight: "900",
-    color: "#202938",
-    letterSpacing: -1.2,
+    letterSpacing: -1,
+    textAlign: "center",
   },
+
+  headerRightSpace: {
+    width: 40,
+  },
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 42,
+  },
+
   tripHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 23,
-    paddingTop: 8,
-    paddingBottom: 30,
+    marginTop: 10,
+    marginBottom: 30,
   },
-  thumbnailBox: {
-    width: 73,
-    height: 73,
-    borderRadius: 10,
-    backgroundColor: "#D8F0FF",
-    justifyContent: "center",
+
+  tripImageBox: {
+    width: 72,
+    height: 72,
+    borderRadius: 12,
+    backgroundColor: "#D7EDFF",
     alignItems: "center",
-    marginRight: 19,
-    shadowColor: "#0F172A",
+    justifyContent: "center",
+    marginRight: 18,
+    shadowColor: "#CBD5E1",
     shadowOffset: {
       width: 0,
-      height: 3,
+      height: 6,
     },
-    shadowOpacity: 0.13,
-    shadowRadius: 5,
-    elevation: 4,
+    shadowOpacity: 0.25,
+    shadowRadius: 10,
+    elevation: 3,
   },
-  thumbnailEmoji: {
+
+  tripEmoji: {
     fontSize: 35,
   },
-  tripInfo: {
+
+  tripInfoBox: {
     flex: 1,
   },
+
   tripTitle: {
-    fontSize: 24,
+    color: "#1C2534",
+    fontSize: 23,
     fontWeight: "900",
-    color: "#243044",
-    letterSpacing: -0.6,
+    letterSpacing: -0.5,
     marginBottom: 8,
   },
+
   metaRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 5,
+    marginTop: 4,
   },
+
   metaText: {
-    marginLeft: 7,
-    fontSize: 12,
-    color: "#5F6F8A",
-    fontWeight: "500",
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 6,
   },
-  timelineSection: {
-    position: "relative",
+
+  timelinePanel: {
+    backgroundColor: "#F5F8FC",
+    paddingHorizontal: 22,
     paddingTop: 24,
-    paddingHorizontal: 20,
+    paddingBottom: 42,
   },
-  timelineLine: {
-    position: "absolute",
-    left: 35,
-    top: 92,
-    bottom: 23,
-    width: 2,
-    backgroundColor: "#DFE6F1",
-  },
+
   dayBlock: {
-    marginBottom: 26,
+    marginBottom: 24,
   },
-  dayHeader: {
+
+  dayHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20,
+    marginBottom: 18,
   },
-  dayPill: {
-    minWidth: 72,
-    height: 41,
-    paddingHorizontal: 16,
-    borderRadius: 21,
-    backgroundColor: "#2864F0",
-    justifyContent: "center",
+
+  dayBadge: {
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#2158E8",
+    paddingHorizontal: 18,
     alignItems: "center",
-    shadowColor: "#2864F0",
+    justifyContent: "center",
+    shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 6,
     },
-    shadowOpacity: 0.28,
-    shadowRadius: 6,
-    elevation: 5,
-  },
-  dayPillText: {
-    fontSize: 14,
-    fontWeight: "800",
-    color: "#FFFFFF",
-  },
-  dayDate: {
-    marginLeft: 15,
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#5E6F89",
-    letterSpacing: 0.2,
-  },
-  placeRow: {
-    position: "relative",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 17,
-  },
-  orderCircle: {
-    width: 29,
-    height: 29,
-    borderRadius: 15,
-    backgroundColor: "#2864F0",
-    justifyContent: "center",
-    alignItems: "center",
-    marginLeft: 1,
-    marginTop: 2,
-    zIndex: 2,
-    shadowColor: "#2864F0",
-    shadowOffset: {
-      width: 0,
-      height: 2,
-    },
-    shadowOpacity: 0.28,
-    shadowRadius: 4,
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
     elevation: 4,
   },
-  orderText: {
-    fontSize: 17,
-    fontWeight: "900",
+
+  dayBadgeText: {
     color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
   },
+
+  dayDate: {
+    color: "#64748B",
+    fontSize: 15,
+    fontWeight: "800",
+    marginLeft: 18,
+  },
+
+  dayTimelineBody: {
+    position: "relative",
+  },
+
+  verticalLine: {
+    position: "absolute",
+    left: 13,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: "#DDE5F0",
+  },
+
+  placeRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 18,
+  },
+
+  orderBadge: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 22,
+    zIndex: 2,
+  },
+
+  orderBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
   placeCard: {
     flex: 1,
-    marginLeft: 20,
-    minHeight: 79,
-    borderRadius: 9,
+    minHeight: 84,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DDE4EE",
-    paddingHorizontal: 20,
-    paddingTop: 23,
-    paddingBottom: 20,
+    borderColor: "#DDE5F0",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
   },
+
   placeName: {
-    fontSize: 16,
-    fontWeight: "900",
     color: "#111827",
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: -0.2,
     marginBottom: 9,
   },
+
   placeTime: {
-    fontSize: 14,
-    fontWeight: "500",
-    color: "#405372",
+    color: "#64748B",
+    fontSize: 15,
+    fontWeight: "700",
   },
+
   memoList: {
-    marginTop: 17,
-    gap: 7,
+    marginTop: 14,
+    gap: 8,
   },
-  memoBox: {
-    height: 35,
-    borderRadius: 5,
+
+  memoCard: {
+    minHeight: 34,
+    borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#DDE4EE",
+    borderColor: "#DDE5F0",
     backgroundColor: "#F8FAFC",
+    paddingHorizontal: 10,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 10,
   },
+
   memoText: {
-    marginLeft: 6,
+    color: "#1F2937",
     fontSize: 12,
-    fontWeight: "500",
-    color: "#53627A",
+    fontWeight: "700",
+    marginLeft: 7,
   },
 });

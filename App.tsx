@@ -22,6 +22,7 @@ import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
 import ProfileEditScreen from "./src/screens/ProfileEditScreen";
+import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
@@ -52,6 +53,16 @@ type RootStackParamList = {
 
   Main: undefined;
   ProfileEdit: undefined;
+
+  PlanXDetail: {
+    tripId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    placeCount?: number;
+    emoji?: string;
+  };
 
   AddSchedule: undefined;
 
@@ -302,6 +313,16 @@ export default function App() {
         <Stack.Screen
           name="ProfileEdit"
           component={ProfileEditScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="PlanXDetail"
+          component={PlanXDetailScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",
