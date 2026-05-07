@@ -44,14 +44,6 @@ type ScheduleDay = {
   places: TodayPlace[];
 };
 
-type ScheduleGap = {
-  id: string;
-  beforePlanId?: string | number;
-  afterPlanId?: string | number;
-  title: string;
-  subtitle: string;
-};
-
 type Props = {
   navigation: any;
   route?: {
@@ -72,39 +64,6 @@ type Props = {
 };
 
 const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
-
-const MOCK_SCHEDULE_GAPS: ScheduleGap[] = [
-  {
-    id: "gap-1",
-    beforePlanId: "gap-before",
-    afterPlanId: "gap-after",
-    title: "일정 사이에 텀이 생겼어요",
-    subtitle: "틈새 대안찾기",
-  },
-];
-
-function GapRecommendationCard({
-  gap,
-  onPress,
-}: {
-  gap: ScheduleGap;
-  onPress: (gap: ScheduleGap) => void;
-}) {
-  return (
-    <TouchableOpacity
-      style={styles.gapCard}
-      activeOpacity={0.82}
-      onPress={() => onPress(gap)}
-    >
-      <View style={styles.gapTextBox}>
-        <Text style={styles.gapTitle}>{gap.title}</Text>
-        <Text style={styles.gapSubtitle}>{gap.subtitle}</Text>
-      </View>
-
-      <Ionicons name="chevron-forward" size={22} color="#C4CBD6" />
-    </TouchableOpacity>
-  );
-}
 
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
@@ -197,23 +156,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         longitude: place.longitude,
         category: place.category,
       },
-    });
-  };
-
-  const handleGapAlternative = (gap: ScheduleGap) => {
-    navigation.navigate("AlternativeSettings", {
-      scheduleId,
-      tripId: resolvedTripId,
-      serverTripId: resolvedTripId,
-      tripName,
-      startDate,
-      endDate,
-      location,
-      transportMode,
-      transportLabel,
-      recommendationType: "GAP",
-      beforePlanId: gap.beforePlanId,
-      afterPlanId: gap.afterPlanId,
     });
   };
 
@@ -319,15 +261,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
             {places.map((place, index) => {
               const focused = index === 0;
-              const gapAfterThisPlace =
-                index === 1 && places.length >= 3 ?
-                  {
-                    ...MOCK_SCHEDULE_GAPS[0],
-                    beforePlanId: place.tripPlaceId ?? place.id,
-                    afterPlanId:
-                      places[index + 1]?.tripPlaceId ?? places[index + 1]?.id,
-                  }
-                : undefined;
 
               return (
                 <React.Fragment
@@ -391,13 +324,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         </View>
                       ))}
                     </View>
-                  : null}
-
-                  {gapAfterThisPlace ?
-                    <GapRecommendationCard
-                      gap={gapAfterThisPlace}
-                      onPress={handleGapAlternative}
-                    />
                   : null}
                 </React.Fragment>
               );
@@ -757,37 +683,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     marginLeft: 8,
-  },
-
-  gapCard: {
-    minHeight: 78,
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: "#DDE5F0",
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  gapTextBox: {
-    flex: 1,
-  },
-
-  gapTitle: {
-    color: "#64748B",
-    fontSize: 16,
-    fontWeight: "900",
-    letterSpacing: -0.3,
-    marginBottom: 6,
-  },
-
-  gapSubtitle: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "800",
   },
 
   emptyDayCard: {

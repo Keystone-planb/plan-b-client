@@ -20,31 +20,6 @@ type NativeStreamResult = {
   receivedText: string;
 };
 
-export const MOCK_RECOMMENDED_PLACES: RecommendedPlace[] = [
-  {
-    placeId: 301,
-    googlePlaceId: "mock-recommend-cafe-301",
-    name: "비 오는 날 가기 좋은 실내 카페",
-    address: "서울 종로구 사직로",
-    rating: 4.5,
-    category: "카페",
-    reason: "야외 일정 대체에 적합한 실내 장소예요.",
-    latitude: 37.5759,
-    longitude: 126.9768,
-  },
-  {
-    placeId: 302,
-    googlePlaceId: "mock-recommend-museum-302",
-    name: "국립현대미술관 서울",
-    address: "서울 종로구 삼청로",
-    rating: 4.6,
-    category: "실내 관광지",
-    reason: "날씨 영향을 적게 받는 대체 관광지예요.",
-    latitude: 37.5788,
-    longitude: 126.98,
-  },
-];
-
 const normalizeBaseUrl = (baseUrl: string) => {
   return baseUrl.replace(/\/+$/, "");
 };
