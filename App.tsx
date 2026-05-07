@@ -11,7 +11,7 @@ import OnboardingThirdScreen from "./src/screens/OnboardingThirdScreen";
 import OnboardingFourthScreen from "./src/screens/OnboardingFourthScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
-import MainScreen from "./src/screens/MainScreen";
+import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen";
@@ -88,7 +88,6 @@ const webPrefix =
   Platform.OS === "web" && typeof window !== "undefined" ?
     window.location.origin
   : undefined;
-
 const linking = {
   prefixes: [
     Linking.createURL("/", {
@@ -206,7 +205,7 @@ export default function App() {
 
         <Stack.Screen
           name="Main"
-          component={MainScreen}
+          component={BottomTabNavigator}
           options={{
             headerShown: false,
           }}

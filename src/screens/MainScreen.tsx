@@ -1,110 +1,126 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
-  View,
+  ActivityIndicator,
+  Platform,
   ScrollView,
+  StyleSheet,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  StatusBar,
-  Alert,
+  View,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-
-import { getMe } from "../../api/users/me";
-import { getSchedules, SavedSchedule } from "../../api/schedules/storage";
-import {
-  loadAllPlanASchedules,
-  removePlanASchedule,
-} from "../api/schedules/planAStorage";
+import { useFocusEffect } from "@react-navigation/native";
 
 type Props = {
   navigation: any;
+  route?: {
+    params?: {
+      refreshSchedules?: boolean;
+      savedScheduleId?: string;
+    };
+  };
 };
 
-type UserInfo = {
-  id?: number;
-  email: string;
-  nickname: string;
-} | null;
+type StoredSchedule = {
+  id?: string;
+  scheduleId?: string;
+  tripName?: string;
+  title?: string;
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+  location?: string;
+  transportMode?: "WALK" | "TRANSIT" | "CAR";
+  transportLabel?: string;
+  days?: unknown[];
+  updatedAt?: string;
+  createdAt?: string;
+};
+
+const PLAN_A_STORAGE_PREFIX = "plan_a_schedule:";
+
+const formatDisplayDate = (value?: string) => {
+  if (!value) return "";
+
+  return value.replace(/-/g, ".");
+};
+
+const getScheduleId = (schedule: StoredSchedule) => {
+  return schedule.scheduleId || schedule.id || "";
+};
+
+const getScheduleTitle = (schedule: StoredSchedule) => {
+  return (
+    schedule.tripName || schedule.title || schedule.name || "이름 없는 여행"
+  );
+};
+
+const getScheduleDate = (schedule: StoredSchedule) => {
+  const startDate = formatDisplayDate(schedule.startDate);
+  const endDate = formatDisplayDate(schedule.endDate);
+
+  if (startDate && endDate) {
+    return `${startDate} - ${endDate}`;
+  }
+
+  if (startDate) {
+    return startDate;
+  }
+
+  if (endDate) {
+    return endDate;
+  }
+
+  return "날짜 미정";
+};
 
 export default function MainScreen({ navigation }: Props) {
-  const [user, setUser] = useState<UserInfo>(null);
-  const [loadingUser, setLoadingUser] = useState(true);
-  const [schedules, setSchedules] = useState<SavedSchedule[]>([]);
-  const [loadingSchedules, setLoadingSchedules] = useState(true);
-
-  useEffect(() => {
-    const fetchMe = async () => {
-      try {
-        setLoadingUser(true);
-
-        const result = await getMe();
-        setUser(result);
-      } catch (error: unknown) {
-        console.log("내 정보 조회 실패:", error);
-
-        const message =
-          error instanceof Error ?
-            error.message
-          : "내 정보 조회에 실패했습니다.";
-
-        Alert.alert("오류", message);
-      } finally {
-        setLoadingUser(false);
-      }
-    };
-
-    fetchMe();
-  }, []);
+  const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const loadSchedules = async () => {
     try {
-      setLoadingSchedules(true);
+      setLoading(true);
 
-      const savedSchedules = await getSchedules();
-      const planASchedules = await loadAllPlanASchedules();
+      const keys = await AsyncStorage.getAllKeys();
+      const planAKeys = keys.filter((key) =>
+        key.startsWith(PLAN_A_STORAGE_PREFIX),
+      );
 
-      const planACards: SavedSchedule[] = planASchedules.map((schedule) => {
-        const scheduleMeta = schedule as {
-          createdAt?: string;
-          updatedAt?: string;
-        };
+      if (planAKeys.length === 0) {
+        setSchedules([]);
+        return;
+      }
 
-        return {
-          id: schedule.id,
-          tripName: schedule.tripName,
-          startDate: schedule.startDate,
-          endDate: schedule.endDate,
-          location: schedule.location,
-          createdAt:
-            scheduleMeta.updatedAt ||
-            scheduleMeta.createdAt ||
-            new Date().toISOString(),
-        };
-      });
+      const entries = await AsyncStorage.multiGet(planAKeys);
 
-      const mergedSchedules = [
-        ...planACards,
-        ...savedSchedules.filter(
-          (schedule) =>
-            !planACards.some((planACard) => planACard.id === schedule.id),
-        ),
-      ];
+      const loadedSchedules = entries
+        .map(([, value]) => {
+          if (!value) return null;
 
-      console.log("[메인 일정 목록]", {
-        savedSchedules,
-        planASchedules,
-        mergedSchedules,
-      });
+          try {
+            return JSON.parse(value) as StoredSchedule;
+          } catch (error) {
+            console.log("[Main] 일정 파싱 실패:", error);
+            return null;
+          }
+        })
+        .filter((item): item is StoredSchedule => Boolean(item))
+        .sort((a, b) => {
+          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
 
-      setSchedules(mergedSchedules);
+          return bTime - aTime;
+        });
+
+      setSchedules(loadedSchedules);
     } catch (error) {
-      console.log("메인 일정 목록 불러오기 실패:", error);
+      console.log("[Main] 일정 불러오기 실패:", error);
       setSchedules([]);
     } finally {
-      setLoadingSchedules(false);
+      setLoading(false);
     }
   };
 
@@ -114,223 +130,113 @@ export default function MainScreen({ navigation }: Props) {
     }, []),
   );
 
-  const formatDate = (value: string) => {
-    if (!value) return "";
-    return value.replace(/-/g, ".");
-  };
-
-  const handleOpenSchedule = (schedule: SavedSchedule) => {
-    navigation.navigate("PlanA", {
-      scheduleId: schedule.id,
-      tripName: schedule.tripName,
-      startDate: schedule.startDate,
-      endDate: schedule.endDate,
-      location: schedule.location,
-    });
-  };
-
-  const handleOpenAddSchedule = () => {
+  const handleAddSchedule = () => {
     navigation.navigate("AddSchedule");
   };
 
-  const handleDeleteSchedule = (schedule: SavedSchedule) => {
-    Alert.alert("일정 삭제", `"${schedule.tripName}" 일정을 삭제할까요?`, [
-      {
-        text: "취소",
-        style: "cancel",
-      },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: async () => {
-          try {
-            await removePlanASchedule(schedule.id);
-
-            console.log("[일정 삭제 완료]", {
-              deletedScheduleId: schedule.id,
-            });
-
-            await loadSchedules();
-          } catch (error) {
-            console.log("[일정 삭제 실패]", error);
-            Alert.alert("삭제 실패", "일정을 삭제하지 못했습니다.");
-          }
-        },
-      },
-    ]);
+  const handleOpenSchedule = (schedule: StoredSchedule) => {
+    navigation.navigate("PlanA", {
+      scheduleId: getScheduleId(schedule),
+      tripName: getScheduleTitle(schedule),
+      startDate: schedule.startDate,
+      endDate: schedule.endDate,
+      location: schedule.location,
+      transportMode: schedule.transportMode,
+      transportLabel: schedule.transportLabel,
+    });
   };
 
-  const renderUserSection = () => {
-    if (loadingUser) {
-      return <Text style={styles.userText}>사용자 정보를 불러오는 중...</Text>;
-    }
-
-    if (user) {
-      return (
-        <>
-          <Text style={styles.userText}>{user.nickname}님, 반가워요</Text>
-          <Text style={styles.userSubText}>{user.email}</Text>
-        </>
-      );
-    }
-
+  const renderEmptyState = () => {
     return (
-      <Text style={styles.userText}>사용자 정보를 불러오지 못했습니다.</Text>
-    );
-  };
-
-  const renderScheduleSection = () => {
-    if (loadingSchedules) {
-      return (
-        <View style={styles.scheduleEmptyBox}>
-          <Text style={styles.mainText}>일정을 불러오는 중...</Text>
-        </View>
-      );
-    }
-
-    if (schedules.length === 0) {
-      return (
-        <View style={styles.scheduleEmptyBox}>
-          <Text style={styles.mainText}>등록된 일정이 없습니다</Text>
-          <Text style={styles.subText}>새로운 여행 일정을 추가해보세요</Text>
-        </View>
-      );
-    }
-
-    const ongoingSchedule = schedules[0];
-    const nextSchedule = schedules[1];
-
-    return (
-      <View style={styles.planSection}>
-        <View style={styles.todayInfoPill}>
-          <Text style={styles.todayInfoText}>☀️ 23°</Text>
-          <Text style={styles.todayInfoDivider}>|</Text>
-          <Text style={styles.todayInfoText}>📅 2026.04.30</Text>
-          <Text style={styles.todayInfoDivider}>|</Text>
-          <Text style={styles.todayInfoText}>🗺️ Day 1</Text>
+      <View style={styles.emptyContainer}>
+        <View style={styles.emptyIconCircle}>
+          <Ionicons name="calendar" size={34} color="#2158E8" />
         </View>
 
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>진행중인 일정</Text>
+        <Text style={styles.emptyTitle}>등록된 일정이 없습니다</Text>
+        <Text style={styles.emptyDescription}>
+          새로운 여행 일정을 추가해보세요
+        </Text>
 
-            <TouchableOpacity
-              style={styles.smallDeleteButton}
-              activeOpacity={0.75}
-              onPress={() => handleDeleteSchedule(ongoingSchedule)}
-            >
-              <Text style={styles.smallDeleteButtonText}>삭제</Text>
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity
-            style={styles.ongoingCard}
-            activeOpacity={0.85}
-            onPress={() => handleOpenSchedule(ongoingSchedule)}
-          >
-            <View style={styles.pinCircle}>
-              <Text style={styles.pinEmoji}>📌</Text>
-            </View>
-
-            <View style={styles.tripCardInfo}>
-              <Text style={styles.tripTitle} numberOfLines={1}>
-                {ongoingSchedule.tripName || "신나는 여행"}
-              </Text>
-
-              <Text style={styles.tripLocation} numberOfLines={1}>
-                {ongoingSchedule.location || "지역 미정"}
-              </Text>
-
-              <View style={styles.tripDateRow}>
-                <Ionicons name="calendar-outline" size={13} color="#9BAAC0" />
-                <Text style={styles.tripDateText} numberOfLines={1}>
-                  {formatDate(ongoingSchedule.startDate)} -{" "}
-                  {formatDate(ongoingSchedule.endDate)}
-                </Text>
-              </View>
-            </View>
-
-            <Ionicons name="chevron-forward" size={20} color="#C5CFDC" />
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionTitle}>다음 여행</Text>
-
-          {nextSchedule ?
-            <TouchableOpacity
-              style={styles.nextTripCard}
-              activeOpacity={0.85}
-              onPress={() => handleOpenSchedule(nextSchedule)}
-            >
-              <View style={styles.nextTripThumbnail}>
-                <Text style={styles.nextTripEmoji}>🏝️</Text>
-              </View>
-
-              <View style={styles.tripCardInfo}>
-                <Text style={styles.tripTitle} numberOfLines={1}>
-                  {nextSchedule.tripName || "다음 여행"}
-                </Text>
-
-                <View style={styles.tripDateRow}>
-                  <Ionicons name="calendar-outline" size={13} color="#9BAAC0" />
-                  <Text style={styles.tripDateText} numberOfLines={1}>
-                    {formatDate(nextSchedule.startDate)} -{" "}
-                    {formatDate(nextSchedule.endDate)}
-                  </Text>
-                </View>
-
-                <View style={styles.tripDateRow}>
-                  <Ionicons name="location-outline" size={13} color="#9BAAC0" />
-                  <Text style={styles.tripDateText} numberOfLines={1}>
-                    {nextSchedule.location || "지역 미정"}
-                  </Text>
-                </View>
-              </View>
-
-              <Ionicons name="chevron-forward" size={20} color="#C5CFDC" />
-            </TouchableOpacity>
-          : <View style={styles.nextTripEmptyBox}>
-              <Text style={styles.nextTripEmptyText}>
-                다음 여행을 추가해보세요
-              </Text>
-            </View>
-          }
-        </View>
+        <TouchableOpacity
+          style={styles.addButton}
+          activeOpacity={0.85}
+          onPress={handleAddSchedule}
+        >
+          <Text style={styles.addButtonText}>일정 추가하기</Text>
+        </TouchableOpacity>
       </View>
     );
   };
 
-  return (
-    <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="dark-content" />
-
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
+  const renderScheduleCard = (schedule: StoredSchedule) => {
+    return (
+      <TouchableOpacity
+        key={getScheduleId(schedule)}
+        style={styles.scheduleCard}
+        activeOpacity={0.85}
+        onPress={() => handleOpenSchedule(schedule)}
       >
+        <View style={styles.scheduleCardIcon}>
+          <Ionicons name="calendar-outline" size={22} color="#2158E8" />
+        </View>
+
+        <View style={styles.scheduleCardContent}>
+          <Text style={styles.scheduleTitle} numberOfLines={1}>
+            {getScheduleTitle(schedule)}
+          </Text>
+
+          <Text style={styles.scheduleDate} numberOfLines={1}>
+            {getScheduleDate(schedule)}
+          </Text>
+
+          {schedule.location ?
+            <Text style={styles.scheduleLocation} numberOfLines={1}>
+              {schedule.location}
+            </Text>
+          : null}
+        </View>
+
+        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
+      </TouchableOpacity>
+    );
+  };
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
+      <View style={styles.screen}>
         <View style={styles.header}>
           <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.subLogoText}>더 스마트한 여행의 시작</Text>
         </View>
 
-        <View style={styles.contentArea}>
-          <View style={styles.textGroup}>{renderScheduleSection()}</View>
-
-          <View style={styles.userInfoBox}>{renderUserSection()}</View>
-
-          <View style={styles.bottomActionGroup}>
-            <TouchableOpacity
-              style={styles.addButton}
-              activeOpacity={0.85}
-              onPress={handleOpenAddSchedule}
-            >
-              <Text style={styles.addButtonText}>새 일정 추가하기</Text>
-            </TouchableOpacity>
+        {loading ?
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2158E8" />
           </View>
-        </View>
-      </ScrollView>
+        : schedules.length === 0 ?
+          renderEmptyState()
+        : <ScrollView
+            style={styles.scheduleList}
+            contentContainerStyle={styles.scheduleListContent}
+            showsVerticalScrollIndicator={false}
+          >
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>진행 중인 일정</Text>
+
+              <TouchableOpacity
+                style={styles.smallAddButton}
+                activeOpacity={0.85}
+                onPress={handleAddSchedule}
+              >
+                <Ionicons name="add" size={16} color="#FFFFFF" />
+                <Text style={styles.smallAddButtonText}>추가</Text>
+              </TouchableOpacity>
+            </View>
+
+            {schedules.map(renderScheduleCard)}
+          </ScrollView>
+        }
+      </View>
     </SafeAreaView>
   );
 }
@@ -341,282 +247,179 @@ const styles = StyleSheet.create({
     backgroundColor: "#F7F9FB",
   },
 
-  container: {
+  screen: {
     flex: 1,
-  },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 36,
-    paddingBottom: 110,
-    alignItems: "center",
+    backgroundColor: "#F7F9FB",
   },
 
   header: {
     alignItems: "center",
-    marginBottom: 28,
+    paddingTop: 18,
+    paddingBottom: 12,
   },
 
   logoText: {
-    fontSize: 52,
+    color: "#1C2534",
+    fontSize: 38,
     fontWeight: "900",
-    color: "#1E293B",
-    letterSpacing: -1.5,
+    letterSpacing: -1.2,
   },
 
-  subLogoText: {
-    fontSize: 15,
-    color: "#64748B",
-    marginTop: 4,
-  },
-
-  contentArea: {
-    width: "100%",
-    maxWidth: 380,
-    alignItems: "center",
-  },
-
-  textGroup: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: 12,
-  },
-
-  mainText: {
-    fontSize: 20,
-    fontWeight: "800",
-    color: "#252D3C",
-    marginBottom: 8,
-    textAlign: "center",
-  },
-
-  subText: {
-    fontSize: 15,
-    color: "#8C9BB1",
-    textAlign: "center",
-    lineHeight: 22,
-  },
-
-  scheduleEmptyBox: {
-    width: "100%",
-    alignItems: "center",
-  },
-
-  planSection: {
-    width: "100%",
-    gap: 16,
-  },
-
-  todayInfoPill: {
-    width: "100%",
-    minHeight: 46,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
+  loadingContainer: {
+    flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 14,
-    borderWidth: 1,
-    borderColor: "#EEF3FA",
-    gap: 8,
+    paddingBottom: 110,
   },
 
-  todayInfoText: {
-    color: "#1E293B",
-    fontSize: 13,
-    fontWeight: "800",
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingBottom: 130,
   },
 
-  todayInfoDivider: {
-    color: "#D8E0EB",
-    fontSize: 12,
+  emptyIconCircle: {
+    width: 86,
+    height: 86,
+    borderRadius: 43,
+    backgroundColor: "#D7E9FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 20,
+  },
+
+  emptyTitle: {
+    color: "#1C2534",
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+
+  emptyDescription: {
+    color: "#9AA8BA",
+    fontSize: 14,
+    fontWeight: "600",
+    marginBottom: 26,
+  },
+
+  addButton: {
+    minWidth: 132,
+    height: 48,
+    paddingHorizontal: 22,
+    borderRadius: 12,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.28,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+
+  addButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "900",
   },
 
-  sectionCard: {
-    width: "100%",
-    borderRadius: 18,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    borderWidth: 1,
-    borderColor: "#E6EEF9",
+  scheduleList: {
+    flex: 1,
+  },
+
+  scheduleListContent: {
+    paddingHorizontal: 24,
+    paddingTop: 28,
+    paddingBottom: 130,
   },
 
   sectionHeader: {
-    marginBottom: 14,
+    marginBottom: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
 
   sectionTitle: {
-    color: "#1E293B",
-    fontSize: 16,
+    color: "#1C2534",
+    fontSize: 22,
     fontWeight: "900",
   },
 
-  smallDeleteButton: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
-  },
-
-  smallDeleteButtonText: {
-    color: "#8FA0B7",
-    fontSize: 11,
-    fontWeight: "800",
-  },
-
-  ongoingCard: {
-    minHeight: 88,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#BBDDFF",
-    shadowColor: "#60A5FA",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+  smallAddButton: {
+    height: 34,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    backgroundColor: "#2158E8",
     flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-
-  pinCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
+    gap: 3,
   },
 
-  pinEmoji: {
-    fontSize: 16,
-  },
-
-  tripCardInfo: {
-    flex: 1,
-  },
-
-  tripTitle: {
-    color: "#1E293B",
-    fontSize: 14,
-    fontWeight: "900",
-    marginBottom: 4,
-  },
-
-  tripLocation: {
-    color: "#8FA0B7",
+  smallAddButtonText: {
+    color: "#FFFFFF",
     fontSize: 12,
-    fontWeight: "700",
-    marginBottom: 5,
+    fontWeight: "900",
   },
 
-  tripDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 3,
-  },
-
-  tripDateText: {
-    color: "#8FA0B7",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  nextTripCard: {
-    minHeight: 78,
-    borderRadius: 16,
+  scheduleCard: {
+    minHeight: 92,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E3EAF4",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
 
-  nextTripThumbnail: {
-    width: 56,
-    height: 56,
-    borderRadius: 13,
-    backgroundColor: "#DDF0FF",
+  scheduleCardIcon: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#EAF3FF",
     alignItems: "center",
     justifyContent: "center",
     marginRight: 14,
   },
 
-  nextTripEmoji: {
-    fontSize: 30,
+  scheduleCardContent: {
+    flex: 1,
   },
 
-  nextTripEmptyBox: {
-    height: 56,
-    borderRadius: 14,
-    backgroundColor: "#F8FAFC",
-    alignItems: "center",
-    justifyContent: "center",
+  scheduleTitle: {
+    color: "#1C2534",
+    fontSize: 17,
+    fontWeight: "900",
+    marginBottom: 6,
   },
 
-  nextTripEmptyText: {
-    color: "#94A3B8",
+  scheduleDate: {
+    color: "#8C9BB1",
     fontSize: 13,
+    fontWeight: "700",
+  },
+
+  scheduleLocation: {
+    color: "#2158E8",
+    fontSize: 12,
     fontWeight: "800",
-  },
-
-  userInfoBox: {
-    width: "100%",
-    marginTop: 22,
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#E6EEF9",
-    alignItems: "center",
-  },
-
-  userText: {
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#1E293B",
-    textAlign: "center",
-  },
-
-  userSubText: {
-    marginTop: 6,
-    fontSize: 13,
-    color: "#64748B",
-    textAlign: "center",
-  },
-
-  bottomActionGroup: {
-    width: "100%",
-    alignItems: "center",
-    marginTop: 26,
-  },
-
-  addButton: {
-    width: "100%",
-    height: 52,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: 16,
-    backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.25,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-
-  addButtonText: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    marginTop: 5,
   },
 });

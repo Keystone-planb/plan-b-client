@@ -1,13 +1,18 @@
 import React, { useEffect, useState } from "react";
 import {
+  Alert,
   Modal,
+  Platform,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  SafeAreaView,
+  useSafeAreaInsets,
+} from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import PlanADayTabs from "../components/planA/PlanADayTabs";
@@ -34,18 +39,40 @@ type Props = {
   };
 };
 
+type BottomTabName = "PlanX" | "Home" | "Profile";
+type IconName = keyof typeof Ionicons.glyphMap;
+
 const DAY_OPTIONS: DayOption[] = [
   { id: 1, label: "Day 1" },
   { id: 2, label: "Day 2" },
   { id: 3, label: "Day 3" },
 ];
 
+const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
+
 const formatDisplayDate = (value: string) => {
   if (!value) return "";
   return value.replace(/-/g, ".");
 };
 
+const getBottomTabIconName = (
+  tabName: BottomTabName,
+  focused: boolean,
+): IconName => {
+  if (tabName === "PlanX") {
+    return focused ? "time" : "time-outline";
+  }
+
+  if (tabName === "Home") {
+    return focused ? "home" : "home-outline";
+  }
+
+  return focused ? "person" : "person-outline";
+};
+
 export default function PlanAScreen({ navigation, route }: Props) {
+  const insets = useSafeAreaInsets();
+
   const [selectedDay, setSelectedDay] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
@@ -114,6 +141,54 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const moveToMain = () => {
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: "Main",
+          params: {
+            refreshSchedules: true,
+            savedScheduleId: schedule.id,
+          },
+        },
+      ],
+    });
+  };
+
+  const handleSavePlanA = () => {
+    resetEditingState();
+
+    console.log("[PlanA] 저장 완료 후 Main으로 이동", {
+      scheduleId: schedule.id,
+      tripName: schedule.tripName,
+    });
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.alert("일정이 저장되었습니다.");
+      moveToMain();
+      return;
+    }
+
+    Alert.alert("저장 완료", "일정이 저장되었습니다.", [
+      {
+        text: "확인",
+        onPress: moveToMain,
+      },
+    ]);
+  };
+
+  const handleBottomTabPress = (tabName: BottomTabName) => {
+    if (tabName === "Home") {
+      moveToMain();
+      return;
+    }
+
+    navigation.navigate("Main", {
+      screen: tabName,
+    });
   };
 
   const handleChangeDay = (dayId: number) => {
@@ -300,7 +375,18 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
               <Text style={styles.logoText}>Plan.A</Text>
 
-              <View style={styles.headerSpacer} />
+              <TouchableOpacity
+                style={[
+                  styles.saveButton,
+                  loadingSchedule && styles.saveButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={handleSavePlanA}
+                disabled={loadingSchedule}
+              >
+                <Ionicons name="download-outline" size={14} color="#FFFFFF" />
+                <Text style={styles.saveButtonText}>저장</Text>
+              </TouchableOpacity>
             </View>
 
             <View style={styles.scheduleSummary}>
@@ -417,6 +503,39 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </TouchableOpacity>
           </View>
         </ScrollView>
+
+        <View
+          style={[
+            styles.bottomTabOuter,
+            {
+              bottom: Platform.OS === "ios" ? Math.max(insets.bottom, 16) : 18,
+            },
+          ]}
+        >
+          <View style={styles.bottomTabContainer}>
+            {BOTTOM_TABS.map((tabName) => {
+              const focused = tabName === "Home";
+              const iconName = getBottomTabIconName(tabName, focused);
+
+              return (
+                <TouchableOpacity
+                  key={tabName}
+                  accessibilityRole="button"
+                  accessibilityState={focused ? { selected: true } : {}}
+                  activeOpacity={0.75}
+                  onPress={() => handleBottomTabPress(tabName)}
+                  style={styles.bottomTabButton}
+                >
+                  <Ionicons
+                    name={iconName}
+                    size={34}
+                    color={focused ? "#2B3445" : "#C8D1DF"}
+                  />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </View>
 
       <Modal
@@ -572,6 +691,7 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: "#F7F9FB",
+    paddingBottom: 112,
   },
 
   headerSection: {
@@ -589,15 +709,10 @@ const styles = StyleSheet.create({
   },
 
   backButton: {
-    width: 34,
+    width: 58,
     height: 34,
     alignItems: "flex-start",
     justifyContent: "center",
-  },
-
-  headerSpacer: {
-    width: 34,
-    height: 34,
   },
 
   scheduleSummary: {
@@ -633,13 +748,23 @@ const styles = StyleSheet.create({
   },
 
   saveButton: {
-    minWidth: 48,
+    minWidth: 58,
     height: 34,
     paddingHorizontal: 12,
-    borderRadius: 17,
-    backgroundColor: "#EAF3FF",
+    borderRadius: 12,
+    backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   saveButtonDisabled: {
@@ -647,7 +772,7 @@ const styles = StyleSheet.create({
   },
 
   saveButtonText: {
-    color: "#2158E8",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "900",
   },
@@ -737,6 +862,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+
   simplePlaceRow: {
     width: "100%",
     flexDirection: "row",
@@ -886,6 +1012,32 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 11,
     fontWeight: "900",
+  },
+
+  bottomTabOuter: {
+    position: "absolute",
+    left: 24,
+    right: 24,
+    alignItems: "center",
+  },
+
+  bottomTabContainer: {
+    width: "100%",
+    height: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    borderRadius: 29,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE6F2",
+  },
+
+  bottomTabButton: {
+    flex: 1,
+    height: "100%",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   timeModalBackdrop: {
@@ -1058,5 +1210,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
-
 });
