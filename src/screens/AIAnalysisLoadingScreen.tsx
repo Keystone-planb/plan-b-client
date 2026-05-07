@@ -1,290 +1,205 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
   Animated,
   Easing,
-  SafeAreaView,
+  ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { Ionicons } from "@expo/vector-icons";
-
-import { streamRecommendations } from "../../api/recommendations/stream";
-import type { RecommendedPlace, TransportMode } from "../types/recommendation";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 type Props = {
   navigation: any;
-  route: {
+  route?: {
     params?: {
-      userId?: number | string;
-      tripId?: number | string;
-      limit?: number;
-      reason?: string;
-      transportMode?: TransportMode;
-      title?: string;
-      subtitle?: string;
+      scheduleId?: string;
+      tripName?: string;
+      startDate?: string;
+      endDate?: string;
+      location?: string;
+      transportMode?: "WALK" | "TRANSIT" | "CAR";
+      moveTime?: "10" | "20" | "30" | "ANY";
+      considerDistance?: boolean;
+      considerCrowd?: boolean;
+      changeCategory?: boolean;
+      placeScope?: "INDOOR" | "OUTDOOR";
+      targetPlace?: {
+        id?: string;
+        name?: string;
+        address?: string;
+        time?: string;
+        latitude?: number;
+        longitude?: number;
+      };
     };
   };
 };
 
-const DEFAULT_MESSAGES = [
-  "현재 날씨와 일정을 확인하고 있어요",
-  "주변 장소 후보를 분석하고 있어요",
-  "이동 동선과 추천 이유를 정리하고 있어요",
-  "가장 어울리는 대안 장소를 고르는 중이에요",
-];
+const DOT_COUNT = 6;
 
 export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
-  const [message, setMessage] = useState(DEFAULT_MESSAGES[0]);
-  const [progressText, setProgressText] = useState("AI 분석 준비 중");
-  const [places, setPlaces] = useState<RecommendedPlace[]>([]);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [progress, setProgress] = useState(2);
+  const [activeDotIndex, setActiveDotIndex] = useState(0);
+  const [dotDirection, setDotDirection] = useState<1 | -1>(1);
 
-  const rotateValue = useRef(new Animated.Value(0)).current;
-  const pulseValue = useRef(new Animated.Value(0)).current;
-  const mountedRef = useRef(true);
+  const animatedValue = useMemo(() => new Animated.Value(0), []);
 
-  const params = route?.params ?? {};
-
-  const title = params.title ?? "AI가 대안 장소를 찾고 있어요";
-  const subtitle =
-    params.subtitle ??
-    "날씨와 일정 흐름을 기준으로 가장 알맞은 장소를 분석 중이에요.";
-
-  const animatedRotate = rotateValue.interpolate({
+  const orbitRotate = animatedValue.interpolate({
     inputRange: [0, 1],
     outputRange: ["0deg", "360deg"],
   });
 
-  const animatedPulse = pulseValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0.92, 1.08],
+  const searchFloat = animatedValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, -7, 0],
   });
 
-  const messageIndex = useMemo(() => {
-    const index = DEFAULT_MESSAGES.findIndex((item) => item === message);
-    return index < 0 ? 0 : index;
-  }, [message]);
+  useEffect(() => {
+    const progressTimer = setInterval(() => {
+      setProgress((prev) => {
+        if (prev >= 100) {
+          clearInterval(progressTimer);
+
+          setTimeout(() => {
+            navigation.navigate("RecommendationResult", {
+              ...route?.params,
+            });
+          }, 450);
+
+          return 100;
+        }
+
+        return Math.min(prev + 2, 100);
+      });
+    }, 180);
+
+    return () => {
+      clearInterval(progressTimer);
+    };
+  }, [navigation, route?.params]);
 
   useEffect(() => {
-    mountedRef.current = true;
+    const dotTimer = setInterval(() => {
+      setActiveDotIndex((prev) => {
+        if (prev >= DOT_COUNT - 1) {
+          setDotDirection(-1);
+          return prev - 1;
+        }
 
-    Animated.loop(
-      Animated.timing(rotateValue, {
+        if (prev <= 0) {
+          setDotDirection(1);
+          return prev + 1;
+        }
+
+        return prev + dotDirection;
+      });
+    }, 260);
+
+    return () => {
+      clearInterval(dotTimer);
+    };
+  }, [dotDirection]);
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(animatedValue, {
         toValue: 1,
         duration: 1800,
         easing: Easing.linear,
         useNativeDriver: true,
       }),
-    ).start();
+    );
 
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulseValue, {
-          toValue: 1,
-          duration: 850,
-          easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulseValue, {
-          toValue: 0,
-          duration: 850,
-          easing: Easing.in(Easing.quad),
-          useNativeDriver: true,
-        }),
-      ]),
-    ).start();
+    animation.start();
 
     return () => {
-      mountedRef.current = false;
+      animation.stop();
     };
-  }, [pulseValue, rotateValue]);
-
-  useEffect(() => {
-    let timer: ReturnType<typeof setInterval> | null = null;
-
-    timer = setInterval(() => {
-      setMessage((prev) => {
-        const currentIndex = DEFAULT_MESSAGES.findIndex(
-          (item) => item === prev,
-        );
-        const nextIndex =
-          currentIndex < 0 ? 1 : (currentIndex + 1) % DEFAULT_MESSAGES.length;
-
-        return DEFAULT_MESSAGES[nextIndex];
-      });
-    }, 1700);
-
-    return () => {
-      if (timer) {
-        clearInterval(timer);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const startAnalysis = async () => {
-      try {
-        const storedUserId = await AsyncStorage.getItem("user_id");
-
-        const userId = params.userId ?? storedUserId ?? "";
-        const tripId = params.tripId ?? 1;
-
-        const collectedPlaces: RecommendedPlace[] = [];
-
-        await streamRecommendations(
-          {
-            userId,
-            tripId,
-            limit: params.limit ?? 5,
-            reason: params.reason ?? "WEATHER_ALTERNATIVE",
-            transportMode: params.transportMode ?? "WALK",
-          },
-          {
-            onProgress: (nextMessage) => {
-              if (!mountedRef.current) return;
-
-              setProgressText(nextMessage || "AI가 추천 장소를 분석 중이에요");
-            },
-            onPlace: (place) => {
-              if (!mountedRef.current) return;
-
-              collectedPlaces.push(place);
-
-              setPlaces((prev) => {
-                const exists = prev.some(
-                  (item) => String(item.placeId) === String(place.placeId),
-                );
-
-                if (exists) return prev;
-
-                return [...prev, place];
-              });
-            },
-            onDone: () => {
-              if (!mountedRef.current) return;
-
-              navigation.replace("RecommendationResult", {
-                placesJson: JSON.stringify(collectedPlaces),
-                fromAIAnalysis: true,
-              });
-            },
-            onError: (error) => {
-              console.log("[AIAnalysisLoading] stream error:", error);
-
-              if (!mountedRef.current) return;
-
-              setErrorMessage("추천 분석 중 문제가 발생했어요.");
-
-              setTimeout(() => {
-                navigation.replace("RecommendationResult", {
-                  placesJson: JSON.stringify(collectedPlaces),
-                  fromAIAnalysis: true,
-                  hasError: true,
-                });
-              }, 900);
-            },
-          },
-        );
-      } catch (error) {
-        console.log("[AIAnalysisLoading] failed:", error);
-
-        if (!mountedRef.current) return;
-
-        setErrorMessage("AI 추천을 불러오지 못했어요.");
-
-        setTimeout(() => {
-          navigation.replace("RecommendationResult", {
-            placesJson: JSON.stringify([]),
-            fromAIAnalysis: true,
-            hasError: true,
-          });
-        }, 900);
-      }
-    };
-
-    startAnalysis();
-  }, [
-    navigation,
-    params.limit,
-    params.reason,
-    params.transportMode,
-    params.tripId,
-    params.userId,
-  ]);
+  }, [animatedValue]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.container}>
-        <View style={styles.topSection}>
-          <Text style={styles.kicker}>AI Alternative</Text>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.subtitle}>{subtitle}</Text>
-        </View>
+      <View style={styles.screen}>
+        <View pointerEvents="none" style={styles.backgroundDotOne} />
+        <View pointerEvents="none" style={styles.backgroundDotTwo} />
+        <View pointerEvents="none" style={styles.backgroundDotThree} />
+        <View pointerEvents="none" style={styles.backgroundDotFour} />
 
-        <View style={styles.visualSection}>
-          <Animated.View
-            style={[
-              styles.outerCircle,
-              {
-                transform: [{ scale: animatedPulse }],
-              },
-            ]}
-          >
-            <Animated.View
-              style={[
-                styles.orbitCircle,
-                {
-                  transform: [{ rotate: animatedRotate }],
-                },
-              ]}
-            >
-              <View style={styles.orbitDot} />
-            </Animated.View>
-
-            <View style={styles.innerCircle}>
-              <Ionicons name="sparkles" size={42} color="#2158E8" />
-            </View>
-          </Animated.View>
-        </View>
-
-        <View style={styles.statusCard}>
-          <View style={styles.statusHeader}>
-            <ActivityIndicator size="small" color="#2158E8" />
-            <Text style={styles.statusTitle}>{progressText}</Text>
-          </View>
-
-          <Text style={styles.statusMessage}>{message}</Text>
-
-          <View style={styles.stepRow}>
-            {DEFAULT_MESSAGES.map((_, index) => (
-              <View
-                key={`step-${index}`}
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          bounces={false}
+        >
+          <View style={styles.heroSection}>
+            <View style={styles.analysisVisual}>
+              <Animated.View
                 style={[
-                  styles.stepDot,
-                  index <= messageIndex && styles.activeStepDot,
+                  styles.orbitRing,
+                  {
+                    transform: [{ rotate: orbitRotate }],
+                  },
                 ]}
-              />
-            ))}
+              >
+                <View style={[styles.orbitDot, styles.orbitDotTop]} />
+                <View style={[styles.orbitDotSmall, styles.orbitDotRight]} />
+                <View style={[styles.orbitDot, styles.orbitDotBottom]} />
+                <View style={[styles.orbitDotSmall, styles.orbitDotLeft]} />
+              </Animated.View>
+
+              <Animated.View
+                style={[
+                  styles.searchIconCircle,
+                  {
+                    transform: [{ translateY: searchFloat }],
+                  },
+                ]}
+              >
+                <Text style={styles.searchIcon}>🔍</Text>
+              </Animated.View>
+            </View>
+
+            <Text style={styles.title}>여행 데이터 분석 중</Text>
+
+            <Text style={styles.description}>
+              선택하신 조건을 바탕으로 데이터를 수집하고 있어요
+            </Text>
+
+            <View style={styles.guideBox}>
+              <Text style={styles.guideText}>
+                💡 평균 2-3개의 대안을 찾아드려요
+              </Text>
+            </View>
           </View>
 
-          <Text style={styles.countText}>
-            현재 {places.length}개의 후보 장소를 찾았어요
-          </Text>
-        </View>
+          <View style={styles.dotsSection}>
+            <View style={styles.dotsRow}>
+              {Array.from({ length: DOT_COUNT }).map((_, index) => {
+                const isActive = index === activeDotIndex;
 
-        {errorMessage ?
-          <View style={styles.errorBox}>
-            <Ionicons name="alert-circle-outline" size={17} color="#EF4444" />
-            <Text style={styles.errorText}>{errorMessage}</Text>
+                return (
+                  <View
+                    key={`loading-dot-${index}`}
+                    style={[styles.dot, isActive && styles.activeDot]}
+                  />
+                );
+              })}
+            </View>
+
+            <Text style={styles.loadingText}>
+              조건에 맞는 장소를 비교하고 있어요
+            </Text>
           </View>
-        : null}
 
-        <Text style={styles.footerText}>
-          잠시만 기다려주세요. 추천이 완료되면 결과 화면으로 이동해요.
-        </Text>
+          <View style={styles.tipCard}>
+            <Text style={styles.tipTitle}>잠깐! 알고 계셨나요?</Text>
+
+            <Text style={styles.tipDescription}>
+              Plan.B AI는 실시간으로 10,000개 이상의 장소 데이터를 분석해요
+            </Text>
+          </View>
+        </ScrollView>
       </View>
     </SafeAreaView>
   );
@@ -293,158 +208,264 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6F8FC",
+    backgroundColor: "#FFFFFF",
   },
-  container: {
+
+  screen: {
     flex: 1,
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 30,
+    backgroundColor: "#FFFFFF",
+    position: "relative",
+    overflow: "hidden",
   },
-  topSection: {
+
+  scroll: {
+    flex: 1,
+  },
+
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 36,
+    paddingTop: 44,
+    paddingBottom: 42,
+  },
+
+  backgroundDotOne: {
+    position: "absolute",
+    left: 20,
+    top: 88,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#D7E5FF",
+  },
+
+  backgroundDotTwo: {
+    position: "absolute",
+    left: 188,
+    top: 382,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#D7E5FF",
+  },
+
+  backgroundDotThree: {
+    position: "absolute",
+    left: 206,
+    top: 616,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#D7E5FF",
+  },
+
+  backgroundDotFour: {
+    position: "absolute",
+    left: 54,
+    bottom: 62,
+    width: 7,
+    height: 7,
+    borderRadius: 3.5,
+    backgroundColor: "#D7E5FF",
+  },
+
+  heroSection: {
     alignItems: "center",
+    marginBottom: 52,
   },
-  kicker: {
-    color: "#2158E8",
-    fontSize: 13,
-    fontWeight: "900",
-    letterSpacing: 0.8,
-    marginBottom: 10,
-  },
-  title: {
-    color: "#101828",
-    fontSize: 25,
-    fontWeight: "900",
-    lineHeight: 33,
-    textAlign: "center",
-  },
-  subtitle: {
-    marginTop: 12,
-    color: "#667085",
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 21,
-    textAlign: "center",
-  },
-  visualSection: {
-    flex: 1,
+
+  analysisVisual: {
+    width: 154,
+    height: 154,
     alignItems: "center",
     justifyContent: "center",
+    marginBottom: 42,
   },
-  outerCircle: {
-    width: 210,
-    height: 210,
-    borderRadius: 105,
-    backgroundColor: "#EAF1FF",
-    alignItems: "center",
-    justifyContent: "center",
+
+  orbitRing: {
+    position: "absolute",
+    width: 132,
+    height: 132,
+    borderRadius: 66,
+    borderWidth: 1,
+    borderColor: "#D9ECFF",
+  },
+
+  orbitDot: {
+    position: "absolute",
+    width: 14,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#2158E8",
     shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
-      height: 14,
+      height: 4,
     },
-    shadowOpacity: 0.15,
-    shadowRadius: 24,
+    shadowOpacity: 0.22,
+    shadowRadius: 7,
+    elevation: 5,
+  },
+
+  orbitDotSmall: {
+    position: "absolute",
+    width: 9,
+    height: 9,
+    borderRadius: 4.5,
+    backgroundColor: "#9ED4FF",
+  },
+
+  orbitDotTop: {
+    top: -7,
+    left: 59,
+  },
+
+  orbitDotRight: {
+    right: -4,
+    top: 61,
+  },
+
+  orbitDotBottom: {
+    bottom: -7,
+    left: 59,
+    backgroundColor: "#4EA3FF",
+  },
+
+  orbitDotLeft: {
+    left: -4,
+    top: 61,
+  },
+
+  searchIconCircle: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: "#F2F8FF",
+    borderWidth: 1,
+    borderColor: "#CFE6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#8CCBFF",
+    shadowOffset: {
+      width: 0,
+      height: 12,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 22,
     elevation: 8,
   },
-  orbitCircle: {
-    position: "absolute",
-    width: 178,
-    height: 178,
-    borderRadius: 89,
-    borderWidth: 1.5,
-    borderColor: "#BFD3FF",
+
+  searchIcon: {
+    fontSize: 48,
   },
-  orbitDot: {
-    position: "absolute",
-    top: 7,
-    left: 79,
+
+  title: {
+    color: "#1C2534",
+    fontSize: 31,
+    fontWeight: "900",
+    letterSpacing: -0.8,
+    textAlign: "center",
+    marginBottom: 18,
+  },
+
+  description: {
+    color: "#8A9BB2",
+    fontSize: 19,
+    fontWeight: "700",
+    lineHeight: 28,
+    textAlign: "center",
+    marginBottom: 24,
+  },
+
+  guideBox: {
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#CFE0FF",
+    backgroundColor: "#F2F7FF",
+    paddingHorizontal: 20,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  guideText: {
+    color: "#2F6BFF",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  dotsSection: {
+    alignItems: "center",
+    marginBottom: 46,
+  },
+
+  dotsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 13,
+    marginBottom: 18,
+  },
+
+  dot: {
+    width: 13,
+    height: 13,
+    borderRadius: 6.5,
+    backgroundColor: "#E3E9F1",
+  },
+
+  activeDot: {
     width: 18,
     height: 18,
     borderRadius: 9,
     backgroundColor: "#2158E8",
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 7,
+    elevation: 5,
   },
-  innerCircle: {
-    width: 108,
-    height: 108,
-    borderRadius: 54,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
+
+  loadingText: {
+    color: "#8A9BB2",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
   },
-  statusCard: {
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    padding: 20,
+
+  tipCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: "#E4EAF4",
-    shadowColor: "#1E293B",
+    borderColor: "#E1E7EF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    minHeight: 132,
+    justifyContent: "center",
+    shadowColor: "#0F172A",
     shadowOffset: {
       width: 0,
       height: 8,
     },
-    shadowOpacity: 0.08,
-    shadowRadius: 18,
-    elevation: 4,
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
   },
-  statusHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  statusTitle: {
-    flex: 1,
-    color: "#1E293B",
-    fontSize: 14,
+
+  tipTitle: {
+    color: "#1C2534",
+    fontSize: 19,
     fontWeight: "900",
+    marginBottom: 14,
   },
-  statusMessage: {
-    marginTop: 14,
-    color: "#526174",
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 21,
-  },
-  stepRow: {
-    marginTop: 18,
-    flexDirection: "row",
-    gap: 8,
-  },
-  stepDot: {
-    flex: 1,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-  },
-  activeStepDot: {
-    backgroundColor: "#2158E8",
-  },
-  countText: {
-    marginTop: 14,
-    color: "#7C8BA1",
-    fontSize: 12,
+
+  tipDescription: {
+    color: "#8A9BB2",
+    fontSize: 17,
     fontWeight: "700",
-  },
-  errorBox: {
-    marginTop: 14,
-    borderRadius: 14,
-    backgroundColor: "#FEF2F2",
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  errorText: {
-    color: "#EF4444",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  footerText: {
-    marginTop: 18,
-    color: "#8A97AA",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
+    lineHeight: 27,
   },
 });

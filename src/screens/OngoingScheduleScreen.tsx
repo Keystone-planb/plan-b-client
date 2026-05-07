@@ -118,7 +118,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
-    navigation.navigate("PlanA", {
+    navigation.navigate("AlternativeSettings", {
       scheduleId,
       tripName,
       startDate,
@@ -126,7 +126,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       location,
       transportMode,
       transportLabel,
-      alternativeTargetPlace: place,
+      targetPlace: place,
     });
   };
 

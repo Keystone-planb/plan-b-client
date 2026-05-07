@@ -18,9 +18,13 @@ import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
+import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
+import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
+type MoveTime = "10" | "20" | "30" | "ANY";
+type PlaceScope = "INDOOR" | "OUTDOOR";
 
 type TodayPlace = {
   id?: string;
@@ -101,6 +105,32 @@ type RootStackParamList = {
     transportMode?: TransportMode;
     transportLabel?: string;
     places?: TodayPlace[];
+  };
+
+  AlternativeSettings: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    transportLabel?: string;
+    targetPlace?: TodayPlace;
+  };
+
+  AlternativeLoading: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    moveTime?: MoveTime;
+    considerDistance?: boolean;
+    considerCrowd?: boolean;
+    changeCategory?: boolean;
+    placeScope?: PlaceScope;
+    targetPlace?: TodayPlace;
   };
 };
 
@@ -287,6 +317,26 @@ export default function App() {
         <Stack.Screen
           name="OngoingSchedule"
           component={OngoingScheduleScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AlternativeSettings"
+          component={AlternativeSettingsScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="AlternativeLoading"
+          component={AIAnalysisLoadingScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",
