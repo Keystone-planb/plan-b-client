@@ -20,6 +20,7 @@ import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
+import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
@@ -119,6 +120,21 @@ type RootStackParamList = {
   };
 
   AlternativeLoading: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    moveTime?: MoveTime;
+    considerDistance?: boolean;
+    considerCrowd?: boolean;
+    changeCategory?: boolean;
+    placeScope?: PlaceScope;
+    targetPlace?: TodayPlace;
+  };
+
+  RecommendationResult: {
     scheduleId?: string;
     tripName?: string;
     startDate?: string;
@@ -337,6 +353,16 @@ export default function App() {
         <Stack.Screen
           name="AlternativeLoading"
           component={AIAnalysisLoadingScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="RecommendationResult"
+          component={RecommendationResultScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",

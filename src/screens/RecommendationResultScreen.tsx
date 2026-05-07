@@ -11,20 +11,96 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import type { RecommendedPlace } from "../types/recommendation";
 
-type Props = {
-  navigation: any;
-  route: {
-    params?: {
-      placesJson?: string;
-      fromAIAnalysis?: boolean;
-      hasError?: boolean;
-      title?: string;
-    };
+type TransportMode = "WALK" | "TRANSIT" | "CAR";
+type MoveTime = "10" | "20" | "30" | "ANY";
+type PlaceScope = "INDOOR" | "OUTDOOR";
+
+type TodayPlace = {
+  id?: string;
+  name?: string;
+  address?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
+};
+
+type RootStackParamList = {
+  Main: undefined;
+  RecommendationResult: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    moveTime?: MoveTime;
+    considerDistance?: boolean;
+    considerCrowd?: boolean;
+    changeCategory?: boolean;
+    placeScope?: PlaceScope;
+    targetPlace?: TodayPlace;
+
+    placesJson?: string;
+    fromAIAnalysis?: boolean;
+    hasError?: boolean;
+    title?: string;
   };
+};
+
+type Props = NativeStackScreenProps<RootStackParamList, "RecommendationResult">;
+
+type DisplayPlace = RecommendedPlace & {
+  placeId?: string | number;
+  name: string;
+  category?: string;
+  rating?: number;
+  reviewCount?: number;
+  address?: string;
+  phone?: string;
+  website?: string;
+  openingHours?: string;
+  reason?: string;
+  sourceSummary?: {
+    naver?: string;
+    instagram?: string;
+    google?: string;
+  };
+};
+
+const MOCK_RECOMMENDATIONS: DisplayPlace[] = Array.from({ length: 5 }).map(
+  (_, index) => ({
+    placeId: `mock-everland-${index + 1}`,
+    name: "에버랜드",
+    category: "아웃도어",
+    rating: 4.58,
+    reviewCount: 2239,
+    address: "경기도 용인시 처인구 포곡읍 에버랜드로 199",
+    phone: "053-123-1234",
+    website: "www.planb.com",
+    openingHours: "10:00 - 20:00",
+    reason: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
+    sourceSummary: {
+      naver: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
+      instagram: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
+      google: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
+    },
+  }),
+);
+
+const formatDateRange = (startDate?: string, endDate?: string) => {
+  const start = startDate?.replace(/-/g, ".");
+  const end = endDate?.replace(/-/g, ".");
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return start;
+  if (end) return end;
+
+  return "10:00 - 12:00";
 };
 
 export default function RecommendationResultScreen({
@@ -37,10 +113,13 @@ export default function RecommendationResultScreen({
   const [submittingPlaceId, setSubmittingPlaceId] = useState<
     string | number | null
   >(null);
+  const [expandedPlaceId, setExpandedPlaceId] = useState<
+    string | number | null
+  >(null);
 
-  const params = route?.params ?? {};
+  const params = route.params ?? {};
 
-  const places = useMemo<RecommendedPlace[]>(() => {
+  const parsedPlaces = useMemo<DisplayPlace[]>(() => {
     try {
       if (!params.placesJson) return [];
 
@@ -53,11 +132,20 @@ export default function RecommendationResultScreen({
     }
   }, [params.placesJson]);
 
+  const places = parsedPlaces.length > 0 ? parsedPlaces : MOCK_RECOMMENDATIONS;
+
   const shownPlaceIds = useMemo(() => {
     return places
-      .map((place) => place.placeId)
+      .map((place, index) => place.placeId ?? `place-${index}`)
       .filter((id) => id !== undefined && id !== null && id !== "");
   }, [places]);
+
+  const targetPlace = params.targetPlace;
+  const currentPlaceName = targetPlace?.name || "강릉역";
+  const currentPlaceAddress =
+    targetPlace?.address || params.location || "강원도 강릉시";
+  const currentPlaceTime =
+    targetPlace?.time || formatDateRange(params.startDate, params.endDate);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -65,12 +153,20 @@ export default function RecommendationResultScreen({
       return;
     }
 
-    navigation.navigate("MainTabs");
+    navigation.navigate("Main");
   };
 
-  const handleSelectPlace = async (place: RecommendedPlace) => {
+  const handleToggleDetail = (placeId: string | number) => {
+    setExpandedPlaceId((prev) =>
+      String(prev) === String(placeId) ? null : placeId,
+    );
+  };
+
+  const handleSelectPlace = async (place: DisplayPlace) => {
+    const placeId = place.placeId ?? place.name;
+
     try {
-      setSubmittingPlaceId(place.placeId);
+      setSubmittingPlaceId(placeId);
 
       const storedUserId = await AsyncStorage.getItem("user_id");
 
@@ -78,17 +174,17 @@ export default function RecommendationResultScreen({
         await reportPreferenceFeedback({
           userId: storedUserId,
           shownPlaceIds,
-          selectedPlaceId: place.placeId,
+          selectedPlaceId: placeId,
         });
       }
 
-      setSelectedPlaceId(place.placeId);
+      setSelectedPlaceId(placeId);
 
       Alert.alert("선택 완료", `${place.name} 장소를 선택했어요.`);
     } catch (error) {
       console.log("[RecommendationResult] select failed:", error);
 
-      setSelectedPlaceId(place.placeId);
+      setSelectedPlaceId(placeId);
 
       Alert.alert(
         "선택 완료",
@@ -99,30 +195,20 @@ export default function RecommendationResultScreen({
     }
   };
 
-  const handleDone = () => {
-    navigation.navigate("MainTabs");
-  };
-
-  const title = params.title ?? "AI 추천 결과";
-  const hasPlaces = places.length > 0;
+  const title = params.title ?? "AI 대안 추천";
 
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.header}>
         <TouchableOpacity
-          style={styles.iconButton}
+          style={styles.backButton}
           activeOpacity={0.75}
           onPress={handleBack}
         >
-          <Ionicons name="chevron-back" size={24} color="#2B3445" />
+          <Ionicons name="chevron-back" size={26} color="#6F7F95" />
         </TouchableOpacity>
 
-        <View style={styles.headerTitleBox}>
-          <Text style={styles.headerTitle}>{title}</Text>
-          <Text style={styles.headerSubtitle}>
-            지금 일정에 어울리는 장소를 골라봤어요
-          </Text>
-        </View>
+        <Text style={styles.logoText}>Plan.B</Text>
 
         <View style={styles.headerRightSpace} />
       </View>
@@ -132,22 +218,240 @@ export default function RecommendationResultScreen({
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.heroCard}>
-          <View style={styles.heroIcon}>
-            <Ionicons name="sparkles" size={24} color="#2158E8" />
-          </View>
+        <View style={styles.titleSection}>
+          <Text style={styles.screenTitle}>{title}</Text>
+          <Text style={styles.screenSubtitle}>
+            거리와 리뷰를 기반으로 추천된 top5예요
+          </Text>
+        </View>
 
-          <View style={styles.heroTextBox}>
-            <Text style={styles.heroTitle}>
-              {hasPlaces ?
-                `${places.length}개의 대안 장소를 찾았어요`
-              : "추천 결과를 불러오지 못했어요"}
-            </Text>
-            <Text style={styles.heroSubtitle}>
-              {hasPlaces ?
-                "장소별 이유와 정보를 확인하고 가장 마음에 드는 장소를 선택해보세요."
-              : "잠시 후 다시 시도하거나 다른 조건으로 추천을 받아보세요."}
-            </Text>
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>기존 일정</Text>
+
+          <View style={styles.currentScheduleCard}>
+            <View style={styles.currentInfoBox}>
+              <Text style={styles.currentPlaceName}>{currentPlaceName}</Text>
+              <Text style={styles.currentAddress}>{currentPlaceAddress}</Text>
+
+              <View style={styles.currentTimeRow}>
+                <Ionicons name="time-outline" size={14} color="#7C8CA3" />
+                <Text style={styles.currentTimeText}>{currentPlaceTime}</Text>
+              </View>
+            </View>
+
+            <View style={styles.badge}>
+              <Ionicons name="rainy-outline" size={12} color="#FFFFFF" />
+              <Text style={styles.badgeText}>비예보</Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.sectionBlock}>
+          <Text style={styles.sectionTitle}>추천 대안</Text>
+
+          <View style={styles.resultList}>
+            {places.map((place, index) => {
+              const placeId = place.placeId ?? `place-${index}`;
+              const isExpanded = String(expandedPlaceId) === String(placeId);
+              const isSelected = String(selectedPlaceId) === String(placeId);
+              const isSubmitting =
+                String(submittingPlaceId) === String(placeId);
+
+              const reviewCount =
+                typeof place.reviewCount === "number" ?
+                  place.reviewCount.toLocaleString()
+                : "2,239";
+
+              return (
+                <View
+                  key={`recommendation-${String(placeId)}-${index}`}
+                  style={[
+                    styles.placeCard,
+                    isExpanded && styles.expandedPlaceCard,
+                    isSelected && styles.selectedCard,
+                  ]}
+                >
+                  <View style={styles.placeTopRow}>
+                    <View style={styles.thumbnailCircle}>
+                      <Text style={styles.thumbnailEmoji}>🎡</Text>
+                    </View>
+
+                    <View style={styles.placeMainInfo}>
+                      <View style={styles.placeNameRow}>
+                        <Text style={styles.placeName} numberOfLines={1}>
+                          {place.name || "에버랜드"}
+                        </Text>
+
+                        <View style={styles.categoryPill}>
+                          <Text style={styles.categoryText}>
+                            {place.category || "아웃도어"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <View style={styles.ratingRow}>
+                        <Ionicons name="star" size={14} color="#FFD400" />
+                        <Text style={styles.ratingText}>
+                          {typeof place.rating === "number" ?
+                            place.rating.toFixed(2)
+                          : "4.58"}
+                        </Text>
+                        <Text style={styles.reviewText}>({reviewCount})</Text>
+                      </View>
+
+                      <View style={styles.infoLine}>
+                        <Ionicons
+                          name="location-outline"
+                          size={18}
+                          color="#8EA0B7"
+                        />
+                        <Text style={styles.infoText} numberOfLines={1}>
+                          {place.address ||
+                            "경기도 용인시 처인구 포곡읍 에버랜드로 199"}
+                        </Text>
+                      </View>
+
+                      {isExpanded ?
+                        <>
+                          <View style={styles.infoLine}>
+                            <Ionicons
+                              name="call-outline"
+                              size={18}
+                              color="#8EA0B7"
+                            />
+                            <Text style={styles.infoText}>
+                              {place.phone || "053-123-1234"}
+                            </Text>
+                          </View>
+
+                          <View style={styles.infoLine}>
+                            <Ionicons
+                              name="globe-outline"
+                              size={18}
+                              color="#8EA0B7"
+                            />
+                            <Text style={styles.infoText}>
+                              {place.website || "www.planb.com"}
+                            </Text>
+                          </View>
+
+                          <View style={styles.infoLine}>
+                            <Ionicons
+                              name="storefront-outline"
+                              size={18}
+                              color="#8EA0B7"
+                            />
+                            <Text style={styles.infoText}>
+                              {place.openingHours || "10:00 - 20:00"}
+                            </Text>
+                          </View>
+                        </>
+                      : null}
+                    </View>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.aiSummaryBox,
+                      isExpanded && styles.expandedAiSummaryBox,
+                    ]}
+                  >
+                    <View style={styles.aiBadge}>
+                      <Text style={styles.aiBadgeText}>AI</Text>
+                    </View>
+
+                    <Text style={styles.aiSummaryIcon}>📊</Text>
+
+                    <Text style={styles.aiSummaryText}>
+                      {place.reason ||
+                        "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                    </Text>
+                  </View>
+
+                  {isExpanded ?
+                    <View style={styles.detailBox}>
+                      <View style={styles.verticalLine} />
+
+                      <View style={styles.sourceList}>
+                        <View style={styles.sourceCard}>
+                          <View style={[styles.sourceIconBox, styles.naverBox]}>
+                            <Text style={styles.naverIconText}>N</Text>
+                          </View>
+
+                          <Text style={styles.sourceText}>
+                            {place.sourceSummary?.naver ||
+                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                          </Text>
+                        </View>
+
+                        <View style={styles.sourceCard}>
+                          <View
+                            style={[styles.sourceIconBox, styles.instagramBox]}
+                          >
+                            <Text style={styles.instagramIconText}>◎</Text>
+                          </View>
+
+                          <Text style={styles.sourceText}>
+                            {place.sourceSummary?.instagram ||
+                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                          </Text>
+                        </View>
+
+                        <View style={styles.sourceCard}>
+                          <View
+                            style={[styles.sourceIconBox, styles.googleBox]}
+                          >
+                            <Text style={styles.googleIconText}>G</Text>
+                          </View>
+
+                          <Text style={styles.sourceText}>
+                            {place.sourceSummary?.google ||
+                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                          </Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        style={[
+                          styles.selectButton,
+                          isSelected && styles.selectedButton,
+                        ]}
+                        activeOpacity={0.85}
+                        disabled={isSubmitting || isSelected}
+                        onPress={() => handleSelectPlace(place)}
+                      >
+                        {isSubmitting ?
+                          <ActivityIndicator size="small" color="#2158E8" />
+                        : <Text
+                            style={[
+                              styles.selectButtonText,
+                              isSelected && styles.selectedButtonText,
+                            ]}
+                          >
+                            {isSelected ? "선택 완료" : "이 장소 선택"}
+                          </Text>
+                        }
+                      </TouchableOpacity>
+                    </View>
+                  : null}
+
+                  <TouchableOpacity
+                    style={styles.detailButton}
+                    activeOpacity={0.8}
+                    onPress={() => handleToggleDetail(placeId)}
+                  >
+                    <Text style={styles.detailButtonText}>
+                      {isExpanded ? "간략히" : "자세히"}
+                    </Text>
+                    <Ionicons
+                      name={isExpanded ? "chevron-up" : "chevron-down"}
+                      size={16}
+                      color="#64748B"
+                    />
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
         </View>
 
@@ -159,116 +463,7 @@ export default function RecommendationResultScreen({
             </Text>
           </View>
         : null}
-
-        {hasPlaces ?
-          <View style={styles.resultList}>
-            {places.map((place, index) => {
-              const placeId = place.placeId ?? `place-${index}`;
-              const isSelected = String(selectedPlaceId) === String(placeId);
-              const isSubmitting =
-                String(submittingPlaceId) === String(placeId);
-
-              return (
-                <View
-                  key={`recommendation-${String(placeId)}-${index}`}
-                  style={[styles.placeCard, isSelected && styles.selectedCard]}
-                >
-                  <View style={styles.placeTopRow}>
-                    <View style={styles.indexBadge}>
-                      <Text style={styles.indexText}>{index + 1}</Text>
-                    </View>
-
-                    <View style={styles.placeTitleBox}>
-                      <Text style={styles.placeName}>{place.name}</Text>
-
-                      {place.category ?
-                        <Text style={styles.placeCategory}>
-                          {place.category}
-                        </Text>
-                      : null}
-                    </View>
-
-                    {typeof place.rating === "number" ?
-                      <View style={styles.ratingBadge}>
-                        <Ionicons name="star" size={12} color="#F59E0B" />
-                        <Text style={styles.ratingText}>
-                          {place.rating.toFixed(1)}
-                        </Text>
-                      </View>
-                    : null}
-                  </View>
-
-                  {place.address ?
-                    <View style={styles.infoRow}>
-                      <Ionicons
-                        name="location-outline"
-                        size={15}
-                        color="#8090A6"
-                      />
-                      <Text style={styles.addressText}>{place.address}</Text>
-                    </View>
-                  : null}
-
-                  {place.reason ?
-                    <View style={styles.reasonBox}>
-                      <Text style={styles.reasonLabel}>AI 추천 이유</Text>
-                      <Text style={styles.reasonText}>{place.reason}</Text>
-                    </View>
-                  : null}
-
-                  <TouchableOpacity
-                    style={[
-                      styles.selectButton,
-                      isSelected && styles.selectedButton,
-                    ]}
-                    activeOpacity={0.85}
-                    disabled={isSubmitting || isSelected}
-                    onPress={() => handleSelectPlace(place)}
-                  >
-                    {isSubmitting ?
-                      <ActivityIndicator size="small" color="#2158E8" />
-                    : <>
-                        <Text
-                          style={[
-                            styles.selectButtonText,
-                            isSelected && styles.selectedButtonText,
-                          ]}
-                        >
-                          {isSelected ? "선택 완료" : "이 장소 선택"}
-                        </Text>
-                        {!isSelected ?
-                          <Ionicons
-                            name="arrow-forward"
-                            size={15}
-                            color="#2158E8"
-                          />
-                        : null}
-                      </>
-                    }
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
-          </View>
-        : <View style={styles.emptyBox}>
-            <Ionicons name="cloud-offline-outline" size={42} color="#A0AEC0" />
-            <Text style={styles.emptyTitle}>추천 결과가 없어요</Text>
-            <Text style={styles.emptyText}>
-              네트워크 상태를 확인한 뒤 다시 추천을 받아주세요.
-            </Text>
-          </View>
-        }
       </ScrollView>
-
-      <View style={styles.bottomBar}>
-        <TouchableOpacity
-          style={styles.doneButton}
-          activeOpacity={0.85}
-          onPress={handleDone}
-        >
-          <Text style={styles.doneButtonText}>완료</Text>
-        </TouchableOpacity>
-      </View>
     </SafeAreaView>
   );
 }
@@ -276,86 +471,431 @@ export default function RecommendationResultScreen({
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: "#F6F8FC",
+    backgroundColor: "#F5F7FA",
   },
+
   header: {
-    height: 74,
-    paddingHorizontal: 18,
+    height: 106,
+    paddingHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#F6F8FC",
+    backgroundColor: "#FFFFFF",
   },
-  iconButton: {
+
+  backButton: {
     width: 42,
     height: 42,
-    borderRadius: 21,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "center",
-    borderWidth: 1,
-    borderColor: "#E4EAF4",
   },
-  headerTitleBox: {
+
+  logoText: {
     flex: 1,
-    alignItems: "center",
-  },
-  headerTitle: {
-    color: "#101828",
-    fontSize: 18,
+    color: "#1C2534",
+    fontSize: 34,
     fontWeight: "900",
+    letterSpacing: -1,
+    textAlign: "center",
   },
-  headerSubtitle: {
-    marginTop: 3,
-    color: "#8A97AA",
-    fontSize: 11,
-    fontWeight: "700",
-  },
+
   headerRightSpace: {
     width: 42,
   },
+
   scroll: {
     flex: 1,
+    backgroundColor: "#F5F7FA",
   },
+
   scrollContent: {
-    paddingHorizontal: 18,
-    paddingBottom: 110,
+    paddingBottom: 42,
   },
-  heroCard: {
-    marginTop: 8,
-    borderRadius: 24,
+
+  titleSection: {
     backgroundColor: "#FFFFFF",
-    padding: 18,
-    flexDirection: "row",
-    borderWidth: 1,
-    borderColor: "#E4EAF4",
+    paddingHorizontal: 30,
+    paddingBottom: 24,
   },
-  heroIcon: {
-    width: 48,
-    height: 48,
+
+  screenTitle: {
+    color: "#111827",
+    fontSize: 20,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+    marginBottom: 8,
+  },
+
+  screenSubtitle: {
+    color: "#9AA8BA",
+    fontSize: 14,
+    fontWeight: "700",
+  },
+
+  sectionBlock: {
+    paddingHorizontal: 18,
+    paddingTop: 24,
+  },
+
+  sectionTitle: {
+    color: "#111827",
+    fontSize: 17,
+    fontWeight: "900",
+    letterSpacing: -0.3,
+    marginBottom: 14,
+    marginLeft: 8,
+  },
+
+  currentScheduleCard: {
+    minHeight: 84,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  currentInfoBox: {
+    flex: 1,
+  },
+
+  currentPlaceName: {
+    color: "#1C2534",
+    fontSize: 16,
+    fontWeight: "900",
+    marginBottom: 4,
+  },
+
+  currentAddress: {
+    color: "#7C8CA3",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 8,
+  },
+
+  currentTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  currentTimeText: {
+    color: "#7C8CA3",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 5,
+  },
+
+  badge: {
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  badgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  resultList: {
+    gap: 16,
+  },
+
+  placeCard: {
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 18,
+  },
+
+  expandedPlaceCard: {
+    paddingTop: 70,
+    paddingBottom: 26,
     borderRadius: 24,
+    borderColor: "#DDE5F0",
+  },
+
+  selectedCard: {
+    borderColor: "#2158E8",
+    backgroundColor: "#F8FBFF",
+  },
+
+  placeTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  thumbnailCircle: {
+    width: 54,
+    height: 54,
+    borderRadius: 27,
+    backgroundColor: "#FFD0F6",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 16,
+  },
+
+  thumbnailEmoji: {
+    fontSize: 29,
+  },
+
+  placeMainInfo: {
+    flex: 1,
+  },
+
+  placeNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+
+  placeName: {
+    color: "#000000",
+    fontSize: 18,
+    fontWeight: "900",
+    marginRight: 8,
+    maxWidth: 150,
+  },
+
+  categoryPill: {
+    borderRadius: 8,
+    backgroundColor: "#F3F6FA",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+
+  categoryText: {
+    color: "#7C8CA3",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  ratingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+  },
+
+  ratingText: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900",
+    marginLeft: 3,
+  },
+
+  reviewText: {
+    color: "#7C8CA3",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 3,
+  },
+
+  infoLine: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 7,
+  },
+
+  infoText: {
+    flex: 1,
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+
+  aiSummaryBox: {
+    position: "relative",
+    marginTop: 20,
+    marginLeft: 28,
+    width: "78%",
+    minHeight: 58,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#C7DCFF",
+    backgroundColor: "#EEF6FF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  expandedAiSummaryBox: {
+    width: "78%",
+    marginLeft: 74,
+    marginTop: 30,
+  },
+
+  aiBadge: {
+    position: "absolute",
+    right: -13,
+    top: -13,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#5B3DFF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#5B3DFF",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.25,
+    shadowRadius: 7,
+    elevation: 6,
+  },
+
+  aiBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  aiSummaryIcon: {
+    fontSize: 16,
+    marginRight: 7,
+    marginTop: 1,
+  },
+
+  aiSummaryText: {
+    flex: 1,
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 19,
+  },
+
+  detailButton: {
+    marginTop: 22,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#F5F7FA",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  detailButtonText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  detailBox: {
+    marginTop: 26,
+    paddingLeft: 58,
+    position: "relative",
+  },
+
+  verticalLine: {
+    position: "absolute",
+    left: 45,
+    top: 0,
+    bottom: 52,
+    width: 2,
+    backgroundColor: "#E1E8F2",
+  },
+
+  sourceList: {
+    gap: 12,
+  },
+
+  sourceCard: {
+    minHeight: 58,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  sourceIconBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 10,
+  },
+
+  naverBox: {
+    backgroundColor: "#03C75A",
+  },
+
+  instagramBox: {
+    backgroundColor: "#F35A9C",
+  },
+
+  googleBox: {
+    backgroundColor: "#FFFFFF",
+  },
+
+  naverIconText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  instagramIconText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  googleIconText: {
+    color: "#4285F4",
+    fontSize: 17,
+    fontWeight: "900",
+  },
+
+  sourceText: {
+    flex: 1,
+    color: "#8A97AA",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+  },
+
+  selectButton: {
+    marginTop: 18,
+    height: 42,
+    borderRadius: 12,
     backgroundColor: "#EAF1FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
   },
-  heroTextBox: {
-    flex: 1,
+
+  selectedButton: {
+    backgroundColor: "#2158E8",
   },
-  heroTitle: {
-    color: "#1E293B",
-    fontSize: 16,
+
+  selectButtonText: {
+    color: "#2158E8",
+    fontSize: 14,
     fontWeight: "900",
-    lineHeight: 22,
   },
-  heroSubtitle: {
-    marginTop: 6,
-    color: "#667085",
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 19,
+
+  selectedButtonText: {
+    color: "#FFFFFF",
   },
+
   warningBox: {
-    marginTop: 14,
+    marginHorizontal: 18,
+    marginTop: 18,
     borderRadius: 16,
     backgroundColor: "#FFF7ED",
     borderWidth: 1,
@@ -364,174 +904,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     gap: 8,
   },
+
   warningText: {
     flex: 1,
     color: "#C2410C",
     fontSize: 12,
     fontWeight: "800",
     lineHeight: 18,
-  },
-  resultList: {
-    marginTop: 16,
-    gap: 14,
-  },
-  placeCard: {
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E1E8F2",
-    padding: 16,
-    shadowColor: "#1E293B",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-  selectedCard: {
-    borderColor: "#2158E8",
-    backgroundColor: "#F5F8FF",
-  },
-  placeTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  indexBadge: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-  indexText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  placeTitleBox: {
-    flex: 1,
-  },
-  placeName: {
-    color: "#101828",
-    fontSize: 16,
-    fontWeight: "900",
-    lineHeight: 21,
-  },
-  placeCategory: {
-    marginTop: 4,
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: 999,
-    backgroundColor: "#FFFBEB",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    gap: 3,
-  },
-  ratingText: {
-    color: "#B45309",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-  infoRow: {
-    marginTop: 12,
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-  },
-  addressText: {
-    flex: 1,
-    color: "#667085",
-    fontSize: 12,
-    fontWeight: "600",
-    lineHeight: 18,
-  },
-  reasonBox: {
-    marginTop: 14,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
-    padding: 13,
-  },
-  reasonLabel: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-  reasonText: {
-    color: "#344054",
-    fontSize: 13,
-    fontWeight: "600",
-    lineHeight: 19,
-  },
-  selectButton: {
-    marginTop: 14,
-    height: 42,
-    borderRadius: 14,
-    backgroundColor: "#EAF1FF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
-  selectedButton: {
-    backgroundColor: "#2158E8",
-  },
-  selectButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-  selectedButtonText: {
-    color: "#FFFFFF",
-  },
-  emptyBox: {
-    marginTop: 80,
-    alignItems: "center",
-    paddingHorizontal: 24,
-  },
-  emptyTitle: {
-    marginTop: 16,
-    color: "#1E293B",
-    fontSize: 18,
-    fontWeight: "900",
-  },
-  emptyText: {
-    marginTop: 8,
-    color: "#8A97AA",
-    fontSize: 13,
-    fontWeight: "600",
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  bottomBar: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    bottom: 0,
-    paddingHorizontal: 18,
-    paddingTop: 12,
-    paddingBottom: 22,
-    backgroundColor: "rgba(246, 248, 252, 0.96)",
-  },
-  doneButton: {
-    height: 52,
-    borderRadius: 18,
-    backgroundColor: "#273142",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  doneButtonText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
   },
 });

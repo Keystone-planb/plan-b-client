@@ -2,12 +2,32 @@ import React, { useEffect, useMemo, useState } from "react";
 import {
   Animated,
   Easing,
-  ScrollView,
+  Image,
+  ImageSourcePropType,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+const StepSearchIcon = require("../assets/ai-loading/step-search.png");
+const StepPinIcon = require("../assets/ai-loading/step-pin.png");
+const StepStarIcon = require("../assets/ai-loading/step-star.png");
+const StepInboxIcon = require("../assets/ai-loading/step-inbox.png");
+const StepWriteIcon = require("../assets/ai-loading/step-write.png");
+
+type TransportMode = "WALK" | "TRANSIT" | "CAR";
+type MoveTime = "10" | "20" | "30" | "ANY";
+type PlaceScope = "INDOOR" | "OUTDOOR";
+
+type TodayPlace = {
+  id?: string;
+  name?: string;
+  address?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
+};
 
 type Props = {
   navigation: any;
@@ -18,23 +38,71 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
-      transportMode?: "WALK" | "TRANSIT" | "CAR";
-      moveTime?: "10" | "20" | "30" | "ANY";
+      transportMode?: TransportMode;
+      moveTime?: MoveTime;
       considerDistance?: boolean;
       considerCrowd?: boolean;
       changeCategory?: boolean;
-      placeScope?: "INDOOR" | "OUTDOOR";
-      targetPlace?: {
-        id?: string;
-        name?: string;
-        address?: string;
-        time?: string;
-        latitude?: number;
-        longitude?: number;
-      };
+      placeScope?: PlaceScope;
+      targetPlace?: TodayPlace;
     };
   };
 };
+
+type LoadingStep = {
+  icon: ImageSourcePropType;
+  title: string;
+  description: string;
+  tip: string;
+  detailTipTitle: string;
+  detailTipDescription: string;
+};
+
+const LOADING_STEPS: LoadingStep[] = [
+  {
+    icon: StepSearchIcon,
+    title: "여행 데이터 분석 중",
+    description: "선택하신 조건을 바탕으로 데이터를 수집하고 있어요",
+    tip: "💡 5개의 대안을 찾아드려요",
+    detailTipTitle: "잠깐! 알고 계셨나요?",
+    detailTipDescription: "Plan.B AI는 현재 일정과 선택 조건을 함께 분석해요.",
+  },
+  {
+    icon: StepPinIcon,
+    title: "주변 장소 분석 중",
+    description: "선택 사항을 고려해 장소를 찾고 있어요",
+    tip: "💡 AI가 최적의 장소를 찾아드려요",
+    detailTipTitle: "장소를 비교하고 있어요",
+    detailTipDescription:
+      "현재 위치, 다음 일정, 이동 조건을 바탕으로 주변 장소를 살펴보고 있어요.",
+  },
+  {
+    icon: StepStarIcon,
+    title: "리뷰 분석 중",
+    description: "AI가 실시간 리뷰를 분석하고 있어요",
+    tip: "💡 네이버, 구글, 인스타그램 리뷰를 종합 분석해요",
+    detailTipTitle: "리뷰도 함께 확인해요",
+    detailTipDescription:
+      "평점뿐 아니라 방문자 반응과 장소 분위기도 함께 참고하고 있어요.",
+  },
+  {
+    icon: StepInboxIcon,
+    title: "대안 장소 분석 중",
+    description: "가장 적합한 대안들을 선별하고 있어요",
+    tip: "💡 다음 목적지와의 거리를 고려해요",
+    detailTipTitle: "일정 흐름을 지켜요",
+    detailTipDescription:
+      "대안 장소를 고를 때 다음 목적지와의 이동 부담도 함께 고려해요.",
+  },
+  {
+    icon: StepWriteIcon,
+    title: "추천 결과 생성 중",
+    description: "최종 결과를 정리하고 있어요",
+    tip: "💡 곧 완료돼요!",
+    detailTipTitle: "추천 결과를 정리 중이에요",
+    detailTipDescription: "추천 이유와 장소 정보를 보기 쉽게 정리하고 있어요.",
+  },
+];
 
 const DOT_COUNT = 6;
 
@@ -43,16 +111,24 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const [activeDotIndex, setActiveDotIndex] = useState(0);
   const [dotDirection, setDotDirection] = useState<1 | -1>(1);
 
-  const animatedValue = useMemo(() => new Animated.Value(0), []);
+  const floatValue = useMemo(() => new Animated.Value(0), []);
+  const pulseValue = useMemo(() => new Animated.Value(0), []);
 
-  const orbitRotate = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ["0deg", "360deg"],
+  const currentStepIndex = Math.min(
+    Math.floor((progress / 100) * LOADING_STEPS.length),
+    LOADING_STEPS.length - 1,
+  );
+
+  const currentStep = LOADING_STEPS[currentStepIndex];
+
+  const iconFloat = floatValue.interpolate({
+    inputRange: [0, 0.5, 1],
+    outputRange: [0, -6, 0],
   });
 
-  const searchFloat = animatedValue.interpolate({
+  const iconScale = pulseValue.interpolate({
     inputRange: [0, 0.5, 1],
-    outputRange: [0, -7, 0],
+    outputRange: [1, 1.035, 1],
   });
 
   useEffect(() => {
@@ -64,6 +140,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           setTimeout(() => {
             navigation.navigate("RecommendationResult", {
               ...route?.params,
+              fromAIAnalysis: true,
             });
           }, 450);
 
@@ -72,7 +149,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
         return Math.min(prev + 2, 100);
       });
-    }, 180);
+    }, 170);
 
     return () => {
       clearInterval(progressTimer);
@@ -94,7 +171,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
         return prev + dotDirection;
       });
-    }, 260);
+    }, 240);
 
     return () => {
       clearInterval(dotTimer);
@@ -102,104 +179,85 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   }, [dotDirection]);
 
   useEffect(() => {
-    const animation = Animated.loop(
-      Animated.timing(animatedValue, {
+    const floatAnimation = Animated.loop(
+      Animated.timing(floatValue, {
         toValue: 1,
-        duration: 1800,
-        easing: Easing.linear,
+        duration: 1700,
+        easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
       }),
     );
 
-    animation.start();
+    const pulseAnimation = Animated.loop(
+      Animated.timing(pulseValue, {
+        toValue: 1,
+        duration: 1500,
+        easing: Easing.inOut(Easing.ease),
+        useNativeDriver: true,
+      }),
+    );
+
+    floatAnimation.start();
+    pulseAnimation.start();
 
     return () => {
-      animation.stop();
+      floatAnimation.stop();
+      pulseAnimation.stop();
     };
-  }, [animatedValue]);
+  }, [floatValue, pulseValue]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
-        <View pointerEvents="none" style={styles.backgroundDotOne} />
-        <View pointerEvents="none" style={styles.backgroundDotTwo} />
-        <View pointerEvents="none" style={styles.backgroundDotThree} />
-        <View pointerEvents="none" style={styles.backgroundDotFour} />
+        <Text style={styles.logoText}>Plan.B</Text>
 
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-          bounces={false}
-        >
-          <View style={styles.heroSection}>
-            <View style={styles.analysisVisual}>
-              <Animated.View
-                style={[
-                  styles.orbitRing,
-                  {
-                    transform: [{ rotate: orbitRotate }],
-                  },
-                ]}
-              >
-                <View style={[styles.orbitDot, styles.orbitDotTop]} />
-                <View style={[styles.orbitDotSmall, styles.orbitDotRight]} />
-                <View style={[styles.orbitDot, styles.orbitDotBottom]} />
-                <View style={[styles.orbitDotSmall, styles.orbitDotLeft]} />
-              </Animated.View>
+        <View style={styles.centerContent}>
+          <Animated.View
+            style={[
+              styles.iconWrapper,
+              {
+                transform: [{ translateY: iconFloat }, { scale: iconScale }],
+              },
+            ]}
+          >
+            <Image
+              source={currentStep.icon}
+              style={styles.stepIcon}
+              resizeMode="contain"
+            />
+          </Animated.View>
 
-              <Animated.View
-                style={[
-                  styles.searchIconCircle,
-                  {
-                    transform: [{ translateY: searchFloat }],
-                  },
-                ]}
-              >
-                <Text style={styles.searchIcon}>🔍</Text>
-              </Animated.View>
-            </View>
+          <Text style={styles.title}>{currentStep.title}</Text>
 
-            <Text style={styles.title}>여행 데이터 분석 중</Text>
+          <Text style={styles.description}>{currentStep.description}</Text>
 
-            <Text style={styles.description}>
-              선택하신 조건을 바탕으로 데이터를 수집하고 있어요
-            </Text>
-
-            <View style={styles.guideBox}>
-              <Text style={styles.guideText}>
-                💡 평균 2-3개의 대안을 찾아드려요
-              </Text>
-            </View>
+          <View style={styles.tipPill}>
+            <Text style={styles.tipPillText}>{currentStep.tip}</Text>
           </View>
+        </View>
 
-          <View style={styles.dotsSection}>
-            <View style={styles.dotsRow}>
-              {Array.from({ length: DOT_COUNT }).map((_, index) => {
-                const isActive = index === activeDotIndex;
+        <View style={styles.dotsArea}>
+          <View style={styles.dotsRow}>
+            {Array.from({ length: DOT_COUNT }).map((_, index) => {
+              const isActive = index === activeDotIndex;
 
-                return (
-                  <View
-                    key={`loading-dot-${index}`}
-                    style={[styles.dot, isActive && styles.activeDot]}
-                  />
-                );
-              })}
-            </View>
-
-            <Text style={styles.loadingText}>
-              조건에 맞는 장소를 비교하고 있어요
-            </Text>
+              return (
+                <View
+                  key={`loading-dot-${index}`}
+                  style={[styles.dot, isActive && styles.activeDot]}
+                />
+              );
+            })}
           </View>
+        </View>
 
-          <View style={styles.tipCard}>
-            <Text style={styles.tipTitle}>잠깐! 알고 계셨나요?</Text>
+        <View style={styles.tipCard}>
+          <Text style={styles.tipCardTitle}>{currentStep.detailTipTitle}</Text>
 
-            <Text style={styles.tipDescription}>
-              Plan.B AI는 실시간으로 10,000개 이상의 장소 데이터를 분석해요
-            </Text>
-          </View>
-        </ScrollView>
+          <Text style={styles.tipCardDescription}>
+            {currentStep.detailTipDescription}
+          </Text>
+        </View>
       </View>
     </SafeAreaView>
   );
@@ -214,236 +272,106 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#FFFFFF",
-    position: "relative",
-    overflow: "hidden",
-  },
-
-  scroll: {
-    flex: 1,
-  },
-
-  scrollContent: {
-    flexGrow: 1,
     paddingHorizontal: 36,
-    paddingTop: 44,
-    paddingBottom: 42,
   },
 
-  backgroundDotOne: {
-    position: "absolute",
-    left: 20,
-    top: 88,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#D7E5FF",
-  },
-
-  backgroundDotTwo: {
-    position: "absolute",
-    left: 188,
-    top: 382,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#D7E5FF",
-  },
-
-  backgroundDotThree: {
-    position: "absolute",
-    left: 206,
-    top: 616,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#D7E5FF",
-  },
-
-  backgroundDotFour: {
-    position: "absolute",
-    left: 54,
-    bottom: 62,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: "#D7E5FF",
-  },
-
-  heroSection: {
-    alignItems: "center",
-    marginBottom: 52,
-  },
-
-  analysisVisual: {
-    width: 154,
-    height: 154,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 42,
-  },
-
-  orbitRing: {
-    position: "absolute",
-    width: 132,
-    height: 132,
-    borderRadius: 66,
-    borderWidth: 1,
-    borderColor: "#D9ECFF",
-  },
-
-  orbitDot: {
-    position: "absolute",
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 7,
-    elevation: 5,
-  },
-
-  orbitDotSmall: {
-    position: "absolute",
-    width: 9,
-    height: 9,
-    borderRadius: 4.5,
-    backgroundColor: "#9ED4FF",
-  },
-
-  orbitDotTop: {
-    top: -7,
-    left: 59,
-  },
-
-  orbitDotRight: {
-    right: -4,
-    top: 61,
-  },
-
-  orbitDotBottom: {
-    bottom: -7,
-    left: 59,
-    backgroundColor: "#4EA3FF",
-  },
-
-  orbitDotLeft: {
-    left: -4,
-    top: 61,
-  },
-
-  searchIconCircle: {
-    width: 104,
-    height: 104,
-    borderRadius: 52,
-    backgroundColor: "#F2F8FF",
-    borderWidth: 1,
-    borderColor: "#CFE6FF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#8CCBFF",
-    shadowOffset: {
-      width: 0,
-      height: 12,
-    },
-    shadowOpacity: 0.18,
-    shadowRadius: 22,
-    elevation: 8,
-  },
-
-  searchIcon: {
-    fontSize: 48,
-  },
-
-  title: {
+  logoText: {
     color: "#1C2534",
-    fontSize: 31,
+    fontSize: 29,
     fontWeight: "900",
     letterSpacing: -0.8,
     textAlign: "center",
-    marginBottom: 18,
+    marginTop: 70,
+  },
+
+  centerContent: {
+    alignItems: "center",
+    marginTop: 76,
+  },
+
+  iconWrapper: {
+    width: 132,
+    height: 132,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 34,
+  },
+
+  stepIcon: {
+    width: 132,
+    height: 132,
+  },
+
+  title: {
+    color: "#111827",
+    fontSize: 19,
+    fontWeight: "900",
+    letterSpacing: -0.4,
+    textAlign: "center",
+    marginBottom: 14,
   },
 
   description: {
     color: "#8A9BB2",
-    fontSize: 19,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 28,
+    lineHeight: 18,
     textAlign: "center",
-    marginBottom: 24,
+    marginBottom: 18,
   },
 
-  guideBox: {
-    minHeight: 52,
-    borderRadius: 12,
+  tipPill: {
+    minHeight: 30,
+    borderRadius: 7,
     borderWidth: 1,
     borderColor: "#CFE0FF",
     backgroundColor: "#F2F7FF",
-    paddingHorizontal: 20,
+    paddingHorizontal: 14,
     alignItems: "center",
     justifyContent: "center",
   },
 
-  guideText: {
+  tipPillText: {
     color: "#2F6BFF",
-    fontSize: 16,
+    fontSize: 10,
     fontWeight: "900",
   },
 
-  dotsSection: {
+  dotsArea: {
+    marginTop: 64,
     alignItems: "center",
-    marginBottom: 46,
   },
 
   dotsRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 13,
-    marginBottom: 18,
+    gap: 7,
   },
 
   dot: {
-    width: 13,
-    height: 13,
-    borderRadius: 6.5,
-    backgroundColor: "#E3E9F1",
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    backgroundColor: "#E0E8F2",
   },
 
   activeDot: {
     width: 18,
-    height: 18,
-    borderRadius: 9,
+    height: 4,
+    borderRadius: 999,
     backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 7,
-    elevation: 5,
-  },
-
-  loadingText: {
-    color: "#8A9BB2",
-    fontSize: 16,
-    fontWeight: "800",
-    textAlign: "center",
   },
 
   tipCard: {
+    marginTop: 62,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 24,
-    paddingVertical: 24,
-    minHeight: 132,
+    paddingHorizontal: 22,
+    paddingVertical: 22,
+    minHeight: 116,
     justifyContent: "center",
     shadowColor: "#0F172A",
     shadowOffset: {
@@ -455,17 +383,17 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
 
-  tipTitle: {
+  tipCardTitle: {
     color: "#1C2534",
-    fontSize: 19,
+    fontSize: 15,
     fontWeight: "900",
-    marginBottom: 14,
+    marginBottom: 12,
   },
 
-  tipDescription: {
+  tipCardDescription: {
     color: "#8A9BB2",
-    fontSize: 17,
+    fontSize: 13,
     fontWeight: "700",
-    lineHeight: 27,
+    lineHeight: 20,
   },
 });
