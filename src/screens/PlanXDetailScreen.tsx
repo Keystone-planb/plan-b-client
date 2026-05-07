@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  ActivityIndicator,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,31 +10,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-type Memo = {
-  id: string;
-  text: string;
-};
-
-type Place = {
-  id: string;
-  order: number;
-  name: string;
-  time: string;
-  memos?: Memo[];
-};
-
-type DaySchedule = {
-  id: string;
-  dayLabel: string;
-  date: string;
-  places: Place[];
-};
+import {
+  getTripDetail,
+  TripDetailResponse,
+  TripItinerary,
+  TripPlace,
+} from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
   route?: {
     params?: {
-      tripId?: string;
+      tripId?: string | number;
       tripName?: string;
       startDate?: string;
       endDate?: string;
@@ -44,94 +32,126 @@ type Props = {
   };
 };
 
-const DEFAULT_DAYS: DaySchedule[] = [
-  {
-    id: "day-1",
-    dayLabel: "Day 1",
-    date: "2024.03.15",
-    places: [
-      {
-        id: "place-1",
-        order: 1,
-        name: "강릉역",
-        time: "10:00",
-        memos: [
-          {
-            id: "memo-1",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-          {
-            id: "memo-2",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-          {
-            id: "memo-3",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-        ],
-      },
-      {
-        id: "place-2",
-        order: 2,
-        name: "강릉역",
-        time: "10:00",
-      },
-    ],
-  },
-  {
-    id: "day-2",
-    dayLabel: "Day 2",
-    date: "2024.03.16",
-    places: [
-      {
-        id: "place-3",
-        order: 2,
-        name: "강릉역",
-        time: "10:00",
-      },
-      {
-        id: "place-4",
-        order: 1,
-        name: "강릉역",
-        time: "10:00",
-        memos: [
-          {
-            id: "memo-4",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-          {
-            id: "memo-5",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-          {
-            id: "memo-6",
-            text: "내릴 때 짐 까먹지 말기",
-          },
-        ],
-      },
-      {
-        id: "place-5",
-        order: 2,
-        name: "강릉역",
-        time: "10:00",
-      },
-    ],
-  },
-];
+const formatDateForDisplay = (date?: string) => {
+  if (!date) {
+    return "";
+  }
+
+  return date.replace(/-/g, ".");
+};
+
+const getPlaceTimeText = (place: TripPlace) => {
+  if (place.visitTime && place.endTime) {
+    return `${place.visitTime} - ${place.endTime}`;
+  }
+
+  if (place.visitTime) {
+    return place.visitTime;
+  }
+
+  return "시간 미정";
+};
+
+const getItineraryDate = (itinerary: TripItinerary) => {
+  if (itinerary.date) {
+    return formatDateForDisplay(itinerary.date);
+  }
+
+  return "";
+};
+
+const sortPlaces = (places: TripPlace[]) => {
+  return [...places].sort((a, b) => {
+    const aOrder = a.visitOrder ?? 0;
+    const bOrder = b.visitOrder ?? 0;
+
+    return aOrder - bOrder;
+  });
+};
 
 export default function PlanXDetailScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
-  const title = params.tripName || "제주도 힐링여행";
-  const startDate = params.startDate || "2024.03.15";
-  const endDate = params.endDate || "2024.03.18";
-  const location = params.location || "제주";
-  const placeCount = params.placeCount ?? 8;
-  const emoji = params.emoji || "🏝️";
+  const [tripDetail, setTripDetail] = useState<TripDetailResponse | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+
+  const tripId = params.tripId;
+
+  const title = tripDetail?.title ?? params.tripName ?? "지난 여행";
+  const startDate = formatDateForDisplay(
+    tripDetail?.startDate ?? params.startDate,
+  );
+  const endDate = formatDateForDisplay(tripDetail?.endDate ?? params.endDate);
+  const location = params.location || "지역 미정";
+  const emoji = params.emoji || "🧳";
+
+  const itineraries = useMemo(() => {
+    return [...(tripDetail?.itineraries ?? [])].sort((a, b) => {
+      return a.day - b.day;
+    });
+  }, [tripDetail?.itineraries]);
+
+  const totalPlaceCount = useMemo(() => {
+    if (!tripDetail) {
+      return params.placeCount ?? 0;
+    }
+
+    return tripDetail.itineraries.reduce((sum, itinerary) => {
+      return sum + itinerary.places.length;
+    }, 0);
+  }, [params.placeCount, tripDetail]);
 
   const handleBack = () => {
     navigation.goBack();
   };
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadTripDetail = async () => {
+      if (!tripId) {
+        setLoadError("여행 상세 조회에 필요한 tripId가 없습니다.");
+        return;
+      }
+
+      try {
+        setLoading(true);
+        setLoadError("");
+
+        const detail = await getTripDetail(tripId);
+
+        if (cancelled) {
+          return;
+        }
+
+        console.log("[PlanXDetail] 여행 상세 조회 완료:", {
+          tripId: detail.tripId,
+          title: detail.title,
+          itineraryCount: detail.itineraries.length,
+        });
+
+        setTripDetail(detail);
+      } catch (error) {
+        if (cancelled) {
+          return;
+        }
+
+        console.log("[PlanXDetail] 여행 상세 조회 실패:", error);
+        setLoadError("지난 여행 상세 정보를 불러오지 못했습니다.");
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    };
+
+    loadTripDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [tripId]);
 
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
@@ -161,69 +181,127 @@ export default function PlanXDetailScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.tripInfoBox}>
-              <Text style={styles.tripTitle}>{title}</Text>
+              <Text style={styles.tripTitle} numberOfLines={1}>
+                {title}
+              </Text>
 
               <View style={styles.metaRow}>
                 <Ionicons name="calendar-outline" size={14} color="#94A3B8" />
                 <Text style={styles.metaText}>
-                  {startDate} - {endDate}
+                  {startDate || "시작일 미정"} - {endDate || "종료일 미정"}
                 </Text>
               </View>
 
               <View style={styles.metaRow}>
                 <Ionicons name="location-outline" size={14} color="#94A3B8" />
                 <Text style={styles.metaText}>
-                  {location} · {placeCount}개 장소
+                  {location} · {totalPlaceCount}개 장소
                 </Text>
               </View>
             </View>
           </View>
 
-          <View style={styles.timelinePanel}>
-            {DEFAULT_DAYS.map((day) => (
-              <View key={day.id} style={styles.dayBlock}>
-                <View style={styles.dayHeaderRow}>
-                  <View style={styles.dayBadge}>
-                    <Text style={styles.dayBadgeText}>{day.dayLabel}</Text>
-                  </View>
+          {loading ?
+            <View style={styles.statusCard}>
+              <ActivityIndicator color="#2158E8" />
+              <Text style={styles.statusText}>지난 여행을 불러오는 중...</Text>
+            </View>
+          : null}
 
-                  <Text style={styles.dayDate}>{day.date}</Text>
-                </View>
+          {!loading && loadError ?
+            <View style={styles.statusCard}>
+              <Ionicons name="alert-circle-outline" size={28} color="#EF4444" />
+              <Text style={styles.errorTitle}>불러오기 실패</Text>
+              <Text style={styles.statusText}>{loadError}</Text>
+            </View>
+          : null}
 
-                <View style={styles.dayTimelineBody}>
-                  <View style={styles.verticalLine} />
+          {!loading && !loadError && itineraries.length === 0 ?
+            <View style={styles.statusCard}>
+              <Ionicons name="map-outline" size={28} color="#94A3B8" />
+              <Text style={styles.emptyTitle}>저장된 상세 일정이 없습니다</Text>
+              <Text style={styles.statusText}>
+                서버에 등록된 Day별 장소 정보가 없어요.
+              </Text>
+            </View>
+          : null}
 
-                  {day.places.map((place) => (
-                    <View key={place.id} style={styles.placeRow}>
-                      <View style={styles.orderBadge}>
-                        <Text style={styles.orderBadgeText}>{place.order}</Text>
+          {!loading && !loadError && itineraries.length > 0 ?
+            <View style={styles.timelinePanel}>
+              {itineraries.map((day) => {
+                const sortedPlaces = sortPlaces(day.places);
+
+                return (
+                  <View
+                    key={`${day.itineraryId ?? "itinerary"}-${day.day}`}
+                    style={styles.dayBlock}
+                  >
+                    <View style={styles.dayHeaderRow}>
+                      <View style={styles.dayBadge}>
+                        <Text style={styles.dayBadgeText}>Day {day.day}</Text>
                       </View>
 
-                      <View style={styles.placeCard}>
-                        <Text style={styles.placeName}>{place.name}</Text>
-                        <Text style={styles.placeTime}>{place.time}</Text>
-
-                        {place.memos?.length ?
-                          <View style={styles.memoList}>
-                            {place.memos.map((memo) => (
-                              <View key={memo.id} style={styles.memoCard}>
-                                <Ionicons
-                                  name="reader-outline"
-                                  size={15}
-                                  color="#64748B"
-                                />
-                                <Text style={styles.memoText}>{memo.text}</Text>
-                              </View>
-                            ))}
-                          </View>
-                        : null}
-                      </View>
+                      <Text style={styles.dayDate}>
+                        {getItineraryDate(day)}
+                      </Text>
                     </View>
-                  ))}
-                </View>
-              </View>
-            ))}
-          </View>
+
+                    <View style={styles.dayTimelineBody}>
+                      <View style={styles.verticalLine} />
+
+                      {sortedPlaces.length === 0 ?
+                        <View style={styles.emptyPlaceRow}>
+                          <Text style={styles.emptyPlaceText}>
+                            이 Day에는 저장된 장소가 없습니다.
+                          </Text>
+                        </View>
+                      : null}
+
+                      {sortedPlaces.map((place, index) => {
+                        const order = place.visitOrder ?? index + 1;
+
+                        return (
+                          <View
+                            key={`${place.tripPlaceId}-${place.placeId}-${index}`}
+                            style={styles.placeRow}
+                          >
+                            <View style={styles.orderBadge}>
+                              <Text style={styles.orderBadgeText}>{order}</Text>
+                            </View>
+
+                            <View style={styles.placeCard}>
+                              <Text style={styles.placeName} numberOfLines={1}>
+                                {place.name || "이름 없는 장소"}
+                              </Text>
+
+                              <Text style={styles.placeTime}>
+                                {getPlaceTimeText(place)}
+                              </Text>
+
+                              {place.memo ?
+                                <View style={styles.memoList}>
+                                  <View style={styles.memoCard}>
+                                    <Ionicons
+                                      name="reader-outline"
+                                      size={15}
+                                      color="#64748B"
+                                    />
+                                    <Text style={styles.memoText}>
+                                      {place.memo}
+                                    </Text>
+                                  </View>
+                                </View>
+                              : null}
+                            </View>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          : null}
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -330,6 +408,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "700",
     marginLeft: 6,
+  },
+
+  statusCard: {
+    minHeight: 150,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    backgroundColor: "#F8FAFC",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+  },
+
+  statusText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 20,
+    marginTop: 10,
+  },
+
+  errorTitle: {
+    color: "#EF4444",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 10,
+  },
+
+  emptyTitle: {
+    color: "#1F2937",
+    fontSize: 16,
+    fontWeight: "900",
+    marginTop: 10,
   },
 
   timelinePanel: {
@@ -461,5 +574,24 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "700",
     marginLeft: 7,
+  },
+
+  emptyPlaceRow: {
+    minHeight: 54,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    marginLeft: 50,
+    marginBottom: 18,
+  },
+
+  emptyPlaceText: {
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "700",
   },
 });

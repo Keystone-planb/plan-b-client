@@ -1,8 +1,11 @@
+import "react-native-gesture-handler";
+
 import React, { useEffect, useState } from "react";
 import { ActivityIndicator, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Linking from "expo-linking";
 
 import OnboardingFirstScreen from "./src/screens/OnboardingFirstScreen";
@@ -32,11 +35,54 @@ type RecommendationType = "PLACE" | "GAP";
 
 type TodayPlace = {
   id?: string | number;
+
+  // 서버 장소 ID
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+
+  // Google Place ID
+  placeId?: string;
+  googlePlaceId?: string;
+
   name?: string;
   address?: string;
   time?: string;
   latitude?: number;
   longitude?: number;
+  category?: string;
+};
+
+type ScheduleMemo = {
+  id: string;
+  text: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type SchedulePlace = {
+  id?: string | number;
+
+  // 서버 장소 ID
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+
+  // Google Place ID
+  placeId?: string;
+  googlePlaceId?: string;
+
+  name?: string;
+  address?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
+  category?: string;
+  order?: number;
+  memos?: ScheduleMemo[];
+};
+
+type ScheduleDay = {
+  day: number;
+  places: SchedulePlace[];
 };
 
 type RootStackParamList = {
@@ -51,11 +97,20 @@ type RootStackParamList = {
     result?: "success" | "failure";
   };
 
-  Main: undefined;
+  Main:
+    | undefined
+    | {
+        screen?: string;
+        refreshSchedules?: boolean;
+        savedScheduleId?: string;
+        tripId?: string | number;
+        serverTripId?: string | number;
+      };
+
   ProfileEdit: undefined;
 
   PlanXDetail: {
-    tripId?: string;
+    tripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -83,6 +138,8 @@ type RootStackParamList = {
     day?: number;
     selectedDay?: number;
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     location?: string;
     transportMode?: TransportMode;
     transportLabel?: string;
@@ -90,6 +147,8 @@ type RootStackParamList = {
 
   PlanA: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -113,6 +172,8 @@ type RootStackParamList = {
 
   OngoingSchedule: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -120,10 +181,13 @@ type RootStackParamList = {
     transportMode?: TransportMode;
     transportLabel?: string;
     places?: TodayPlace[];
+    days?: ScheduleDay[];
   };
 
   AlternativeSettings: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -138,6 +202,8 @@ type RootStackParamList = {
 
   AlternativeLoading: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -157,6 +223,8 @@ type RootStackParamList = {
 
   RecommendationResult: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -244,183 +312,185 @@ export default function App() {
   }
 
   return (
-    <NavigationContainer linking={linking}>
-      <Stack.Navigator
-        id={undefined}
-        initialRouteName={initialRoute}
-        screenOptions={{
-          headerShown: false,
-          animation: "slide_from_right",
-          animationDuration: 300,
-        }}
-      >
-        <Stack.Screen
-          name="OnboardingFirst"
-          component={OnboardingFirstScreen}
-        />
-
-        <Stack.Screen
-          name="OnboardingSecond"
-          component={OnboardingSecondScreen}
-        />
-
-        <Stack.Screen
-          name="OnboardingThird"
-          component={OnboardingThirdScreen}
-        />
-
-        <Stack.Screen
-          name="OnboardingFourth"
-          component={OnboardingFourthScreen}
-        />
-
-        <Stack.Screen
-          name="Login"
-          component={LoginScreen}
-          options={{
-            animation: "fade",
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer linking={linking}>
+        <Stack.Navigator
+          id={undefined}
+          initialRouteName={initialRoute}
+          screenOptions={{
+            headerShown: false,
+            animation: "slide_from_right",
             animationDuration: 300,
           }}
-        />
+        >
+          <Stack.Screen
+            name="OnboardingFirst"
+            component={OnboardingFirstScreen}
+          />
 
-        <Stack.Screen
-          name="SignUp"
-          component={SignUpScreen}
-          options={{
-            animation: "fade",
-            animationDuration: 300,
-          }}
-        />
+          <Stack.Screen
+            name="OnboardingSecond"
+            component={OnboardingSecondScreen}
+          />
 
-        <Stack.Screen
-          name="OAuthRedirect"
-          component={OAuthRedirectScreen}
-          options={{
-            headerShown: false,
-            animation: "fade",
-            animationDuration: 200,
-          }}
-        />
+          <Stack.Screen
+            name="OnboardingThird"
+            component={OnboardingThirdScreen}
+          />
 
-        <Stack.Screen
-          name="Main"
-          component={BottomTabNavigator}
-          options={{
-            headerShown: false,
-          }}
-        />
+          <Stack.Screen
+            name="OnboardingFourth"
+            component={OnboardingFourthScreen}
+          />
 
-        <Stack.Screen
-          name="ProfileEdit"
-          component={ProfileEditScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="Login"
+            component={LoginScreen}
+            options={{
+              animation: "fade",
+              animationDuration: 300,
+            }}
+          />
 
-        <Stack.Screen
-          name="PlanXDetail"
-          component={PlanXDetailScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="SignUp"
+            component={SignUpScreen}
+            options={{
+              animation: "fade",
+              animationDuration: 300,
+            }}
+          />
 
-        <Stack.Screen
-          name="AddSchedule"
-          component={AddScheduleNameScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="OAuthRedirect"
+            component={OAuthRedirectScreen}
+            options={{
+              headerShown: false,
+              animation: "fade",
+              animationDuration: 200,
+            }}
+          />
 
-        <Stack.Screen
-          name="AddScheduleDate"
-          component={AddScheduleDateScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="Main"
+            component={BottomTabNavigator}
+            options={{
+              headerShown: false,
+            }}
+          />
 
-        <Stack.Screen
-          name="AddScheduleTransport"
-          component={AddScheduleTransportScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="ProfileEdit"
+            component={ProfileEditScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="AddScheduleLocation"
-          component={AddScheduleLocationScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="PlanXDetail"
+            component={PlanXDetailScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="PlanA"
-          component={PlanAScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="AddSchedule"
+            component={AddScheduleNameScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="OngoingSchedule"
-          component={OngoingScheduleScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="AddScheduleDate"
+            component={AddScheduleDateScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="AlternativeSettings"
-          component={AlternativeSettingsScreen}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="AddScheduleTransport"
+            component={AddScheduleTransportScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="AlternativeLoading"
-          component={AIAnalysisLoadingScreen as React.ComponentType<any>}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
+          <Stack.Screen
+            name="AddScheduleLocation"
+            component={AddScheduleLocationScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
 
-        <Stack.Screen
-          name="RecommendationResult"
-          component={RecommendationResultScreen as React.ComponentType<any>}
-          options={{
-            headerShown: false,
-            animation: "slide_from_right",
-            animationDuration: 260,
-          }}
-        />
-      </Stack.Navigator>
-    </NavigationContainer>
+          <Stack.Screen
+            name="PlanA"
+            component={PlanAScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
+
+          <Stack.Screen
+            name="OngoingSchedule"
+            component={OngoingScheduleScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
+
+          <Stack.Screen
+            name="AlternativeSettings"
+            component={AlternativeSettingsScreen}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
+
+          <Stack.Screen
+            name="AlternativeLoading"
+            component={AIAnalysisLoadingScreen as React.ComponentType<any>}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
+
+          <Stack.Screen
+            name="RecommendationResult"
+            component={RecommendationResultScreen as React.ComponentType<any>}
+            options={{
+              headerShown: false,
+              animation: "slide_from_right",
+              animationDuration: 260,
+            }}
+          />
+        </Stack.Navigator>
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 

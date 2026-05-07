@@ -1,6 +1,7 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,10 +11,11 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
+import { Swipeable } from "react-native-gesture-handler";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
 import RadialBackground from "../components/RadialBackground";
-import { getTrips, TripSummary } from "../../api/schedules/server";
+import { deleteTrip, getTrips, TripSummary } from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
@@ -57,28 +59,43 @@ const convertTripToPlanXTrip = (trip: TripSummary): PlanXDisplayTrip => {
 export default function PlanXScreen({ navigation }: Props) {
   const [trips, setTrips] = useState<PlanXDisplayTrip[]>([]);
   const [loading, setLoading] = useState(false);
+  const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
+
+  const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
+
+  const loadTrips = useCallback(async () => {
+    try {
+      setLoading(true);
+
+      const serverTrips = await getTrips("PAST");
+      const nextTrips = serverTrips.map(convertTripToPlanXTrip);
+
+      setTrips(nextTrips);
+    } catch (error) {
+      console.log("Plan.X 여행 목록 조회 실패:", error);
+      setTrips([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
-      const loadTrips = async () => {
-        try {
-          setLoading(true);
-
-          const serverTrips = await getTrips("PAST");
-          const nextTrips = serverTrips.map(convertTripToPlanXTrip);
-
-          setTrips(nextTrips);
-        } catch (error) {
-          console.log("Plan.X 여행 목록 조회 실패:", error);
-          setTrips([]);
-        } finally {
-          setLoading(false);
-        }
-      };
-
       loadTrips();
-    }, []),
+    }, [loadTrips]),
   );
+
+  const closeOtherSwipeables = (currentTripId: string) => {
+    Object.entries(swipeableRefs.current).forEach(([tripId, ref]) => {
+      if (tripId !== currentTripId) {
+        ref?.close();
+      }
+    });
+  };
+
+  const closeCurrentSwipeable = (tripId: string) => {
+    swipeableRefs.current[tripId]?.close();
+  };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -95,10 +112,11 @@ export default function PlanXScreen({ navigation }: Props) {
     );
 
     if (!selectedTrip) {
+      console.log("[PlanX] 선택한 여행을 찾지 못했습니다.", trip);
       return;
     }
 
-    navigation.navigate("PlanXDetail", {
+    const detailParams = {
       tripId: selectedTrip.tripId,
       tripName: selectedTrip.title,
       startDate: selectedTrip.startDate,
@@ -106,7 +124,84 @@ export default function PlanXScreen({ navigation }: Props) {
       location: selectedTrip.location,
       placeCount: selectedTrip.placeCount,
       emoji: selectedTrip.emoji,
-    });
+    };
+
+    const parentNavigation = navigation.getParent?.();
+
+    if (parentNavigation) {
+      parentNavigation.navigate("PlanXDetail", detailParams);
+      return;
+    }
+
+    navigation.navigate("PlanXDetail", detailParams);
+  };
+
+  const handleDeleteTrip = (trip: PlanXDisplayTrip) => {
+    Alert.alert(
+      "지난 여행 삭제",
+      `"${trip.title}" 여행을 삭제할까요?\n서버에서도 삭제됩니다.`,
+      [
+        {
+          text: "취소",
+          style: "cancel",
+          onPress: () => {
+            closeCurrentSwipeable(trip.tripId);
+          },
+        },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              setDeletingTripId(trip.tripId);
+
+              await deleteTrip(trip.tripId);
+
+              setTrips((prev) =>
+                prev.filter((item) => item.tripId !== trip.tripId),
+              );
+
+              console.log("[PlanX] 지난 여행 삭제 완료", {
+                tripId: trip.tripId,
+                title: trip.title,
+              });
+            } catch (error) {
+              console.log("[PlanX] 지난 여행 삭제 실패:", error);
+
+              Alert.alert(
+                "삭제 실패",
+                "지난 여행을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.",
+              );
+
+              closeCurrentSwipeable(trip.tripId);
+            } finally {
+              setDeletingTripId(null);
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const renderRightActions = (trip: PlanXDisplayTrip) => {
+    const isDeleting = deletingTripId === trip.tripId;
+
+    return (
+      <TouchableOpacity
+        style={styles.swipeDeleteAction}
+        activeOpacity={0.85}
+        disabled={isDeleting}
+        onPress={() => handleDeleteTrip(trip)}
+      >
+        {isDeleting ?
+          <ActivityIndicator size="small" color="#FFFFFF" />
+        : <>
+            <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
+            <Text style={styles.swipeDeleteText}>삭제</Text>
+          </>
+        }
+      </TouchableOpacity>
+    );
   };
 
   const hasTrips = trips.length > 0;
@@ -167,11 +262,19 @@ export default function PlanXScreen({ navigation }: Props) {
           : null}
 
           {trips.map((trip) => (
-            <PlanXTripCard
+            <Swipeable
               key={`${trip.source}-${trip.id}`}
-              trip={trip}
-              onPress={handlePressTrip}
-            />
+              ref={(ref) => {
+                swipeableRefs.current[trip.tripId] = ref;
+              }}
+              friction={2}
+              rightThreshold={44}
+              overshootRight={false}
+              renderRightActions={() => renderRightActions(trip)}
+              onSwipeableWillOpen={() => closeOtherSwipeables(trip.tripId)}
+            >
+              <PlanXTripCard trip={trip} onPress={handlePressTrip} />
+            </Swipeable>
           ))}
         </View>
       </ScrollView>
@@ -260,6 +363,23 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 13,
     fontWeight: "800",
+  },
+
+  swipeDeleteAction: {
+    width: 84,
+    minHeight: 114,
+    borderRadius: 16,
+    backgroundColor: "#EF4444",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 16,
+  },
+
+  swipeDeleteText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+    marginTop: 4,
   },
 
   emptyBox: {
