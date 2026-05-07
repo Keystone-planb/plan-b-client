@@ -166,8 +166,15 @@ export default function PlanAScreen({ navigation, route }: Props) {
       tripName: schedule.tripName,
     });
 
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      window.alert("일정이 저장되었습니다.");
+    if (Platform.OS === "web") {
+      const browserWindow = globalThis as typeof globalThis & {
+        alert?: (message?: string) => void;
+      };
+
+      if (typeof browserWindow.alert === "function") {
+        browserWindow.alert("일정이 저장되었습니다.");
+      }
+
       moveToMain();
       return;
     }
@@ -364,40 +371,53 @@ export default function PlanAScreen({ navigation, route }: Props) {
           bounces={false}
         >
           <View style={styles.headerSection}>
-            <View style={styles.headerRow}>
+            <View style={styles.topHeaderRow}>
               <TouchableOpacity
                 style={styles.backButton}
                 onPress={handleBack}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-back" size={24} color="#64748B" />
+                <Ionicons name="chevron-back" size={26} color="#64748B" />
               </TouchableOpacity>
 
-              <Text style={styles.logoText}>Plan.A</Text>
+              <View style={styles.headerInfo}>
+                <Text style={styles.planTitle} numberOfLines={1}>
+                  {schedule.tripName}
+                </Text>
 
-              <TouchableOpacity
-                style={[
-                  styles.saveButton,
-                  loadingSchedule && styles.saveButtonDisabled,
-                ]}
-                activeOpacity={0.85}
-                onPress={handleSavePlanA}
-                disabled={loadingSchedule}
-              >
-                <Ionicons name="download-outline" size={14} color="#FFFFFF" />
-                <Text style={styles.saveButtonText}>저장</Text>
-              </TouchableOpacity>
-            </View>
+                <Text style={styles.planDate}>
+                  {formatDisplayDate(schedule.startDate)} -{" "}
+                  {formatDisplayDate(schedule.endDate)}
+                </Text>
 
-            <View style={styles.scheduleSummary}>
-              <Text style={styles.planTitle}>{schedule.tripName}</Text>
-              <Text style={styles.planDate}>
-                {formatDisplayDate(schedule.startDate)} -{" "}
-                {formatDisplayDate(schedule.endDate)}
-              </Text>
-              <Text style={styles.planTransport}>
-                이동수단 · {transportLabel}
-              </Text>
+                <Text style={styles.planTransport}>{transportLabel}</Text>
+              </View>
+
+              <View style={styles.headerActionRow}>
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    resetEditingState();
+                    setIsEditMode((prev) => !prev);
+                  }}
+                >
+                  <Ionicons
+                    name={isEditMode ? "checkmark" : "create-outline"}
+                    size={22}
+                    color="#2158E8"
+                  />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.headerIconButton}
+                  activeOpacity={0.8}
+                  onPress={handleSavePlanA}
+                  disabled={loadingSchedule}
+                >
+                  <Ionicons name="download-outline" size={22} color="#2158E8" />
+                </TouchableOpacity>
+              </View>
             </View>
 
             {saveSuccessMessage ?
@@ -434,11 +454,13 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             : null}
 
-            <PlanADayTabs
-              days={DAY_OPTIONS}
-              selectedDay={selectedDay}
-              onChangeDay={handleChangeDay}
-            />
+            <View style={styles.dayTabsWrapper}>
+              <PlanADayTabs
+                days={DAY_OPTIONS}
+                selectedDay={selectedDay}
+                onChangeDay={handleChangeDay}
+              />
+            </View>
           </View>
 
           <PlanAMapPreview />
@@ -449,49 +471,24 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             {currentPlaces.length > 0 ?
-              <View style={styles.editModeHeader}>
-                <Text style={styles.editModeTitle}>
-                  {isEditMode ? "일정 수정" : "오늘의 일정"}
-                </Text>
-
-                <TouchableOpacity
-                  style={[
-                    styles.editModeButton,
-                    isEditMode && styles.editModeButtonActive,
-                  ]}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    resetEditingState();
-                    setIsEditMode((prev) => !prev);
-                  }}
-                >
-                  <Ionicons
-                    name={isEditMode ? "checkmark" : "create-outline"}
-                    size={14}
-                    color={isEditMode ? "#FFFFFF" : "#2158E8"}
-                  />
-                  <Text
-                    style={[
-                      styles.editModeButtonText,
-                      isEditMode && styles.editModeButtonTextActive,
-                    ]}
-                  >
-                    {isEditMode ? "완료" : "수정"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            : null}
-
-            {currentPlaces.length > 0 ?
               currentPlaces.map((place, index) =>
                 isEditMode ?
                   renderEditablePlaceCard(place, index)
                 : renderPlaceCard(place, index),
               )
-            : <PlanAEmptyPlaceCard
-                selectedDay={selectedDay}
-                onPress={handleAddPlace}
-              />
+            : <View style={styles.emptyScheduleRow}>
+                <View style={styles.timelineColumn}>
+                  <View style={styles.timelineEmptyDot} />
+                  <View style={styles.timelineLine} />
+                </View>
+
+                <View style={styles.emptyScheduleContent}>
+                  <PlanAEmptyPlaceCard
+                    selectedDay={selectedDay}
+                    onPress={handleAddPlace}
+                  />
+                </View>
+              </View>
             }
 
             <TouchableOpacity
@@ -505,6 +502,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         </ScrollView>
 
         <View
+          pointerEvents="box-none"
           style={[
             styles.bottomTabOuter,
             {
@@ -682,6 +680,7 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: "#F7F9FB",
+    position: "relative",
   },
 
   container: {
@@ -691,94 +690,78 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     backgroundColor: "#F7F9FB",
-    paddingBottom: 112,
+    paddingBottom: 130,
   },
 
   headerSection: {
     backgroundColor: "#FFFFFF",
-    paddingTop: 8,
-    paddingHorizontal: 24,
-    paddingBottom: 14,
+    paddingTop: 26,
+    paddingHorizontal: 20,
+    paddingBottom: 12,
   },
 
-  headerRow: {
-    height: 56,
+  topHeaderRow: {
+    minHeight: 86,
     flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    alignItems: "flex-start",
+    paddingHorizontal: 0,
   },
 
   backButton: {
-    width: 58,
-    height: 34,
+    width: 32,
+    height: 40,
     alignItems: "flex-start",
     justifyContent: "center",
+    marginTop: 2,
   },
 
-  scheduleSummary: {
-    marginTop: 16,
-    marginBottom: 20,
+  headerInfo: {
+    flex: 1,
+    paddingLeft: 6,
+    paddingRight: 8,
   },
 
   planTitle: {
-    fontSize: 22,
-    fontWeight: "800",
     color: "#1C2534",
-    marginBottom: 8,
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+    marginBottom: 7,
   },
 
   planDate: {
-    fontSize: 14,
-    fontWeight: "600",
-    color: "#8C9BB1",
+    color: "#627187",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 6,
   },
 
   planTransport: {
-    marginTop: 6,
-    fontSize: 13,
+    color: "#627187",
+    fontSize: 15,
     fontWeight: "700",
-    color: "#2158E8",
   },
 
-  logoText: {
-    color: "#1C2534",
-    fontSize: 32,
-    fontWeight: "900",
-    letterSpacing: -1,
+  headerActionRow: {
+    width: 82,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: 12,
+    paddingRight: 0,
+    paddingTop: 6,
   },
 
-  saveButton: {
-    minWidth: 58,
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: "#2158E8",
+  headerIconButton: {
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-    flexDirection: "row",
-    gap: 4,
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-
-  saveButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  saveButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
   },
 
   saveFeedbackBox: {
-    marginTop: 10,
+    marginHorizontal: 0,
+    marginTop: 8,
     minHeight: 32,
     borderRadius: 10,
     backgroundColor: "#F0FDF4",
@@ -816,6 +799,14 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  dayTabsWrapper: {
+    width: "100%",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    marginTop: 18,
+    paddingLeft: 0,
+  },
+
   sheet: {
     minHeight: 430,
     marginTop: -1,
@@ -829,7 +820,7 @@ const styles = StyleSheet.create({
 
   sheetHandleWrapper: {
     alignItems: "center",
-    marginBottom: 24,
+    marginBottom: 20,
   },
 
   sheetHandle: {
@@ -839,10 +830,23 @@ const styles = StyleSheet.create({
     backgroundColor: "#D6DFEA",
   },
 
+  emptyScheduleRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    paddingHorizontal: 0,
+  },
+
+  emptyScheduleContent: {
+    flex: 1,
+    paddingRight: 0,
+  },
+
   addPlaceButton: {
-    marginTop: 4,
-    marginLeft: 44,
-    minHeight: 44,
+    marginTop: 10,
+    marginLeft: 43,
+    marginRight: 0,
+    minHeight: 48,
     borderRadius: 12,
     backgroundColor: "#ECF5FF",
     alignItems: "center",
@@ -859,7 +863,7 @@ const styles = StyleSheet.create({
 
   addPlaceButtonText: {
     color: "#2158E8",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "900",
   },
 
@@ -868,22 +872,23 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "stretch",
     marginBottom: 14,
+    paddingHorizontal: 0,
   },
 
   timelineColumn: {
     width: 34,
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 10,
   },
 
   timelineDot: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: "#2563EB",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
+    marginTop: 20,
     shadowColor: "#2563EB",
     shadowOpacity: 0.25,
     shadowRadius: 8,
@@ -891,23 +896,34 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
 
+  timelineEmptyDot: {
+    width: 17,
+    height: 17,
+    borderRadius: 8.5,
+    borderWidth: 4,
+    borderColor: "#2563EB",
+    backgroundColor: "#FFFFFF",
+    marginTop: 20,
+  },
+
   timelineLine: {
     flex: 1,
     width: 2,
-    marginTop: 8,
+    marginTop: 4,
     borderRadius: 999,
-    backgroundColor: "#DDE7F2",
+    backgroundColor: "#2563EB",
   },
 
   timelineDotText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 10,
     fontWeight: "800",
   },
 
   simplePlaceCard: {
     flex: 1,
     minHeight: 88,
+    marginRight: 0,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -962,44 +978,6 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
-  editModeHeader: {
-    marginBottom: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  editModeTitle: {
-    color: "#1E293B",
-    fontSize: 15,
-    fontWeight: "900",
-  },
-
-  editModeButton: {
-    height: 32,
-    borderRadius: 10,
-    backgroundColor: "#EAF3FF",
-    paddingHorizontal: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-  },
-
-  editModeButtonActive: {
-    backgroundColor: "#2158E8",
-  },
-
-  editModeButtonText: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  editModeButtonTextActive: {
-    color: "#FFFFFF",
-  },
-
   simpleTimeAction: {
     marginLeft: 8,
     borderRadius: 999,
@@ -1019,6 +997,8 @@ const styles = StyleSheet.create({
     left: 24,
     right: 24,
     alignItems: "center",
+    zIndex: 999,
+    elevation: 999,
   },
 
   bottomTabContainer: {
@@ -1031,6 +1011,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DDE6F2",
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.12,
+    shadowRadius: 16,
+    elevation: 12,
   },
 
   bottomTabButton: {
