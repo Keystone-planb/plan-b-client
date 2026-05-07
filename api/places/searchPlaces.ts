@@ -21,6 +21,17 @@ type RawPlaceSearchResult = {
   longitude?: number;
 };
 
+type AxiosLikeError = {
+  response?: {
+    status?: number;
+    data?: unknown;
+  };
+  code?: string;
+  message?: string;
+};
+
+const PLACE_API_TIMEOUT = 30000;
+
 const isHtmlResponse = (data: unknown) => {
   if (typeof data !== "string") return false;
 
@@ -61,32 +72,145 @@ const getAxiosRequestUrl = (path: string) => {
   return `${baseURL}${path}`;
 };
 
-const getAxiosErrorStatus = (error: unknown) => {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    typeof (error as any).response === "object" &&
-    (error as any).response !== null
-  ) {
-    return (error as any).response.status;
+const isRecord = (value: unknown): value is Record<string, unknown> => {
+  return typeof value === "object" && value !== null;
+};
+
+const toAxiosLikeError = (error: unknown): AxiosLikeError => {
+  if (!isRecord(error)) {
+    return {};
   }
 
-  return undefined;
+  const responseRaw = error.response;
+  const response =
+    isRecord(responseRaw) ?
+      {
+        status:
+          typeof responseRaw.status === "number" ?
+            responseRaw.status
+          : undefined,
+        data: responseRaw.data,
+      }
+    : undefined;
+
+  return {
+    response,
+    code: typeof error.code === "string" ? error.code : undefined,
+    message: typeof error.message === "string" ? error.message : undefined,
+  };
+};
+
+const getAxiosErrorStatus = (error: unknown) => {
+  return toAxiosLikeError(error).response?.status;
 };
 
 const getAxiosErrorData = (error: unknown) => {
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "response" in error &&
-    typeof (error as any).response === "object" &&
-    (error as any).response !== null
-  ) {
-    return (error as any).response.data;
+  return toAxiosLikeError(error).response?.data;
+};
+
+const getAxiosErrorCode = (error: unknown) => {
+  return toAxiosLikeError(error).code;
+};
+
+const getAxiosErrorMessage = (error: unknown) => {
+  if (error instanceof Error) {
+    return error.message;
   }
 
-  return undefined;
+  return toAxiosLikeError(error).message ?? "";
+};
+
+const isTimeoutError = (error: unknown) => {
+  const code = getAxiosErrorCode(error);
+  const message = getAxiosErrorMessage(error).toLowerCase();
+
+  return (
+    code === "ECONNABORTED" ||
+    message.includes("timeout") ||
+    message.includes("exceeded")
+  );
+};
+
+const getServerErrorMessage = (data: unknown) => {
+  if (!isRecord(data)) {
+    return "";
+  }
+
+  const error = data.error;
+  const message = data.message;
+
+  if (typeof error === "string" && error.trim()) {
+    return error;
+  }
+
+  if (typeof message === "string" && message.trim()) {
+    return message;
+  }
+
+  return "";
+};
+
+const handlePlaceApiError = ({
+  error,
+  apiName,
+}: {
+  error: unknown;
+  apiName: string;
+}): never => {
+  const status = getAxiosErrorStatus(error);
+  const data = getAxiosErrorData(error);
+  const serverMessage = getServerErrorMessage(data);
+
+  if (status === 401) {
+    throw new Error(
+      `${apiName} API 인증에 실패했습니다. 로그아웃 후 다시 로그인하거나 access_token/refresh_token 저장 상태를 확인해주세요.`,
+    );
+  }
+
+  if (status === 403) {
+    throw new Error(`${apiName} API 접근 권한이 없습니다.`);
+  }
+
+  if (status === 404) {
+    throw new Error(`${apiName} API 경로를 찾을 수 없습니다.`);
+  }
+
+  if (isTimeoutError(error)) {
+    throw new Error(
+      `${apiName} API 응답 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.`,
+    );
+  }
+
+  if (serverMessage) {
+    throw new Error(serverMessage);
+  }
+
+  if (error instanceof Error) {
+    throw error;
+  }
+
+  throw new Error(`${apiName} API 호출에 실패했습니다.`);
+};
+
+const logPlaceApiError = ({
+  tag,
+  error,
+  url,
+  extra,
+}: {
+  tag: string;
+  error: unknown;
+  url: string;
+  extra?: Record<string, unknown>;
+}) => {
+  console.log(tag, {
+    status: getAxiosErrorStatus(error),
+    data: getAxiosErrorData(error),
+    code: getAxiosErrorCode(error),
+    message: getAxiosErrorMessage(error),
+    url,
+    ...extra,
+  });
 };
 
 export const searchPlaces = async (
@@ -111,6 +235,7 @@ export const searchPlaces = async (
       params: {
         query: trimmedQuery,
       },
+      timeout: PLACE_API_TIMEOUT,
     });
 
     console.log("[places/search] response:", response.data);
@@ -121,14 +246,19 @@ export const searchPlaces = async (
 
     return places.map(normalizePlace).filter((place) => place.placeId);
   } catch (error) {
-    console.log("[places/search] failed:", {
-      status: getAxiosErrorStatus(error),
-      data: getAxiosErrorData(error),
+    logPlaceApiError({
+      tag: "[places/search] failed:",
+      error,
       url: requestUrl,
-      query: trimmedQuery,
+      extra: {
+        query: trimmedQuery,
+      },
     });
 
-    throw error;
+    return handlePlaceApiError({
+      error,
+      apiName: "장소 검색",
+    });
   }
 };
 
@@ -142,7 +272,9 @@ export const getPlaceDetail = async (
   console.log("[places/detail] request url:", requestUrl);
 
   try {
-    const response = await apiClient.get<PlaceDetail>(path);
+    const response = await apiClient.get<PlaceDetail>(path, {
+      timeout: PLACE_API_TIMEOUT,
+    });
 
     console.log("[places/detail] response:", response.data);
 
@@ -150,14 +282,19 @@ export const getPlaceDetail = async (
 
     return response.data;
   } catch (error) {
-    console.log("[places/detail] failed:", {
-      status: getAxiosErrorStatus(error),
-      data: getAxiosErrorData(error),
+    logPlaceApiError({
+      tag: "[places/detail] failed:",
+      error,
       url: requestUrl,
-      googlePlaceId,
+      extra: {
+        googlePlaceId,
+      },
     });
 
-    throw error;
+    return handlePlaceApiError({
+      error,
+      apiName: "장소 상세",
+    });
   }
 };
 
@@ -171,7 +308,9 @@ export const getPlaceSummary = async (
   console.log("[places/summary] request url:", requestUrl);
 
   try {
-    const response = await apiClient.get<PlaceSummaryResponse>(path);
+    const response = await apiClient.get<PlaceSummaryResponse>(path, {
+      timeout: PLACE_API_TIMEOUT,
+    });
 
     console.log("[places/summary] response:", response.data);
 
@@ -179,14 +318,19 @@ export const getPlaceSummary = async (
 
     return response.data;
   } catch (error) {
-    console.log("[places/summary] failed:", {
-      status: getAxiosErrorStatus(error),
-      data: getAxiosErrorData(error),
+    logPlaceApiError({
+      tag: "[places/summary] failed:",
+      error,
       url: requestUrl,
-      googlePlaceId,
+      extra: {
+        googlePlaceId,
+      },
     });
 
-    throw error;
+    return handlePlaceApiError({
+      error,
+      apiName: "장소 AI 요약",
+    });
   }
 };
 
@@ -200,7 +344,9 @@ export const getPlaceFreshness = async (
   console.log("[places/freshness] request url:", requestUrl);
 
   try {
-    const response = await apiClient.get<PlaceFreshnessResponse>(path);
+    const response = await apiClient.get<PlaceFreshnessResponse>(path, {
+      timeout: PLACE_API_TIMEOUT,
+    });
 
     console.log("[places/freshness] response:", response.data);
 
@@ -208,13 +354,18 @@ export const getPlaceFreshness = async (
 
     return response.data;
   } catch (error) {
-    console.log("[places/freshness] failed:", {
-      status: getAxiosErrorStatus(error),
-      data: getAxiosErrorData(error),
+    logPlaceApiError({
+      tag: "[places/freshness] failed:",
+      error,
       url: requestUrl,
-      googlePlaceId,
+      extra: {
+        googlePlaceId,
+      },
     });
 
-    throw error;
+    return handlePlaceApiError({
+      error,
+      apiName: "장소 정보 최신성",
+    });
   }
 };
