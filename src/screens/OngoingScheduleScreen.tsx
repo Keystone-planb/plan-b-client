@@ -11,13 +11,37 @@ import { Ionicons } from "@expo/vector-icons";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
+type ScheduleMemo = {
+  id: string;
+  text: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 type TodayPlace = {
   id?: string | number;
+
+  // 서버에서 생성된 여행 장소 ID
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+
+  // 외부 장소 ID
+  placeId?: string;
+  googlePlaceId?: string;
+
   name?: string;
   address?: string;
   time?: string;
   latitude?: number;
   longitude?: number;
+  category?: string;
+  order?: number;
+  memos?: ScheduleMemo[];
+};
+
+type ScheduleDay = {
+  day: number;
+  places: TodayPlace[];
 };
 
 type ScheduleGap = {
@@ -33,6 +57,8 @@ type Props = {
   route?: {
     params?: {
       scheduleId?: string;
+      tripId?: number | string;
+      serverTripId?: number | string;
       tripName?: string;
       startDate?: string;
       endDate?: string;
@@ -40,44 +66,18 @@ type Props = {
       transportMode?: TransportMode;
       transportLabel?: string;
       places?: TodayPlace[];
+      days?: ScheduleDay[];
     };
   };
 };
 
 const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
 
-const MOCK_TODAY_PLACES: TodayPlace[] = [
-  {
-    id: "today-1",
-    name: "강릉역",
-    address: "강원도 강릉시",
-    time: "10:00",
-  },
-  {
-    id: "today-2",
-    name: "강릉역",
-    address: "강원도 강릉시",
-    time: "10:00",
-  },
-  {
-    id: "today-3",
-    name: "강릉역",
-    address: "강원도 강릉시",
-    time: "10:00",
-  },
-];
-
-const MOCK_MEMOS = [
-  "내릴 때 짐 까먹지 말기",
-  "내릴 때 짐 까먹지 말기",
-  "내릴 때 짐 까먹지 말기",
-];
-
 const MOCK_SCHEDULE_GAPS: ScheduleGap[] = [
   {
     id: "gap-1",
-    beforePlanId: "today-2",
-    afterPlanId: "today-3",
+    beforePlanId: "gap-before",
+    afterPlanId: "gap-after",
     title: "일정 사이에 텀이 생겼어요",
     subtitle: "틈새 대안찾기",
   },
@@ -111,23 +111,43 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const {
     scheduleId,
-    tripName = "신나는 강릉여행",
+    tripId,
+    serverTripId,
+    tripName = "신나는 여행",
     startDate,
     endDate,
-    location = "강원도 강릉시",
+    location = "장소 미정",
     transportMode = "WALK",
     transportLabel = "도보",
+    days = [],
   } = params;
+
+  const resolvedTripId = tripId ?? serverTripId;
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
+  const currentDay = useMemo(() => {
+    const dayNumber = selectedDayIndex + 1;
+    return days.find((day) => day.day === dayNumber);
+  }, [days, selectedDayIndex]);
+
   const places = useMemo(() => {
+    if (currentDay?.places?.length) {
+      return [...currentDay.places].sort((a, b) => {
+        const aOrder = a.order ?? 0;
+        const bOrder = b.order ?? 0;
+        return aOrder - bOrder;
+      });
+    }
+
     if (params.places && params.places.length > 0) {
       return params.places;
     }
 
-    return MOCK_TODAY_PLACES;
-  }, [params.places]);
+    return [];
+  }, [currentDay?.places, params.places]);
+
+  const hasPlaces = places.length > 0;
 
   const handleBack = () => {
     navigation.goBack();
@@ -136,6 +156,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const handleEdit = () => {
     navigation.navigate("PlanA", {
       scheduleId,
+      tripId: resolvedTripId,
+      serverTripId: resolvedTripId,
       tripName,
       startDate,
       endDate,
@@ -148,19 +170,41 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const handleAlternative = (place: TodayPlace) => {
     navigation.navigate("AlternativeSettings", {
       scheduleId,
+      tripId: resolvedTripId,
+      serverTripId: resolvedTripId,
       tripName,
       startDate,
       endDate,
       location,
       transportMode,
       transportLabel,
-      targetPlace: place,
+      targetPlace: {
+        id: place.id,
+
+        // 서버 장소 ID
+        tripPlaceId: place.tripPlaceId,
+        serverTripPlaceId: place.serverTripPlaceId ?? place.tripPlaceId,
+
+        // Google Place ID
+        placeId: place.placeId ?? place.googlePlaceId ?? String(place.id ?? ""),
+        googlePlaceId:
+          place.googlePlaceId ?? place.placeId ?? String(place.id ?? ""),
+
+        name: place.name,
+        address: place.address,
+        time: place.time,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        category: place.category,
+      },
     });
   };
 
   const handleGapAlternative = (gap: ScheduleGap) => {
     navigation.navigate("AlternativeSettings", {
       scheduleId,
+      tripId: resolvedTripId,
+      serverTripId: resolvedTripId,
       tripName,
       startDate,
       endDate,
@@ -236,11 +280,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               </Text>
 
               <View style={styles.mapMarkerMain}>
-                <Ionicons name="train-outline" size={16} color="#FFFFFF" />
+                <Ionicons name="location-outline" size={16} color="#FFFFFF" />
               </View>
 
               <View style={styles.mapMarkerSmallOne}>
-                <Ionicons name="shield-outline" size={15} color="#FFFFFF" />
+                <Ionicons name="pin-outline" size={15} color="#FFFFFF" />
               </View>
 
               <TouchableOpacity
@@ -261,14 +305,33 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.timelineList}>
+            {!hasPlaces ?
+              <View style={styles.emptyDayCard}>
+                <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
+                <Text style={styles.emptyDayTitle}>
+                  이 Day에는 저장된 장소가 없어요
+                </Text>
+                <Text style={styles.emptyDayDescription}>
+                  수정 버튼을 눌러 장소를 추가해보세요.
+                </Text>
+              </View>
+            : null}
+
             {places.map((place, index) => {
               const focused = index === 0;
               const gapAfterThisPlace =
-                index === 1 ? MOCK_SCHEDULE_GAPS[0] : undefined;
+                index === 1 && places.length >= 3 ?
+                  {
+                    ...MOCK_SCHEDULE_GAPS[0],
+                    beforePlanId: place.tripPlaceId ?? place.id,
+                    afterPlanId:
+                      places[index + 1]?.tripPlaceId ?? places[index + 1]?.id,
+                  }
+                : undefined;
 
               return (
                 <React.Fragment
-                  key={`${String(place.id || place.name)}-${index}`}
+                  key={`${String(place.tripPlaceId ?? place.id ?? place.name)}-${index}`}
                 >
                   <View
                     style={[
@@ -282,7 +345,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
                     <View style={styles.placeInfo}>
                       <Text style={styles.placeName} numberOfLines={1}>
-                        {place.name || "강릉역"}
+                        {place.name || "이름 없는 장소"}
                       </Text>
 
                       <Text style={styles.placeAddress} numberOfLines={1}>
@@ -296,7 +359,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                           color="#94A3B8"
                         />
                         <Text style={styles.timeText}>
-                          {place.time || "10:00"}
+                          {place.time || "시간 미정"}
                         </Text>
                       </View>
                     </View>
@@ -315,6 +378,21 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </TouchableOpacity>
                   </View>
 
+                  {place.memos?.length ?
+                    <View style={styles.memoList}>
+                      {place.memos.map((memo) => (
+                        <View key={memo.id} style={styles.memoCard}>
+                          <Ionicons
+                            name="reader-outline"
+                            size={17}
+                            color="#64748B"
+                          />
+                          <Text style={styles.memoText}>{memo.text}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  : null}
+
                   {gapAfterThisPlace ?
                     <GapRecommendationCard
                       gap={gapAfterThisPlace}
@@ -324,15 +402,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 </React.Fragment>
               );
             })}
-
-            <View style={styles.memoList}>
-              {MOCK_MEMOS.map((memo, index) => (
-                <View key={`${memo}-${index}`} style={styles.memoCard}>
-                  <Ionicons name="reader-outline" size={17} color="#64748B" />
-                  <Text style={styles.memoText}>{memo}</Text>
-                </View>
-              ))}
-            </View>
           </View>
         </ScrollView>
       </View>
@@ -666,6 +735,30 @@ const styles = StyleSheet.create({
     marginRight: 3,
   },
 
+  memoList: {
+    marginTop: -6,
+    paddingLeft: 92,
+    gap: 9,
+  },
+
+  memoCard: {
+    minHeight: 44,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#DDE5F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  memoText: {
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+
   gapCard: {
     minHeight: 78,
     borderRadius: 18,
@@ -697,27 +790,32 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  memoList: {
-    marginTop: 4,
-    paddingLeft: 92,
-    gap: 9,
-  },
-
-  memoCard: {
-    minHeight: 44,
-    borderRadius: 8,
+  emptyDayCard: {
+    minHeight: 150,
+    borderRadius: 20,
     borderWidth: 1,
     borderColor: "#DDE5F0",
     backgroundColor: "#F8FAFC",
-    paddingHorizontal: 14,
-    flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+    paddingVertical: 24,
   },
 
-  memoText: {
+  emptyDayTitle: {
     color: "#1F2937",
+    fontSize: 17,
+    fontWeight: "900",
+    marginTop: 12,
+    marginBottom: 7,
+    textAlign: "center",
+  },
+
+  emptyDayDescription: {
+    color: "#94A3B8",
     fontSize: 14,
     fontWeight: "700",
-    marginLeft: 8,
+    textAlign: "center",
+    lineHeight: 20,
   },
 });
