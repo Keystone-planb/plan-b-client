@@ -58,6 +58,7 @@ type Props = {
 
 type BottomTabName = "PlanX" | "Home" | "Profile";
 type IconName = keyof typeof Ionicons.glyphMap;
+type TimePickerTarget = "visitTime" | "endTime";
 
 const DAY_OPTIONS: DayOption[] = [
   { id: 1, label: "Day 1" },
@@ -70,6 +71,55 @@ const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
 const formatDisplayDate = (value: string) => {
   if (!value) return "";
   return value.replace(/-/g, ".");
+};
+
+const normalizeTimeText = (value?: string | null) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : "";
+};
+
+const parseLegacyDisplayTime = (time?: string | null) => {
+  const normalized = normalizeTimeText(time);
+
+  if (!normalized || normalized === "시간 미정") {
+    return {
+      visitTime: "",
+      endTime: "",
+    };
+  }
+
+  const [start, end] = normalized.split(/\s*-\s*/);
+
+  return {
+    visitTime: normalizeTimeText(start),
+    endTime: normalizeTimeText(end),
+  };
+};
+
+const getPlaceVisitTime = (place: PlaceItem) => {
+  return (
+    normalizeTimeText(place.visitTime) ||
+    parseLegacyDisplayTime(place.time).visitTime
+  );
+};
+
+const getPlaceEndTime = (place: PlaceItem) => {
+  return (
+    normalizeTimeText(place.endTime) ||
+    parseLegacyDisplayTime(place.time).endTime
+  );
+};
+
+const getPlaceDisplayTime = (place: PlaceItem) => {
+  const visitTime = getPlaceVisitTime(place);
+  const endTime = getPlaceEndTime(place);
+
+  if (visitTime && endTime) return `${visitTime} - ${endTime}`;
+  if (visitTime) return visitTime;
+  if (endTime) return endTime;
+  if (place.time?.trim()) return place.time;
+
+  return "";
 };
 
 const getBottomTabIconName = (
@@ -95,6 +145,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
     null,
   );
+  const [timePickerTarget, setTimePickerTarget] =
+    useState<TimePickerTarget>("visitTime");
   const [timePickerHour, setTimePickerHour] = useState(12);
   const [timePickerMinute, setTimePickerMinute] = useState(0);
   const [timePickerPeriod, setTimePickerPeriod] = useState<"AM" | "PM">("AM");
@@ -126,7 +178,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     memoDrafts,
     editingPlaceId,
     editingPlaceName,
-    editingPlaceTime,
+    editingPlaceVisitTime,
+    editingPlaceEndTime,
     editingMemo,
     editingMemoText,
 
@@ -139,7 +192,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     handleSaveEditPlace,
     handleDeletePlace,
     setEditingPlaceName,
-    setEditingPlaceTime,
+    setEditingPlaceVisitTime,
+    setEditingPlaceEndTime,
     handleUpdatePlaceTime,
     handleStartEditMemo,
     handleCancelEditMemo,
@@ -255,7 +309,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     return String(value).padStart(2, "0");
   };
 
-  const parseTimeForPicker = (value?: string) => {
+  const parseTimeForPicker = (value?: string | null) => {
     const normalized = value?.trim();
     const match = normalized?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
 
@@ -278,10 +332,25 @@ export default function PlanAScreen({ navigation, route }: Props) {
     };
   };
 
-  const openTimePicker = (place: PlaceItem) => {
-    const parsed = parseTimeForPicker(place.time);
+  const getTimeValueForTarget = (
+    place: PlaceItem,
+    target: TimePickerTarget,
+  ) => {
+    if (target === "visitTime") {
+      return getPlaceVisitTime(place);
+    }
+
+    return getPlaceEndTime(place);
+  };
+
+  const openTimePicker = (
+    place: PlaceItem,
+    target: TimePickerTarget = "visitTime",
+  ) => {
+    const parsed = parseTimeForPicker(getTimeValueForTarget(place, target));
 
     setTimePickerPlace(place);
+    setTimePickerTarget(target);
     setTimePickerHour(parsed.hour);
     setTimePickerMinute(parsed.minute);
     setTimePickerPeriod(parsed.period);
@@ -311,14 +380,61 @@ export default function PlanAScreen({ navigation, route }: Props) {
     setTimePickerPeriod((prev) => (prev === "AM" ? "PM" : "AM"));
   };
 
-  const handleSaveTimePicker = () => {
-    if (!timePickerPlace) return;
+  const handleSwitchTimeTarget = (target: TimePickerTarget) => {
+    if (!timePickerPlace) {
+      setTimePickerTarget(target);
+      return;
+    }
 
-    const nextTime = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
+    const currentPickerValue = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
       timePickerMinute,
     )} ${timePickerPeriod}`;
 
-    handleUpdatePlaceTime(timePickerPlace.id, nextTime);
+    const currentVisitTime = getPlaceVisitTime(timePickerPlace);
+    const currentEndTime = getPlaceEndTime(timePickerPlace);
+
+    const nextVisitTime =
+      timePickerTarget === "visitTime" ? currentPickerValue : currentVisitTime;
+    const nextEndTime =
+      timePickerTarget === "endTime" ? currentPickerValue : currentEndTime;
+
+    const temporaryPlace: PlaceItem = {
+      ...timePickerPlace,
+      visitTime: nextVisitTime || null,
+      endTime: nextEndTime || null,
+      time:
+        nextVisitTime && nextEndTime ?
+          `${nextVisitTime} - ${nextEndTime}`
+        : nextVisitTime || nextEndTime || "",
+    };
+
+    const parsed = parseTimeForPicker(
+      getTimeValueForTarget(temporaryPlace, target),
+    );
+
+    setTimePickerPlace(temporaryPlace);
+    setTimePickerTarget(target);
+    setTimePickerHour(parsed.hour);
+    setTimePickerMinute(parsed.minute);
+    setTimePickerPeriod(parsed.period);
+  };
+
+  const handleSaveTimePicker = () => {
+    if (!timePickerPlace) return;
+
+    const selectedTime = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
+      timePickerMinute,
+    )} ${timePickerPeriod}`;
+
+    const currentVisitTime = getPlaceVisitTime(timePickerPlace);
+    const currentEndTime = getPlaceEndTime(timePickerPlace);
+
+    const nextVisitTime =
+      timePickerTarget === "visitTime" ? selectedTime : currentVisitTime;
+    const nextEndTime =
+      timePickerTarget === "endTime" ? selectedTime : currentEndTime;
+
+    handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
   };
 
@@ -339,6 +455,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const renderPlaceCard = (place: PlaceItem, index: number) => {
+    const displayTime = getPlaceDisplayTime(place);
+    const visitTime = getPlaceVisitTime(place);
+    const endTime = getPlaceEndTime(place);
+
     return (
       <View key={place.id} style={styles.simplePlaceRow}>
         <View style={styles.timelineColumn}>
@@ -357,23 +477,35 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.simpleTimeRow}
-              activeOpacity={0.75}
-              onPress={() => openTimePicker(place)}
-            >
+            <View style={styles.simpleTimeRow}>
               <Ionicons name="time-outline" size={16} color="#94A3B8" />
 
               <Text style={styles.simplePlaceTime}>
-                {place.time || "시간을 설정해주세요"}
+                {displayTime || "시간을 설정해주세요"}
               </Text>
+            </View>
 
-              <View style={styles.simpleTimeAction}>
+            <View style={styles.timeActionRow}>
+              <TouchableOpacity
+                style={styles.simpleTimeAction}
+                activeOpacity={0.75}
+                onPress={() => openTimePicker(place, "visitTime")}
+              >
                 <Text style={styles.simpleTimeActionText}>
-                  {place.time ? "변경" : "설정"}
+                  {visitTime ? "시작 변경" : "시작 설정"}
                 </Text>
-              </View>
-            </TouchableOpacity>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.simpleTimeAction}
+                activeOpacity={0.75}
+                onPress={() => openTimePicker(place, "endTime")}
+              >
+                <Text style={styles.simpleTimeActionText}>
+                  {endTime ? "종료 변경" : "종료 설정"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -391,13 +523,15 @@ export default function PlanAScreen({ navigation, route }: Props) {
         editingMemoText={editingMemoText}
         editingPlaceId={editingPlaceId}
         editingPlaceName={editingPlaceName}
-        editingPlaceTime={editingPlaceTime}
+        editingPlaceVisitTime={editingPlaceVisitTime}
+        editingPlaceEndTime={editingPlaceEndTime}
         onStartEditPlace={handleStartEditPlace}
         onCancelEditPlace={handleCancelEditPlace}
         onSaveEditPlace={handleSaveEditPlace}
         onDeletePlace={handleDeletePlace}
         onChangeEditingPlaceName={setEditingPlaceName}
-        onChangeEditingPlaceTime={setEditingPlaceTime}
+        onChangeEditingPlaceVisitTime={setEditingPlaceVisitTime}
+        onChangeEditingPlaceEndTime={setEditingPlaceEndTime}
         onChangeMemoDraft={handleChangeMemoDraft}
         onAddMemo={handleAddMemo}
         onClearMemo={handleClearMemo}
@@ -409,6 +543,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
       />
     );
   };
+
+  const timePickerPreviewText = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
+    timePickerMinute,
+  )} ${timePickerPeriod}`;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -626,10 +764,54 @@ export default function PlanAScreen({ navigation, route }: Props) {
               {timePickerPlace?.name ?? "장소"}
             </Text>
 
+            <View style={styles.timeTargetTabs}>
+              <TouchableOpacity
+                style={[
+                  styles.timeTargetTab,
+                  timePickerTarget === "visitTime" &&
+                    styles.timeTargetTabActive,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => handleSwitchTimeTarget("visitTime")}
+              >
+                <Text
+                  style={[
+                    styles.timeTargetTabText,
+                    timePickerTarget === "visitTime" &&
+                      styles.timeTargetTabTextActive,
+                  ]}
+                >
+                  시작 시간
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.timeTargetTab,
+                  timePickerTarget === "endTime" && styles.timeTargetTabActive,
+                ]}
+                activeOpacity={0.8}
+                onPress={() => handleSwitchTimeTarget("endTime")}
+              >
+                <Text
+                  style={[
+                    styles.timeTargetTabText,
+                    timePickerTarget === "endTime" &&
+                      styles.timeTargetTabTextActive,
+                  ]}
+                >
+                  종료 시간
+                </Text>
+              </TouchableOpacity>
+            </View>
+
             <View style={styles.timePickerPreview}>
+              <Text style={styles.timePickerPreviewLabel}>
+                {timePickerTarget === "visitTime" ? "시작" : "종료"}
+              </Text>
+
               <Text style={styles.timePickerPreviewText}>
-                {padTimeUnit(timePickerHour)}:{padTimeUnit(timePickerMinute)}{" "}
-                {timePickerPeriod}
+                {timePickerPreviewText}
               </Text>
             </View>
 
@@ -878,13 +1060,10 @@ const styles = StyleSheet.create({
   },
   addPlaceButtonText: { color: "#2158E8", fontSize: 15, fontWeight: "900" },
 
-  // ===== 로드맵 리스트 전체 컨테이너 =====
   roadmapList: {
     position: "relative",
     width: "100%",
   },
-
-  // ===== 장소 리스트 전체를 관통하는 하나의 세로선 =====
   roadmapLine: {
     position: "absolute",
     left: 16,
@@ -894,8 +1073,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#2563EB",
   },
-
-  // ===== 장소 한 줄 =====
   simplePlaceRow: {
     width: "100%",
     flexDirection: "row",
@@ -905,16 +1082,12 @@ const styles = StyleSheet.create({
     position: "relative",
     zIndex: 1,
   },
-
-  // ===== 왼쪽 빈 원 영역 =====
   timelineColumn: {
     width: 34,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 10,
   },
-
-  // ===== 왼쪽 빈 원 =====
   timelineCircle: {
     width: 17,
     height: 17,
@@ -924,11 +1097,9 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     zIndex: 2,
   },
-
-  // ===== 장소 카드 =====
   simplePlaceCard: {
     flex: 1,
-    minHeight: 88,
+    minHeight: 100,
     marginRight: 0,
     borderRadius: 18,
     borderWidth: 1,
@@ -944,8 +1115,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 6 },
     elevation: 2,
   },
-
-  // ===== 카드 내부 번호 배지 =====
   placeNumberBadge: {
     width: 28,
     height: 28,
@@ -966,7 +1135,7 @@ const styles = StyleSheet.create({
   simplePlaceHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
   simplePlaceTitle: {
     flex: 1,
@@ -974,16 +1143,34 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#1E293B",
   },
-  simpleTimeRow: { flexDirection: "row", alignItems: "center", gap: 6 },
-  simplePlaceTime: { fontSize: 14, fontWeight: "700", color: "#94A3B8" },
+  simpleTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 9,
+  },
+  simplePlaceTime: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#94A3B8",
+  },
+  timeActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
   simpleTimeAction: {
-    marginLeft: 8,
     borderRadius: 999,
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
   },
-  simpleTimeActionText: { color: "#64748B", fontSize: 11, fontWeight: "900" },
+  simpleTimeActionText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "900",
+  },
   bottomTabOuter: {
     position: "absolute",
     left: 24,
@@ -1054,10 +1241,35 @@ const styles = StyleSheet.create({
     color: "#64748B",
     fontSize: 13,
     fontWeight: "800",
-    marginBottom: 16,
+    marginBottom: 14,
+  },
+  timeTargetTabs: {
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: "#F1F5F9",
+    padding: 4,
+    flexDirection: "row",
+    marginBottom: 14,
+  },
+  timeTargetTab: {
+    flex: 1,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  timeTargetTabActive: {
+    backgroundColor: "#2158E8",
+  },
+  timeTargetTabText: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  timeTargetTabTextActive: {
+    color: "#FFFFFF",
   },
   timePickerPreview: {
-    height: 46,
+    height: 52,
     borderRadius: 12,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
@@ -1065,6 +1277,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 18,
+  },
+  timePickerPreviewLabel: {
+    color: "#94A3B8",
+    fontSize: 10,
+    fontWeight: "900",
+    marginBottom: 2,
   },
   timePickerPreviewText: {
     color: "#111827",

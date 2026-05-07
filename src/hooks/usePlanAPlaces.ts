@@ -87,6 +87,56 @@ const createMemo = (text: string): MemoItem => {
   };
 };
 
+const normalizeNullableTime = (value?: string | null) => {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+};
+
+const makeDisplayTime = (
+  visitTime?: string | null,
+  endTime?: string | null,
+) => {
+  const start = normalizeNullableTime(visitTime);
+  const end = normalizeNullableTime(endTime);
+
+  if (start && end) return `${start} - ${end}`;
+  if (start) return start;
+  if (end) return end;
+
+  return "";
+};
+
+const parseLegacyTime = (time?: string | null) => {
+  const normalized = normalizeNullableTime(time);
+
+  if (!normalized || normalized === "시간 미정") {
+    return {
+      visitTime: null,
+      endTime: null,
+    };
+  }
+
+  const [start, end] = normalized.split(/\s*-\s*/);
+
+  return {
+    visitTime: normalizeNullableTime(start),
+    endTime: normalizeNullableTime(end),
+  };
+};
+
+const getPlaceVisitTime = (place: PlaceItem) => {
+  return (
+    normalizeNullableTime(place.visitTime) ??
+    parseLegacyTime(place.time).visitTime
+  );
+};
+
+const getPlaceEndTime = (place: PlaceItem) => {
+  return (
+    normalizeNullableTime(place.endTime) ?? parseLegacyTime(place.time).endTime
+  );
+};
+
 const createPlace = ({
   id,
   tripPlaceId,
@@ -99,6 +149,8 @@ const createPlace = ({
   latitude,
   longitude,
   time,
+  visitTime,
+  endTime,
   order,
   memos = [],
 }: {
@@ -112,11 +164,19 @@ const createPlace = ({
   category?: string;
   latitude?: number;
   longitude?: number;
-  time: string;
+  time?: string;
+  visitTime?: string | null;
+  endTime?: string | null;
   order: number;
   memos?: MemoItem[];
 }): PlaceItem => {
   const now = createNow();
+
+  const legacyParsed = parseLegacyTime(time);
+  const nextVisitTime =
+    normalizeNullableTime(visitTime) ?? legacyParsed.visitTime;
+  const nextEndTime = normalizeNullableTime(endTime) ?? legacyParsed.endTime;
+  const displayTime = makeDisplayTime(nextVisitTime, nextEndTime) || time || "";
 
   return {
     id,
@@ -129,7 +189,9 @@ const createPlace = ({
     category,
     latitude,
     longitude,
-    time,
+    time: displayTime,
+    visitTime: nextVisitTime,
+    endTime: nextEndTime,
     order,
     memos,
     createdAt: now,
@@ -273,6 +335,11 @@ const applyServerPlaceIdsToSchedule = ({
             place.googlePlaceId ??
             place.id;
 
+          const visitTime =
+            matchedCreatedPlace?.createdLocation.visitTime ?? place.visitTime;
+          const endTime =
+            matchedCreatedPlace?.createdLocation.endTime ?? place.endTime;
+
           return {
             ...place,
             tripPlaceId,
@@ -281,6 +348,9 @@ const applyServerPlaceIdsToSchedule = ({
             googlePlaceId:
               place.googlePlaceId ??
               (externalPlaceId ? String(externalPlaceId) : undefined),
+            visitTime,
+            endTime,
+            time: makeDisplayTime(visitTime, endTime) || place.time,
             updatedAt: createNow(),
           };
         }),
@@ -328,7 +398,8 @@ export function usePlanAPlaces({
 
   const [editingPlaceId, setEditingPlaceId] = useState<string | null>(null);
   const [editingPlaceName, setEditingPlaceName] = useState("");
-  const [editingPlaceTime, setEditingPlaceTime] = useState("");
+  const [editingPlaceVisitTime, setEditingPlaceVisitTime] = useState("");
+  const [editingPlaceEndTime, setEditingPlaceEndTime] = useState("");
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
@@ -570,6 +641,8 @@ export function usePlanAPlaces({
             latitude: placeToAdd.latitude,
             longitude: placeToAdd.longitude,
             time: placeToAdd.time ?? "",
+            visitTime: placeToAdd.visitTime,
+            endTime: placeToAdd.endTime,
             order: targetPlaces.length + 1,
           }),
         ];
@@ -577,15 +650,23 @@ export function usePlanAPlaces({
     });
   }, [hasLoadedSavedSchedule, selectedDay, selectedPlace, selectedPlaces]);
 
-  const handleUpdatePlaceTime = (placeId: string, time: string) => {
-    const nextTime = time.trim();
+  const handleUpdatePlaceTime = (
+    placeId: string,
+    visitTime?: string | null,
+    endTime?: string | null,
+  ) => {
+    const nextVisitTime = normalizeNullableTime(visitTime);
+    const nextEndTime = normalizeNullableTime(endTime);
+    const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
 
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId ?
           {
             ...place,
-            time: nextTime,
+            visitTime: nextVisitTime,
+            endTime: nextEndTime,
+            time: nextDisplayTime,
             updatedAt: createNow(),
           }
         : place,
@@ -595,7 +676,9 @@ export function usePlanAPlaces({
     console.log("[PlanA 장소 시간 변경 완료]", {
       day: selectedDay,
       placeId,
-      time: nextTime,
+      visitTime: nextVisitTime,
+      endTime: nextEndTime,
+      time: nextDisplayTime,
     });
   };
 
@@ -604,7 +687,8 @@ export function usePlanAPlaces({
     setEditingMemoText("");
     setEditingPlaceId(null);
     setEditingPlaceName("");
-    setEditingPlaceTime("");
+    setEditingPlaceVisitTime("");
+    setEditingPlaceEndTime("");
   };
 
   const handleSaveSchedule = async (): Promise<TravelSchedule> => {
@@ -718,6 +802,8 @@ export function usePlanAPlaces({
             googlePlaceId: place.googlePlaceId,
             tripPlaceId: place.tripPlaceId,
             serverTripPlaceId: place.serverTripPlaceId,
+            visitTime: place.visitTime,
+            endTime: place.endTime,
           })),
         ),
       });
@@ -756,18 +842,22 @@ export function usePlanAPlaces({
 
     setEditingPlaceId(place.id);
     setEditingPlaceName(place.name);
-    setEditingPlaceTime(place.time);
+    setEditingPlaceVisitTime(getPlaceVisitTime(place) ?? "");
+    setEditingPlaceEndTime(getPlaceEndTime(place) ?? "");
   };
 
   const handleCancelEditPlace = () => {
     setEditingPlaceId(null);
     setEditingPlaceName("");
-    setEditingPlaceTime("");
+    setEditingPlaceVisitTime("");
+    setEditingPlaceEndTime("");
   };
 
   const handleSaveEditPlace = () => {
     const trimmedName = editingPlaceName.trim();
-    const trimmedTime = editingPlaceTime.trim();
+    const nextVisitTime = normalizeNullableTime(editingPlaceVisitTime);
+    const nextEndTime = normalizeNullableTime(editingPlaceEndTime);
+    const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
 
     if (!editingPlaceId || !trimmedName) return;
 
@@ -777,7 +867,9 @@ export function usePlanAPlaces({
           {
             ...place,
             name: trimmedName,
-            time: trimmedTime || "시간 미정",
+            visitTime: nextVisitTime,
+            endTime: nextEndTime,
+            time: nextDisplayTime,
             updatedAt: createNow(),
           }
         : place,
@@ -848,7 +940,8 @@ export function usePlanAPlaces({
   const handleStartEditMemo = (placeId: string, item: MemoItem) => {
     setEditingPlaceId(null);
     setEditingPlaceName("");
-    setEditingPlaceTime("");
+    setEditingPlaceVisitTime("");
+    setEditingPlaceEndTime("");
 
     setEditingMemo({
       placeId,
@@ -934,8 +1027,10 @@ export function usePlanAPlaces({
     editingPlaceId,
     editingPlaceName,
     setEditingPlaceName,
-    editingPlaceTime,
-    setEditingPlaceTime,
+    editingPlaceVisitTime,
+    setEditingPlaceVisitTime,
+    editingPlaceEndTime,
+    setEditingPlaceEndTime,
 
     resetEditingState,
 

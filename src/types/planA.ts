@@ -57,7 +57,6 @@ export type SelectedPlaceParam = {
 
   /**
    * 서버 명세 기준 방문 시작/종료 시간
-   * 이후 time 단일값 대신 visitTime/endTime 중심으로 전환 예정
    */
   visitTime?: string | null;
   endTime?: string | null;

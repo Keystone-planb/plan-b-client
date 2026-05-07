@@ -27,14 +27,16 @@ type Props = {
 
   editingPlaceId: string | null;
   editingPlaceName: string;
-  editingPlaceTime: string;
+  editingPlaceVisitTime: string;
+  editingPlaceEndTime: string;
 
   onStartEditPlace: (place: PlaceItem) => void;
   onCancelEditPlace: () => void;
   onSaveEditPlace: () => void;
   onDeletePlace: (placeId: string) => void;
   onChangeEditingPlaceName: (value: string) => void;
-  onChangeEditingPlaceTime: (value: string) => void;
+  onChangeEditingPlaceVisitTime: (value: string) => void;
+  onChangeEditingPlaceEndTime: (value: string) => void;
 
   onChangeMemoDraft: (placeId: string, value: string) => void;
   onAddMemo: (placeId: string) => void;
@@ -44,6 +46,18 @@ type Props = {
   onSaveEditMemo: () => void;
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
+};
+
+const makeDisplayTime = (place: PlaceItem) => {
+  const visitTime = place.visitTime?.trim();
+  const endTime = place.endTime?.trim();
+
+  if (visitTime && endTime) return `${visitTime} - ${endTime}`;
+  if (visitTime) return visitTime;
+  if (endTime) return endTime;
+  if (place.time?.trim()) return place.time;
+
+  return "시간을 설정해주세요";
 };
 
 export default function PlanAPlaceCard({
@@ -56,14 +70,16 @@ export default function PlanAPlaceCard({
 
   editingPlaceId,
   editingPlaceName,
-  editingPlaceTime,
+  editingPlaceVisitTime,
+  editingPlaceEndTime,
 
   onStartEditPlace,
   onCancelEditPlace,
   onSaveEditPlace,
   onDeletePlace,
   onChangeEditingPlaceName,
-  onChangeEditingPlaceTime,
+  onChangeEditingPlaceVisitTime,
+  onChangeEditingPlaceEndTime,
 
   onChangeMemoDraft,
   onAddMemo,
@@ -99,17 +115,35 @@ export default function PlanAPlaceCard({
               style={styles.placeEditInput}
             />
 
-            <Text style={[styles.editLabel, styles.timeEditLabel]}>
-              방문 시간
-            </Text>
+            <View style={styles.timeEditRow}>
+              <View style={styles.timeEditColumn}>
+                <Text style={[styles.editLabel, styles.timeEditLabel]}>
+                  시작 시간
+                </Text>
 
-            <TextInput
-              value={editingPlaceTime}
-              onChangeText={onChangeEditingPlaceTime}
-              placeholder="10:00"
-              placeholderTextColor="#8C9BB1"
-              style={styles.placeEditInput}
-            />
+                <TextInput
+                  value={editingPlaceVisitTime}
+                  onChangeText={onChangeEditingPlaceVisitTime}
+                  placeholder="10:00 AM"
+                  placeholderTextColor="#8C9BB1"
+                  style={styles.placeEditInput}
+                />
+              </View>
+
+              <View style={styles.timeEditColumn}>
+                <Text style={[styles.editLabel, styles.timeEditLabel]}>
+                  종료 시간
+                </Text>
+
+                <TextInput
+                  value={editingPlaceEndTime}
+                  onChangeText={onChangeEditingPlaceEndTime}
+                  placeholder="11:00 AM"
+                  placeholderTextColor="#8C9BB1"
+                  style={styles.placeEditInput}
+                />
+              </View>
+            </View>
 
             <View style={styles.placeEditButtonRow}>
               <TouchableOpacity
@@ -161,7 +195,7 @@ export default function PlanAPlaceCard({
             >
               <View style={styles.placeTitleBox}>
                 <Text style={styles.placeTitle}>{place.name}</Text>
-                <Text style={styles.placeTime}>{place.time}</Text>
+                <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
               </View>
 
               <View style={styles.placeActionBadge}>
@@ -289,6 +323,15 @@ const styles = StyleSheet.create({
 
   timeEditLabel: {
     marginTop: 4,
+  },
+
+  timeEditRow: {
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  timeEditColumn: {
+    flex: 1,
   },
 
   placeEditInput: {
