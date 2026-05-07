@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Modal, View, Text, TouchableOpacity, StyleSheet } from "react-native";
 import { Calendar, DateData } from "react-native-calendars";
+import { Ionicons } from "@expo/vector-icons";
 
 type Props = {
   visible: boolean;
@@ -25,11 +26,21 @@ const TEXT_MAIN = "#1C2534";
 const TEXT_SUB = "#627187";
 const BG = "#F7F9FB";
 const BORDER = "#E1E7EF";
+const ERROR = "#EF4444";
 
 function formatDisplayDate(date?: string) {
   if (!date) return "날짜 선택";
   const [year, month, day] = date.split("-");
   return `${year}.${month}.${day}`;
+}
+
+function isEndBeforeStart(start?: string, end?: string) {
+  if (!start || !end) return false;
+
+  const startTime = new Date(`${start}T00:00:00`).getTime();
+  const endTime = new Date(`${end}T00:00:00`).getTime();
+
+  return endTime < startTime;
 }
 
 function getDatesInRange(start: string, end: string) {
@@ -51,7 +62,11 @@ function getDatesInRange(start: string, end: string) {
 function buildMarkedDates(startDate?: string, endDate?: string): MarkedDates {
   if (!startDate) return {};
 
-  if (!endDate || startDate === endDate) {
+  if (
+    !endDate ||
+    startDate === endDate ||
+    isEndBeforeStart(startDate, endDate)
+  ) {
     return {
       [startDate]: {
         startingDay: true,
@@ -106,6 +121,10 @@ export default function TravelDateRangeModal({
   const [startDate, setStartDate] = useState(initialStartDate ?? "");
   const [endDate, setEndDate] = useState(initialEndDate ?? "");
 
+  const hasDateError = isEndBeforeStart(startDate, endDate);
+  const dateErrorMessage =
+    hasDateError ? "출발일은 도착일보다 늦을 수 없습니다." : "";
+
   const markedDates = useMemo(
     () => buildMarkedDates(startDate || undefined, endDate || undefined),
     [startDate, endDate],
@@ -114,14 +133,9 @@ export default function TravelDateRangeModal({
   const handleDayPress = (day: DateData) => {
     const selected = day.dateString;
 
-    if (!startDate || (startDate && endDate)) {
+    if (!startDate || (startDate && endDate && !hasDateError)) {
       setStartDate(selected);
       setEndDate("");
-      return;
-    }
-
-    if (selected < startDate) {
-      setStartDate(selected);
       return;
     }
 
@@ -129,33 +143,32 @@ export default function TravelDateRangeModal({
   };
 
   const handleApply = () => {
-    if (!startDate || !endDate) return;
+    if (!startDate || !endDate || hasDateError) return;
+
     onApply({ startDate, endDate });
     onClose();
   };
 
-  const isApplyDisabled = !startDate || !endDate;
-  const renderDay = ({
-    date,
-    state,
-  }: {
-    date?: DateData;
-    state?: string;
-  }) => {
+  const isApplyDisabled = !startDate || !endDate || hasDateError;
+
+  const renderDay = ({ date, state }: { date?: DateData; state?: string }) => {
     if (!date) {
       return <View style={styles.dayCell} />;
     }
 
     const dateString = date.dateString;
     const isDisabled = state === "disabled";
-    const hasRange = Boolean(startDate && endDate);
-    const isSingleSelected = startDate === dateString && !endDate;
+    const hasRange = Boolean(startDate && endDate && !hasDateError);
+    const isSingleSelected =
+      startDate === dateString && (!endDate || hasDateError);
     const isStart = startDate === dateString;
     const isEnd = endDate === dateString;
     const isInRange =
       hasRange && dateString >= startDate && dateString <= endDate;
     const isMiddle = isInRange && !isStart && !isEnd;
-    const isSelectedCircle = isSingleSelected || isStart || isEnd;
+    const isSelectedCircle =
+      isSingleSelected || isStart || (isEnd && !hasDateError);
+    const isErrorEnd = hasDateError && isEnd;
 
     const handlePress = () => {
       handleDayPress(date);
@@ -168,7 +181,7 @@ export default function TravelDateRangeModal({
         onPress={handlePress}
         disabled={isDisabled}
       >
-        {isInRange && !isSingleSelected ? (
+        {isInRange && !isSingleSelected ?
           <View
             style={[
               styles.rangeBackground,
@@ -177,12 +190,13 @@ export default function TravelDateRangeModal({
               isMiddle && styles.rangeBackgroundMiddle,
             ]}
           />
-        ) : null}
+        : null}
 
         <View
           style={[
             styles.dayCircle,
             isSelectedCircle && styles.selectedDayCircle,
+            isErrorEnd && styles.errorDayCircle,
           ]}
         >
           <Text
@@ -191,6 +205,7 @@ export default function TravelDateRangeModal({
               isDisabled && styles.disabledDayText,
               isMiddle && styles.rangeDayText,
               isSelectedCircle && styles.selectedDayText,
+              isErrorEnd && styles.errorDayText,
             ]}
           >
             {date.day}
@@ -199,7 +214,6 @@ export default function TravelDateRangeModal({
       </TouchableOpacity>
     );
   };
-
 
   return (
     <Modal visible={visible} animationType="slide" transparent>
@@ -225,16 +239,27 @@ export default function TravelDateRangeModal({
             <View style={styles.summaryDivider} />
 
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryLabel}>종료일</Text>
-              <Text style={styles.summaryValue}>
+              <Text style={styles.summaryLabel}>도착일</Text>
+              <Text
+                style={[
+                  styles.summaryValue,
+                  hasDateError && styles.summaryErrorValue,
+                ]}
+              >
                 {formatDisplayDate(endDate)}
               </Text>
             </View>
           </View>
 
-          <Text style={styles.helperText}>
-            출발일을 먼저 선택하고, 그다음 종료일을 선택해주세요.
-          </Text>
+          {hasDateError ?
+            <View style={styles.modalErrorBox}>
+              <Ionicons name="alert-circle" size={15} color={ERROR} />
+              <Text style={styles.modalErrorText}>{dateErrorMessage}</Text>
+            </View>
+          : <Text style={styles.helperText}>
+              출발일을 먼저 선택하고, 그다음 도착일을 선택해주세요.
+            </Text>
+          }
 
           <Calendar
             markingType="period"
@@ -367,10 +392,36 @@ const styles = StyleSheet.create({
     color: TEXT_MAIN,
   },
 
+  summaryErrorValue: {
+    color: ERROR,
+  },
+
   helperText: {
     fontSize: 13,
     color: TEXT_SUB,
     marginBottom: 14,
+  },
+
+  modalErrorBox: {
+    minHeight: 34,
+    borderRadius: 12,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    marginBottom: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  modalErrorText: {
+    flex: 1,
+    color: ERROR,
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17,
   },
 
   calendar: {
@@ -427,6 +478,12 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
   },
 
+  errorDayCircle: {
+    backgroundColor: "#FEE2E2",
+    borderWidth: 1,
+    borderColor: ERROR,
+  },
+
   dayText: {
     color: TEXT_MAIN,
     fontSize: 14,
@@ -436,6 +493,11 @@ const styles = StyleSheet.create({
   selectedDayText: {
     color: "#FFFFFF",
     fontWeight: "800",
+  },
+
+  errorDayText: {
+    color: ERROR,
+    fontWeight: "900",
   },
 
   rangeDayText: {

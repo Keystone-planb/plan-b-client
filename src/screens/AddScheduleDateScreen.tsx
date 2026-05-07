@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
+  Alert,
+  Platform,
   View,
   ScrollView,
   Text,
@@ -27,19 +29,63 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
   const [endDate, setEndDate] = useState("");
   const [calendarVisible, setCalendarVisible] = useState(false);
 
-  const canGoNext = Boolean(tripName.trim() && startDate && endDate);
+  const isEndDateBeforeStartDate = (start: string, end: string) => {
+    if (!start || !end) return false;
+
+    const startTime = new Date(`${start}T00:00:00`).getTime();
+    const endTime = new Date(`${end}T00:00:00`).getTime();
+
+    return endTime < startTime;
+  };
+
+  const dateErrorMessage = useMemo(() => {
+    if (!startDate || !endDate) return "";
+
+    if (isEndDateBeforeStartDate(startDate, endDate)) {
+      return "출발일은 도착일보다 늦을 수 없습니다.";
+    }
+
+    return "";
+  }, [startDate, endDate]);
+
+  const hasDateError = Boolean(dateErrorMessage);
+
+  const canGoNext = Boolean(
+    tripName.trim() && startDate && endDate && !hasDateError,
+  );
+
+  const showAlert = (title: string, message: string) => {
+    if (Platform.OS === "web") {
+      const browserWindow = globalThis as typeof globalThis & {
+        alert?: (message?: string) => void;
+      };
+
+      if (typeof browserWindow.alert === "function") {
+        browserWindow.alert(`${title}\n${message}`);
+        return;
+      }
+    }
+
+    Alert.alert(title, message);
+  };
 
   const handleBack = () => {
     navigation.goBack();
   };
 
   const handleNext = () => {
-    if (!canGoNext) {
-      console.log("[여행 수단 선택 이동 중단]", {
-        tripName,
-        startDate,
-        endDate,
-      });
+    if (!tripName.trim()) {
+      showAlert("일정 이름 확인", "여행 이름을 먼저 입력해주세요.");
+      return;
+    }
+
+    if (!startDate || !endDate) {
+      showAlert("날짜 선택", "출발일과 도착일을 모두 선택해주세요.");
+      return;
+    }
+
+    if (hasDateError) {
+      showAlert("날짜를 확인해주세요", dateErrorMessage);
       return;
     }
 
@@ -48,6 +94,17 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
       startDate,
       endDate,
     });
+  };
+
+  const handleApplyDateRange = ({
+    startDate: nextStartDate,
+    endDate: nextEndDate,
+  }: {
+    startDate: string;
+    endDate: string;
+  }) => {
+    setStartDate(nextStartDate);
+    setEndDate(nextEndDate);
   };
 
   const formatDate = (value: string) => {
@@ -117,7 +174,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>종료일</Text>
+              <Text style={styles.fieldLabel}>도착일</Text>
 
               <TouchableOpacity
                 style={styles.dateField}
@@ -161,10 +218,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
         initialStartDate={startDate}
         initialEndDate={endDate}
         onClose={() => setCalendarVisible(false)}
-        onApply={({ startDate: nextStartDate, endDate: nextEndDate }) => {
-          setStartDate(nextStartDate);
-          setEndDate(nextEndDate);
-        }}
+        onApply={handleApplyDateRange}
       />
     </SafeAreaView>
   );

@@ -1,7 +1,6 @@
 import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -12,6 +11,8 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
+
+import RadialBackground from "../components/RadialBackground";
 
 type Props = {
   navigation: any;
@@ -43,7 +44,6 @@ const PLAN_A_STORAGE_PREFIX = "plan_a_schedule:";
 
 const formatDisplayDate = (value?: string) => {
   if (!value) return "";
-
   return value.replace(/-/g, ".");
 };
 
@@ -65,13 +65,8 @@ const getScheduleDate = (schedule: StoredSchedule) => {
     return `${startDate} - ${endDate}`;
   }
 
-  if (startDate) {
-    return startDate;
-  }
-
-  if (endDate) {
-    return endDate;
-  }
+  if (startDate) return startDate;
+  if (endDate) return endDate;
 
   return "날짜 미정";
 };
@@ -149,22 +144,38 @@ export default function MainScreen({ navigation }: Props) {
   const renderEmptyState = () => {
     return (
       <View style={styles.emptyContainer}>
-        <View style={styles.emptyIconCircle}>
-          <Ionicons name="calendar" size={34} color="#2158E8" />
+        <View style={styles.radialLayer} pointerEvents="none">
+          <RadialBackground />
         </View>
 
-        <Text style={styles.emptyTitle}>등록된 일정이 없습니다</Text>
-        <Text style={styles.emptyDescription}>
-          새로운 여행 일정을 추가해보세요
-        </Text>
+        <View style={styles.foregroundContent}>
+          <View style={styles.emptyIconCircle}>
+            <View style={styles.calendarIcon}>
+              <View style={styles.calendarTopBar}>
+                <View style={styles.calendarRing} />
+                <View style={styles.calendarRing} />
+              </View>
 
-        <TouchableOpacity
-          style={styles.addButton}
-          activeOpacity={0.85}
-          onPress={handleAddSchedule}
-        >
-          <Text style={styles.addButtonText}>일정 추가하기</Text>
-        </TouchableOpacity>
+              <View style={styles.calendarBody}>
+                <View style={styles.calendarDateBlock} />
+              </View>
+            </View>
+          </View>
+
+          <Text style={styles.emptyTitle}>등록된 일정이 없습니다</Text>
+
+          <Text style={styles.emptyDescription}>
+            새로운 여행 일정을 추가해보세요
+          </Text>
+
+          <TouchableOpacity
+            style={styles.addButton}
+            activeOpacity={0.85}
+            onPress={handleAddSchedule}
+          >
+            <Text style={styles.addButtonText}>일정 추가하기</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   };
@@ -278,53 +289,130 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingBottom: 130,
+    position: "relative",
+    overflow: "hidden",
+  },
+
+  /*
+   * 여기 고치면 됨.
+   * 원이 앞에 있는 것처럼 보이면 opacity를 더 낮춰.
+   * 예: 0.42 → 0.32
+   */
+  radialLayer: {
+    position: "absolute",
+    top: "51%",
+    marginTop: -175,
+    width: 350,
+    height: 350,
+    alignItems: "center",
+    justifyContent: "center",
+    opacity: 0.42,
+    zIndex: 0,
+    elevation: 0,
+  },
+
+  foregroundContent: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 48,
+    zIndex: 10,
+    elevation: 10,
   },
 
   emptyIconCircle: {
-    width: 86,
-    height: 86,
-    borderRadius: 43,
+    width: 96,
+    height: 96,
+    borderRadius: 48,
     backgroundColor: "#D7E9FF",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 20,
+    marginBottom: 24,
+    zIndex: 11,
+    elevation: 11,
+  },
+
+  calendarIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    borderWidth: 4,
+    borderColor: "#2158E8",
+    backgroundColor: "#D7E9FF",
+    overflow: "hidden",
+  },
+
+  calendarTopBar: {
+    height: 11,
+    backgroundColor: "#2158E8",
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 7,
+    position: "relative",
+  },
+
+  calendarRing: {
+    width: 4,
+    height: 11,
+    borderRadius: 2,
+    backgroundColor: "#2158E8",
+    marginTop: -7,
+  },
+
+  calendarBody: {
+    flex: 1,
+    backgroundColor: "#D7E9FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  calendarDateBlock: {
+    width: 12,
+    height: 10,
+    borderRadius: 2,
+    backgroundColor: "#2158E8",
+    opacity: 0.95,
   },
 
   emptyTitle: {
     color: "#1C2534",
-    fontSize: 17,
+    fontSize: 18,
     fontWeight: "900",
-    marginBottom: 8,
+    marginBottom: 12,
+    zIndex: 11,
+    elevation: 11,
   },
 
   emptyDescription: {
     color: "#9AA8BA",
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
-    marginBottom: 26,
+    marginBottom: 30,
+    zIndex: 11,
+    elevation: 11,
   },
 
   addButton: {
-    minWidth: 132,
-    height: 48,
-    paddingHorizontal: 22,
-    borderRadius: 12,
+    minWidth: 164,
+    height: 56,
+    paddingHorizontal: 28,
+    borderRadius: 14,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
-      height: 6,
+      height: 8,
     },
     shadowOpacity: 0.28,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowRadius: 12,
+    elevation: 12,
+    zIndex: 12,
   },
 
   addButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 17,
     fontWeight: "900",
   },
 
