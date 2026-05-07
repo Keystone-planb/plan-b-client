@@ -1,20 +1,26 @@
 import React, { useEffect, useRef } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Platform,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
 import * as Linking from "expo-linking";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import {
   getOAuthFailureMessage,
   handleOAuthSuccessUrl,
   isOAuthFailureUrl,
   isOAuthSuccessUrl,
+  saveOAuthTokens,
 } from "../utils/authToken";
+import {
+  requestSocialTokenLogin,
+  SocialProvider,
+} from "../../api/auth/social";
 
 type Props = {
   navigation: any;
@@ -23,58 +29,136 @@ type Props = {
 export default function OAuthRedirectScreen({ navigation }: Props) {
   const handledRef = useRef(false);
 
-  useEffect(() => {
-    const handleRedirect = async () => {
-      if (handledRef.current) return;
+  const moveToMain = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Main" }],
+    });
+  };
 
-      handledRef.current = true;
+  const moveToLogin = () => {
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  };
 
-      try {
-        const currentUrl =
-          Platform.OS === "web" && typeof window !== "undefined" ?
-            window.location.href
-          : await Linking.getInitialURL();
+  const getRedirectParam = (url: string, key: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      const queryValue = parsedUrl.searchParams.get(key);
 
-        console.log("[OAuthRedirectScreen] currentUrl:", currentUrl);
+      if (queryValue) return queryValue;
 
-        if (!currentUrl) {
-          throw new Error("OAuth redirect URL을 찾을 수 없습니다.");
-        }
+      const hash = parsedUrl.hash.startsWith("#") ?
+        parsedUrl.hash.slice(1)
+      : parsedUrl.hash;
+      const hashParams = new URLSearchParams(hash);
 
-        if (isOAuthFailureUrl(currentUrl)) {
-          throw new Error(getOAuthFailureMessage(currentUrl));
-        }
+      return hashParams.get(key);
+    } catch {
+      const queryString = url.split("?")[1] ?? "";
+      const params = new URLSearchParams(queryString);
+      return params.get(key);
+    }
+  };
 
-        if (!isOAuthSuccessUrl(currentUrl)) {
-          throw new Error("OAuth 성공 URL이 아닙니다.");
-        }
+  const getRedirectProvider = (url: string): SocialProvider | null => {
+    const provider = getRedirectParam(url, "provider");
 
-        await handleOAuthSuccessUrl(currentUrl);
+    return provider === "kakao" || provider === "google" ? provider : null;
+  };
 
-        console.log("[OAuthRedirectScreen] token saved. move Main");
+  const handleSocialTokenRedirect = async (url: string) => {
+    const provider = getRedirectProvider(url);
+    const oauthToken =
+      getRedirectParam(url, "oauth_token") ||
+      getRedirectParam(url, "oauthToken");
 
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Main" }],
-        });
-      } catch (error) {
-        console.log("[OAuthRedirectScreen] failed:", error);
+    if (!provider || !oauthToken) return false;
 
-        navigation.reset({
-          index: 0,
-          routes: [{ name: "Login" }],
-        });
+    const result = await requestSocialTokenLogin(provider, oauthToken);
+
+    await saveOAuthTokens({
+      accessToken: result.access_token,
+      refreshToken: result.refresh_token,
+      userId: result.user_id ? String(result.user_id) : undefined,
+      nickname: result.nickname,
+    });
+
+    return true;
+  };
+
+  const handleUrl = async (url: string | null) => {
+    if (!url || handledRef.current) return;
+
+    handledRef.current = true;
+
+    if (__DEV__) {
+      console.log("[OAuthRedirect] received url:", url);
+    }
+
+    try {
+      if (isOAuthFailureUrl(url)) {
+        const message = getOAuthFailureMessage(url);
+        Alert.alert("로그인 실패", message);
+        moveToLogin();
+        return;
       }
+
+      if (isOAuthSuccessUrl(url)) {
+        const handledByTokenExchange = await handleSocialTokenRedirect(url);
+
+        if (handledByTokenExchange) {
+          moveToMain();
+          return;
+        }
+
+        await handleOAuthSuccessUrl(url);
+        moveToMain();
+        return;
+      }
+
+      Alert.alert("로그인 실패", "알 수 없는 소셜 로그인 응답입니다.");
+      moveToLogin();
+    } catch (error) {
+      const message =
+        error instanceof Error ?
+          error.message
+        : "소셜 로그인 처리 중 오류가 발생했습니다.";
+
+      Alert.alert("로그인 실패", message);
+      moveToLogin();
+    }
+  };
+
+  useEffect(() => {
+    const run = async () => {
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        await handleUrl(window.location.href);
+        return;
+      }
+
+      const initialUrl = await Linking.getInitialURL();
+      await handleUrl(initialUrl);
     };
 
-    handleRedirect();
-  }, [navigation]);
+    run();
+
+    const subscription = Linking.addEventListener("url", ({ url }) => {
+      handleUrl(url);
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <ActivityIndicator size="large" color="#2158E8" />
-        <Text style={styles.title}>소셜 로그인 처리 중...</Text>
+    <SafeAreaView style={styles.safeArea}>
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#2F6BFF" />
+        <Text style={styles.title}>소셜 로그인 처리 중</Text>
         <Text style={styles.description}>잠시만 기다려주세요.</Text>
       </View>
     </SafeAreaView>
@@ -82,29 +166,25 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  safeArea: {
     flex: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: "#FFFFFF",
   },
-
-  content: {
+  container: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-
   title: {
-    marginTop: 18,
-    color: "#1E293B",
+    marginTop: 20,
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "700",
+    color: "#111827",
   },
-
   description: {
     marginTop: 8,
-    color: "#64748B",
     fontSize: 14,
-    fontWeight: "700",
+    color: "#6B7280",
   },
 });

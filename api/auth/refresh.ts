@@ -6,7 +6,7 @@ const BASE_URL = API_CONFIG.BASE_URL;
 export interface RefreshRequest {
   /**
    * AsyncStorage에 저장된 키 이름은 refresh_token 그대로 사용.
-   * 단, 서버 요청 body에는 05/04 명세 기준으로 refreshToken으로 변환해서 보낸다.
+   * 서버 요청 body도 최신 명세 기준으로 refresh_token 그대로 보낸다.
    */
   refresh_token: string;
 }
@@ -69,8 +69,8 @@ const isHtmlResponse = (data: unknown) => {
  * 토큰 재발급 API
  * POST /api/auth/refresh
  *
- * 05/04 API 명세 기준:
- * Request body는 { refreshToken: string }
+ * 최신 API 명세 기준:
+ * Request body는 { refresh_token: string }
  *
  * 프론트 저장 키:
  * AsyncStorage에는 기존대로 refresh_token 저장
@@ -90,7 +90,7 @@ export const requestRefresh = async ({
     const response = await axios.post<unknown>(
       `${BASE_URL}/api/auth/refresh`,
       {
-        refreshToken: refresh_token,
+        refresh_token,
       },
       {
         timeout: 5000,

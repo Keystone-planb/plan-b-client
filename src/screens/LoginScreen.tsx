@@ -2,10 +2,11 @@
  * src/screens/LoginScreen.tsx
  *
  * - 일반 로그인
- * - 카카오 WebView 소셜 로그인
- * - Google system browser 소셜 로그인
- * - Web OAuth 전체 페이지 이동
- * - OAuth 성공 URL 토큰 저장
+ * - 카카오 소셜 로그인 (GET 요청)
+ * - Google 소셜 로그인 (GET 요청)
+ * - 웹: window.location.assign() 전체 페이지 이동
+ * - 앱: WebView / WebBrowser 사용
+ * - OAuth 성공 URL 감지 및 토큰 저장
  */
 
 import React, { useState } from "react";
@@ -26,12 +27,17 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import WebView from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 
 import GoogleIcon from "../assets/google.svg";
 import KakaoIcon from "../assets/kakao.svg";
 
 import { requestLogin } from "../../api/auth/login";
-import { createSocialAuthUrl } from "../../api/auth/social";
+import {
+  createSocialAuthUrl,
+  requestSocialTokenLogin,
+  SocialProvider,
+} from "../../api/auth/social";
 import {
   getOAuthFailureMessage,
   handleOAuthSuccessUrl,
@@ -54,8 +60,6 @@ type LoginResult = {
   is_new_user?: boolean;
 };
 
-type SocialProvider = "kakao" | "google";
-
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -65,8 +69,9 @@ export default function LoginScreen({ navigation }: any) {
 
   const [socialLoadingProvider, setSocialLoadingProvider] =
     useState<SocialProvider | null>(null);
+
   const [webViewVisible, setWebViewVisible] = useState(false);
-  const [kakaoAuthUrl, setKakaoAuthUrl] = useState("");
+  const [webViewUrl, setWebViewUrl] = useState("");
 
   const isKakaoLoading = socialLoadingProvider === "kakao";
   const isGoogleLoading = socialLoadingProvider === "google";
@@ -92,6 +97,8 @@ export default function LoginScreen({ navigation }: any) {
     await saveOAuthTokens({
       accessToken,
       refreshToken,
+      userId: result.user_id ? String(result.user_id) : undefined,
+      nickname: result.nickname,
     });
   };
 
@@ -105,6 +112,47 @@ export default function LoginScreen({ navigation }: any) {
       error instanceof Error ? error.message : "로그인에 실패했습니다.";
 
     Alert.alert(title, message);
+  };
+
+  const getRedirectParam = (url: string, key: string) => {
+    try {
+      const parsedUrl = new URL(url);
+      const queryValue = parsedUrl.searchParams.get(key);
+
+      if (queryValue) return queryValue;
+
+      const hash =
+        parsedUrl.hash.startsWith("#") ?
+          parsedUrl.hash.slice(1)
+        : parsedUrl.hash;
+      const hashParams = new URLSearchParams(hash);
+
+      return hashParams.get(key);
+    } catch {
+      const queryString = url.split("?")[1] ?? "";
+      const params = new URLSearchParams(queryString);
+      return params.get(key);
+    }
+  };
+
+  const getRedirectProvider = (url: string): SocialProvider | null => {
+    const provider = getRedirectParam(url, "provider");
+
+    return provider === "kakao" || provider === "google" ? provider : null;
+  };
+
+  const handleSocialTokenRedirect = async (url: string) => {
+    const provider = getRedirectProvider(url);
+    const oauthToken =
+      getRedirectParam(url, "oauth_token") ||
+      getRedirectParam(url, "oauthToken");
+
+    if (!provider || !oauthToken) return false;
+
+    const result = await requestSocialTokenLogin(provider, oauthToken);
+    await handleLoginSuccess(result);
+
+    return true;
   };
 
   const handleLogin = async () => {
@@ -131,30 +179,41 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  const closeKakaoWebView = () => {
+  const closeWebView = () => {
     setWebViewVisible(false);
-    setKakaoAuthUrl("");
+    setWebViewUrl("");
+  };
+
+  const finishSocialLoading = () => {
     setSocialLoadingProvider(null);
   };
 
   const handleOAuthRedirect = async (url: string) => {
+    if (__DEV__) {
+      console.log("[OAuth] redirect url:", url);
+    }
+
     if (!isOAuthSuccessUrl(url) && !isOAuthFailureUrl(url)) {
       return;
     }
 
     try {
-      closeKakaoWebView();
+      closeWebView();
 
       if (isOAuthFailureUrl(url)) {
         throw new Error(getOAuthFailureMessage(url));
       }
+
+      const handledByTokenExchange = await handleSocialTokenRedirect(url);
+
+      if (handledByTokenExchange) return;
 
       await handleOAuthSuccessUrl(url);
       moveToMain();
     } catch (error) {
       handleLoginError("소셜 로그인 실패", error);
     } finally {
-      setSocialLoadingProvider(null);
+      finishSocialLoading();
     }
   };
 
@@ -162,21 +221,27 @@ export default function LoginScreen({ navigation }: any) {
     if (isBusy) return;
 
     try {
-      const { authUrl } = createSocialAuthUrl("kakao");
+      const { authUrl, redirectUri } = createSocialAuthUrl("kakao");
+
+      if (__DEV__) {
+        console.log("[Kakao OAuth] authUrl:", authUrl);
+        console.log("[Kakao OAuth] redirectUri:", redirectUri);
+      }
 
       if (Platform.OS === "web") {
+        // ✅ 웹: GET 요청으로 전체 페이지 이동
         if (typeof window !== "undefined") {
-          window.location.href = authUrl;
+          window.location.assign(authUrl);
         }
-
         return;
       }
 
+      // ✅ 앱: WebView에서 로드
       setSocialLoadingProvider("kakao");
-      setKakaoAuthUrl(authUrl);
+      setWebViewUrl(authUrl);
       setWebViewVisible(true);
     } catch (error) {
-      setSocialLoadingProvider(null);
+      finishSocialLoading();
       handleLoginError("카카오 로그인 실패", error);
     }
   };
@@ -187,14 +252,20 @@ export default function LoginScreen({ navigation }: any) {
     try {
       const { authUrl, redirectUri } = createSocialAuthUrl("google");
 
-      if (Platform.OS === "web") {
-        if (typeof window !== "undefined") {
-          window.location.href = authUrl;
-        }
+      if (__DEV__) {
+        console.log("[Google OAuth] authUrl:", authUrl);
+        console.log("[Google OAuth] redirectUri:", redirectUri);
+      }
 
+      if (Platform.OS === "web") {
+        // ✅ 웹: GET 요청으로 전체 페이지 이동
+        if (typeof window !== "undefined") {
+          window.location.assign(authUrl);
+        }
         return;
       }
 
+      // ✅ 앱: WebBrowser 사용 (일반적인 OAuth 플로우)
       setSocialLoadingProvider("google");
 
       const result = await WebBrowser.openAuthSessionAsync(
@@ -202,21 +273,57 @@ export default function LoginScreen({ navigation }: any) {
         redirectUri,
       );
 
+      if (__DEV__) {
+        console.log("[Google OAuth] result:", result);
+      }
+
       if (result.type === "success") {
         await handleOAuthRedirect(result.url);
         return;
       }
 
       if (result.type === "cancel" || result.type === "dismiss") {
-        setSocialLoadingProvider(null);
+        finishSocialLoading();
         return;
       }
 
-      setSocialLoadingProvider(null);
+      finishSocialLoading();
     } catch (error) {
+      finishSocialLoading();
       handleLoginError("구글 로그인 실패", error);
-      setSocialLoadingProvider(null);
     }
+  };
+
+  const shouldStopWebViewForOAuth = (url: string) => {
+    return (
+      isOAuthSuccessUrl(url) ||
+      isOAuthFailureUrl(url) ||
+      url.startsWith("planb://oauth/")
+    );
+  };
+
+  const handleWebViewUrl = async (url: string) => {
+    if (__DEV__) {
+      console.log("[WebView] url:", url);
+    }
+
+    if (!shouldStopWebViewForOAuth(url)) {
+      return false;
+    }
+
+    await handleOAuthRedirect(url);
+
+    if (url.startsWith("planb://")) {
+      try {
+        await Linking.openURL(url);
+      } catch (error) {
+        if (__DEV__) {
+          console.log("[WebView] deep link open skipped:", error);
+        }
+      }
+    }
+
+    return true;
   };
 
   return (
@@ -242,15 +349,12 @@ export default function LoginScreen({ navigation }: any) {
               <TextInput
                 placeholder="example@planb.com"
                 placeholderTextColor="#8C9BB1"
-                style={styles.input}
                 value={email}
                 onChangeText={setEmail}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="email-address"
-                textContentType="emailAddress"
-                returnKeyType="next"
                 editable={!isBusy}
+                style={styles.input}
+                autoCapitalize="none"
+                keyboardType="email-address"
               />
 
               <Text style={[styles.inputLabel, styles.passwordLabel]}>
@@ -259,43 +363,36 @@ export default function LoginScreen({ navigation }: any) {
 
               <View style={styles.passwordInputWrapper}>
                 <TextInput
-                  placeholder="비밀번호를 입력하세요"
+                  placeholder="8자 이상"
                   placeholderTextColor="#8C9BB1"
-                  secureTextEntry={!showPassword}
-                  style={styles.passwordInput}
                   value={password}
                   onChangeText={setPassword}
-                  textContentType="password"
-                  returnKeyType="done"
-                  onSubmitEditing={handleLogin}
+                  secureTextEntry={!showPassword}
                   editable={!isBusy}
+                  style={styles.passwordInput}
                 />
 
                 <TouchableOpacity
-                  onPress={() => setShowPassword((prev) => !prev)}
                   style={styles.eyeButton}
-                  activeOpacity={0.7}
-                  disabled={isBusy}
+                  onPress={() => setShowPassword(!showPassword)}
+                  activeOpacity={0.8}
                 >
                   <Ionicons
-                    name={showPassword ? "eye-outline" : "eye-off-outline"}
-                    size={22}
+                    name={showPassword ? "eye" : "eye-off"}
+                    size={20}
                     color="#8C9BB1"
                   />
                 </TouchableOpacity>
               </View>
 
               <TouchableOpacity
-                style={[
-                  styles.loginButton,
-                  (!canSubmit || isBusy) && styles.disabledButton,
-                ]}
                 onPress={handleLogin}
-                activeOpacity={0.85}
-                disabled={!canSubmit || isBusy}
+                style={[styles.loginButton, isBusy && styles.disabledButton]}
+                activeOpacity={0.8}
+                disabled={isBusy}
               >
                 {loading ?
-                  <ActivityIndicator color="#FFFFFF" />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                 : <Text style={styles.loginButtonText}>로그인</Text>}
               </TouchableOpacity>
             </View>
@@ -303,46 +400,46 @@ export default function LoginScreen({ navigation }: any) {
             <View style={styles.socialSection}>
               <View style={styles.divider}>
                 <View style={styles.line} />
-                <Text style={styles.dividerText}>간편 로그인</Text>
+                <Text style={styles.dividerText}>또는</Text>
                 <View style={styles.line} />
               </View>
 
               <TouchableOpacity
                 style={[styles.kakaoButton, isBusy && styles.disabledButton]}
-                activeOpacity={0.85}
                 onPress={openKakaoLogin}
+                activeOpacity={0.8}
                 disabled={isBusy}
               >
-                <View style={styles.socialIconBox}>
-                  {isKakaoLoading ?
-                    <ActivityIndicator size="small" color="#3C1E1E" />
-                  : <KakaoIcon
+                {isKakaoLoading ?
+                  <ActivityIndicator size="small" color="#3C1E1E" />
+                : <View style={styles.socialIconBox}>
+                    <KakaoIcon
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
                     />
-                  }
-                </View>
+                  </View>
+                }
 
-                <Text style={styles.kakaoButtonText}>카카오톡 로그인</Text>
+                <Text style={styles.kakaoButtonText}>카카오 로그인</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
                 style={[styles.googleButton, isBusy && styles.disabledButton]}
-                activeOpacity={0.85}
                 onPress={openGoogleLogin}
+                activeOpacity={0.8}
                 disabled={isBusy}
               >
-                <View style={styles.socialIconBox}>
-                  {isGoogleLoading ?
-                    <ActivityIndicator size="small" color="#1E293B" />
-                  : <GoogleIcon
+                {isGoogleLoading ?
+                  <ActivityIndicator size="small" color="#1E293B" />
+                : <View style={styles.socialIconBox}>
+                    <GoogleIcon
                       width={20}
                       height={20}
                       style={styles.socialSvgIcon}
                     />
-                  }
-                </View>
+                  </View>
+                }
 
                 <Text style={styles.googleButtonText}>Google 로그인</Text>
               </TouchableOpacity>
@@ -365,25 +462,33 @@ export default function LoginScreen({ navigation }: any) {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      {/* 앱 WebView 모달 (카카오/Google용) */}
       <Modal visible={webViewVisible} animationType="slide">
         <SafeAreaView style={styles.webViewContainer}>
           <View style={styles.webViewHeader}>
             <TouchableOpacity
-              onPress={closeKakaoWebView}
+              onPress={() => {
+                closeWebView();
+                finishSocialLoading();
+              }}
               style={styles.webViewCloseButton}
               activeOpacity={0.8}
             >
               <Ionicons name="close" size={24} color="#1E293B" />
             </TouchableOpacity>
 
-            <Text style={styles.webViewTitle}>카카오 로그인</Text>
+            <Text style={styles.webViewTitle}>
+              {socialLoadingProvider === "kakao" ?
+                "카카오 로그인"
+              : "Google 로그인"}
+            </Text>
 
             <View style={styles.webViewHeaderSpacer} />
           </View>
 
-          {kakaoAuthUrl ?
+          {webViewUrl ?
             <WebView
-              source={{ uri: kakaoAuthUrl }}
+              source={{ uri: webViewUrl }}
               originWhitelist={["*"]}
               javaScriptEnabled
               domStorageEnabled
@@ -392,26 +497,27 @@ export default function LoginScreen({ navigation }: any) {
               setSupportMultipleWindows={false}
               onError={(event) => {
                 Alert.alert(
-                  "카카오 로그인 오류",
+                  "소셜 로그인 오류",
                   event.nativeEvent.description ||
-                    "카카오 로그인 페이지를 불러오지 못했습니다.",
+                    "로그인 페이지를 불러오지 못했습니다.",
                 );
 
-                setSocialLoadingProvider(null);
+                closeWebView();
+                finishSocialLoading();
               }}
               onShouldStartLoadWithRequest={(request) => {
                 const nextUrl = request.url;
 
-                if (isOAuthSuccessUrl(nextUrl) || isOAuthFailureUrl(nextUrl)) {
-                  handleOAuthRedirect(nextUrl);
+                if (shouldStopWebViewForOAuth(nextUrl)) {
+                  handleWebViewUrl(nextUrl);
                   return false;
                 }
 
                 return true;
               }}
               onNavigationStateChange={({ url }) => {
-                if (isOAuthSuccessUrl(url) || isOAuthFailureUrl(url)) {
-                  handleOAuthRedirect(url);
+                if (shouldStopWebViewForOAuth(url)) {
+                  handleWebViewUrl(url);
                 }
               }}
               startInLoadingState

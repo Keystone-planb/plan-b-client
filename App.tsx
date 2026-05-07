@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import * as Linking from "expo-linking";
 
 import OnboardingFirstScreen from "./src/screens/OnboardingFirstScreen";
 import OnboardingSecondScreen from "./src/screens/OnboardingSecondScreen";
@@ -18,6 +19,8 @@ import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
+type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
 type RootStackParamList = {
   OnboardingFirst: undefined;
   OnboardingSecond: undefined;
@@ -25,7 +28,10 @@ type RootStackParamList = {
   OnboardingFourth: undefined;
   Login: undefined;
   SignUp: undefined;
-  OAuthRedirect: undefined;
+
+  OAuthRedirect: {
+    result?: "success" | "failure";
+  };
 
   Main: undefined;
 
@@ -49,7 +55,7 @@ type RootStackParamList = {
     selectedDay?: number;
     scheduleId?: string;
     location?: string;
-    transportMode?: "WALK" | "TRANSIT" | "CAR";
+    transportMode?: TransportMode;
     transportLabel?: string;
   };
 
@@ -59,7 +65,7 @@ type RootStackParamList = {
     startDate?: string;
     endDate?: string;
     location?: string;
-    transportMode?: "WALK" | "TRANSIT" | "CAR";
+    transportMode?: TransportMode;
     transportLabel?: string;
     selectedPlace?: {
       id: string;
@@ -78,22 +84,29 @@ type RootStackParamList = {
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
+const webPrefix =
+  Platform.OS === "web" && typeof window !== "undefined" ?
+    window.location.origin
+  : undefined;
+
 const linking = {
-  prefixes: ["planb://", "http://localhost:8081", "http://localhost:8082"],
+  prefixes: [
+    Linking.createURL("/", {
+      scheme: "planb",
+    }),
+    "planb://",
+    ...(webPrefix ? [webPrefix] : []),
+  ],
   config: {
     screens: {
-      OAuthRedirect: {
-        path: "oauth/success",
-      },
+      OAuthRedirect: "oauth/:result",
     },
   },
 };
 
 // 화면 플로우 테스트용.
-// 커밋 전 반드시 null로 변경.
-// 예: const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null = null;
-const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null =
-  null;
+// 커밋 전 반드시 null 유지.
+const FORCE_INITIAL_ROUTE_FOR_FLOW_TEST: keyof RootStackParamList | null = null;
 
 export default function App() {
   const [initialRoute, setInitialRoute] = useState<
@@ -107,6 +120,7 @@ export default function App() {
           "[App] 화면 플로우 테스트용 초기 라우트:",
           FORCE_INITIAL_ROUTE_FOR_FLOW_TEST,
         );
+
         setInitialRoute(FORCE_INITIAL_ROUTE_FOR_FLOW_TEST);
         return;
       }
@@ -119,7 +133,7 @@ export default function App() {
           accessToken && refreshToken ? "Main" : "OnboardingFirst",
         );
       } catch (error) {
-        console.log("초기 상태 확인 실패:", error);
+        console.log("[App] 초기 상태 확인 실패:", error);
         setInitialRoute("OnboardingFirst");
       }
     };

@@ -1,81 +1,109 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-export type OAuthTokens = {
+export type OAuthSuccessPayload = {
   accessToken: string;
   refreshToken: string;
   userId?: string;
   nickname?: string;
 };
 
-const getQueryParam = (url: string, key: string) => {
+const ACCESS_TOKEN_KEY = "access_token";
+const REFRESH_TOKEN_KEY = "refresh_token";
+
+const getUrlObject = (url: string) => {
   try {
-    const parsedUrl = new URL(url);
-    return parsedUrl.searchParams.get(key);
+    return new URL(url);
   } catch {
-    const queryString = url.split("?")[1];
+    const normalizedUrl =
+      url.startsWith("planb://") ? url : (
+        `planb://oauth/success${url.startsWith("?") ? url : `?${url}`}`
+      );
 
-    if (!queryString) {
-      return null;
-    }
-
-    const params = new URLSearchParams(queryString);
-    return params.get(key);
+    return new URL(normalizedUrl);
   }
 };
 
+const getOAuthParam = (url: URL, key: string) => {
+  const queryValue = url.searchParams.get(key);
+
+  if (queryValue) return queryValue;
+
+  const hash = url.hash.startsWith("#") ? url.hash.slice(1) : url.hash;
+  const hashParams = new URLSearchParams(hash);
+
+  return hashParams.get(key);
+};
+
 export const isOAuthSuccessUrl = (url: string) => {
-  return (
-    url.startsWith("planb://oauth/success") || url.includes("/oauth/success")
-  );
+  return url.includes("/oauth/success") || url.includes("oauth/success");
 };
 
 export const isOAuthFailureUrl = (url: string) => {
-  return (
-    url.startsWith("planb://oauth/failure") || url.includes("/oauth/failure")
-  );
+  return url.includes("/oauth/failure") || url.includes("oauth/failure");
 };
 
-export const parseOAuthSuccessUrl = (url: string): OAuthTokens => {
-  const accessToken = getQueryParam(url, "access_token");
-  const refreshToken = getQueryParam(url, "refresh_token");
-  const userId = getQueryParam(url, "user_id");
-  const nickname = getQueryParam(url, "nickname");
+export const getOAuthFailureMessage = (url: string) => {
+  try {
+    const parsedUrl = getUrlObject(url);
+    return (
+      parsedUrl.searchParams.get("error") ||
+      parsedUrl.searchParams.get("message") ||
+      "소셜 로그인에 실패했습니다."
+    );
+  } catch {
+    return "소셜 로그인에 실패했습니다.";
+  }
+};
+
+export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
+  const parsedUrl = getUrlObject(url);
+
+  const accessToken =
+    getOAuthParam(parsedUrl, "access_token") ||
+    getOAuthParam(parsedUrl, "accessToken") ||
+    "";
+
+  const refreshToken =
+    getOAuthParam(parsedUrl, "refresh_token") ||
+    getOAuthParam(parsedUrl, "refreshToken") ||
+    "";
+
+  const userId =
+    getOAuthParam(parsedUrl, "user_id") ||
+    getOAuthParam(parsedUrl, "userId") ||
+    undefined;
+
+  const nickname = getOAuthParam(parsedUrl, "nickname") || undefined;
 
   if (!accessToken || !refreshToken) {
-    throw new Error("OAuth 성공 URL에 토큰이 없습니다.");
+    throw new Error("토큰이 없습니다. 소셜 로그인 응답을 확인해주세요.");
   }
 
   return {
     accessToken,
     refreshToken,
-    userId: userId ?? undefined,
-    nickname: nickname ? decodeURIComponent(nickname) : undefined,
+    userId,
+    nickname,
   };
 };
 
-export const saveOAuthTokens = async (tokens: OAuthTokens) => {
+export const saveOAuthTokens = async (payload: OAuthSuccessPayload) => {
   await AsyncStorage.multiSet([
-    ["access_token", tokens.accessToken],
-    ["refresh_token", tokens.refreshToken],
-    ["user_id", tokens.userId ?? ""],
-    ["nickname", tokens.nickname ?? ""],
+    [ACCESS_TOKEN_KEY, payload.accessToken],
+    [REFRESH_TOKEN_KEY, payload.refreshToken],
   ]);
+
+  if (payload.userId) {
+    await AsyncStorage.setItem("user_id", payload.userId);
+  }
+
+  if (payload.nickname) {
+    await AsyncStorage.setItem("nickname", payload.nickname);
+  }
 };
 
 export const handleOAuthSuccessUrl = async (url: string) => {
-  const tokens = parseOAuthSuccessUrl(url);
-
-  await saveOAuthTokens(tokens);
-
-  return tokens;
-};
-
-export const getOAuthFailureMessage = (url: string) => {
-  const error = getQueryParam(url, "error");
-
-  if (!error) {
-    return "소셜 로그인에 실패했습니다.";
-  }
-
-  return decodeURIComponent(error);
+  const payload = parseOAuthSuccessUrl(url);
+  await saveOAuthTokens(payload);
+  return payload;
 };
