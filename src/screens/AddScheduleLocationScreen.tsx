@@ -391,24 +391,23 @@ export default function AddScheduleLocationScreen({
     detailModalPlaceId ? placeReviewMap[detailModalPlaceId] : undefined;
 
   const detailModalSummary = detailModalReviewInfo?.summary as any;
-  const detailModalFreshness = detailModalReviewInfo?.freshness as any;
 
   const detailModalAiSummary =
     detailModalSummary?.aiSummary ||
     detailModalSummary?.reviewSummary ||
-    "아직 요약 정보가 없습니다.";
+    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
 
   const detailModalGoogleReview =
     detailModalSummary?.googleReview ||
     detailModalSummary?.googleReviewSummary ||
     detailModalSummary?.platformSummaries?.google ||
-    "구글 리뷰 요약을 준비 중입니다.";
+    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
 
   const detailModalNaverReview =
     detailModalSummary?.naverReview ||
     detailModalSummary?.naverReviewSummary ||
     detailModalSummary?.platformSummaries?.naver ||
-    "네이버 리뷰 요약을 준비 중입니다.";
+    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
 
   const detailModalInstaReview =
     detailModalSummary?.instaReview ||
@@ -416,14 +415,15 @@ export default function AddScheduleLocationScreen({
     detailModalSummary?.instaReviewSummary ||
     detailModalSummary?.platformSummaries?.instagram ||
     detailModalSummary?.platformSummaries?.insta ||
-    "인스타그램 리뷰 요약을 준비 중입니다.";
+    "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요";
 
-  const detailModalFreshnessText =
-    detailModalFreshness?.status === "FRESH" || detailModalFreshness?.isFresh ?
-      "최신 정보"
-    : detailModalFreshness?.lastSyncedAt || detailModalFreshness?.last_updated ?
-      "최근 업데이트 확인"
-    : "최신성 확인 중";
+  const detailModalOpeningHours =
+    detailModalSummary?.openingHours ||
+    detailModalSummary?.businessHours ||
+    detailModalSummary?.hours ||
+    (detailModalPlace as any)?.openingHours ||
+    (detailModalPlace as any)?.businessHours ||
+    "10:00 - 21:00";
 
   return (
     <View style={styles.screen}>
@@ -504,80 +504,35 @@ export default function AddScheduleLocationScreen({
             const isSelected = selectedPlace?.placeId === placeId;
             const isDetailLoading = detailLoadingPlaceId === placeId;
             const isReviewLoading = reviewLoadingPlaceId === googlePlaceId;
-            const isExpanded = false;
-            const reviewInfo = placeReviewMap[googlePlaceId];
-            const summary = reviewInfo?.summary;
-            const freshness = reviewInfo?.freshness;
-            const summaryAny = summary as any;
-
-            const aiSummary =
-              summaryAny?.aiSummary ||
-              summaryAny?.reviewSummary ||
-              "아직 요약 정보가 없습니다.";
-
-            const googleReview =
-              summaryAny?.googleReview ||
-              summaryAny?.googleReviewSummary ||
-              summaryAny?.platformSummaries?.google ||
-              "구글 리뷰 요약을 준비 중입니다.";
-
-            const naverReview =
-              summaryAny?.naverReview ||
-              summaryAny?.naverReviewSummary ||
-              summaryAny?.platformSummaries?.naver ||
-              "네이버 리뷰 요약을 준비 중입니다.";
-
-            const instaReview =
-              summaryAny?.instaReview ||
-              summaryAny?.instagramReviewSummary ||
-              summaryAny?.instaReviewSummary ||
-              summaryAny?.platformSummaries?.instagram ||
-              summaryAny?.platformSummaries?.insta ||
-              "인스타그램 리뷰 요약을 준비 중입니다.";
-
-            const freshnessAny = freshness as any;
-
-            const freshnessText =
-              freshnessAny?.status === "FRESH" || freshnessAny?.isFresh ?
-                "최신 정보"
-              : freshnessAny?.lastSyncedAt || freshnessAny?.last_updated ?
-                "최근 업데이트 확인"
-              : "최신성 확인 중";
 
             return (
               <View
                 key={`place-${placeId}`}
                 style={[
                   styles.placeCard,
-                  isExpanded && styles.expandedPlaceCard,
                   isReviewLoading && styles.reviewLoadingPlaceCard,
                   isSelected && styles.selectedPlaceCard,
                 ]}
               >
-                {!isExpanded && (
-                  <>
-                    <Text style={styles.placeName}>{place.name}</Text>
+                <Text style={styles.placeName}>{place.name}</Text>
 
-                    <Text style={styles.placeAddress} numberOfLines={1}>
-                      {place.address}
+                <Text style={styles.placeAddress} numberOfLines={1}>
+                  {place.address}
+                </Text>
+
+                {!isPreview && typeof place.rating === "number" && (
+                  <View style={styles.ratingRow}>
+                    <Ionicons name="star" size={13} color="#FACC15" />
+                    <Text style={styles.ratingText}>
+                      {place.rating.toFixed(2)}
                     </Text>
-
-                    {!isPreview && typeof place.rating === "number" && (
-                      <View style={styles.ratingRow}>
-                        <Ionicons name="star" size={13} color="#FACC15" />
-                        <Text style={styles.ratingText}>
-                          {place.rating.toFixed(2)}
-                        </Text>
-                      </View>
-                    )}
-                  </>
+                  </View>
                 )}
 
                 <TouchableOpacity
                   style={[
                     styles.detailButton,
                     isPreview && styles.disabledDetailButton,
-                    isExpanded && styles.compactButton,
                   ]}
                   activeOpacity={0.8}
                   disabled={isPreview || isReviewLoading}
@@ -589,18 +544,41 @@ export default function AddScheduleLocationScreen({
                       <Text style={styles.detailButtonText}>
                         상세 정보 보기
                       </Text>
-                      <Ionicons
-                        name="eye-outline"
-                        size={15}
-                        color="#6F7F95"
-                      />
+                      <Ionicons name="eye-outline" size={15} color="#6F7F95" />
                     </>
                   }
                 </TouchableOpacity>
 
+                {!isPreview ?
+                  <TouchableOpacity
+                    style={[
+                      styles.selectPlaceButton,
+                      isSelected && styles.selectPlaceButtonActive,
+                    ]}
+                    activeOpacity={0.85}
+                    disabled={isDetailLoading || submitLoading}
+                    onPress={() => handlePlaceDetail(place)}
+                  >
+                    {isDetailLoading ?
+                      <ActivityIndicator
+                        size="small"
+                        color={isSelected ? "#FFFFFF" : "#2158E8"}
+                      />
+                    : <Text
+                        style={[
+                          styles.selectPlaceButtonText,
+                          isSelected && styles.selectPlaceButtonTextActive,
+                        ]}
+                      >
+                        {isSelected ? "선택 완료" : "이 장소 선택"}
+                      </Text>
+                    }
+                  </TouchableOpacity>
+                : null}
+
                 {isReviewLoading ?
                   <View style={styles.reviewLoadingPanel}>
-                    <ActivityIndicator size="large" color="#2563EB" />
+                    <ActivityIndicator size="large" color="#2158E8" />
 
                     <Text style={styles.reviewLoadingText}>
                       리뷰 불러오는 중...
@@ -611,94 +589,6 @@ export default function AddScheduleLocationScreen({
                     </View>
                   </View>
                 : null}
-
-                {isExpanded ?
-                  <View style={styles.reviewPanel}>
-                    <View style={styles.placeExpandedHeader}>
-                      <View style={styles.placeIconCircle}>
-                        <Text style={styles.placeIconEmoji}>🎡</Text>
-                      </View>
-
-                      <View style={styles.placeExpandedInfo}>
-                        <Text style={styles.expandedPlaceName}>
-                          {place.name}
-                        </Text>
-
-                        <Text style={styles.expandedAddress} numberOfLines={1}>
-                          {place.address}
-                        </Text>
-
-                        <View style={styles.expandedMetaRow}>
-                          <Ionicons name="star" size={13} color="#FACC15" />
-
-                          <Text style={styles.expandedMetaText}>
-                            {typeof place.rating === "number" ?
-                              place.rating.toFixed(2)
-                            : "4.58"}
-                          </Text>
-
-                          <Text style={styles.expandedDot}>·</Text>
-
-                          <Ionicons
-                            name="time-outline"
-                            size={14}
-                            color="#60A5FA"
-                          />
-
-                          <Text style={styles.expandedMetaText}>
-                            {freshnessText}
-                          </Text>
-                        </View>
-                      </View>
-                    </View>
-
-                    <View style={styles.aiReviewBox}>
-                      <Text style={styles.aiReviewText}>📊 {aiSummary}</Text>
-
-                      <View style={styles.aiBadge}>
-                        <Text style={styles.aiBadgeText}>AI</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.reviewLineArea}>
-                      <View style={styles.reviewVerticalLine} />
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🟢 {googleReview}
-                        </Text>
-                      </View>
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          📸 {naverReview}
-                        </Text>
-                      </View>
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🌈 {instaReview}
-                        </Text>
-                      </View>
-                    </View>
-                  </View>
-                : null}
-
-                {!isPreview && isExpanded && (
-                  <TouchableOpacity
-                    style={styles.expandedSelectButton}
-                    activeOpacity={0.8}
-                    disabled={isDetailLoading || submitLoading}
-                    onPress={() => handlePlaceDetail(place)}
-                  >
-                    {isDetailLoading ?
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Text style={styles.expandedSelectButtonText}>
-                        {isSelected ? "선택 완료" : "이 장소 선택"}
-                      </Text>
-                    }
-                  </TouchableOpacity>
-                )}
               </View>
             );
           })}
@@ -713,111 +603,98 @@ export default function AddScheduleLocationScreen({
       >
         <View style={styles.detailModalBackdrop}>
           <View style={styles.detailModalCard}>
-            <View style={styles.detailModalHeader}>
-              <View style={styles.detailModalIconCircle}>
-                <Text style={styles.detailModalEmoji}>🎡</Text>
+            <View style={styles.detailHeaderRow}>
+              <View style={styles.detailIconCircle}>
+                <Text style={styles.detailIconEmoji}>🎡</Text>
               </View>
 
-              <View style={styles.detailModalTitleBox}>
-                <Text style={styles.detailModalTitle} numberOfLines={2}>
+              <View style={styles.detailTitleArea}>
+                <Text style={styles.detailTitle} numberOfLines={1}>
                   {detailModalPlace?.name ?? "장소 상세 정보"}
                 </Text>
 
-                <Text style={styles.detailModalAddress} numberOfLines={1}>
+                <Text style={styles.detailAddress} numberOfLines={1}>
                   {detailModalPlace?.address ?? "주소 정보 없음"}
                 </Text>
+
+                <View style={styles.detailMetaRow}>
+                  <Ionicons name="star" size={15} color="#FFD600" />
+
+                  <Text style={styles.detailMetaText}>
+                    {typeof detailModalPlace?.rating === "number" ?
+                      detailModalPlace.rating.toFixed(2)
+                    : "4.58"}
+                  </Text>
+
+                  <Text style={styles.detailMetaDot}>·</Text>
+
+                  <Ionicons name="time-outline" size={16} color="#8DC7FF" />
+
+                  <Text style={styles.detailMetaText}>
+                    {detailModalOpeningHours}
+                  </Text>
+                </View>
               </View>
-
-              <TouchableOpacity
-                style={styles.detailModalCloseButton}
-                activeOpacity={0.75}
-                onPress={() => setExpandedPlaceId(null)}
-              >
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.detailModalMetaRow}>
-              <Ionicons name="star" size={14} color="#FACC15" />
-
-              <Text style={styles.detailModalMetaText}>
-                {typeof detailModalPlace?.rating === "number" ?
-                  detailModalPlace.rating.toFixed(2)
-                : "평점 정보 없음"}
-              </Text>
-
-              <Text style={styles.detailModalDot}>·</Text>
-
-              <Ionicons name="time-outline" size={14} color="#60A5FA" />
-
-              <Text style={styles.detailModalMetaText}>
-                {detailModalFreshnessText}
-              </Text>
             </View>
 
             {reviewLoadingPlaceId === detailModalPlaceId ?
-              <View style={styles.detailModalLoadingBox}>
-                <ActivityIndicator size="large" color="#2563EB" />
-                <Text style={styles.detailModalLoadingText}>
+              <View style={styles.detailLoadingBox}>
+                <ActivityIndicator size="large" color="#2158E8" />
+                <Text style={styles.detailLoadingText}>
                   리뷰 불러오는 중...
                 </Text>
               </View>
             : <>
-                <View style={styles.detailAiReviewBox}>
-                  <Text style={styles.detailAiReviewText}>
+                <View style={styles.aiSummaryCard}>
+                  <Text style={styles.aiSummaryText}>
                     📊 {detailModalAiSummary}
                   </Text>
 
-                  <View style={styles.detailAiBadge}>
-                    <Text style={styles.detailAiBadgeText}>AI</Text>
+                  <View style={styles.aiCircleBadge}>
+                    <Text style={styles.aiCircleText}>AI</Text>
                   </View>
                 </View>
 
-                <View style={styles.detailPlatformList}>
-                  <View style={styles.detailPlatformCard}>
-                    <Text style={styles.detailPlatformText}>
-                      🟢 {detailModalGoogleReview}
+                <View style={styles.platformArea}>
+                  <View style={styles.platformLine} />
+
+                  <View style={styles.platformCard}>
+                    <View style={styles.platformIconNaver}>
+                      <Text style={styles.platformIconText}>N</Text>
+                    </View>
+
+                    <Text style={styles.platformText}>
+                      {detailModalNaverReview}
                     </Text>
                   </View>
 
-                  <View style={styles.detailPlatformCard}>
-                    <Text style={styles.detailPlatformText}>
-                      📸 {detailModalNaverReview}
+                  <View style={styles.platformCard}>
+                    <Text style={styles.instagramIcon}>▣</Text>
+
+                    <Text style={styles.platformText}>
+                      {detailModalInstaReview}
                     </Text>
                   </View>
 
-                  <View style={styles.detailPlatformCard}>
-                    <Text style={styles.detailPlatformText}>
-                      🌈 {detailModalInstaReview}
+                  <View style={styles.platformCard}>
+                    <Text style={styles.googleIcon}>G</Text>
+
+                    <Text style={styles.platformText}>
+                      {detailModalGoogleReview}
                     </Text>
                   </View>
                 </View>
               </>
             }
 
-            {detailModalPlace ?
-              <TouchableOpacity
-                style={styles.detailModalSelectButton}
-                activeOpacity={0.85}
-                disabled={
-                  detailLoadingPlaceId === String(detailModalPlace.placeId) ||
-                  submitLoading
-                }
-                onPress={async () => {
-                  await handlePlaceDetail(detailModalPlace);
-                  setExpandedPlaceId(null);
-                }}
-              >
-                {detailLoadingPlaceId === String(detailModalPlace.placeId) ?
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                : <Text style={styles.detailModalSelectButtonText}>
-                    {selectedPlace?.placeId === String(detailModalPlace.placeId) ?
-                      "선택 완료"
-                    : "이 장소 선택"}
-                  </Text>
-                }
-              </TouchableOpacity>
-            : null}
+            <TouchableOpacity
+              style={styles.compactButton}
+              activeOpacity={0.85}
+              onPress={() => setExpandedPlaceId(null)}
+            >
+              <Text style={styles.compactButtonText}>간략히</Text>
+              <Ionicons name="chevron-up" size={20} color="#7A889B" />
+            </TouchableOpacity>
           </View>
         </View>
       </Modal>
@@ -932,18 +809,22 @@ const styles = StyleSheet.create({
 
   placeCard: {
     minHeight: 178,
-    borderRadius: 14,
+    borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DCE5F1",
-    paddingHorizontal: 23,
-    paddingTop: 25,
-    paddingBottom: 24,
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 20,
     marginBottom: 16,
-  },
-
-  expandedPlaceCard: {
-    minHeight: 620,
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 16,
+    elevation: 2,
   },
 
   reviewLoadingPlaceCard: {
@@ -952,11 +833,12 @@ const styles = StyleSheet.create({
 
   selectedPlaceCard: {
     borderColor: "#2158E8",
+    backgroundColor: "#F8FBFF",
   },
 
   placeName: {
     color: "#111827",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "900",
     marginBottom: 8,
   },
@@ -964,7 +846,7 @@ const styles = StyleSheet.create({
   placeAddress: {
     color: "#8A9BB2",
     fontSize: 13,
-    fontWeight: "600",
+    fontWeight: "700",
     marginBottom: 14,
   },
 
@@ -978,22 +860,17 @@ const styles = StyleSheet.create({
     marginLeft: 5,
     color: "#111827",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
   },
 
   detailButton: {
-    height: 36,
-    borderRadius: 10,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: "#F1F4F8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 9,
-  },
-
-  compactButton: {
-    marginTop: 4,
-    marginBottom: 18,
+    marginBottom: 10,
   },
 
   disabledDetailButton: {
@@ -1003,8 +880,43 @@ const styles = StyleSheet.create({
   detailButtonText: {
     color: "#6F7F95",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "800",
     marginRight: 5,
+  },
+
+  selectPlaceButton: {
+    height: 42,
+    borderRadius: 13,
+    backgroundColor: "#ECF5FF",
+    borderWidth: 1,
+    borderColor: "#D7E9FF",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+
+  selectPlaceButtonActive: {
+    backgroundColor: "#2158E8",
+    borderColor: "#2158E8",
+    shadowOpacity: 0.18,
+    elevation: 4,
+  },
+
+  selectPlaceButtonText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  selectPlaceButtonTextActive: {
+    color: "#FFFFFF",
   },
 
   reviewLoadingPanel: {
@@ -1037,151 +949,7 @@ const styles = StyleSheet.create({
     width: "74%",
     height: "100%",
     borderRadius: 999,
-    backgroundColor: "#2563EB",
-  },
-
-  reviewPanel: {
-    marginTop: 20,
-    marginBottom: 12,
-  },
-
-  placeExpandedHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 22,
-  },
-
-  placeIconCircle: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
-    backgroundColor: "#F8C8F4",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 16,
-  },
-
-  placeIconEmoji: {
-    fontSize: 30,
-  },
-
-  placeExpandedInfo: {
-    flex: 1,
-  },
-
-  expandedPlaceName: {
-    color: "#111827",
-    fontSize: 22,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-
-  expandedAddress: {
-    color: "#8A9BB2",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-
-  expandedMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-  },
-
-  expandedMetaText: {
-    color: "#111827",
-    fontSize: 15,
-    fontWeight: "700",
-    marginLeft: 5,
-  },
-
-  expandedDot: {
-    marginHorizontal: 8,
-    color: "#8A9BB2",
-    fontSize: 15,
-    fontWeight: "700",
-  },
-
-  aiReviewBox: {
-    position: "relative",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#CFE0FF",
-    backgroundColor: "#EEF4FF",
-    paddingHorizontal: 18,
-    paddingVertical: 14,
-    marginBottom: 20,
-  },
-
-  aiReviewText: {
-    color: "#2158E8",
-    fontSize: 15,
-    fontWeight: "800",
-    lineHeight: 23,
-  },
-
-  aiBadge: {
-    position: "absolute",
-    right: -12,
-    top: -12,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#5B3DFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  aiBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  reviewLineArea: {
-    position: "relative",
-    paddingLeft: 36,
-    gap: 12,
-  },
-
-  reviewVerticalLine: {
-    position: "absolute",
-    left: 8,
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: "#DDE5EF",
-  },
-
-  platformReviewCard: {
-    borderRadius: 8,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DDE5EF",
-    paddingHorizontal: 16,
-    paddingVertical: 13,
-  },
-
-  platformReviewText: {
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 22,
-  },
-
-  expandedSelectButton: {
-    height: 48,
-    borderRadius: 14,
     backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 18,
-  },
-
-  expandedSelectButtonText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
   },
 
   disabledNextButton: {
@@ -1195,195 +963,249 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: "#273142",
+    backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#1E293B",
+    shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.2,
-    shadowRadius: 8,
+    shadowOpacity: 0.28,
+    shadowRadius: 12,
     elevation: 20,
     zIndex: 9999,
   },
+
   detailModalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    backgroundColor: "rgba(15, 23, 42, 0.16)",
     justifyContent: "center",
     paddingHorizontal: 22,
   },
 
   detailModalCard: {
-    maxHeight: "82%",
-    borderRadius: 24,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 20,
-    paddingTop: 20,
+    paddingHorizontal: 18,
+    paddingTop: 22,
     paddingBottom: 18,
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
     shadowColor: "#0F172A",
     shadowOffset: {
       width: 0,
-      height: 12,
+      height: 10,
     },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 24,
+    shadowOpacity: 0.1,
+    shadowRadius: 22,
+    elevation: 10,
   },
 
-  detailModalHeader: {
+  detailHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 16,
+    alignItems: "flex-start",
+    marginBottom: 22,
   },
 
-  detailModalIconCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    backgroundColor: "#F8C8F4",
+  detailIconCircle: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "#FFD0F7",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 18,
   },
 
-  detailModalEmoji: {
-    fontSize: 28,
+  detailIconEmoji: {
+    fontSize: 34,
   },
 
-  detailModalTitleBox: {
+  detailTitleArea: {
     flex: 1,
   },
 
-  detailModalTitle: {
-    color: "#111827",
-    fontSize: 20,
+  detailTitle: {
+    color: "#000000",
+    fontSize: 25,
     fontWeight: "900",
-    marginBottom: 5,
+    letterSpacing: -0.5,
+    marginBottom: 8,
   },
 
-  detailModalAddress: {
-    color: "#8A9BB2",
-    fontSize: 13,
+  detailAddress: {
+    color: "#A7B2C3",
+    fontSize: 20,
     fontWeight: "700",
+    marginBottom: 14,
   },
 
-  detailModalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 10,
-  },
-
-  detailModalMetaRow: {
+  detailMetaRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 16,
   },
 
-  detailModalMetaText: {
-    color: "#334155",
-    fontSize: 13,
+  detailMetaText: {
+    color: "#1F2937",
+    fontSize: 18,
     fontWeight: "800",
     marginLeft: 5,
   },
 
-  detailModalDot: {
+  detailMetaDot: {
+    color: "#A7B2C3",
+    fontSize: 18,
+    fontWeight: "900",
     marginHorizontal: 8,
-    color: "#94A3B8",
-    fontSize: 13,
-    fontWeight: "800",
   },
 
-  detailModalLoadingBox: {
-    minHeight: 210,
-    borderRadius: 18,
+  detailLoadingBox: {
+    minHeight: 220,
+    borderRadius: 16,
     backgroundColor: "#F8FAFC",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 16,
+    marginBottom: 18,
   },
 
-  detailModalLoadingText: {
+  detailLoadingText: {
     marginTop: 12,
     color: "#617087",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  detailAiReviewBox: {
-    position: "relative",
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#CFE0FF",
-    backgroundColor: "#EEF4FF",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    marginBottom: 14,
-  },
-
-  detailAiReviewText: {
-    color: "#2158E8",
-    fontSize: 14,
-    fontWeight: "800",
-    lineHeight: 22,
-  },
-
-  detailAiBadge: {
-    position: "absolute",
-    right: -10,
-    top: -10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#5B3DFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  detailAiBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  detailPlatformList: {
-    gap: 10,
-    marginBottom: 16,
-  },
-
-  detailPlatformCard: {
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DDE5EF",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-  },
-
-  detailPlatformText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "700",
-    lineHeight: 20,
-  },
-
-  detailModalSelectButton: {
-    height: 52,
-    borderRadius: 16,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  detailModalSelectButtonText: {
-    color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
   },
 
+  aiSummaryCard: {
+    position: "relative",
+    minHeight: 92,
+    borderRadius: 5,
+    borderWidth: 1,
+    borderColor: "#C7DCFF",
+    backgroundColor: "#EEF5FF",
+    paddingHorizontal: 20,
+    paddingVertical: 17,
+    justifyContent: "center",
+    marginBottom: 28,
+  },
+
+  aiSummaryText: {
+    color: "#2F6BFF",
+    fontSize: 20,
+    fontWeight: "900",
+    lineHeight: 30,
+    paddingRight: 18,
+  },
+
+  aiCircleBadge: {
+    position: "absolute",
+    right: -13,
+    top: -15,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#3B73F6",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+
+  aiCircleText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  platformArea: {
+    position: "relative",
+    paddingLeft: 44,
+    gap: 14,
+    marginBottom: 28,
+  },
+
+  platformLine: {
+    position: "absolute",
+    left: 8,
+    top: 0,
+    bottom: 0,
+    width: 2,
+    borderRadius: 999,
+    backgroundColor: "#E7EDF5",
+  },
+
+  platformCard: {
+    minHeight: 78,
+    borderRadius: 8,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DDE6F1",
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "flex-start",
+  },
+
+  platformText: {
+    flex: 1,
+    color: "#8A97A8",
+    fontSize: 18,
+    fontWeight: "800",
+    lineHeight: 28,
+    marginLeft: 10,
+  },
+
+  platformIconNaver: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    backgroundColor: "#03C75A",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 4,
+  },
+
+  platformIconText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  instagramIcon: {
+    color: "#F43F8C",
+    fontSize: 21,
+    fontWeight: "900",
+    marginTop: 1,
+  },
+
+  googleIcon: {
+    color: "#4285F4",
+    fontSize: 20,
+    fontWeight: "900",
+    marginTop: 2,
+  },
+
+  compactButton: {
+    alignSelf: "center",
+    width: 220,
+    height: 54,
+    borderRadius: 14,
+    backgroundColor: "#F4F7FA",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 8,
+  },
+
+  compactButtonText: {
+    color: "#8A97A8",
+    fontSize: 22,
+    fontWeight: "900",
+  },
 });
