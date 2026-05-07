@@ -71,6 +71,18 @@ const getScheduleDate = (schedule: StoredSchedule) => {
   return "날짜 미정";
 };
 
+const getScheduleLocation = (schedule: StoredSchedule) => {
+  return schedule.location || "장소 미정";
+};
+
+const getCurrentDayLabel = (schedule?: StoredSchedule) => {
+  if (!schedule?.days || !Array.isArray(schedule.days)) {
+    return "Day 1";
+  }
+
+  return "Day 1";
+};
+
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -130,7 +142,7 @@ export default function MainScreen({ navigation }: Props) {
   };
 
   const handleOpenSchedule = (schedule: StoredSchedule) => {
-    navigation.navigate("PlanA", {
+    navigation.navigate("OngoingSchedule", {
       scheduleId: getScheduleId(schedule),
       tripName: getScheduleTitle(schedule),
       startDate: schedule.startDate,
@@ -180,36 +192,105 @@ export default function MainScreen({ navigation }: Props) {
     );
   };
 
-  const renderScheduleCard = (schedule: StoredSchedule) => {
+  const renderHomeContent = () => {
+    const currentSchedule = schedules[0];
+
     return (
-      <TouchableOpacity
-        key={getScheduleId(schedule)}
-        style={styles.scheduleCard}
-        activeOpacity={0.85}
-        onPress={() => handleOpenSchedule(schedule)}
+      <ScrollView
+        style={styles.scheduleList}
+        contentContainerStyle={styles.homeContent}
+        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.scheduleCardIcon}>
-          <Ionicons name="calendar-outline" size={22} color="#2158E8" />
-        </View>
+        <View style={styles.todayInfoPill}>
+          <View style={styles.todayInfoItem}>
+            <Text style={styles.todayEmoji}>☀️</Text>
+            <Text style={styles.todayInfoText}>23°</Text>
+          </View>
 
-        <View style={styles.scheduleCardContent}>
-          <Text style={styles.scheduleTitle} numberOfLines={1}>
-            {getScheduleTitle(schedule)}
-          </Text>
+          <View style={styles.todayDivider} />
 
-          <Text style={styles.scheduleDate} numberOfLines={1}>
-            {getScheduleDate(schedule)}
-          </Text>
-
-          {schedule.location ?
-            <Text style={styles.scheduleLocation} numberOfLines={1}>
-              {schedule.location}
+          <View style={styles.todayInfoItem}>
+            <Text style={styles.todayEmoji}>📅</Text>
+            <Text style={styles.todayInfoText}>
+              {formatDisplayDate(currentSchedule.startDate) || "2026.04.30"}
             </Text>
-          : null}
+          </View>
+
+          <View style={styles.todayDivider} />
+
+          <View style={styles.todayInfoItem}>
+            <Text style={styles.todayEmoji}>🗺️</Text>
+            <Text style={styles.todayInfoText}>
+              {getCurrentDayLabel(currentSchedule)}
+            </Text>
+          </View>
         </View>
 
-        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" />
-      </TouchableOpacity>
+        <View style={styles.ongoingSection}>
+          <Text style={styles.homeSectionTitle}>진행중인 일정</Text>
+
+          <TouchableOpacity
+            style={styles.ongoingCard}
+            activeOpacity={0.86}
+            onPress={() => handleOpenSchedule(currentSchedule)}
+          >
+            <View style={styles.pinIconCircle}>
+              <Text style={styles.pinEmoji}>📌</Text>
+            </View>
+
+            <View style={styles.ongoingInfo}>
+              <Text style={styles.ongoingTitle} numberOfLines={1}>
+                {getScheduleTitle(currentSchedule)}
+              </Text>
+
+              <Text style={styles.ongoingLocation} numberOfLines={1}>
+                {getScheduleLocation(currentSchedule)}
+              </Text>
+
+              <View style={styles.ongoingDateRow}>
+                <Ionicons name="calendar-outline" size={17} color="#94A3B8" />
+                <Text style={styles.ongoingDateText}>
+                  {getScheduleDate(currentSchedule)}
+                </Text>
+              </View>
+            </View>
+
+            <Ionicons name="chevron-forward" size={26} color="#CBD5E1" />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.nextTripSection}>
+          <Text style={styles.homeSectionTitle}>다음 여행</Text>
+
+          <TouchableOpacity
+            style={styles.nextTripCard}
+            activeOpacity={0.86}
+            onPress={handleAddSchedule}
+          >
+            <View style={styles.nextTripThumb}>
+              <Text style={styles.nextTripEmoji}>🏝️</Text>
+            </View>
+
+            <View style={styles.nextTripInfo}>
+              <Text style={styles.nextTripTitle}>제주도 힐링여행</Text>
+
+              <View style={styles.nextTripMetaRow}>
+                <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
+                <Text style={styles.nextTripMetaText}>
+                  2027.03.15 - 2027.03.18
+                </Text>
+              </View>
+
+              <View style={styles.nextTripMetaRow}>
+                <Ionicons name="location-outline" size={15} color="#94A3B8" />
+                <Text style={styles.nextTripMetaText}>제주 · 8개 장소</Text>
+              </View>
+            </View>
+
+            <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+          </TouchableOpacity>
+        </View>
+      </ScrollView>
     );
   };
 
@@ -226,27 +307,7 @@ export default function MainScreen({ navigation }: Props) {
           </View>
         : schedules.length === 0 ?
           renderEmptyState()
-        : <ScrollView
-            style={styles.scheduleList}
-            contentContainerStyle={styles.scheduleListContent}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>진행 중인 일정</Text>
-
-              <TouchableOpacity
-                style={styles.smallAddButton}
-                activeOpacity={0.85}
-                onPress={handleAddSchedule}
-              >
-                <Ionicons name="add" size={16} color="#FFFFFF" />
-                <Text style={styles.smallAddButtonText}>추가</Text>
-              </TouchableOpacity>
-            </View>
-
-            {schedules.map(renderScheduleCard)}
-          </ScrollView>
-        }
+        : renderHomeContent()}
       </View>
     </SafeAreaView>
   );
@@ -265,15 +326,15 @@ const styles = StyleSheet.create({
 
   header: {
     alignItems: "center",
-    paddingTop: 18,
-    paddingBottom: 12,
+    paddingTop: 44,
+    paddingBottom: 36,
   },
 
   logoText: {
     color: "#1C2534",
-    fontSize: 38,
+    fontSize: 42,
     fontWeight: "900",
-    letterSpacing: -1.2,
+    letterSpacing: -1.4,
   },
 
   loadingContainer: {
@@ -281,6 +342,203 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingBottom: 110,
+  },
+
+  scheduleList: {
+    flex: 1,
+  },
+
+  homeContent: {
+    paddingHorizontal: 24,
+    paddingBottom: 140,
+  },
+
+  todayInfoPill: {
+    minHeight: 64,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    marginBottom: 28,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+
+  todayInfoItem: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  todayEmoji: {
+    fontSize: 18,
+    marginRight: 7,
+  },
+
+  todayInfoText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  todayDivider: {
+    width: 1,
+    height: 22,
+    backgroundColor: "#E5EAF1",
+    marginHorizontal: 14,
+  },
+
+  ongoingSection: {
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#B9DCFF",
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 22,
+    marginBottom: 28,
+    shadowColor: "#74B8FF",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 8,
+    elevation: 5,
+  },
+
+  homeSectionTitle: {
+    color: "#000000",
+    fontSize: 24,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    marginBottom: 26,
+  },
+
+  ongoingCard: {
+    minHeight: 84,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  pinIconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "#F5F7FA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 18,
+  },
+
+  pinEmoji: {
+    fontSize: 24,
+  },
+
+  ongoingInfo: {
+    flex: 1,
+  },
+
+  ongoingTitle: {
+    color: "#1C2534",
+    fontSize: 19,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  ongoingLocation: {
+    color: "#8A9BB2",
+    fontSize: 15,
+    fontWeight: "700",
+    marginBottom: 9,
+  },
+
+  ongoingDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  ongoingDateText: {
+    color: "#8A9BB2",
+    fontSize: 15,
+    fontWeight: "700",
+    marginLeft: 8,
+  },
+
+  nextTripSection: {
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 22,
+    paddingTop: 24,
+    paddingBottom: 22,
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.04,
+    shadowRadius: 14,
+    elevation: 2,
+  },
+
+  nextTripCard: {
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  nextTripThumb: {
+    width: 82,
+    height: 82,
+    borderRadius: 14,
+    backgroundColor: "#CDE8FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 18,
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+
+  nextTripEmoji: {
+    fontSize: 42,
+  },
+
+  nextTripInfo: {
+    flex: 1,
+  },
+
+  nextTripTitle: {
+    color: "#1C2534",
+    fontSize: 18,
+    fontWeight: "900",
+    marginBottom: 11,
+  },
+
+  nextTripMetaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 5,
+  },
+
+  nextTripMetaText: {
+    color: "#8A9BB2",
+    fontSize: 13,
+    fontWeight: "700",
+    marginLeft: 6,
   },
 
   emptyContainer: {
@@ -293,11 +551,6 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
 
-  /*
-   * 여기 고치면 됨.
-   * 원이 앞에 있는 것처럼 보이면 opacity를 더 낮춰.
-   * 예: 0.42 → 0.32
-   */
   radialLayer: {
     position: "absolute",
     top: "51%",
@@ -306,7 +559,7 @@ const styles = StyleSheet.create({
     height: 350,
     alignItems: "center",
     justifyContent: "center",
-    opacity: 0.42,
+    opacity: 0.32,
     zIndex: 0,
     elevation: 0,
   },
@@ -414,100 +667,5 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "900",
-  },
-
-  scheduleList: {
-    flex: 1,
-  },
-
-  scheduleListContent: {
-    paddingHorizontal: 24,
-    paddingTop: 28,
-    paddingBottom: 130,
-  },
-
-  sectionHeader: {
-    marginBottom: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-
-  sectionTitle: {
-    color: "#1C2534",
-    fontSize: 22,
-    fontWeight: "900",
-  },
-
-  smallAddButton: {
-    height: 34,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    backgroundColor: "#2158E8",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 3,
-  },
-
-  smallAddButtonText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  scheduleCard: {
-    minHeight: 92,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E3EAF4",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    marginBottom: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.06,
-    shadowRadius: 16,
-    elevation: 3,
-  },
-
-  scheduleCardIcon: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    backgroundColor: "#EAF3FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14,
-  },
-
-  scheduleCardContent: {
-    flex: 1,
-  },
-
-  scheduleTitle: {
-    color: "#1C2534",
-    fontSize: 17,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
-
-  scheduleDate: {
-    color: "#8C9BB1",
-    fontSize: 13,
-    fontWeight: "700",
-  },
-
-  scheduleLocation: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "800",
-    marginTop: 5,
   },
 });

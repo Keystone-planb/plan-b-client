@@ -17,9 +17,19 @@ import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
 import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
+import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
+type TodayPlace = {
+  id?: string;
+  name?: string;
+  address?: string;
+  time?: string;
+  latitude?: number;
+  longitude?: number;
+};
 
 type RootStackParamList = {
   OnboardingFirst: undefined;
@@ -79,6 +89,18 @@ type RootStackParamList = {
       day?: number;
       time?: string;
     };
+    alternativeTargetPlace?: TodayPlace;
+  };
+
+  OngoingSchedule: {
+    scheduleId?: string;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    transportLabel?: string;
+    places?: TodayPlace[];
   };
 };
 
@@ -88,6 +110,7 @@ const webPrefix =
   Platform.OS === "web" && typeof window !== "undefined" ?
     window.location.origin
   : undefined;
+
 const linking = {
   prefixes: [
     Linking.createURL("/", {
@@ -254,6 +277,16 @@ export default function App() {
         <Stack.Screen
           name="PlanA"
           component={PlanAScreen}
+          options={{
+            headerShown: false,
+            animation: "slide_from_right",
+            animationDuration: 260,
+          }}
+        />
+
+        <Stack.Screen
+          name="OngoingSchedule"
+          component={OngoingScheduleScreen}
           options={{
             headerShown: false,
             animation: "slide_from_right",
