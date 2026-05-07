@@ -127,7 +127,7 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
               onPress={handleBack}
               activeOpacity={0.8}
             >
-              <Ionicons name="chevron-back" size={24} color="#1C2534" />
+              <Ionicons name="chevron-back" size={24} color="#64748B" />
             </TouchableOpacity>
 
             <Text style={styles.headerTitle}>Plan.A</Text>
@@ -137,7 +137,34 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
 
           <View style={styles.topSection}>
             <View style={styles.illustrationWrapper}>
-              <Text style={styles.illustrationEmoji}>📅</Text>
+              <View style={styles.illustrationCircle}>
+                <View style={styles.dateIllustration}>
+                  <View style={styles.dateTop}>
+                    <Text style={styles.dateMonthText}>JUL</Text>
+
+                    <View style={styles.dateRingRow}>
+                      <View style={styles.dateRing} />
+                      <View style={styles.dateRing} />
+                    </View>
+
+                    <View style={styles.dateDotGroup}>
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                      <View style={styles.dateDot} />
+                    </View>
+                  </View>
+
+                  <View style={styles.dateBody}>
+                    <Text style={styles.dateNumberText}>17</Text>
+                  </View>
+                </View>
+              </View>
             </View>
 
             <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
@@ -229,18 +256,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#F7F9FB",
   },
+
   screen: {
     flex: 1,
     backgroundColor: "#F7F9FB",
   },
+
   container: {
     flex: 1,
   },
+
   scrollContent: {
     paddingTop: 18,
     paddingHorizontal: 21,
     paddingBottom: 24,
   },
+
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -248,26 +279,32 @@ const styles = StyleSheet.create({
     marginBottom: 42,
     paddingHorizontal: 4,
   },
+
   iconButton: {
     width: 30,
     height: 30,
     alignItems: "center",
     justifyContent: "center",
   },
+
   iconPlaceholder: {
     width: 30,
     height: 30,
   },
+
   headerTitle: {
     color: "#1C2534",
     fontSize: 40,
     fontWeight: "900",
     textAlign: "center",
+    letterSpacing: -1,
   },
+
   topSection: {
     alignItems: "center",
     marginBottom: 34,
   },
+
   illustrationWrapper: {
     width: 170,
     height: 170,
@@ -275,9 +312,96 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 30,
   },
-  illustrationEmoji: {
-    fontSize: 96,
+
+  illustrationCircle: {
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    backgroundColor: "#FFEBC2",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#C28A2E",
+    shadowOffset: {
+      width: 0,
+      height: 10,
+    },
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    elevation: 5,
   },
+
+  dateIllustration: {
+    width: 86,
+    height: 86,
+    backgroundColor: "#E9EAEC",
+    overflow: "hidden",
+  },
+
+  dateTop: {
+    height: 31,
+    backgroundColor: "#B85F66",
+    paddingHorizontal: 7,
+    paddingTop: 6,
+    position: "relative",
+  },
+
+  dateMonthText: {
+    color: "#F8E7E5",
+    fontSize: 18,
+    fontWeight: "700",
+    letterSpacing: 0.4,
+  },
+
+  dateRingRow: {
+    position: "absolute",
+    top: -5,
+    left: 19,
+    right: 19,
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+
+  dateRing: {
+    width: 9,
+    height: 14,
+    borderRadius: 5,
+    backgroundColor: "#FFF2D7",
+  },
+
+  dateDotGroup: {
+    position: "absolute",
+    right: 8,
+    bottom: 6,
+    width: 30,
+    height: 16,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 3,
+    opacity: 0.4,
+  },
+
+  dateDot: {
+    width: 3,
+    height: 3,
+    borderRadius: 1.5,
+    backgroundColor: "#F8E7E5",
+  },
+
+  dateBody: {
+    flex: 1,
+    backgroundColor: "#E9EAEC",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  dateNumberText: {
+    color: "#333333",
+    fontSize: 50,
+    fontWeight: "300",
+    lineHeight: 56,
+    letterSpacing: -2,
+  },
+
   title: {
     color: "#000000",
     fontSize: 30,
@@ -286,6 +410,7 @@ const styles = StyleSheet.create({
     lineHeight: 40,
     marginBottom: 16,
   },
+
   description: {
     color: "#627187",
     fontSize: 16,
@@ -293,18 +418,22 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     paddingHorizontal: 8,
   },
+
   inputSection: {
     marginBottom: 20,
   },
+
   fieldGroup: {
     marginBottom: 18,
   },
+
   fieldLabel: {
     color: "#252D3C",
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 8,
   },
+
   dateField: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -316,15 +445,18 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 20,
   },
+
   dateText: {
     color: "#8C9BB1",
     fontSize: 16,
     fontWeight: "500",
   },
+
   selectedDateText: {
     color: "#1C2534",
     fontWeight: "700",
   },
+
   calendarButton: {
     width: 40,
     height: 40,
@@ -333,17 +465,20 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+
   footerSection: {
     paddingHorizontal: 21,
     paddingBottom: 24,
     backgroundColor: "#F7F9FB",
   },
+
   pagination: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     marginBottom: 24,
   },
+
   activeDot: {
     width: 24,
     height: 6,
@@ -351,12 +486,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#2158E8",
     marginHorizontal: 8,
   },
+
   dot: {
     width: 6,
     height: 6,
     borderRadius: 999,
     backgroundColor: "#E1E7EF",
   },
+
   nextButton: {
     alignItems: "center",
     justifyContent: "center",
@@ -372,9 +509,11 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 10,
   },
+
   disabledButton: {
     opacity: 0.45,
   },
+
   nextButtonText: {
     color: "#FFFFFF",
     fontSize: 16,
