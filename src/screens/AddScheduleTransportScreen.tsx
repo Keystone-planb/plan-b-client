@@ -95,10 +95,11 @@ export default function AddScheduleTransportScreen({
       return;
     }
 
-    navigation.navigate("AddScheduleLocation", {
+    navigation.navigate("PlanA", {
       tripName: tripName.trim(),
       startDate,
       endDate,
+      location: "",
       transportMode: selectedOption.mode,
       transportLabel: selectedOption.label,
     });
@@ -217,7 +218,7 @@ export default function AddScheduleTransportScreen({
             onPress={handleNext}
             disabled={!canGoNext}
           >
-            <Text style={styles.nextButtonText}>다음</Text>
+            <Text style={styles.nextButtonText}>완료</Text>
           </TouchableOpacity>
         </View>
       </View>
