@@ -39,6 +39,7 @@ type Props = {
 
 type SelectedPlace = {
   placeId: string;
+  googlePlaceId?: string;
   name: string;
   address?: string;
   rating?: number;
@@ -136,9 +137,22 @@ export default function AddScheduleLocationScreen({
   const [placeReviewMap, setPlaceReviewMap] = useState<
     Record<string, PlaceReviewInfo>
   >({});
-  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
-    null,
-  );
+  const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
+  const selectedPlace = selectedPlaces[selectedPlaces.length - 1] ?? null;
+
+  const toggleSelectedPlace = (place: SelectedPlace) => {
+    setSelectedPlaces((prev) => {
+      const alreadySelected = prev.some(
+        (item) => item.placeId === place.placeId,
+      );
+
+      if (alreadySelected) {
+        return prev.filter((item) => item.placeId !== place.placeId);
+      }
+
+      return [...prev, place];
+    });
+  };
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -196,7 +210,7 @@ export default function AddScheduleLocationScreen({
 
     try {
       setSearchLoading(true);
-      setSelectedPlace(null);
+      setSelectedPlaces([]);
 
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
@@ -207,7 +221,7 @@ export default function AddScheduleLocationScreen({
       Keyboard.dismiss();
     } catch {
       setSearchResults([]);
-      setSelectedPlace(null);
+      setSelectedPlaces([]);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
     } finally {
@@ -235,7 +249,7 @@ export default function AddScheduleLocationScreen({
         longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(nextPlace);
+      toggleSelectedPlace(nextPlace);
       setKeyword(place.name);
 
       const storedUserId = await AsyncStorage.getItem("user_id");
@@ -266,7 +280,7 @@ export default function AddScheduleLocationScreen({
         longitude: place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(fallbackPlace);
+      toggleSelectedPlace(fallbackPlace);
       setKeyword(place.name);
     } finally {
       setDetailLoadingPlaceId(null);
@@ -320,7 +334,7 @@ export default function AddScheduleLocationScreen({
   };
 
   const handleNext = async () => {
-    if (!selectedPlace || submitLoading) {
+    if (selectedPlaces.length === 0 || submitLoading) {
       return;
     }
 
@@ -330,11 +344,13 @@ export default function AddScheduleLocationScreen({
     }
 
     const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
+    const primaryPlace = selectedPlaces[0];
+
     const nextLocation =
-      selectedPlace.name || selectedPlace.address || "선택한 장소";
+      primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
     let serverTripId: number | string | undefined;
-    let serverTripPlaceId: number | string | undefined;
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
       setSubmitLoading(true);
@@ -350,22 +366,27 @@ export default function AddScheduleLocationScreen({
         serverTripId = tripResponse.tripId;
 
         if (serverTripId) {
-          const locationResponse = await addTripLocation(serverTripId, selectedDay, {
-            place_id: selectedPlace.placeId,
-            name: selectedPlace.name,
-            visitTime: null,
-            endTime: null,
-            memo: null,
-          });
+          for (const place of selectedPlaces) {
+            const locationResponse = await addTripLocation(serverTripId, selectedDay, {
+              place_id: place.googlePlaceId ?? place.placeId,
+              name: place.name,
+              visitTime: null,
+              endTime: null,
+              memo: null,
+            });
 
-          serverTripPlaceId = locationResponse.tripPlaceId;
+            serverPlaceMap[place.placeId] = {
+              tripPlaceId: locationResponse.tripPlaceId,
+            };
+          }
         }
 
         console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
           serverTripId,
-          serverTripPlaceId,
           selectedDay,
-          placeName: selectedPlace.name,
+          count: selectedPlaces.length,
+          serverPlaceMap,
+          placeNames: selectedPlaces.map((place) => place.name),
         });
       } catch (serverError) {
         console.log(
@@ -383,20 +404,20 @@ export default function AddScheduleLocationScreen({
         serverTripId,
         transportMode,
         transportLabel,
-        selectedPlace: {
-          id: selectedPlace.placeId,
-          placeId: selectedPlace.placeId,
-          googlePlaceId: selectedPlace.placeId,
-          tripPlaceId: serverTripPlaceId,
-          serverTripPlaceId,
-          name: selectedPlace.name,
-          address: selectedPlace.address,
-          category: selectedPlace.category,
-          latitude: selectedPlace.latitude,
-          longitude: selectedPlace.longitude,
+        selectedPlaces: selectedPlaces.map((place) => ({
+          id: place.placeId,
+          placeId: place.placeId,
+          googlePlaceId: place.googlePlaceId ?? place.placeId,
+          tripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+          serverTripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+          name: place.name,
+          address: place.address,
+          category: place.category,
+          latitude: place.latitude,
+          longitude: place.longitude,
           time: "",
           day: selectedDay,
-        },
+        })),
       });
     } catch (error) {
       console.log("일정 생성 실패:", error);
@@ -446,7 +467,7 @@ export default function AddScheduleLocationScreen({
 
             <MapFocus selectedPlace={selectedPlace} />
 
-            {selectedPlace && (
+            {selectedPlaces.length > 0 && (
               <Marker
                 position={[selectedPlace.latitude, selectedPlace.longitude]}
                 icon={markerIcon}
@@ -503,7 +524,9 @@ export default function AddScheduleLocationScreen({
         >
           {placesToRender.map((place) => {
             const isPreview = place.placeId === "empty-preview-1";
-            const isSelected = selectedPlace?.placeId === String(place.placeId);
+            const isSelected = selectedPlaces.some(
+              (item) => item.placeId === String(place.placeId),
+            );
             const isDetailLoading = detailLoadingPlaceId === String(place.placeId);
             const isReviewLoading = reviewLoadingPlaceId === place.placeId;
             const isExpanded = expandedPlaceId === place.placeId;
@@ -692,7 +715,7 @@ export default function AddScheduleLocationScreen({
                     {isDetailLoading ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     : <Text style={styles.expandedSelectButtonText}>
-                        {selectedPlace ? "선택 완료" : "이 장소 선택"}
+                        {isSelected ? "선택 완료" : "이 장소 선택"}
                       </Text>
                     }
                   </TouchableOpacity>
@@ -703,7 +726,7 @@ export default function AddScheduleLocationScreen({
         </ScrollView>
       </View>
 
-      {selectedPlace && (
+      {selectedPlaces.length > 0 && (
         <TouchableOpacity
           style={[styles.nextButton, submitLoading && styles.disabledNextButton]}
           activeOpacity={0.85}

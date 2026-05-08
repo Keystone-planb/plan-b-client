@@ -39,6 +39,7 @@ type Props = {
 
 type SelectedPlace = {
   placeId: string;
+  googlePlaceId?: string;
   name: string;
   address?: string;
   rating?: number;
@@ -48,10 +49,318 @@ type SelectedPlace = {
 };
 
 type PlaceReviewInfo = {
+  detail?: unknown;
   summary?: PlaceSummaryResponse;
   freshness?: PlaceFreshnessResponse;
 };
 
+type ReviewItem = {
+  text: string;
+  rating?: number;
+  relativeTimeDescription?: string;
+  authorName?: string;
+};
+
+// 데이터 파싱 헬퍼 함수들 (네이티브에서 추가된 고급 기능)
+const unwrapApiData = (source: unknown) => {
+  if (!source || typeof source !== "object") {
+    return source;
+  }
+
+  const objectSource = source as Record<string, unknown>;
+
+  return (
+    objectSource.data ??
+    objectSource.result ??
+    objectSource.response ??
+    objectSource.payload ??
+    objectSource.body ??
+    objectSource
+  );
+};
+
+const getValueByPath = (source: unknown, path: string): unknown => {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+
+  return path.split(".").reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") {
+      return undefined;
+    }
+
+    return (current as Record<string, unknown>)[key];
+  }, source);
+};
+
+const normalizeTextValue = (value: unknown): string => {
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (typeof value === "number") {
+    return String(value);
+  }
+
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => normalizeTextValue(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+
+  if (value && typeof value === "object") {
+    const objectValue = value as Record<string, unknown>;
+
+    const preferred =
+      objectValue.text ??
+      objectValue.summary ??
+      objectValue.reviewSummary ??
+      objectValue.content ??
+      objectValue.review ??
+      objectValue.message ??
+      objectValue.description ??
+      objectValue.aiSummary;
+
+    return normalizeTextValue(preferred);
+  }
+
+  return "";
+};
+
+const getFirstText = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = normalizeTextValue(getValueByPath(source, path));
+
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+};
+
+const getFirstArray = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getValueByPath(source, path);
+
+    if (Array.isArray(value)) {
+      const normalized = value
+        .map((item) => normalizeTextValue(item))
+        .filter(Boolean);
+
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+  }
+
+  return [];
+};
+
+const getNumberByPath = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getValueByPath(source, path);
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string") {
+      const parsed = Number(value);
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const truncateText = (text: string, maxLength = 120) => {
+  const normalized = text.trim().replace(/\s+/g, " ");
+
+  if (normalized.length <= maxLength) {
+    return normalized;
+  }
+
+  return `${normalized.slice(0, maxLength).trim()}...`;
+};
+
+const getReviewArrayByPath = (source: unknown, path: string): ReviewItem[] => {
+  const value = getValueByPath(source, path);
+
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .map((item) => {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+
+      const itemObject = item as Record<string, unknown>;
+
+      const text = normalizeTextValue(
+        itemObject.text ??
+          itemObject.reviewText ??
+          itemObject.content ??
+          itemObject.review ??
+          itemObject.comment ??
+          itemObject.message,
+      );
+
+      if (!text) {
+        return null;
+      }
+
+      const ratingRaw = itemObject.rating;
+      const parsedRating =
+        typeof ratingRaw === "number" ? ratingRaw
+        : typeof ratingRaw === "string" ? Number(ratingRaw)
+        : undefined;
+
+      return {
+        text,
+        rating:
+          typeof parsedRating === "number" && Number.isFinite(parsedRating) ?
+            parsedRating
+          : undefined,
+        relativeTimeDescription: normalizeTextValue(
+          itemObject.relativeTimeDescription ??
+            itemObject.relativeTime ??
+            itemObject.timeDescription ??
+            itemObject.createdAt,
+        ),
+        authorName: normalizeTextValue(
+          itemObject.authorName ??
+            itemObject.userName ??
+            itemObject.author ??
+            itemObject.name,
+        ),
+      };
+    })
+    .filter(Boolean) as ReviewItem[];
+};
+
+const getDetailReviews = (detail: unknown): ReviewItem[] => {
+  const unwrappedDetail = unwrapApiData(detail);
+
+  const reviewPaths = [
+    "reviews",
+    "googleReviews",
+    "reviewList",
+    "data.reviews",
+    "data.googleReviews",
+    "result.reviews",
+    "result.googleReviews",
+    "payload.reviews",
+    "payload.googleReviews",
+  ];
+
+  for (const path of reviewPaths) {
+    const reviews = getReviewArrayByPath(unwrappedDetail, path);
+
+    if (reviews.length > 0) {
+      return reviews;
+    }
+  }
+
+  return [];
+};
+
+const createKeywordsFromReviews = (reviews: ReviewItem[]) => {
+  if (reviews.length === 0) {
+    return [];
+  }
+
+  const reviewText = reviews.map((review) => review.text).join(" ");
+
+  const keywordCandidates = [
+    "분위기",
+    "맛집",
+    "친절",
+    "커피",
+    "디저트",
+    "가성비",
+    "웨이팅",
+    "깔끔",
+    "뷰",
+    "사진",
+    "데이트",
+    "가족",
+    "혼밥",
+    "주차",
+    "추천",
+    "재방문",
+    "양",
+    "가격",
+    "서비스",
+  ];
+
+  return keywordCandidates
+    .filter((keyword) => reviewText.includes(keyword))
+    .slice(0, 5);
+};
+
+const createReviewSummaryFromReviews = (reviews: ReviewItem[]) => {
+  if (reviews.length === 0) {
+    return "";
+  }
+
+  const validRatings = reviews
+    .map((review) => review.rating)
+    .filter(
+      (rating): rating is number =>
+        typeof rating === "number" && Number.isFinite(rating),
+    );
+
+  const averageRating =
+    validRatings.length > 0 ?
+      validRatings.reduce((sum, rating) => sum + rating, 0) /
+      validRatings.length
+    : undefined;
+
+  const keywords = createKeywordsFromReviews(reviews);
+  const keywordPart =
+    keywords.length > 0 ?
+      `${keywords.slice(0, 3).join(", ")} 관련 언급이 많습니다.`
+    : "";
+
+  const ratingPart =
+    typeof averageRating === "number" ?
+      `실제 리뷰 평균 평점은 ${averageRating.toFixed(1)}점입니다.`
+    : `실제 리뷰 ${reviews.length}개를 기준으로 요약했습니다.`;
+
+  const firstReview = truncateText(reviews[0].text, 52);
+
+  return [ratingPart, keywordPart, `대표 리뷰: ${firstReview}`]
+    .filter(Boolean)
+    .join(" ");
+};
+
+const isMockLikeSummary = (summary: string) => {
+  const MOCK_LIKE_SUMMARY_PATTERNS = [
+    "분위기 있는 인테리어",
+    "친절한 직원으로 유명한 카페",
+    "커피 퀄리티가 높고",
+    "디저트도 맛있습니다",
+    "힐링 분위기와 잘 맞는 조용한 카페",
+    "오후 방문을 추천합니다",
+  ];
+
+  const normalized = summary.trim();
+
+  if (!normalized) {
+    return false;
+  }
+
+  return MOCK_LIKE_SUMMARY_PATTERNS.some((pattern) =>
+    normalized.includes(pattern),
+  );
+};
 
 const INITIAL_REGION = {
   latitude: 37.7519,
@@ -136,9 +445,22 @@ export default function AddScheduleLocationScreen({
   const [placeReviewMap, setPlaceReviewMap] = useState<
     Record<string, PlaceReviewInfo>
   >({});
-  const [selectedPlace, setSelectedPlace] = useState<SelectedPlace | null>(
-    null,
-  );
+  const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
+  const selectedPlace = selectedPlaces[selectedPlaces.length - 1] ?? null;
+
+  const toggleSelectedPlace = (place: SelectedPlace) => {
+    setSelectedPlaces((prev) => {
+      const alreadySelected = prev.some(
+        (item) => item.placeId === place.placeId,
+      );
+
+      if (alreadySelected) {
+        return prev.filter((item) => item.placeId !== place.placeId);
+      }
+
+      return [...prev, place];
+    });
+  };
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -155,38 +477,6 @@ export default function AddScheduleLocationScreen({
     navigation.navigate("Main");
   };
 
-
-  const toNumericPlaceId = (value: unknown): number | null => {
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string" && /^\d+$/.test(value)) {
-      return Number(value);
-    }
-
-    return null;
-  };
-
-
-  const getFeedbackPlaceId = (value: unknown): number | null => {
-    const target = value as {
-      id?: unknown;
-      placeId?: unknown;
-      place_id?: unknown;
-      dbPlaceId?: unknown;
-      serverPlaceId?: unknown;
-    };
-
-    return (
-      toNumericPlaceId(target?.id) ??
-      toNumericPlaceId(target?.placeId) ??
-      toNumericPlaceId(target?.place_id) ??
-      toNumericPlaceId(target?.dbPlaceId) ??
-      toNumericPlaceId(target?.serverPlaceId)
-    );
-  };
-
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
 
@@ -196,8 +486,7 @@ export default function AddScheduleLocationScreen({
 
     try {
       setSearchLoading(true);
-      setSelectedPlace(null);
-
+      setSelectedPlaces([]);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
@@ -207,7 +496,7 @@ export default function AddScheduleLocationScreen({
       Keyboard.dismiss();
     } catch {
       setSearchResults([]);
-      setSelectedPlace(null);
+      setSelectedPlaces([]);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
     } finally {
@@ -223,10 +512,13 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getPlaceDetail(place.googlePlaceId ?? String(place.placeId));
+      const detail = await getPlaceDetail(
+        place.googlePlaceId ?? String(place.placeId),
+      );
 
       const nextPlace: SelectedPlace = {
         placeId: String(place.placeId),
+        googlePlaceId: place.googlePlaceId ?? String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -235,7 +527,7 @@ export default function AddScheduleLocationScreen({
         longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(nextPlace);
+      toggleSelectedPlace(nextPlace);
       setKeyword(place.name);
 
       const storedUserId = await AsyncStorage.getItem("user_id");
@@ -258,6 +550,7 @@ export default function AddScheduleLocationScreen({
     } catch {
       const fallbackPlace: SelectedPlace = {
         placeId: String(place.placeId),
+        googlePlaceId: place.googlePlaceId ?? String(place.placeId),
         name: place.name,
         address: place.address,
         rating: place.rating,
@@ -266,7 +559,7 @@ export default function AddScheduleLocationScreen({
         longitude: place.longitude ?? INITIAL_REGION.longitude,
       };
 
-      setSelectedPlace(fallbackPlace);
+      toggleSelectedPlace(fallbackPlace);
       setKeyword(place.name);
     } finally {
       setDetailLoadingPlaceId(null);
@@ -286,7 +579,8 @@ export default function AddScheduleLocationScreen({
     try {
       setReviewLoadingPlaceId(placeId);
 
-      const [summary, freshness] = await Promise.all([
+      const [detail, summary, freshness] = await Promise.all([
+        getPlaceDetail(placeId),
         getPlaceSummary(placeId),
         getPlaceFreshness(placeId),
       ]);
@@ -294,6 +588,7 @@ export default function AddScheduleLocationScreen({
       setPlaceReviewMap((prev) => ({
         ...prev,
         [placeId]: {
+          detail,
           summary,
           freshness,
         },
@@ -320,7 +615,7 @@ export default function AddScheduleLocationScreen({
   };
 
   const handleNext = async () => {
-    if (!selectedPlace || submitLoading) {
+    if (selectedPlaces.length === 0 || submitLoading) {
       return;
     }
 
@@ -330,11 +625,13 @@ export default function AddScheduleLocationScreen({
     }
 
     const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
+    const primaryPlace = selectedPlaces[0];
+
     const nextLocation =
-      selectedPlace.name || selectedPlace.address || "선택한 장소";
+      primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
     let serverTripId: number | string | undefined;
-    let serverTripPlaceId: number | string | undefined;
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
       setSubmitLoading(true);
@@ -350,22 +647,31 @@ export default function AddScheduleLocationScreen({
         serverTripId = tripResponse.tripId;
 
         if (serverTripId) {
-          const locationResponse = await addTripLocation(serverTripId, selectedDay, {
-            place_id: selectedPlace.placeId,
-            name: selectedPlace.name,
-            visitTime: null,
-            endTime: null,
-            memo: null,
-          });
+          for (const place of selectedPlaces) {
+            const locationResponse = await addTripLocation(
+              serverTripId,
+              selectedDay,
+              {
+                place_id: place.googlePlaceId ?? place.placeId,
+                name: place.name,
+                visitTime: null,
+                endTime: null,
+                memo: null,
+              },
+            );
 
-          serverTripPlaceId = locationResponse.tripPlaceId;
+            serverPlaceMap[place.placeId] = {
+              tripPlaceId: locationResponse.tripPlaceId,
+            };
+          }
         }
 
         console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
           serverTripId,
-          serverTripPlaceId,
           selectedDay,
-          placeName: selectedPlace.name,
+          count: selectedPlaces.length,
+          serverPlaceMap,
+          placeNames: selectedPlaces.map((place) => place.name),
         });
       } catch (serverError) {
         console.log(
@@ -383,28 +689,28 @@ export default function AddScheduleLocationScreen({
         serverTripId,
         transportMode,
         transportLabel,
-        selectedPlace: {
-          id: selectedPlace.placeId,
-          placeId: selectedPlace.placeId,
-          googlePlaceId: selectedPlace.placeId,
-          tripPlaceId: serverTripPlaceId,
-          serverTripPlaceId,
-          name: selectedPlace.name,
-          address: selectedPlace.address,
-          category: selectedPlace.category,
-          latitude: selectedPlace.latitude,
-          longitude: selectedPlace.longitude,
+        selectedPlaces: selectedPlaces.map((place) => ({
+          id: place.placeId,
+          placeId: place.placeId,
+          googlePlaceId: place.googlePlaceId ?? place.placeId,
+          tripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+          serverTripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+          name: place.name,
+          address: place.address,
+          category: place.category,
+          latitude: place.latitude,
+          longitude: place.longitude,
           time: "",
           day: selectedDay,
-        },
+        })),
       });
     } catch (error) {
       console.log("일정 생성 실패:", error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "여행 일정을 생성하지 못했습니다.";
+        error instanceof Error ?
+          error.message
+        : "여행 일정을 생성하지 못했습니다.";
 
       Alert.alert("일정 생성 실패", message);
     } finally {
@@ -446,7 +752,7 @@ export default function AddScheduleLocationScreen({
 
             <MapFocus selectedPlace={selectedPlace} />
 
-            {selectedPlace && (
+            {selectedPlaces.length > 0 && (
               <Marker
                 position={[selectedPlace.latitude, selectedPlace.longitude]}
                 icon={markerIcon}
@@ -503,44 +809,117 @@ export default function AddScheduleLocationScreen({
         >
           {placesToRender.map((place) => {
             const isPreview = place.placeId === "empty-preview-1";
-            const isSelected = selectedPlace?.placeId === String(place.placeId);
-            const isDetailLoading = detailLoadingPlaceId === String(place.placeId);
+            const isSelected = selectedPlaces.some(
+              (item) => item.placeId === String(place.placeId),
+            );
+            const isDetailLoading =
+              detailLoadingPlaceId === String(place.placeId);
             const isReviewLoading = reviewLoadingPlaceId === place.placeId;
             const isExpanded = expandedPlaceId === place.placeId;
             const reviewInfo = placeReviewMap[place.placeId];
+            const detail = reviewInfo?.detail;
             const summary = reviewInfo?.summary;
             const freshness = reviewInfo?.freshness;
+
+            // 고급 파싱으로 AI 요약 폴백 구현
+            const unwrappedDetail = unwrapApiData(detail);
+            const unwrappedSummary = unwrapApiData(summary);
+            const unwrappedFreshness = unwrapApiData(freshness);
+
+            const rawAiSummary = getFirstText(unwrappedSummary, [
+              "aiSummary",
+              "summary",
+              "reviewSummary",
+              "placeSummary",
+              "content",
+              "message",
+              "description",
+              "overallSummary",
+              "totalSummary",
+              "data.aiSummary",
+              "data.summary",
+              "data.reviewSummary",
+              "data.placeSummary",
+              "result.aiSummary",
+              "result.summary",
+              "payload.aiSummary",
+              "payload.summary",
+            ]);
+
+            const detailReviews = useMemo(
+              () => getDetailReviews(unwrappedDetail).slice(0, 2),
+              [unwrappedDetail],
+            );
+
+            const reviewBasedSummary = useMemo(
+              () => createReviewSummaryFromReviews(detailReviews),
+              [detailReviews],
+            );
+
             const aiSummary =
-              summary?.aiSummary ||
-              summary?.reviewSummary ||
-              "아직 요약 정보가 없습니다.";
-            const keywords = summary?.keywords ?? [];
+              rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
+                truncateText(rawAiSummary, 120)
+              : reviewBasedSummary || "아직 요약 정보가 없습니다.";
+
+            const keywords = getFirstArray(unwrappedSummary, [
+              "keywords",
+              "keywordList",
+              "tags",
+              "data.keywords",
+              "data.keywordList",
+              "result.keywords",
+              "payload.keywords",
+            ]);
 
             const googleReview =
-              summary?.googleReview ||
-              summary?.googleReviewSummary ||
-              summary?.platformSummaries?.google ||
-              "구글 리뷰 요약을 준비 중입니다.";
+              getFirstText(unwrappedSummary, [
+                "googleReview",
+                "googleReviewSummary",
+                "platformSummaries.google",
+                "data.googleReview",
+                "result.googleReview",
+              ]) || "구글 리뷰 요약을 준비 중입니다.";
 
             const naverReview =
-              summary?.naverReview ||
-              summary?.naverReviewSummary ||
-              summary?.platformSummaries?.naver ||
-              "네이버 리뷰 요약을 준비 중입니다.";
+              getFirstText(unwrappedSummary, [
+                "naverReview",
+                "naverReviewSummary",
+                "platformSummaries.naver",
+                "data.naverReview",
+                "result.naverReview",
+              ]) || "네이버 리뷰 요약을 준비 중입니다.";
 
             const instaReview =
-              summary?.instaReview ||
-              summary?.instagramReviewSummary ||
-              summary?.instaReviewSummary ||
-              summary?.platformSummaries?.instagram ||
-              summary?.platformSummaries?.insta ||
-              "인스타그램 리뷰 요약을 준비 중입니다.";
+              getFirstText(unwrappedSummary, [
+                "instaReview",
+                "instagramReviewSummary",
+                "instaReviewSummary",
+                "platformSummaries.instagram",
+                "platformSummaries.insta",
+                "data.instaReview",
+                "result.instaReview",
+              ]) || "인스타그램 리뷰 요약을 준비 중입니다.";
+
+            const freshnessStatus = getFirstText(unwrappedFreshness, [
+              "status",
+              "freshnessStatus",
+              "data.status",
+              "result.status",
+            ]);
+
             const freshnessText =
-              freshness?.status === "FRESH" || freshness?.isFresh
-                ? "최신 정보"
-                : freshness?.lastSyncedAt || freshness?.last_updated
-                  ? "최근 업데이트 확인"
-                  : "최신성 확인 중";
+              freshnessStatus === "FRESH" ? "최신 정보"
+              : (
+                getFirstText(unwrappedFreshness, [
+                  "lastSyncedAt",
+                  "last_updated",
+                  "lastUpdated",
+                  "data.lastSyncedAt",
+                  "result.lastSyncedAt",
+                ])
+              ) ?
+                "최근 업데이트 확인"
+              : "최신성 확인 중";
 
             return (
               <View
@@ -579,7 +958,11 @@ export default function AddScheduleLocationScreen({
                   ]}
                   activeOpacity={0.8}
                   disabled={isPreview || isReviewLoading}
-                  onPress={() => handleTogglePlaceReview(place.googlePlaceId ?? String(place.placeId))}
+                  onPress={() =>
+                    handleTogglePlaceReview(
+                      place.googlePlaceId ?? String(place.placeId),
+                    )
+                  }
                 >
                   {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
@@ -658,6 +1041,19 @@ export default function AddScheduleLocationScreen({
                       </View>
                     </View>
 
+                    {keywords.length > 0 && (
+                      <View style={styles.keywordWrap}>
+                        {keywords.map((keyword) => (
+                          <View
+                            key={`keyword-${keyword}`}
+                            style={styles.keywordChip}
+                          >
+                            <Text style={styles.keywordText}>#{keyword}</Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
                     <View style={styles.reviewLineArea}>
                       <View style={styles.reviewVerticalLine} />
 
@@ -692,7 +1088,7 @@ export default function AddScheduleLocationScreen({
                     {isDetailLoading ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
                     : <Text style={styles.expandedSelectButtonText}>
-                        {selectedPlace ? "선택 완료" : "이 장소 선택"}
+                        {isSelected ? "선택 완료" : "이 장소 선택"}
                       </Text>
                     }
                   </TouchableOpacity>
@@ -703,18 +1099,19 @@ export default function AddScheduleLocationScreen({
         </ScrollView>
       </View>
 
-      {selectedPlace && (
+      {selectedPlaces.length > 0 && (
         <TouchableOpacity
-          style={[styles.nextButton, submitLoading && styles.disabledNextButton]}
+          style={[
+            styles.nextButton,
+            submitLoading && styles.disabledNextButton,
+          ]}
           activeOpacity={0.85}
           onPress={handleNext}
           disabled={submitLoading}
         >
-          {submitLoading ? (
+          {submitLoading ?
             <ActivityIndicator size="small" color="#FFFFFF" />
-          ) : (
-            <Ionicons name="checkmark" size={23} color="#FFFFFF" />
-          )}
+          : <Ionicons name="checkmark" size={23} color="#FFFFFF" />}
         </TouchableOpacity>
       )}
     </View>
@@ -736,60 +1133,6 @@ const styles = StyleSheet.create({
   mapLayer: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 0,
-  },
-
-  webMapMock: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "#DDE7F2",
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-
-  mapGridLineHorizontal: {
-    position: "absolute",
-    top: 168,
-    left: 0,
-    right: 0,
-    height: 1,
-    backgroundColor: "#C9D6E5",
-  },
-
-  mapGridLineVertical: {
-    position: "absolute",
-    top: 0,
-    bottom: 0,
-    left: "50%",
-    width: 1,
-    backgroundColor: "#C9D6E5",
-  },
-
-  markerBox: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  markerLabel: {
-    marginTop: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-    color: "#172132",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-
-  mapEmptyBox: {
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  mapEmptyText: {
-    marginTop: 8,
-    color: "#74859B",
-    fontSize: 14,
-    fontWeight: "800",
   },
 
   searchOverlay: {
@@ -1074,26 +1417,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  reviewLineArea: {
-    position: "relative",
-    paddingLeft: 36,
-    gap: 12,
-  },
-
-  reviewVerticalLine: {
-    position: "absolute",
-    left: 8,
-    top: 0,
-    bottom: 0,
-    width: 1,
-    backgroundColor: "#DDE5EF",
-  },
-
   keywordWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 10,
+    marginBottom: 16,
   },
 
   keywordChip: {
@@ -1107,6 +1435,21 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 11,
     fontWeight: "800",
+  },
+
+  reviewLineArea: {
+    position: "relative",
+    paddingLeft: 36,
+    gap: 12,
+  },
+
+  reviewVerticalLine: {
+    position: "absolute",
+    left: 8,
+    top: 0,
+    bottom: 0,
+    width: 1,
+    backgroundColor: "#DDE5EF",
   },
 
   platformReviewCard: {
