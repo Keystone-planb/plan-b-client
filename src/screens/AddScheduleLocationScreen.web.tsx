@@ -692,6 +692,11 @@ export default function AddScheduleLocationScreen({
           route.params?.scheduleId ??
           route.params?.serverTripId ??
           serverTripId,
+        initialSchedule: route.params?.initialSchedule,
+        existingPlaces:
+          route.params?.existingPlaces ??
+          route.params?.places ??
+          [],
         tripName,
         startDate,
         endDate,
