@@ -28,7 +28,7 @@ import {
   PlaceSearchResult,
   PlaceSummaryResponse,
 } from "../../api/places/place";
-import { createTrip } from "../../api/schedules/server";
+import { addTripLocation, createTrip } from "../../api/schedules/server";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
@@ -329,35 +329,77 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
+    const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
+    const nextLocation =
+      selectedPlace.name || selectedPlace.address || "선택한 장소";
+
+    let serverTripId: number | string | undefined;
+    let serverTripPlaceId: number | string | undefined;
+
     try {
       setSubmitLoading(true);
 
-      await createTrip({
-        title: tripName,
-        startDate,
-        endDate,
-        travelStyles: ["HEALING"],
-      });
+      try {
+        const tripResponse = await createTrip({
+          title: tripName,
+          startDate,
+          endDate,
+          travelStyles: ["HEALING"],
+        });
+
+        serverTripId = tripResponse.tripId;
+
+        if (serverTripId) {
+          const locationResponse = await addTripLocation(serverTripId, selectedDay, {
+            place_id: selectedPlace.placeId,
+            name: selectedPlace.name,
+            visitTime: null,
+            endTime: null,
+            memo: null,
+          });
+
+          serverTripPlaceId = locationResponse.tripPlaceId;
+        }
+
+        console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
+          serverTripId,
+          serverTripPlaceId,
+          selectedDay,
+          placeName: selectedPlace.name,
+        });
+      } catch (serverError) {
+        console.log(
+          "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",
+          serverError,
+        );
+      }
 
       navigation.navigate("PlanA", {
         tripName,
         startDate,
         endDate,
-        location:
-          selectedPlace.name ||
-          selectedPlace.address ||
-          "선택한 장소",
+        location: nextLocation,
+        tripId: serverTripId,
+        serverTripId,
         transportMode,
         transportLabel,
         selectedPlace: {
           id: selectedPlace.placeId,
+          placeId: selectedPlace.placeId,
+          googlePlaceId: selectedPlace.placeId,
+          tripPlaceId: serverTripPlaceId,
+          serverTripPlaceId,
           name: selectedPlace.name,
+          address: selectedPlace.address,
+          category: selectedPlace.category,
+          latitude: selectedPlace.latitude,
+          longitude: selectedPlace.longitude,
           time: "",
-          day: route?.params?.day ?? route?.params?.selectedDay ?? 1,
+          day: selectedDay,
         },
       });
     } catch (error) {
-      console.log("여행 생성 실패:", error);
+      console.log("일정 생성 실패:", error);
 
       const message =
         error instanceof Error

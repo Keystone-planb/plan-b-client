@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+import { replacePlanPlace } from "../../api/schedules/server";
 import type { RecommendedPlace } from "../types/recommendation";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
@@ -21,7 +22,11 @@ type MoveTime = "10" | "20" | "30" | "ANY";
 type PlaceScope = "INDOOR" | "OUTDOOR";
 
 type TodayPlace = {
-  id?: string;
+  id?: string | number;
+  tripPlaceId?: string | number;
+  serverTripPlaceId?: string | number;
+  placeId?: string;
+  googlePlaceId?: string;
   name?: string;
   address?: string;
   time?: string;
@@ -164,9 +169,35 @@ export default function RecommendationResultScreen({
 
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
+    const currentPlanId =
+      targetPlace?.tripPlaceId ?? targetPlace?.serverTripPlaceId ?? targetPlace?.id;
+
+    const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
+    const newPlaceName = place.name;
+
+    if (!currentPlanId) {
+      Alert.alert(
+        "일정 교체 불가",
+        "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
+      );
+      return;
+    }
+
+    if (!newGooglePlaceId || !newPlaceName) {
+      Alert.alert(
+        "장소 정보 부족",
+        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+      );
+      return;
+    }
 
     try {
       setSubmittingPlaceId(placeId);
+
+      await replacePlanPlace(currentPlanId, {
+        newGooglePlaceId,
+        newPlaceName,
+      });
 
       const storedUserId = await AsyncStorage.getItem("user_id");
 
@@ -180,16 +211,19 @@ export default function RecommendationResultScreen({
 
       setSelectedPlaceId(placeId);
 
-      Alert.alert("선택 완료", `${place.name} 장소를 선택했어요.`);
-    } catch (error) {
-      console.log("[RecommendationResult] select failed:", error);
-
-      setSelectedPlaceId(placeId);
-
       Alert.alert(
-        "선택 완료",
-        "피드백 저장은 실패했지만 장소 선택은 완료 처리했어요.",
+        "PLAN B 교체 완료",
+        `${place.name}으로 기존 일정이 교체되었습니다.`,
       );
+    } catch (error) {
+      console.log("[RecommendationResult] replace failed:", error);
+
+      const message =
+        error instanceof Error
+          ? error.message
+          : "일정 교체 요청에 실패했습니다.";
+
+      Alert.alert("일정 교체 실패", message);
     } finally {
       setSubmittingPlaceId(null);
     }

@@ -95,17 +95,19 @@ export const createSocialAuthUrl = (
 
   const redirectUri = getSocialRedirectUri();
   const encodedRedirectUri = encodeRedirectUriToBase64(redirectUri);
+  const querySafeRedirectUri = encodeURIComponent(encodedRedirectUri);
 
   // 중요:
   // failure_redirect_uri 붙이지 말 것.
-  // redirect_uri도 raw URL이 아니라 btoa 값만 전달.
-  const authUrl = `${baseUrl}${path}?redirect_uri=${encodedRedirectUri}`;
+  // redirect_uri는 base64 인코딩 후 query string 안전 처리를 위해 encodeURIComponent를 적용한다.
+  const authUrl = `${baseUrl}${path}?redirect_uri=${querySafeRedirectUri}`;
 
   if (__DEV__) {
     console.log("[SocialAuth] provider:", provider);
     console.log("[SocialAuth] baseUrl:", baseUrl);
     console.log("[SocialAuth] redirectUri:", redirectUri);
     console.log("[SocialAuth] encodedRedirectUri:", encodedRedirectUri);
+    console.log("[SocialAuth] querySafeRedirectUri:", querySafeRedirectUri);
     console.log("[SocialAuth] authUrl:", authUrl);
   }
 

@@ -59,6 +59,7 @@ export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
   const parsedUrl = getUrlObject(url);
 
   const accessToken =
+    getOAuthParam(parsedUrl, "token") ||
     getOAuthParam(parsedUrl, "access_token") ||
     getOAuthParam(parsedUrl, "accessToken") ||
     "";
@@ -69,8 +70,8 @@ export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
     "";
 
   const userId =
-    getOAuthParam(parsedUrl, "user_id") ||
     getOAuthParam(parsedUrl, "userId") ||
+    getOAuthParam(parsedUrl, "user_id") ||
     undefined;
 
   const nickname = getOAuthParam(parsedUrl, "nickname") || undefined;

@@ -29,6 +29,7 @@ import {
   PlaceSummaryResponse,
 } from "../../api/places/place";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+import { addTripLocation, createTrip } from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
@@ -689,11 +690,13 @@ export default function AddScheduleLocationScreen({
     targetTripId,
     targetServerTripId,
     targetLocation,
+    serverPlaceMap,
   }: {
     targetScheduleId?: string;
     targetTripId?: number | string;
     targetServerTripId?: number | string;
     targetLocation: string;
+    serverPlaceMap?: Record<string, { tripPlaceId?: number | string }>;
   }) => {
     if (selectedPlaces.length === 0) {
       return;
@@ -709,18 +712,24 @@ export default function AddScheduleLocationScreen({
       location: targetLocation,
       transportMode,
       transportLabel,
-      selectedPlaces: selectedPlaces.map((place) => ({
-        id: place.placeId,
-        placeId: place.placeId,
-        googlePlaceId: place.googlePlaceId ?? place.placeId,
-        name: place.name,
-        address: place.address,
-        category: place.category,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        day: selectedDay,
-        time: "",
-      })),
+      selectedPlaces: selectedPlaces.map((place) => {
+        const serverPlace = serverPlaceMap?.[place.placeId];
+
+        return {
+          id: place.placeId,
+          placeId: place.placeId,
+          googlePlaceId: place.googlePlaceId ?? place.placeId,
+          tripPlaceId: serverPlace?.tripPlaceId,
+          serverTripPlaceId: serverPlace?.tripPlaceId,
+          name: place.name,
+          address: place.address,
+          category: place.category,
+          latitude: place.latitude,
+          longitude: place.longitude,
+          day: selectedDay,
+          time: "",
+        };
+      }),
     });
   };
 
@@ -742,48 +751,70 @@ export default function AddScheduleLocationScreen({
       existingLocation ||
       "선택한 장소";
 
+    let targetTripId = resolvedExistingTripId;
+    let targetServerTripId = resolvedExistingTripId;
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
+
     try {
       setSubmitLoading(true);
 
-      if (hasExistingSchedule) {
-        console.log("[AddScheduleLocation] 기존 일정에 장소 여러 개 추가:", {
-          scheduleId,
-          tripId: existingTripId,
-          serverTripId: existingServerTripId,
+      try {
+        if (!targetServerTripId) {
+          const tripResponse = await createTrip({
+            title: tripName,
+            startDate,
+            endDate,
+            travelStyles: ["HEALING"],
+          });
+
+          targetTripId = tripResponse.tripId;
+          targetServerTripId = tripResponse.tripId;
+        }
+
+        if (targetServerTripId) {
+          for (const place of selectedPlaces) {
+            const response = await addTripLocation(targetServerTripId, selectedDay, {
+              place_id: place.googlePlaceId ?? place.placeId,
+              name: place.name,
+              visitTime: null,
+              endTime: null,
+              memo: null,
+            });
+
+            serverPlaceMap[place.placeId] = {
+              tripPlaceId: response.tripPlaceId,
+            };
+          }
+        }
+
+        console.log("[AddScheduleLocation] 서버 일정/장소 저장 완료:", {
+          targetTripId,
+          targetServerTripId,
           selectedDay,
           count: selectedPlaces.length,
-          places: selectedPlaces.map((place) => place.name),
+          serverPlaceMap,
         });
-
-        navigateToPlanAWithPlaces({
-          targetScheduleId: scheduleId,
-          targetTripId: resolvedExistingTripId,
-          targetServerTripId: resolvedExistingTripId,
-          targetLocation: existingLocation || nextLocation,
-        });
-
-        return;
+      } catch (serverError) {
+        console.log(
+          "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",
+          serverError,
+        );
       }
-
-      console.log("[AddScheduleLocation] 새 일정 장소 선택 완료:", {
-        selectedDay,
-        count: selectedPlaces.length,
-        places: selectedPlaces.map((place) => place.name),
-      });
 
       navigateToPlanAWithPlaces({
         targetScheduleId: scheduleId,
-        targetTripId: resolvedExistingTripId,
-        targetServerTripId: resolvedExistingTripId,
-        targetLocation: nextLocation,
+        targetTripId,
+        targetServerTripId,
+        targetLocation: existingLocation || nextLocation,
+        serverPlaceMap,
       });
     } catch (error) {
       console.log("일정 저장 실패:", error);
 
       const message =
-        error instanceof Error ?
-          error.message
-        : "여행 일정을 저장하지 못했습니다.";
+        error instanceof Error
+          ? error.message
+          : "여행 일정을 저장하지 못했습니다.";
 
       Alert.alert("일정 저장 실패", message);
     } finally {

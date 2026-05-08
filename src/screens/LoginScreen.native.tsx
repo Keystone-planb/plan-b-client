@@ -3,8 +3,7 @@
  *
  * - 앱 전용 로그인 화면
  * - 일반 로그인
- * - 카카오 소셜 로그인: WebView 사용
- * - Google 소셜 로그인: WebBrowser.openAuthSessionAsync 사용
+ * - 카카오/Google 소셜 로그인: WebBrowser.openAuthSessionAsync 사용
  * - OAuth 성공 URL 감지 및 토큰 저장
  */
 
@@ -13,7 +12,6 @@ import {
   ActivityIndicator,
   Alert,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -24,7 +22,6 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import WebView from "react-native-webview";
 import * as WebBrowser from "expo-web-browser";
 
 import GoogleIcon from "../assets/google.svg";
@@ -61,22 +58,16 @@ type LoginResult = {
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-
   const [socialLoadingProvider, setSocialLoadingProvider] =
     useState<SocialProvider | null>(null);
-
-  const [webViewVisible, setWebViewVisible] = useState(false);
-  const [webViewUrl, setWebViewUrl] = useState("");
 
   const oauthHandlingRef = useRef(false);
 
   const isKakaoLoading = socialLoadingProvider === "kakao";
   const isGoogleLoading = socialLoadingProvider === "google";
   const isBusy = loading || Boolean(socialLoadingProvider);
-
   const canSubmit = email.trim().length > 0 && password.trim().length > 0;
 
   const moveToMain = () => {
@@ -138,7 +129,6 @@ export default function LoginScreen({ navigation }: any) {
 
   const getRedirectProvider = (url: string): SocialProvider | null => {
     const provider = getRedirectParam(url, "provider");
-
     return provider === "kakao" || provider === "google" ? provider : null;
   };
 
@@ -182,11 +172,6 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  const closeWebView = () => {
-    setWebViewUrl("");
-    setWebViewVisible(false);
-  };
-
   const finishSocialLoading = () => {
     setSocialLoadingProvider(null);
   };
@@ -211,8 +196,6 @@ export default function LoginScreen({ navigation }: any) {
     oauthHandlingRef.current = true;
 
     try {
-      closeWebView();
-
       if (isFailure) {
         throw new Error(getOAuthFailureMessage(url));
       }
@@ -236,40 +219,19 @@ export default function LoginScreen({ navigation }: any) {
     }
   };
 
-  const openKakaoLogin = () => {
+  const openSocialLogin = async (provider: SocialProvider) => {
     if (isBusy) return;
 
     try {
-      const { authUrl, redirectUri } = createSocialAuthUrl("kakao");
+      const { authUrl, redirectUri } = createSocialAuthUrl(provider);
 
       if (__DEV__) {
-        console.log("[Kakao OAuth] authUrl:", authUrl);
-        console.log("[Kakao OAuth] redirectUri:", redirectUri);
+        console.log(`[${provider} OAuth] authUrl:`, authUrl);
+        console.log(`[${provider} OAuth] redirectUri:`, redirectUri);
       }
 
       oauthHandlingRef.current = false;
-      setSocialLoadingProvider("kakao");
-      setWebViewUrl(authUrl);
-      setWebViewVisible(true);
-    } catch (error) {
-      finishSocialLoading();
-      handleLoginError("카카오 로그인 실패", error);
-    }
-  };
-
-  const openGoogleLogin = async () => {
-    if (isBusy) return;
-
-    try {
-      const { authUrl, redirectUri } = createSocialAuthUrl("google");
-
-      if (__DEV__) {
-        console.log("[Google OAuth] authUrl:", authUrl);
-        console.log("[Google OAuth] redirectUri:", redirectUri);
-      }
-
-      oauthHandlingRef.current = false;
-      setSocialLoadingProvider("google");
+      setSocialLoadingProvider(provider);
 
       const result = await WebBrowser.openAuthSessionAsync(
         authUrl,
@@ -277,7 +239,7 @@ export default function LoginScreen({ navigation }: any) {
       );
 
       if (__DEV__) {
-        console.log("[Google OAuth] result:", result);
+        console.log(`[${provider} OAuth] result:`, result);
       }
 
       if (result.type === "success") {
@@ -285,38 +247,14 @@ export default function LoginScreen({ navigation }: any) {
         return;
       }
 
-      if (result.type === "cancel" || result.type === "dismiss") {
-        finishSocialLoading();
-        return;
-      }
-
       finishSocialLoading();
     } catch (error) {
       finishSocialLoading();
-      handleLoginError("구글 로그인 실패", error);
+      handleLoginError(
+        provider === "kakao" ? "카카오 로그인 실패" : "구글 로그인 실패",
+        error,
+      );
     }
-  };
-
-  const shouldStopWebViewForOAuth = (url: string) => {
-    return (
-      isOAuthSuccessUrl(url) ||
-      isOAuthFailureUrl(url) ||
-      url.startsWith("planb://oauth/")
-    );
-  };
-
-  const handleWebViewUrl = async (url: string) => {
-    if (__DEV__) {
-      console.log("[WebView] url:", url);
-    }
-
-    if (!shouldStopWebViewForOAuth(url)) {
-      return false;
-    }
-
-    await handleOAuthRedirect(url);
-
-    return true;
   };
 
   return (
@@ -403,7 +341,7 @@ export default function LoginScreen({ navigation }: any) {
 
               <TouchableOpacity
                 style={[styles.kakaoButton, isBusy && styles.disabledButton]}
-                onPress={openKakaoLogin}
+                onPress={() => openSocialLogin("kakao")}
                 activeOpacity={0.8}
                 disabled={isBusy}
               >
@@ -423,7 +361,7 @@ export default function LoginScreen({ navigation }: any) {
 
               <TouchableOpacity
                 style={[styles.googleButton, isBusy && styles.disabledButton]}
-                onPress={openGoogleLogin}
+                onPress={() => openSocialLogin("google")}
                 activeOpacity={0.8}
                 disabled={isBusy}
               >
@@ -458,98 +396,6 @@ export default function LoginScreen({ navigation }: any) {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-
-      <Modal
-        visible={webViewVisible}
-        animationType="slide"
-        onRequestClose={() => {
-          closeWebView();
-          finishSocialLoading();
-        }}
-      >
-        <SafeAreaView style={styles.webViewContainer}>
-          <View style={styles.webViewHeader}>
-            <TouchableOpacity
-              onPress={() => {
-                closeWebView();
-                finishSocialLoading();
-              }}
-              style={styles.webViewCloseButton}
-              activeOpacity={0.8}
-            >
-              <Ionicons name="close" size={24} color="#1E293B" />
-            </TouchableOpacity>
-
-            <Text style={styles.webViewTitle}>
-              {socialLoadingProvider === "kakao" ?
-                "카카오 로그인"
-              : "Google 로그인"}
-            </Text>
-
-            <View style={styles.webViewHeaderSpacer} />
-          </View>
-
-          {webViewUrl ?
-            <WebView
-              source={{ uri: webViewUrl }}
-              originWhitelist={["*"]}
-              javaScriptEnabled
-              domStorageEnabled
-              sharedCookiesEnabled
-              thirdPartyCookiesEnabled
-              setSupportMultipleWindows={false}
-              onHttpError={(event) => {
-                if (__DEV__) {
-                  console.log("[WebView] http error:", {
-                    statusCode: event.nativeEvent.statusCode,
-                    description: event.nativeEvent.description,
-                    url: event.nativeEvent.url,
-                  });
-                }
-              }}
-              onError={(event) => {
-                if (__DEV__) {
-                  console.log("[WebView] error:", {
-                    code: event.nativeEvent.code,
-                    description: event.nativeEvent.description,
-                    url: event.nativeEvent.url,
-                  });
-                }
-
-                Alert.alert(
-                  "소셜 로그인 오류",
-                  event.nativeEvent.description ||
-                    "로그인 페이지를 불러오지 못했습니다.",
-                );
-
-                closeWebView();
-                finishSocialLoading();
-              }}
-              onShouldStartLoadWithRequest={(request) => {
-                const nextUrl = request.url;
-
-                if (shouldStopWebViewForOAuth(nextUrl)) {
-                  handleWebViewUrl(nextUrl);
-                  return false;
-                }
-
-                return true;
-              }}
-              onNavigationStateChange={({ url }) => {
-                if (shouldStopWebViewForOAuth(url)) {
-                  handleWebViewUrl(url);
-                }
-              }}
-              startInLoadingState
-              renderLoading={() => (
-                <View style={styles.webViewLoading}>
-                  <ActivityIndicator size="large" color="#2158E8" />
-                </View>
-              )}
-            />
-          : null}
-        </SafeAreaView>
-      </Modal>
     </SafeAreaView>
   );
 }
@@ -773,40 +619,5 @@ const styles = StyleSheet.create({
     color: "#2563EB",
     fontWeight: "800",
     marginRight: 4,
-  },
-
-  webViewContainer: {
-    flex: 1,
-    backgroundColor: "#FFFFFF",
-  },
-
-  webViewHeader: {
-    height: 56,
-    paddingHorizontal: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: 1,
-    borderBottomColor: "#E2E8F0",
-  },
-
-  webViewCloseButton: {
-    padding: 4,
-  },
-
-  webViewHeaderSpacer: {
-    width: 24,
-  },
-
-  webViewTitle: {
-    fontSize: 16,
-    fontWeight: "700",
-    color: "#1E293B",
-  },
-
-  webViewLoading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
   },
 });
