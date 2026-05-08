@@ -568,13 +568,13 @@ export default function AddScheduleLocationScreen({
               summary?.googleReview ||
               summary?.googleReviewSummary ||
               summary?.platformSummaries?.google ||
-              "구글 리뷰 요약을 준비 중입니다.";
+              "서버에서 구글 리뷰 요약을 제공하지 않았습니다.";
 
             const naverReview =
               summary?.naverReview ||
               summary?.naverReviewSummary ||
               summary?.platformSummaries?.naver ||
-              "네이버 리뷰 요약을 준비 중입니다.";
+              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다.";
 
             const instaReview =
               summary?.instaReview ||
@@ -582,7 +582,7 @@ export default function AddScheduleLocationScreen({
               summary?.instaReviewSummary ||
               summary?.platformSummaries?.instagram ||
               summary?.platformSummaries?.insta ||
-              "인스타그램 리뷰 요약을 준비 중입니다.";
+              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다.";
             const freshnessText =
               freshness?.status === "FRESH" || freshness?.isFresh
                 ? "최신 정보"

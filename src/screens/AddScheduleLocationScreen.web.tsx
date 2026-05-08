@@ -583,6 +583,13 @@ export default function AddScheduleLocationScreen({
         getPlaceFreshness(placeId),
       ]);
 
+      console.log("[AddScheduleLocation.web] place detail/summary/freshness:", {
+        placeId,
+        detail,
+        summary,
+        freshness,
+      });
+
       setPlaceReviewMap((prev) => ({
         ...prev,
         [placeId]: {
@@ -898,7 +905,7 @@ export default function AddScheduleLocationScreen({
                 "platformSummaries.google",
                 "data.googleReview",
                 "result.googleReview",
-              ]) || "구글 리뷰 요약을 준비 중입니다.";
+              ]) || "서버에서 구글 리뷰 요약을 제공하지 않았습니다.";
 
             const naverReview =
               getFirstText(unwrappedSummary, [
@@ -907,7 +914,7 @@ export default function AddScheduleLocationScreen({
                 "platformSummaries.naver",
                 "data.naverReview",
                 "result.naverReview",
-              ]) || "네이버 리뷰 요약을 준비 중입니다.";
+              ]) || "서버에서 네이버 리뷰 요약을 제공하지 않았습니다.";
 
             const instaReview =
               getFirstText(unwrappedSummary, [
@@ -918,7 +925,7 @@ export default function AddScheduleLocationScreen({
                 "platformSummaries.insta",
                 "data.instaReview",
                 "result.instaReview",
-              ]) || "인스타그램 리뷰 요약을 준비 중입니다.";
+              ]) || "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다.";
 
             const freshnessStatus = getFirstText(unwrappedFreshness, [
               "status",
