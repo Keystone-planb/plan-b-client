@@ -19,6 +19,7 @@ import PlanADayTabs from "../components/planA/PlanADayTabs";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
+import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 
 import {
   DayOption,
@@ -708,6 +709,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
             >
               <Text style={styles.addPlaceButtonText}>장소 추가</Text>
             </TouchableOpacity>
+
+            <View style={styles.gapRecommendationWrapper}>
+              <GapRecommendationCard tripId={resolvedTripId} />
+            </View>
           </View>
         </ScrollView>
 
@@ -1065,6 +1070,10 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addPlaceButtonText: { color: "#2158E8", fontSize: 15, fontWeight: "900" },
+  gapRecommendationWrapper: {
+    marginTop: 18,
+    marginLeft: 43,
+  },
 
   roadmapList: {
     position: "relative",

@@ -96,6 +96,44 @@ const getCurrentDayLabel = (schedule?: StoredSchedule) => {
   return "Day 1";
 };
 
+const getFirstPlaceName = (schedule?: StoredSchedule) => {
+  const days = Array.isArray(schedule?.days) ? schedule?.days : [];
+
+  for (const day of days) {
+    if (!day || typeof day !== "object") continue;
+
+    const places = (day as { places?: unknown }).places;
+
+    if (!Array.isArray(places)) continue;
+
+    const firstPlace = places.find(
+      (place) =>
+        place &&
+        typeof place === "object" &&
+        typeof (place as { name?: unknown }).name === "string",
+    ) as { name?: string } | undefined;
+
+    if (firstPlace?.name) {
+      return firstPlace.name;
+    }
+  }
+
+  return "";
+};
+
+const getPlaceCount = (schedule?: StoredSchedule) => {
+  const days = Array.isArray(schedule?.days) ? schedule?.days : [];
+
+  return days.reduce<number>((count, day) => {
+    if (!day || typeof day !== "object") return count;
+
+    const places = (day as { places?: unknown }).places;
+
+    return count + (Array.isArray(places) ? places.length : 0);
+  }, 0);
+};
+
+
 const isRecord = (value: unknown): value is Record<string, any> => {
   return Boolean(value) && typeof value === "object";
 };
@@ -621,6 +659,8 @@ export default function MainScreen({ navigation }: Props) {
 
   const renderHomeContent = () => {
     const currentSchedule = schedules[0];
+    const nextSchedule = schedules[1];
+    const currentFirstPlaceName = getFirstPlaceName(currentSchedule);
 
     return (
       <ScrollView
@@ -699,7 +739,8 @@ export default function MainScreen({ navigation }: Props) {
                 </Text>
 
                 <Text style={styles.ongoingLocation} numberOfLines={1}>
-                  {getScheduleLocation(currentSchedule)}
+                  {currentFirstPlaceName ||
+                    getScheduleLocation(currentSchedule)}
                 </Text>
 
                 <View style={styles.ongoingDateRow}>
@@ -715,37 +756,51 @@ export default function MainScreen({ navigation }: Props) {
           </Swipeable>
         </View>
 
-        <View style={styles.nextTripSection}>
-          <Text style={styles.homeSectionTitle}>다음 여행</Text>
+        {nextSchedule ? (
+          <View style={styles.nextTripSection}>
+            <Text style={styles.homeSectionTitle}>다음 여행</Text>
 
-          <TouchableOpacity
-            style={styles.nextTripCard}
-            activeOpacity={0.86}
-            onPress={handleAddSchedule}
-          >
-            <View style={styles.nextTripThumb}>
-              <Text style={styles.nextTripEmoji}>🏝️</Text>
-            </View>
+            <TouchableOpacity
+              style={styles.nextTripCard}
+              activeOpacity={0.86}
+              onPress={() => handleOpenSchedule(nextSchedule)}
+            >
+              <View style={styles.nextTripThumb}>
+                <Text style={styles.nextTripEmoji}>🏝️</Text>
+              </View>
 
-            <View style={styles.nextTripInfo}>
-              <Text style={styles.nextTripTitle}>제주도 힐링여행</Text>
-
-              <View style={styles.nextTripMetaRow}>
-                <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
-                <Text style={styles.nextTripMetaText}>
-                  2027.03.15 - 2027.03.18
+              <View style={styles.nextTripInfo}>
+                <Text style={styles.nextTripTitle} numberOfLines={1}>
+                  {getScheduleTitle(nextSchedule)}
                 </Text>
+
+                <View style={styles.nextTripMetaRow}>
+                  <Ionicons
+                    name="calendar-outline"
+                    size={15}
+                    color="#94A3B8"
+                  />
+                  <Text style={styles.nextTripMetaText}>
+                    {getScheduleDate(nextSchedule)}
+                  </Text>
+                </View>
+
+                <View style={styles.nextTripMetaRow}>
+                  <Ionicons
+                    name="location-outline"
+                    size={15}
+                    color="#94A3B8"
+                  />
+                  <Text style={styles.nextTripMetaText}>
+                    {getScheduleLocation(nextSchedule)} · {getPlaceCount(nextSchedule)}개 장소
+                  </Text>
+                </View>
               </View>
 
-              <View style={styles.nextTripMetaRow}>
-                <Ionicons name="location-outline" size={15} color="#94A3B8" />
-                <Text style={styles.nextTripMetaText}>제주 · 8개 장소</Text>
-              </View>
-            </View>
-
-            <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
-          </TouchableOpacity>
-        </View>
+              <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={styles.newScheduleCardButton}
