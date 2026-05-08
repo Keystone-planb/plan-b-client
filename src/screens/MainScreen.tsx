@@ -15,8 +15,15 @@ import { useFocusEffect } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
 
 import RadialBackground from "../components/RadialBackground";
+import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
 import { removePlanASchedule } from "../api/schedules/planAStorage";
 import { deleteTrip, getTripDetail } from "../../api/schedules/server";
+import {
+  dismissNotification,
+  getWeatherNotifications,
+  triggerWeatherCheck,
+} from "../../api/notifications/notifications";
+import type { WeatherNotification } from "../types/notification";
 
 type Props = {
   navigation: any;
@@ -91,6 +98,80 @@ const getCurrentDayLabel = (schedule?: StoredSchedule) => {
 
 const isRecord = (value: unknown): value is Record<string, any> => {
   return Boolean(value) && typeof value === "object";
+};
+
+const getFirstServerPlaceFromSchedule = (schedule?: StoredSchedule) => {
+  const days = Array.isArray(schedule?.days) ? schedule?.days : [];
+
+  for (const day of days) {
+    if (!isRecord(day) || !Array.isArray(day.places)) continue;
+
+    for (const place of day.places) {
+      if (!isRecord(place)) continue;
+
+      const tripPlaceId = place.tripPlaceId ?? place.serverTripPlaceId;
+      const googlePlaceId = place.googlePlaceId ?? place.placeId;
+
+      if (!tripPlaceId || String(tripPlaceId).startsWith("ChIJ")) {
+        continue;
+      }
+
+      return {
+        tripPlaceId,
+        googlePlaceId,
+        name: place.name,
+        category: place.category,
+        latitude: place.latitude,
+        longitude: place.longitude,
+      };
+    }
+  }
+
+  return null;
+};
+
+const buildDemoWeatherNotification = (
+  schedule?: StoredSchedule,
+): WeatherNotification | null => {
+  if (!schedule) return null;
+
+  const resolvedTripId = schedule.tripId ?? schedule.serverTripId;
+  const targetPlace = getFirstServerPlaceFromSchedule(schedule);
+
+  if (!resolvedTripId || !targetPlace) {
+    return null;
+  }
+
+  return {
+    notificationId: `demo-weather-${resolvedTripId}-${targetPlace.tripPlaceId}`,
+    userId: undefined,
+    tripId: resolvedTripId,
+    tripPlaceId: targetPlace.tripPlaceId,
+    placeId: targetPlace.googlePlaceId,
+    placeName: String(targetPlace.name ?? "현재 일정"),
+    message:
+      "날씨 변화 가능성이 있어요. 현재 일정 대신 방문하기 좋은 실내 대안 장소를 확인해보세요.",
+    weatherType: "RAIN",
+    recommendedPlaces: [
+      {
+        placeId: targetPlace.googlePlaceId ?? "demo-weather-place-1",
+        googlePlaceId: String(targetPlace.googlePlaceId ?? ""),
+        name: "근처 실내 대안 장소",
+        address: schedule.location ?? "현재 여행지 주변",
+        rating: 4.5,
+        category: "실내 추천",
+        latitude:
+          typeof targetPlace.latitude === "number" ?
+            targetPlace.latitude
+          : undefined,
+        longitude:
+          typeof targetPlace.longitude === "number" ?
+            targetPlace.longitude
+          : undefined,
+      },
+    ],
+    createdAt: new Date().toISOString(),
+  };
 };
 
 const enrichDaysWithServerTripPlaceIds = async (
@@ -190,7 +271,51 @@ const enrichDaysWithServerTripPlaceIds = async (
 
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
+  const [notifications, setNotifications] = useState<WeatherNotification[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const loadNotifications = async (
+    baseSchedules: StoredSchedule[] = schedules,
+  ) => {
+    try {
+      const storedUserId = await AsyncStorage.getItem("user_id");
+
+      if (!storedUserId) {
+        setNotifications([]);
+        return;
+      }
+
+      const serverNotifications = await getWeatherNotifications(storedUserId);
+
+      if (serverNotifications.length > 0) {
+        console.log("[Main] 날씨 알림 조회:", {
+          userId: storedUserId,
+          count: serverNotifications.length,
+          notifications: serverNotifications,
+          source: "server",
+        });
+
+        setNotifications(serverNotifications);
+        return;
+      }
+
+      const demoNotification = buildDemoWeatherNotification(baseSchedules[0]);
+
+      const nextNotifications = demoNotification ? [demoNotification] : [];
+
+      console.log("[Main] 날씨 알림 조회:", {
+        userId: storedUserId,
+        count: nextNotifications.length,
+        notifications: nextNotifications,
+        source: demoNotification ? "demo-current-schedule" : "empty",
+      });
+
+      setNotifications(nextNotifications);
+    } catch (error) {
+      console.log("[Main] 날씨 알림 조회 실패:", error);
+      setNotifications([]);
+    }
+  };
 
   const loadSchedules = async () => {
     try {
@@ -228,6 +353,7 @@ export default function MainScreen({ navigation }: Props) {
         });
 
       setSchedules(loadedSchedules);
+      await loadNotifications(loadedSchedules);
     } catch (error) {
       console.log("[Main] 일정 불러오기 실패:", error);
       setSchedules([]);
@@ -241,6 +367,122 @@ export default function MainScreen({ navigation }: Props) {
       loadSchedules();
     }, []),
   );
+
+  const handleDismissNotification = async (
+    notification: WeatherNotification,
+  ) => {
+    try {
+      await dismissNotification(notification.notificationId);
+
+      setNotifications((prev) =>
+        prev.filter(
+          (item) =>
+            String(item.notificationId) !== String(notification.notificationId),
+        ),
+      );
+
+      console.log("[Main] 날씨 알림 dismiss 완료:", {
+        notificationId: notification.notificationId,
+      });
+    } catch (error) {
+      console.log("[Main] 날씨 알림 dismiss 실패:", error);
+    }
+  };
+
+  const handleTriggerWeatherCheck = async () => {
+    console.log("[Main] 날씨 알림 테스트 버튼 클릭");
+
+    const storedUserId = await AsyncStorage.getItem("user_id");
+
+    console.log("[Main] triggerWeatherCheck userId:", storedUserId);
+
+    const success = await triggerWeatherCheck(storedUserId ?? undefined);
+
+    console.log("[Main] triggerWeatherCheck result:", success);
+
+    if (!success) {
+      Alert.alert(
+        "날씨 알림 생성 실패",
+        "테스트용 날씨 알림 트리거 요청에 실패했습니다.",
+      );
+      return;
+    }
+
+    for (let index = 0; index < 3; index += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 700));
+      await loadNotifications(schedules);
+    }
+
+    Alert.alert(
+      "날씨 알림 확인",
+      "테스트 트리거 후 알림을 다시 조회했습니다. 알림이 뜨지 않으면 서버에서 생성된 알림이 없는 상태입니다.",
+    );
+  };
+
+  const handleOpenNotificationRecommendation = (
+    notification: WeatherNotification,
+  ) => {
+    const recommendedPlaces = notification.recommendedPlaces ?? [];
+
+    if (recommendedPlaces.length === 0) {
+      Alert.alert(
+        "추천 장소 없음",
+        "이 알림에 연결된 대안 장소가 아직 없습니다.",
+      );
+      return;
+    }
+
+    if (!notification.tripPlaceId) {
+      Alert.alert(
+        "대안 추천 불가",
+        "이 알림에 연결된 서버 일정 장소 ID가 없습니다.",
+      );
+      return;
+    }
+
+    const normalizedPlaces = recommendedPlaces.map((place) => ({
+      placeId: place.googlePlaceId ?? String(place.placeId),
+      googlePlaceId: place.googlePlaceId ?? String(place.placeId),
+      notificationPlaceId: place.placeId,
+      name: place.name,
+      address: place.address,
+      rating: place.rating,
+      category: place.category,
+      latitude: place.latitude,
+      longitude: place.longitude,
+      reason:
+        "날씨 변화로 인해 기존 야외 일정 대신 방문하기 좋은 대안 장소예요.",
+      distanceText: "",
+      durationText: "",
+    }));
+
+    console.log("[Main] 날씨 알림 대안 추천 이동:", {
+      notification,
+      normalizedPlaces,
+    });
+
+    navigation.navigate("RecommendationResult", {
+      scheduleId: getScheduleId(schedules[0] ?? {}),
+      tripId: notification.tripId,
+      serverTripId: notification.tripId,
+      tripName: getScheduleTitle(schedules[0] ?? {}),
+      startDate: schedules[0]?.startDate,
+      endDate: schedules[0]?.endDate,
+      location: schedules[0]?.location,
+      currentPlanId: notification.tripPlaceId,
+      tripPlaceId: notification.tripPlaceId,
+      serverTripPlaceId: notification.tripPlaceId,
+      notificationId: notification.notificationId,
+      fromWeatherNotification: true,
+      placesJson: JSON.stringify(normalizedPlaces),
+      targetPlace: {
+        id: notification.tripPlaceId,
+        tripPlaceId: notification.tripPlaceId,
+        serverTripPlaceId: notification.tripPlaceId,
+        name: notification.placeName,
+      },
+    });
+  };
 
   const handleAddSchedule = () => {
     navigation.navigate("AddSchedule");
@@ -410,6 +652,30 @@ export default function MainScreen({ navigation }: Props) {
             </Text>
           </View>
         </View>
+
+        <TouchableOpacity
+          style={styles.weatherTriggerButton}
+          activeOpacity={0.85}
+          onPress={handleTriggerWeatherCheck}
+        >
+          <Ionicons name="cloudy-outline" size={17} color="#2563EB" />
+          <Text style={styles.weatherTriggerButtonText}>
+            날씨 알림 테스트
+          </Text>
+        </TouchableOpacity>
+
+        {notifications.length > 0 ?
+          <View style={styles.notificationSection}>
+            {notifications.map((notification) => (
+              <WeatherNotificationCard
+                key={String(notification.notificationId)}
+                notification={notification}
+                onPressRecommend={handleOpenNotificationRecommendation}
+                onDismiss={handleDismissNotification}
+              />
+            ))}
+          </View>
+        : null}
 
         <View style={styles.ongoingSection}>
           <Text style={styles.homeSectionTitle}>진행중인 일정</Text>
@@ -603,6 +869,30 @@ const styles = StyleSheet.create({
     height: 22,
     backgroundColor: "#E5EAF1",
     marginHorizontal: 14,
+  },
+
+  notificationSection: {
+    marginBottom: 12,
+  },
+
+  weatherTriggerButton: {
+    minHeight: 42,
+    borderRadius: 14,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+
+  weatherTriggerButtonText: {
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   ongoingSection: {

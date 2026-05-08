@@ -73,10 +73,10 @@ export const getWeatherNotifications = async (
     const response = await apiClient.get(`/api/notifications/${userId}`);
     const notifications = normalizeNotifications(response.data);
 
-    return notifications.length > 0 ? notifications : MOCK_WEATHER_NOTIFICATIONS;
+    return notifications;
   } catch (error) {
-    console.log("[notifications] mock fallback:", error);
-    return MOCK_WEATHER_NOTIFICATIONS;
+    console.log("[notifications] request failed:", error);
+    return [];
   }
 };
 
@@ -87,8 +87,8 @@ export const dismissNotification = async (
     await apiClient.post(`/api/notifications/${notificationId}/dismiss`);
     return true;
   } catch (error) {
-    console.log("[notifications/dismiss] mock fallback:", error);
-    return true;
+    console.log("[notifications/dismiss] request failed:", error);
+    return false;
   }
 };
 
@@ -102,7 +102,58 @@ export const replaceNotificationPlace = async (
     );
     return true;
   } catch (error) {
-    console.log("[notifications/replace] mock fallback:", error);
-    return true;
+    console.log("[notifications/replace] request failed:", error);
+    return false;
   }
 };
+
+export const triggerWeatherCheck = async (
+  userId?: number | string,
+): Promise<boolean> => {
+  const attempts = [
+    {
+      label: "body-userId",
+      url: "/api/notifications/actions/trigger-weather-check",
+      body: { userId },
+    },
+    {
+      label: "query-userId",
+      url: `/api/notifications/actions/trigger-weather-check?userId=${encodeURIComponent(
+        String(userId ?? ""),
+      )}`,
+      body: {},
+    },
+    {
+      label: "empty-body",
+      url: "/api/notifications/actions/trigger-weather-check",
+      body: {},
+    },
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      console.log("[notifications/trigger-weather-check] request:", attempt);
+
+      const response = await apiClient.post(attempt.url, attempt.body);
+
+      console.log("[notifications/trigger-weather-check] response:", {
+        label: attempt.label,
+        status: response.status,
+        data: response.data,
+      });
+
+      return true;
+    } catch (error: any) {
+      console.log("[notifications/trigger-weather-check] attempt failed:", {
+        label: attempt.label,
+        status: error?.response?.status,
+        data: error?.response?.data,
+        message: error?.message,
+      });
+    }
+  }
+
+  return false;
+};
+
+

@@ -14,10 +14,13 @@ type RefreshResponse = {
   success?: boolean;
   message?: string;
   access_token?: string;
+  refresh_token?: string;
   token_type?: "Bearer" | string;
   user_id?: number;
   nickname?: string;
 };
+
+const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
 
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
@@ -26,6 +29,46 @@ const apiClient = axios.create({
     "Content-Type": "application/json",
   },
 });
+
+const isBrowserLocalStorageAvailable = () => {
+  return typeof window !== "undefined" && Boolean(window.localStorage);
+};
+
+const getStoredValue = async (key: string) => {
+  const asyncStorageValue = await AsyncStorage.getItem(key);
+
+  if (asyncStorageValue && asyncStorageValue.trim().length > 0) {
+    return asyncStorageValue;
+  }
+
+  if (isBrowserLocalStorageAvailable()) {
+    const localStorageValue = window.localStorage.getItem(key);
+
+    if (localStorageValue && localStorageValue.trim().length > 0) {
+      return localStorageValue;
+    }
+  }
+
+  return null;
+};
+
+const setStoredValue = async (key: string, value: string) => {
+  await AsyncStorage.setItem(key, value);
+
+  if (isBrowserLocalStorageAvailable()) {
+    window.localStorage.setItem(key, value);
+  }
+};
+
+const removeStoredValues = async (keys: readonly string[]) => {
+  await AsyncStorage.multiRemove([...keys]);
+
+  if (isBrowserLocalStorageAvailable()) {
+    keys.forEach((key) => {
+      window.localStorage.removeItem(key);
+    });
+  }
+};
 
 const isHtmlResponse = (data: unknown) => {
   if (typeof data !== "string") return false;
@@ -37,7 +80,7 @@ const isHtmlResponse = (data: unknown) => {
 
 apiClient.interceptors.request.use(
   async (config) => {
-    const accessToken = await AsyncStorage.getItem("access_token");
+    const accessToken = await getStoredValue("access_token");
 
     if (accessToken) {
       const headers = (config.headers ?? {}) as AxiosRequestHeaders;
@@ -65,7 +108,7 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
 
       try {
-        const refreshToken = await AsyncStorage.getItem("refresh_token");
+        const refreshToken = await getStoredValue("refresh_token");
 
         if (!refreshToken || refreshToken.trim().length === 0) {
           throw new Error("refresh_token이 없습니다.");
@@ -93,12 +136,17 @@ apiClient.interceptors.response.use(
         }
 
         const newAccessToken = data?.access_token;
+        const newRefreshToken = data?.refresh_token;
 
         if (!newAccessToken || newAccessToken.length === 0) {
           throw new Error("새 access_token이 없습니다.");
         }
 
-        await AsyncStorage.setItem("access_token", newAccessToken);
+        await setStoredValue("access_token", newAccessToken);
+
+        if (newRefreshToken && newRefreshToken.trim().length > 0) {
+          await setStoredValue("refresh_token", newRefreshToken);
+        }
 
         const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
         headers.Authorization = `Bearer ${newAccessToken}`;
@@ -106,7 +154,7 @@ apiClient.interceptors.response.use(
 
         return apiClient(originalRequest);
       } catch (refreshError) {
-        await AsyncStorage.multiRemove(["access_token", "refresh_token"]);
+        await removeStoredValues(TOKEN_KEYS);
 
         return Promise.reject(refreshError);
       }
