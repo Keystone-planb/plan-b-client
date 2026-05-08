@@ -455,7 +455,7 @@ export default function AddScheduleLocationScreen({
       );
 
       if (alreadySelected) {
-        return prev.filter((item) => item.placeId !== place.placeId);
+        return prev;
       }
 
       return [...prev, place];
@@ -486,7 +486,6 @@ export default function AddScheduleLocationScreen({
 
     try {
       setSearchLoading(true);
-      setSelectedPlaces([]);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
 
@@ -496,7 +495,6 @@ export default function AddScheduleLocationScreen({
       Keyboard.dismiss();
     } catch {
       setSearchResults([]);
-      setSelectedPlaces([]);
       setExpandedPlaceId(null);
       setReviewLoadingPlaceId(null);
     } finally {
@@ -625,6 +623,15 @@ export default function AddScheduleLocationScreen({
     }
 
     const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
+    console.log("[AddScheduleLocation] 선택 장소 목록:", {
+      count: selectedPlaces.length,
+      places: selectedPlaces.map((place) => ({
+        placeId: place.placeId,
+        googlePlaceId: place.googlePlaceId,
+        name: place.name,
+      })),
+    });
+
     const primaryPlace = selectedPlaces[0];
 
     const nextLocation =
@@ -681,6 +688,10 @@ export default function AddScheduleLocationScreen({
       }
 
       navigation.navigate("PlanA", {
+        scheduleId:
+          route.params?.scheduleId ??
+          route.params?.serverTripId ??
+          serverTripId,
         tripName,
         startDate,
         endDate,
@@ -846,15 +857,10 @@ export default function AddScheduleLocationScreen({
               "payload.summary",
             ]);
 
-            const detailReviews = useMemo(
-              () => getDetailReviews(unwrappedDetail).slice(0, 2),
-              [unwrappedDetail],
-            );
+            const detailReviews = getDetailReviews(unwrappedDetail).slice(0, 2);
 
-            const reviewBasedSummary = useMemo(
-              () => createReviewSummaryFromReviews(detailReviews),
-              [detailReviews],
-            );
+            const reviewBasedSummary =
+              createReviewSummaryFromReviews(detailReviews);
 
             const aiSummary =
               rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
