@@ -140,14 +140,21 @@ export const streamGapRecommendations = async (
   handlers: GapRecommendationStreamHandlers,
 ) => {
   try {
-    if (typeof window !== "undefined") {
-      await emitMockGapStream(handlers);
-      return;
-    }
-
     const accessToken = await AsyncStorage.getItem("access_token");
 
+    console.log("[gap recommendations/stream] request:", {
+      tripId,
+      payload,
+      hasAccessToken: Boolean(accessToken),
+      platform:
+        typeof window !== "undefined" ? "web" : "native",
+    });
+
     if (!accessToken) {
+      console.log(
+        "[gap recommendations/stream] no token - mock fallback",
+      );
+
       await emitMockGapStream(handlers);
       return;
     }
@@ -164,6 +171,12 @@ export const streamGapRecommendations = async (
         body: JSON.stringify(payload),
       },
     );
+
+    console.log("[gap recommendations/stream] response:", {
+      status: response.status,
+      ok: response.ok,
+      hasBody: Boolean(response.body),
+    });
 
     if (!response.ok || !response.body) {
       throw new Error(`틈새 추천 스트리밍 요청 실패: ${response.status}`);
