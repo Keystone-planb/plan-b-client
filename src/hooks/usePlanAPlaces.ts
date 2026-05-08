@@ -37,6 +37,7 @@ type UsePlanAPlacesParams = {
   endDate: string;
   location?: string;
   scheduleId?: string;
+  reloadKey?: number;
 };
 
 type UpdateScheduleInfoPayload = {
@@ -374,6 +375,7 @@ export function usePlanAPlaces({
   endDate,
   location,
   scheduleId,
+  reloadKey,
 }: UsePlanAPlacesParams) {
   const initialSchedule = useMemo(
     () =>
@@ -440,11 +442,11 @@ export function usePlanAPlaces({
     const loadSavedSchedule = async () => {
       const routeKey = scheduleId ?? NEW_SCHEDULE_ROUTE_KEY;
 
-      if (loadedRouteKeyRef.current === routeKey) {
+      if (loadedRouteKeyRef.current === routeKey && !reloadKey) {
         return;
       }
 
-      const cachedDraft = getCachedDraftSchedule(scheduleId);
+      const cachedDraft = reloadKey ? null : getCachedDraftSchedule(scheduleId);
 
       if (cachedDraft) {
         console.log("[PlanA hook draft cache 사용]", {

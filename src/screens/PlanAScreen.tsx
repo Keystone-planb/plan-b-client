@@ -52,6 +52,11 @@ type Props = {
        * AddScheduleLocation에서 여러 장소를 한 번에 선택했을 때 사용
        */
       selectedPlaces?: SelectedPlacesParam;
+
+      /**
+       * RecommendationResult에서 PLAN B 교체 후 Plan.A 재조회 트리거
+       */
+      refreshPlanAAt?: number;
     };
   };
 };
@@ -210,6 +215,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     endDate,
     location,
     scheduleId,
+    reloadKey: route?.params?.refreshPlanAAt,
   });
 
   useEffect(() => {

@@ -15,8 +15,9 @@ type StreamHandlers = {
   onError?: (error: unknown) => void;
 };
 
-type NativeStreamResult = {
+type StreamResult = {
   completed: boolean;
+  receivedPlaceCount: number;
   receivedText: string;
 };
 
@@ -28,12 +29,30 @@ const getStreamUrl = () => {
   return `${normalizeBaseUrl(API_CONFIG.BASE_URL)}/api/recommendations/stream`;
 };
 
+const getErrorMessage = (error: unknown) => {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  return "추천 스트리밍 요청 중 알 수 없는 오류가 발생했습니다.";
+};
+
+const isRecoverableStreamError = (error: unknown) => {
+  const message = getErrorMessage(error).toLowerCase();
+
+  return (
+    message.includes("http2") ||
+    message.includes("protocol") ||
+    message.includes("network") ||
+    message.includes("failed to fetch") ||
+    message.includes("load failed") ||
+    message.includes("connection") ||
+    message.includes("terminated")
+  );
+};
+
 const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
   const trimmedBlock = block.trim();
 
-  if (!trimmedBlock) {
-    return null;
-  }
+  if (!trimmedBlock) return null;
 
   const lines = trimmedBlock.split(/\r?\n/).map((line) => line.trimEnd());
 
@@ -41,6 +60,8 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
   const dataLines: string[] = [];
 
   for (const line of lines) {
+    if (!line || line.startsWith(":")) continue;
+
     if (line.startsWith("event:")) {
       eventName = line.slice("event:".length).trim();
       continue;
@@ -53,19 +74,11 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
 
   const dataText = dataLines.join("\n").trim();
 
-  console.log("[recommendations/stream] parse block:", {
-    eventName,
-    dataText,
-    rawBlock: block,
-  });
-
   if (eventName === "done" || dataText === "[DONE]") {
     return { type: "done" };
   }
 
-  if (!dataText) {
-    return null;
-  }
+  if (!dataText) return null;
 
   try {
     const parsed = JSON.parse(dataText);
@@ -97,12 +110,6 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
     if (inferredEventName === "done") {
       return { type: "done" };
     }
-
-    console.log("[recommendations/stream] unknown event:", {
-      eventName,
-      inferredEventName,
-      parsed,
-    });
   } catch (error) {
     console.log("[recommendations/stream] SSE parse failed:", {
       block,
@@ -114,12 +121,49 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
   return null;
 };
 
+const createSafeHandlers = (handlers: StreamHandlers) => {
+  let doneDispatched = false;
+  let receivedPlaceCount = 0;
+
+  const safeHandlers: StreamHandlers = {
+    onProgress: (message, total) => {
+      handlers.onProgress?.(message, total);
+    },
+
+    onPlace: (place) => {
+      receivedPlaceCount += 1;
+      handlers.onPlace?.(place);
+    },
+
+    onDone: () => {
+      if (doneDispatched) return;
+
+      doneDispatched = true;
+      handlers.onDone?.();
+    },
+
+    onError: (error) => {
+      handlers.onError?.(error);
+    },
+  };
+
+  return {
+    handlers: safeHandlers,
+    getDoneDispatched: () => doneDispatched,
+    getReceivedPlaceCount: () => receivedPlaceCount,
+    finishOnce: () => {
+      if (doneDispatched) return;
+
+      doneDispatched = true;
+      handlers.onDone?.();
+    },
+  };
+};
+
 const dispatchStreamEvent = (
   event: RecommendationStreamEvent,
   handlers: StreamHandlers,
 ): boolean => {
-  console.log("[recommendations/stream] dispatch event:", event.type);
-
   if (event.type === "progress") {
     handlers.onProgress?.(event.message, event.total);
     return false;
@@ -151,9 +195,7 @@ const consumeSseText = (
   for (const block of blocks) {
     const event = parseSseBlock(block);
 
-    if (!event) {
-      continue;
-    }
+    if (!event) continue;
 
     const shouldStop = dispatchStreamEvent(event, handlers);
 
@@ -181,29 +223,8 @@ const streamRecommendationsWithFetch = async ({
   accessToken: string;
   payload: RecommendRequest;
   handlers: StreamHandlers;
-}) => {
-  let doneDispatched = false;
-
-  const safeHandlers: StreamHandlers = {
-    ...handlers,
-    onDone: () => {
-      if (doneDispatched) {
-        return;
-      }
-
-      doneDispatched = true;
-      handlers.onDone?.();
-    },
-  };
-
-  const finishOnce = () => {
-    if (doneDispatched) {
-      return;
-    }
-
-    doneDispatched = true;
-    handlers.onDone?.();
-  };
+}): Promise<StreamResult> => {
+  const safe = createSafeHandlers(handlers);
 
   const response = await fetch(url, {
     method: "POST",
@@ -223,79 +244,99 @@ const streamRecommendationsWithFetch = async ({
 
   if (!response.ok) {
     const errorText = await response.text().catch(() => "");
-    console.log("[recommendations/stream] fetch error text:", errorText);
-
     throw new Error(`추천 스트리밍 요청 실패: ${response.status} ${errorText}`);
   }
 
   if (!response.body) {
     const text = await response.text();
 
-    console.log("[recommendations/stream] fetch full text:", {
-      length: text.length,
-      text,
-    });
-
-    const result = consumeSseText(text, "", safeHandlers);
+    const result = consumeSseText(text, "", safe.handlers);
 
     if (!result.shouldStop && result.buffer.trim()) {
       const event = parseSseBlock(result.buffer);
 
       if (event) {
-        const shouldStop = dispatchStreamEvent(event, safeHandlers);
-
-        if (shouldStop) {
-          return;
-        }
+        dispatchStreamEvent(event, safe.handlers);
       }
     }
 
-    finishOnce();
-    return;
+    if (!safe.getDoneDispatched()) {
+      safe.finishOnce();
+    }
+
+    return {
+      completed: true,
+      receivedPlaceCount: safe.getReceivedPlaceCount(),
+      receivedText: text,
+    };
   }
 
   const reader = response.body.getReader();
   const decoder = new TextDecoder("utf-8");
 
   let buffer = "";
+  let receivedText = "";
 
-  while (true) {
-    const { value, done } = await reader.read();
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
 
-    if (done) {
-      break;
+      if (done) break;
+
+      const text = decoder.decode(value, { stream: true });
+      receivedText += text;
+
+      console.log("[recommendations/stream] fetch chunk:", text);
+
+      const result = consumeSseText(text, buffer, safe.handlers);
+
+      buffer = result.buffer;
+
+      if (result.shouldStop) {
+        return {
+          completed: true,
+          receivedPlaceCount: safe.getReceivedPlaceCount(),
+          receivedText,
+        };
+      }
+    }
+  } catch (error) {
+    console.log("[recommendations/stream] fetch reader error:", {
+      error,
+      receivedPlaceCount: safe.getReceivedPlaceCount(),
+      receivedTextLength: receivedText.length,
+    });
+
+    if (safe.getReceivedPlaceCount() > 0 && isRecoverableStreamError(error)) {
+      safe.finishOnce();
+
+      return {
+        completed: true,
+        receivedPlaceCount: safe.getReceivedPlaceCount(),
+        receivedText,
+      };
     }
 
-    const text = decoder.decode(value, { stream: true });
-
-    console.log("[recommendations/stream] fetch chunk:", text);
-
-    const result = consumeSseText(text, buffer, safeHandlers);
-
-    buffer = result.buffer;
-
-    if (result.shouldStop) {
-      return;
-    }
+    throw error;
   }
-
-  console.log("[recommendations/stream] fetch done:", {
-    remainingBuffer: buffer,
-  });
 
   if (buffer.trim()) {
     const event = parseSseBlock(buffer);
 
     if (event) {
-      const shouldStop = dispatchStreamEvent(event, safeHandlers);
-
-      if (shouldStop) {
-        return;
-      }
+      dispatchStreamEvent(event, safe.handlers);
     }
   }
 
-  finishOnce();
+  if (!safe.getDoneDispatched()) {
+    safe.finishOnce();
+  }
+
+  return {
+    completed: true,
+    receivedPlaceCount: safe.getReceivedPlaceCount(),
+    receivedText,
+  };
 };
 
 const streamRecommendationsWithXHR = ({
@@ -308,47 +349,37 @@ const streamRecommendationsWithXHR = ({
   accessToken: string;
   payload: RecommendRequest;
   handlers: StreamHandlers;
-}) => {
-  return new Promise<NativeStreamResult>((resolve, reject) => {
+}): Promise<StreamResult> => {
+  return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+
+    const safe = createSafeHandlers(handlers);
 
     let lastIndex = 0;
     let buffer = "";
     let finished = false;
-    let doneDispatched = false;
-
-    const safeHandlers: StreamHandlers = {
-      ...handlers,
-      onDone: () => {
-        if (doneDispatched) {
-          return;
-        }
-
-        doneDispatched = true;
-        handlers.onDone?.();
-      },
-    };
 
     const finishOnce = (shouldCallDone = true) => {
-      if (finished) {
-        return;
-      }
+      if (finished) return;
 
       finished = true;
 
-      if (shouldCallDone && !doneDispatched) {
-        doneDispatched = true;
-        handlers.onDone?.();
+      if (shouldCallDone && !safe.getDoneDispatched()) {
+        safe.finishOnce();
       }
 
       resolve({
         completed: true,
+        receivedPlaceCount: safe.getReceivedPlaceCount(),
         receivedText: xhr.responseText ?? "",
       });
     };
 
     const failOnce = (error: unknown) => {
-      if (finished) {
+      if (finished) return;
+
+      if (safe.getReceivedPlaceCount() > 0 && isRecoverableStreamError(error)) {
+        finishOnce(true);
         return;
       }
 
@@ -386,27 +417,19 @@ const streamRecommendationsWithXHR = ({
         console.log("[recommendations/stream] xhr done:", {
           status: xhr.status,
           responseLength: responseText.length,
-          responseText,
+          receivedPlaceCount: safe.getReceivedPlaceCount(),
           remainingBuffer: buffer,
         });
 
         if (xhr.status === 0) {
-          const hasReceivedSse =
-            responseText.includes("event:") ||
-            buffer.includes("event:") ||
-            doneDispatched;
-
-          if (hasReceivedSse) {
-            console.log(
-              "[recommendations/stream] xhr status 0 after SSE, finish safely",
-            );
-            finishOnce(false);
+          if (safe.getReceivedPlaceCount() > 0 || safe.getDoneDispatched()) {
+            finishOnce(true);
             return;
           }
 
           failOnce(
             new Error(
-              "추천 스트리밍 연결이 중간에 끊겼습니다. iOS 네트워크 또는 서버 SSE 연결 종료 문제입니다.",
+              "추천 스트리밍 연결이 중간에 끊겼습니다. 서버 SSE 연결 종료 문제입니다.",
             ),
           );
           return;
@@ -416,11 +439,8 @@ const streamRecommendationsWithXHR = ({
           const remainingText = responseText.slice(lastIndex);
 
           if (remainingText) {
-            console.log("[recommendations/stream] xhr remaining text:", {
-              remainingText,
-            });
+            const result = consumeSseText(remainingText, buffer, safe.handlers);
 
-            const result = consumeSseText(remainingText, buffer, safeHandlers);
             buffer = result.buffer;
 
             if (result.shouldStop) {
@@ -430,12 +450,10 @@ const streamRecommendationsWithXHR = ({
           }
 
           if (buffer.trim()) {
-            console.log("[recommendations/stream] xhr final buffer:", buffer);
-
             const event = parseSseBlock(buffer);
 
             if (event) {
-              const shouldStop = dispatchStreamEvent(event, safeHandlers);
+              const shouldStop = dispatchStreamEvent(event, safe.handlers);
 
               if (shouldStop) {
                 finishOnce(false);
@@ -455,16 +473,15 @@ const streamRecommendationsWithXHR = ({
 
       lastIndex = responseText.length;
 
-      if (!chunk) {
-        return;
-      }
+      if (!chunk) return;
 
       console.log("[recommendations/stream] xhr chunk:", {
         chunk,
         responseLength: responseText.length,
       });
 
-      const result = consumeSseText(chunk, buffer, safeHandlers);
+      const result = consumeSseText(chunk, buffer, safe.handlers);
+
       buffer = result.buffer;
 
       if (result.shouldStop) {
@@ -474,13 +491,9 @@ const streamRecommendationsWithXHR = ({
     };
 
     xhr.onerror = () => {
-      if (finished) {
-        return;
-      }
-
       failOnce(
         new Error(
-          "추천 스트리밍 네트워크 요청에 실패했습니다. 서버 SSE 연결 또는 iOS 네트워크 연결이 중단되었습니다.",
+          "추천 스트리밍 네트워크 요청에 실패했습니다. 서버 SSE 연결 또는 네트워크 연결이 중단되었습니다.",
         ),
       );
     };
@@ -490,7 +503,7 @@ const streamRecommendationsWithXHR = ({
     };
 
     xhr.onabort = () => {
-      if (!finished) {
+      if (!finished && safe.getReceivedPlaceCount() === 0) {
         failOnce(new Error("추천 스트리밍 요청이 중단되었습니다."));
       }
     };
@@ -499,6 +512,7 @@ const streamRecommendationsWithXHR = ({
       url,
       payload,
       hasAccessToken: Boolean(accessToken),
+      platform: Platform.OS,
     });
 
     xhr.send(JSON.stringify(payload));
@@ -522,18 +536,38 @@ export const streamRecommendations = async (
       url,
       platform: Platform.OS,
       payload,
+      payloadJson: JSON.stringify(payload),
       hasAccessToken: Boolean(accessToken),
     });
 
     if (Platform.OS === "web") {
-      await streamRecommendationsWithFetch({
-        url,
-        accessToken,
-        payload,
-        handlers,
-      });
+      try {
+        await streamRecommendationsWithFetch({
+          url,
+          accessToken,
+          payload,
+          handlers,
+        });
 
-      return;
+        return;
+      } catch (fetchError) {
+        console.log("[recommendations/stream] web fetch failed:", fetchError);
+
+        if (!isRecoverableStreamError(fetchError)) {
+          throw fetchError;
+        }
+
+        console.log("[recommendations/stream] retry with XHR on web");
+
+        await streamRecommendationsWithXHR({
+          url,
+          accessToken,
+          payload,
+          handlers,
+        });
+
+        return;
+      }
     }
 
     try {
@@ -558,11 +592,6 @@ export const streamRecommendations = async (
     }
   } catch (error) {
     console.log("[recommendations/stream] failed:", error);
-
-    if (error instanceof Error) {
-      console.log("[recommendations/stream] error message:", error.message);
-    }
-
     handlers.onError?.(error);
   }
 };

@@ -66,6 +66,20 @@ type Props = {
 
 const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
 
+const isValidServerPlanId = (value?: string | number) => {
+  if (value === undefined || value === null) return false;
+
+  const text = String(value).trim();
+
+  if (!text) return false;
+
+  // Google Place ID는 서버 planId가 아니므로 차단
+  if (text.startsWith("ChIJ")) return false;
+
+  return Number.isFinite(Number(text));
+};
+
+
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
@@ -128,12 +142,26 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
-    const serverPlanId = place.serverTripPlaceId ?? place.tripPlaceId;
+    const serverPlanId = place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
 
-    if (!serverPlanId) {
+    console.log("[OngoingSchedule] 대안찾기 클릭:", {
+      scheduleId,
+      tripId,
+      serverTripId,
+      resolvedTripId,
+      place,
+      serverPlanId,
+    });
+
+    if (!isValidServerPlanId(serverPlanId)) {
+      console.log("[OngoingSchedule] 잘못된 serverPlanId 차단:", {
+        serverPlanId,
+        place,
+      });
+
       Alert.alert(
         "AI 대안 추천 불가",
-        "이 장소는 서버 장소 ID가 없어 AI 추천을 요청할 수 없습니다. 새로 생성한 일정이거나 서버 저장이 완료된 일정에서 다시 시도해주세요.",
+        "이 일정은 서버 장소 ID가 없는 이전 로컬 일정입니다. 새 일정으로 장소를 다시 추가한 뒤 AI 추천을 시도해주세요.",
       );
       return;
     }
@@ -148,6 +176,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       location,
       transportMode,
       transportLabel,
+      currentPlanId: serverPlanId,
+      tripPlaceId: serverPlanId,
+      serverTripPlaceId: serverPlanId,
       targetPlace: {
         id: place.id,
 

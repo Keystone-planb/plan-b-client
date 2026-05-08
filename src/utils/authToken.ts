@@ -94,12 +94,25 @@ export const saveOAuthTokens = async (payload: OAuthSuccessPayload) => {
     [REFRESH_TOKEN_KEY, payload.refreshToken],
   ]);
 
+  if (typeof window !== "undefined") {
+    window.localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken);
+    window.localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken);
+  }
+
   if (payload.userId) {
     await AsyncStorage.setItem("user_id", payload.userId);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("user_id", payload.userId);
+    }
   }
 
   if (payload.nickname) {
     await AsyncStorage.setItem("nickname", payload.nickname);
+
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("nickname", payload.nickname);
+    }
   }
 };
 

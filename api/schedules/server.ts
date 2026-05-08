@@ -259,14 +259,51 @@ export const replacePlanPlace = async (
   tripPlaceId: number | string,
   request: ReplacePlanRequest,
 ): Promise<ReplacePlanResponse> => {
-  const response = await apiClient.post<unknown>(
-    `/api/plans/${tripPlaceId}/replace`,
-    request,
-  );
+  try {
+    console.log("[replacePlanPlace] primary request:", {
+      url: `/api/plans/${tripPlaceId}/replace`,
+      request,
+    });
 
-  assertNotHtmlResponse(response.data, "PLAN B 장소 대체");
+    const response = await apiClient.post<unknown>(
+      `/api/plans/${tripPlaceId}/replace`,
+      request,
+    );
 
-  return response.data as ReplacePlanResponse;
+    assertNotHtmlResponse(response.data, "PLAN B 장소 대체");
+
+    return response.data as ReplacePlanResponse;
+  } catch (error: any) {
+    const status = error?.response?.status;
+
+    console.log("[replacePlanPlace] primary failed:", {
+      status,
+      data: error?.response?.data,
+      message: error?.message,
+    });
+
+    if (status !== 404) {
+      throw error;
+    }
+
+    console.log("[replacePlanPlace] fallback request:", {
+      url: `/api/plans/${tripPlaceId}/replace/${request.newGooglePlaceId}`,
+      request,
+    });
+
+    const fallbackResponse = await apiClient.post<unknown>(
+      `/api/plans/${tripPlaceId}/replace/${encodeURIComponent(
+        request.newGooglePlaceId,
+      )}`,
+      {
+        newPlaceName: request.newPlaceName,
+      },
+    );
+
+    assertNotHtmlResponse(fallbackResponse.data, "PLAN B 장소 대체 fallback");
+
+    return fallbackResponse.data as ReplacePlanResponse;
+  }
 };
 
 export const addLocationToTripDay = async ({

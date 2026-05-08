@@ -15,6 +15,10 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replacePlanPlace } from "../../api/schedules/server";
+import {
+  loadPlanASchedule,
+  savePlanASchedule,
+} from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
@@ -36,8 +40,24 @@ type TodayPlace = {
 
 type RootStackParamList = {
   Main: undefined;
+  PlanA: {
+    scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    transportLabel?: string;
+    refreshPlanAAt?: number;
+    selectedPlace?: undefined;
+    selectedPlaces?: undefined;
+  };
   RecommendationResult: {
     scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
     tripName?: string;
     startDate?: string;
     endDate?: string;
@@ -49,6 +69,9 @@ type RootStackParamList = {
     changeCategory?: boolean;
     placeScope?: PlaceScope;
     targetPlace?: TodayPlace;
+    currentPlanId?: string | number;
+    tripPlaceId?: string | number;
+    serverTripPlaceId?: string | number;
 
     placesJson?: string;
     fromAIAnalysis?: boolean;
@@ -107,6 +130,86 @@ const formatDateRange = (startDate?: string, endDate?: string) => {
 
   return "10:00 - 12:00";
 };
+
+const updateStoredPlanAAfterReplace = async ({
+  scheduleId,
+  currentPlanId,
+  place,
+  replaceResult,
+}: {
+  scheduleId?: string;
+  currentPlanId: string | number;
+  place: DisplayPlace;
+  replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
+}) => {
+  if (!scheduleId) {
+    console.log("[RecommendationResult] scheduleId 없음 - 로컬 Plan.A 반영 생략");
+    return;
+  }
+
+  const savedSchedule = await loadPlanASchedule(scheduleId);
+
+  if (!savedSchedule) {
+    console.log("[RecommendationResult] 저장된 Plan.A 없음 - 로컬 반영 생략", {
+      scheduleId,
+    });
+    return;
+  }
+
+  const now = new Date().toISOString();
+
+  const nextSchedule = {
+    ...savedSchedule,
+    updatedAt: now,
+    days: savedSchedule.days.map((day) => ({
+      ...day,
+      places: day.places.map((item) => {
+        const isTarget = [
+          item.id,
+          item.tripPlaceId,
+          item.serverTripPlaceId,
+        ].some((id) => String(id) === String(currentPlanId));
+
+        if (!isTarget) {
+          return item;
+        }
+
+        const nextGooglePlaceId = String(
+          place.googlePlaceId ??
+            replaceResult.googlePlaceId ??
+            place.placeId ??
+            item.googlePlaceId ??
+            item.placeId ??
+            item.id,
+        );
+
+        return {
+          ...item,
+          tripPlaceId: replaceResult.tripPlaceId ?? item.tripPlaceId,
+          serverTripPlaceId:
+            replaceResult.tripPlaceId ?? item.serverTripPlaceId,
+          placeId: nextGooglePlaceId,
+          googlePlaceId: nextGooglePlaceId,
+          name: place.name ?? replaceResult.name ?? item.name,
+          address: place.address ?? item.address,
+          category: place.category ?? item.category,
+          latitude: place.latitude ?? item.latitude,
+          longitude: place.longitude ?? item.longitude,
+          updatedAt: now,
+        };
+      }),
+    })),
+  };
+
+  await savePlanASchedule(nextSchedule);
+
+  console.log("[RecommendationResult] 로컬 Plan.A 교체 반영 완료", {
+    scheduleId,
+    currentPlanId,
+    newPlaceName: place.name,
+  });
+};
+
 
 export default function RecommendationResultScreen({
   navigation,
@@ -169,13 +272,27 @@ export default function RecommendationResultScreen({
 
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
-    const currentPlanId =
-      targetPlace?.tripPlaceId ?? targetPlace?.serverTripPlaceId ?? targetPlace?.id;
+    const currentPlanIdCandidates: Array<string | number> = [
+      params.currentPlanId,
+      params.tripPlaceId,
+      params.serverTripPlaceId,
+      targetPlace?.tripPlaceId,
+      targetPlace?.serverTripPlaceId,
+      targetPlace?.id,
+    ]
+      .filter((value): value is string | number => {
+        return value !== undefined && value !== null && value !== "";
+      })
+      .filter((value, index, array) => {
+        return array.findIndex((item) => String(item) === String(value)) === index;
+      });
 
-    const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
+    const newGooglePlaceId = String(
+      place.googlePlaceId ?? place.placeId ?? "",
+    );
     const newPlaceName = place.name;
 
-    if (!currentPlanId) {
+    if (currentPlanIdCandidates.length === 0) {
       Alert.alert(
         "일정 교체 불가",
         "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
@@ -194,27 +311,107 @@ export default function RecommendationResultScreen({
     try {
       setSubmittingPlaceId(placeId);
 
-      await replacePlanPlace(currentPlanId, {
+      console.log("[RecommendationResult] replace candidates:", {
+        currentPlanIdCandidates,
         newGooglePlaceId,
         newPlaceName,
+      });
+
+      let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null = null;
+      let lastReplaceError: unknown = null;
+      let usedCurrentPlanId: string | number | null = null;
+
+      for (const candidatePlanId of currentPlanIdCandidates) {
+        try {
+          console.log("[RecommendationResult] replace request:", {
+            candidatePlanId,
+            newGooglePlaceId,
+            newPlaceName,
+          });
+
+          replaceResult = await replacePlanPlace(candidatePlanId, {
+            newGooglePlaceId,
+            newPlaceName,
+          });
+
+          usedCurrentPlanId = candidatePlanId;
+          break;
+        } catch (replaceError: any) {
+          lastReplaceError = replaceError;
+
+          console.log("[RecommendationResult] replace candidate failed:", {
+            candidatePlanId,
+            status: replaceError?.response?.status,
+            data: replaceError?.response?.data,
+            message: replaceError?.message,
+          });
+
+          if (replaceError?.response?.status !== 404) {
+            throw replaceError;
+          }
+        }
+      }
+
+      if (!replaceResult || !usedCurrentPlanId) {
+        throw lastReplaceError ?? new Error("일정 교체에 실패했습니다.");
+      }
+
+      console.log("[RecommendationResult] replace success:", {
+        usedCurrentPlanId,
+        replaceResult,
+      });
+
+      setSelectedPlaceId(placeId);
+
+      await updateStoredPlanAAfterReplace({
+        scheduleId: params.scheduleId,
+        currentPlanId: usedCurrentPlanId,
+        place,
+        replaceResult,
       });
 
       const storedUserId = await AsyncStorage.getItem("user_id");
 
       if (storedUserId) {
-        await reportPreferenceFeedback({
+        reportPreferenceFeedback({
           userId: storedUserId,
           shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
           selectedPlaceId: placeId ?? "",
+        }).catch((feedbackError) => {
+          console.log("[RecommendationResult] feedback failed:", feedbackError);
         });
       }
 
-      setSelectedPlaceId(placeId);
+      const successMessage = `${place.name}으로 기존 일정이 교체되었습니다.`;
 
-      Alert.alert(
-        "PLAN B 교체 완료",
-        `${place.name}으로 기존 일정이 교체되었습니다.`,
-      );
+      const moveToPlanA = () => {
+        navigation.replace("PlanA", {
+          scheduleId: params.scheduleId,
+          tripId: params.tripId,
+          serverTripId: params.serverTripId ?? params.tripId,
+          tripName: params.tripName,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          location: params.location,
+          transportMode: params.transportMode,
+          transportLabel: params.transportMode,
+          refreshPlanAAt: Date.now(),
+          selectedPlace: undefined,
+          selectedPlaces: undefined,
+        });
+      };
+
+      if (typeof window !== "undefined") {
+        window.alert(`PLAN B 교체 완료\n${successMessage}`);
+        moveToPlanA();
+      } else {
+        Alert.alert("PLAN B 교체 완료", successMessage, [
+          {
+            text: "확인",
+            onPress: moveToPlanA,
+          },
+        ]);
+      }
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
 
@@ -223,7 +420,11 @@ export default function RecommendationResultScreen({
           ? error.message
           : "일정 교체 요청에 실패했습니다.";
 
-      Alert.alert("일정 교체 실패", message);
+      if (typeof window !== "undefined") {
+        window.alert(`일정 교체 실패\n${message}`);
+      } else {
+        Alert.alert("일정 교체 실패", message);
+      }
     } finally {
       setSubmittingPlaceId(null);
     }

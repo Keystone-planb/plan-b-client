@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { getMe, MeResponse } from "../../api/users/me";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { requestLogout } from "../../api/auth/logout";
 import { getPreferenceSummary } from "../../api/preferences/preferences";
 import type { PreferenceSummary } from "../types/preference";
@@ -24,10 +25,31 @@ export default function ProfileScreen({ navigation }: Props) {
     useState<PreferenceSummary | null>(null);
 
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [storedNickname, setStoredNickname] = useState("");
+  const [storedEmail, setStoredEmail] = useState("");
   const [loading, setLoading] = useState(true);
   const [logoutLoading, setLogoutLoading] = useState(false);
 
   useEffect(() => {
+    const loadStoredProfile = async () => {
+      const nickname =
+        (await AsyncStorage.getItem("nickname")) ??
+        (typeof window !== "undefined"
+          ? window.localStorage.getItem("nickname")
+          : null);
+
+      const email =
+        (await AsyncStorage.getItem("email")) ??
+        (typeof window !== "undefined"
+          ? window.localStorage.getItem("email")
+          : null);
+
+      setStoredNickname(nickname ?? "");
+      setStoredEmail(email ?? "");
+    };
+
+    loadStoredProfile();
+
     const loadPreferenceSummary = async () => {
       try {
         const summary = await getPreferenceSummary(1);
@@ -46,6 +68,7 @@ export default function ProfileScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
+      console.log("[Profile getMe result]", result);
       setMe(result);
     } catch (error) {
       console.log("[Profile] 프로필 유저 정보 조회 실패:", error);
@@ -89,8 +112,8 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
-  const nickname = me?.nickname || "김플랜";
-  const email = me?.email || "traveler@planb.com";
+  const nickname = me?.nickname || storedNickname || "사용자";
+  const email = me?.email || storedEmail || "이메일 정보를 불러오는 중";
 
   return (
     <SafeAreaView style={styles.safeArea}>

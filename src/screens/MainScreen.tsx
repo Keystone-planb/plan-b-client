@@ -16,7 +16,7 @@ import { Swipeable } from "react-native-gesture-handler";
 
 import RadialBackground from "../components/RadialBackground";
 import { removePlanASchedule } from "../api/schedules/planAStorage";
-import { deleteTrip } from "../../api/schedules/server";
+import { deleteTrip, getTripDetail } from "../../api/schedules/server";
 
 type Props = {
   navigation: any;
@@ -89,6 +89,105 @@ const getCurrentDayLabel = (schedule?: StoredSchedule) => {
   return "Day 1";
 };
 
+const isRecord = (value: unknown): value is Record<string, any> => {
+  return Boolean(value) && typeof value === "object";
+};
+
+const enrichDaysWithServerTripPlaceIds = async (
+  tripId: number | string,
+  localDays?: unknown[],
+): Promise<unknown[]> => {
+  const detail = await getTripDetail(tripId);
+  const serverItineraries = detail.itineraries ?? [];
+
+  console.log("[Main] 서버 상세 조회 성공:", {
+    tripId: detail.tripId,
+    itineraryCount: serverItineraries.length,
+    places: serverItineraries.flatMap((itinerary) =>
+      itinerary.places.map((place) => ({
+        day: itinerary.day,
+        tripPlaceId: place.tripPlaceId,
+        placeId: place.placeId,
+        name: place.name,
+        visitOrder: place.visitOrder,
+      })),
+    ),
+  });
+
+  if (serverItineraries.length === 0) {
+    return localDays ?? [];
+  }
+
+  return serverItineraries.map((itinerary) => {
+    const localDay = (localDays ?? []).find((day) => {
+      return isRecord(day) && Number(day.day) === Number(itinerary.day);
+    });
+
+    const localPlaces =
+      isRecord(localDay) && Array.isArray(localDay.places) ?
+        localDay.places.filter(isRecord)
+      : [];
+
+    return {
+      ...(isRecord(localDay) ? localDay : {}),
+      day: itinerary.day,
+      places: itinerary.places.map((serverPlace, index) => {
+        const matchedLocalPlace = localPlaces.find((localPlace) => {
+          const sameServerId =
+            String(localPlace.tripPlaceId ?? "") ===
+              String(serverPlace.tripPlaceId) ||
+            String(localPlace.serverTripPlaceId ?? "") ===
+              String(serverPlace.tripPlaceId);
+
+          const sameGooglePlaceId =
+            Boolean(serverPlace.placeId) &&
+            (String(localPlace.placeId ?? "") === String(serverPlace.placeId) ||
+              String(localPlace.googlePlaceId ?? "") ===
+                String(serverPlace.placeId));
+
+          const sameNameAndOrder =
+            String(localPlace.name ?? "") === String(serverPlace.name ?? "") &&
+            Number(localPlace.order ?? index + 1) ===
+              Number(serverPlace.visitOrder ?? index + 1);
+
+          return sameServerId || sameGooglePlaceId || sameNameAndOrder;
+        });
+
+        const visitTime =
+          serverPlace.visitTime ?? matchedLocalPlace?.visitTime ?? null;
+        const endTime = serverPlace.endTime ?? matchedLocalPlace?.endTime ?? null;
+
+        return {
+          ...(matchedLocalPlace ?? {}),
+          id:
+            matchedLocalPlace?.id ??
+            String(serverPlace.placeId ?? serverPlace.tripPlaceId),
+          tripPlaceId: serverPlace.tripPlaceId,
+          serverTripPlaceId: serverPlace.tripPlaceId,
+          placeId:
+            matchedLocalPlace?.placeId ??
+            matchedLocalPlace?.googlePlaceId ??
+            serverPlace.placeId,
+          googlePlaceId:
+            matchedLocalPlace?.googlePlaceId ??
+            matchedLocalPlace?.placeId ??
+            serverPlace.placeId,
+          name: serverPlace.name ?? matchedLocalPlace?.name,
+          visitTime,
+          endTime,
+          time:
+            matchedLocalPlace?.time ??
+            [visitTime, endTime].filter(Boolean).join(" - "),
+          order: serverPlace.visitOrder ?? matchedLocalPlace?.order ?? index + 1,
+          memo: serverPlace.memo ?? matchedLocalPlace?.memo ?? null,
+          memos: matchedLocalPlace?.memos ?? [],
+        };
+      }),
+    };
+  });
+};
+
+
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
   const [loading, setLoading] = useState(true);
@@ -147,8 +246,24 @@ export default function MainScreen({ navigation }: Props) {
     navigation.navigate("AddSchedule");
   };
 
-  const handleOpenSchedule = (schedule: StoredSchedule) => {
+  const handleOpenSchedule = async (schedule: StoredSchedule) => {
     const resolvedTripId = schedule.tripId ?? schedule.serverTripId;
+
+    let days = schedule.days;
+
+    if (resolvedTripId) {
+      try {
+        days = await enrichDaysWithServerTripPlaceIds(
+          resolvedTripId,
+          schedule.days,
+        );
+      } catch (error) {
+        console.log("[Main] 서버 상세 조회 실패 - 로컬 days로 이동:", {
+          resolvedTripId,
+          error,
+        });
+      }
+    }
 
     navigation.navigate("OngoingSchedule", {
       scheduleId: getScheduleId(schedule),
@@ -160,7 +275,7 @@ export default function MainScreen({ navigation }: Props) {
       location: schedule.location,
       transportMode: schedule.transportMode,
       transportLabel: schedule.transportLabel,
-      days: schedule.days,
+      days,
     });
   };
 

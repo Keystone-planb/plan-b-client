@@ -11,6 +11,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
 import { getMe, MeResponse } from "../../api/users/me";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = {
   navigation: any;
@@ -42,6 +43,8 @@ function ProfileRow({ label, value, onPress }: ProfileRowProps) {
 
 export default function ProfileEditScreen({ navigation }: Props) {
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [storedNickname, setStoredNickname] = useState("");
+  const [storedEmail, setStoredEmail] = useState("");
   const [loading, setLoading] = useState(true);
 
   const loadMe = useCallback(async () => {
@@ -49,6 +52,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
+      console.log("[Profile getMe result]", result);
       setMe(result);
     } catch (error) {
       console.log("프로필 수정 화면 유저 정보 조회 실패:", error);
@@ -75,8 +79,8 @@ export default function ProfileEditScreen({ navigation }: Props) {
     });
   };
 
-  const nickname = me?.nickname || "김플랜";
-  const email = me?.email || "traveler@planb.com";
+  const nickname = me?.nickname || storedNickname || "사용자";
+  const email = me?.email || storedEmail || "이메일 정보를 불러오는 중";
   const phoneNumber = "010-0000-0000";
 
   return (
