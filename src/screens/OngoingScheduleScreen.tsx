@@ -10,6 +10,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
+import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
+
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
 type ScheduleMemo = {
@@ -96,7 +98,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     days = [],
   } = params;
 
-  const resolvedTripId = tripId ?? serverTripId;
+  const resolvedTripId =
+    tripId ??
+    serverTripId ??
+    (scheduleId && Number.isFinite(Number(scheduleId)) ? scheduleId : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
@@ -373,6 +378,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       ))}
                     </View>
                   : null}
+
+                  {index === 0 && places.length >= 2 ? (
+                    <View style={styles.gapRecommendationSection}>
+                      <GapRecommendationCard tripId={resolvedTripId} />
+                    </View>
+                  ) : null}
                 </React.Fragment>
               );
             })}
@@ -756,6 +767,11 @@ const styles = StyleSheet.create({
     marginTop: 12,
     marginBottom: 7,
     textAlign: "center",
+  },
+
+  gapRecommendationSection: {
+    marginTop: -4,
+    marginBottom: 18,
   },
 
   emptyDayDescription: {
