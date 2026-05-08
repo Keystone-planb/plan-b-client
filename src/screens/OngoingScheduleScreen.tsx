@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import {
+  Alert,
   ScrollView,
   StyleSheet,
   Text,
@@ -127,6 +128,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
+    const serverPlanId = place.serverTripPlaceId ?? place.tripPlaceId;
+
+    if (!serverPlanId) {
+      Alert.alert(
+        "AI 대안 추천 불가",
+        "이 장소는 서버 장소 ID가 없어 AI 추천을 요청할 수 없습니다. 새로 생성한 일정이거나 서버 저장이 완료된 일정에서 다시 시도해주세요.",
+      );
+      return;
+    }
+
     navigation.navigate("AlternativeSettings", {
       scheduleId,
       tripId: resolvedTripId,
@@ -141,8 +152,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         id: place.id,
 
         // 서버 장소 ID
-        tripPlaceId: place.tripPlaceId,
-        serverTripPlaceId: place.serverTripPlaceId ?? place.tripPlaceId,
+        tripPlaceId: serverPlanId,
+        serverTripPlaceId: serverPlanId,
 
         // Google Place ID
         placeId: place.placeId ?? place.googlePlaceId ?? String(place.id ?? ""),
@@ -261,6 +272,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
             {places.map((place, index) => {
               const focused = index === 0;
+              const hasServerPlanId = Boolean(
+                place.serverTripPlaceId ?? place.tripPlaceId,
+              );
 
               return (
                 <React.Fragment
@@ -298,7 +312,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </View>
 
                     <TouchableOpacity
-                      style={styles.alternativeButton}
+                      style={[
+                        styles.alternativeButton,
+                        !hasServerPlanId && styles.disabledAlternativeButton,
+                      ]}
                       activeOpacity={0.85}
                       onPress={() => handleAlternative(place)}
                     >
@@ -652,6 +669,10 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.16,
     shadowRadius: 10,
     elevation: 4,
+  },
+
+  disabledAlternativeButton: {
+    opacity: 0.55,
   },
 
   alternativeButtonText: {
