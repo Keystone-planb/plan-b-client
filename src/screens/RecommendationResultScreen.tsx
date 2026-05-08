@@ -204,8 +204,8 @@ export default function RecommendationResultScreen({
       if (storedUserId) {
         await reportPreferenceFeedback({
           userId: storedUserId,
-          shownPlaceIds,
-          selectedPlaceId: placeId,
+          shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
+          selectedPlaceId: placeId ?? "",
         });
       }
 
