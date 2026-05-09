@@ -66,6 +66,39 @@ type Props = {
   };
 };
 
+
+const getSortTimeValue = (time?: string | null) => {
+  if (!time) return Number.MAX_SAFE_INTEGER;
+
+  const normalized = time.trim();
+  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+
+  if (!match) return Number.MAX_SAFE_INTEGER;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3]?.toUpperCase();
+
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+};
+
+const sortPlacesByTime = <T extends { time?: string | null; visitTime?: string | null; order?: number }>(
+  places: T[],
+) => {
+  return [...places].sort((a, b) => {
+    const aTime = getSortTimeValue(a.visitTime ?? a.time);
+    const bTime = getSortTimeValue(b.visitTime ?? b.time);
+
+    if (aTime !== bTime) return aTime - bTime;
+
+    return (a.order ?? 0) - (b.order ?? 0);
+  });
+};
+
+
 const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
 
 const isValidServerPlanId = (value?: string | number) => {
@@ -112,15 +145,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const places = useMemo(() => {
     if (currentDay?.places?.length) {
-      return [...currentDay.places].sort((a, b) => {
-        const aOrder = a.order ?? 0;
-        const bOrder = b.order ?? 0;
-        return aOrder - bOrder;
-      });
+      return sortPlacesByTime(currentDay.places);
     }
 
     if (params.places && params.places.length > 0) {
-      return params.places;
+      return sortPlacesByTime(params.places);
     }
 
     return [];
