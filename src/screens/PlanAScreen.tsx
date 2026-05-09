@@ -742,6 +742,25 @@ export default function PlanAScreen({ navigation, route }: Props) {
             >
               <Text style={styles.addPlaceButtonText}>장소 추가</Text>
             </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.bottomSaveButton,
+                (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
+              ]}
+              activeOpacity={0.85}
+              onPress={handleSavePlanA}
+              disabled={loadingSchedule || saving}
+            >
+              <Ionicons
+                name="checkmark-circle-outline"
+                size={20}
+                color="#FFFFFF"
+              />
+              <Text style={styles.bottomSaveButtonText}>
+                {saving ? "저장 중..." : "변경사항 저장"}
+              </Text>
+            </TouchableOpacity>
 </View>
         </ScrollView>
 
@@ -1099,6 +1118,30 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   addPlaceButtonText: { color: "#2158E8", fontSize: 15, fontWeight: "900" },
+  bottomSaveButton: {
+    marginTop: 14,
+    marginLeft: 43,
+    minHeight: 50,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    shadowColor: "#2158E8",
+    shadowOpacity: 0.18,
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  bottomSaveButtonDisabled: {
+    opacity: 0.55,
+  },
+  bottomSaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
+  },
 
   roadmapList: {
     position: "relative",
