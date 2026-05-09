@@ -1478,6 +1478,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE5EF",
   },
 
+
+  reviewSummaryCard: {
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  reviewSummaryTitle: {
+    color: "#0F172A",
+    fontSize: 14,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  reviewSummaryText: {
+    color: "#334155",
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "600",
+  },
+
   platformReviewCard: {
     borderRadius: 8,
     backgroundColor: "#F8FAFC",
