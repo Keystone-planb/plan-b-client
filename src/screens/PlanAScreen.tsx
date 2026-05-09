@@ -99,11 +99,36 @@ const sortPlacesByTime = <
   });
 };
 
-const DAY_OPTIONS: DayOption[] = [
+const DEFAULT_DAY_OPTIONS: DayOption[] = [
   { id: 1, label: "Day 1" },
   { id: 2, label: "Day 2" },
   { id: 3, label: "Day 3" },
 ];
+
+const getTripDayCount = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return DEFAULT_DAY_OPTIONS.length;
+
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const end = new Date(endDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return DEFAULT_DAY_OPTIONS.length;
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+
+  return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
+};
+
+const makeDayOptions = (startDate?: string, endDate?: string): DayOption[] => {
+  const dayCount = getTripDayCount(startDate, endDate);
+
+  return Array.from({ length: dayCount }, (_, index) => ({
+    id: index + 1,
+    label: `Day ${index + 1}`,
+  }));
+};
 
 const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
 
@@ -201,6 +226,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const transportLabel = route?.params?.transportLabel ?? "도보";
   const selectedPlace = route?.params?.selectedPlace;
   const selectedPlaces = route?.params?.selectedPlaces;
+  const dayOptions = makeDayOptions(startDate, endDate);
 
   const resolvedTripId = tripId ?? serverTripId;
 
@@ -697,7 +723,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
             <View style={styles.dayTabsWrapper}>
               <PlanADayTabs
-                days={DAY_OPTIONS}
+                days={dayOptions}
                 selectedDay={selectedDay}
                 onChangeDay={handleChangeDay}
               />
