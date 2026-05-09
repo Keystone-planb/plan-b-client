@@ -691,14 +691,18 @@ export default function AddScheduleLocationScreen({
     targetServerTripId,
     targetLocation,
     serverPlaceMap,
+    placesToNavigate,
   }: {
     targetScheduleId?: string;
     targetTripId?: number | string;
     targetServerTripId?: number | string;
     targetLocation: string;
     serverPlaceMap?: Record<string, { tripPlaceId?: number | string }>;
+    placesToNavigate?: SelectedPlace[];
   }) => {
-    if (selectedPlaces.length === 0) {
+    const navigationPlaces = placesToNavigate ?? selectedPlaces;
+
+    if (navigationPlaces.length === 0) {
       return;
     }
 
@@ -712,7 +716,7 @@ export default function AddScheduleLocationScreen({
       location: targetLocation,
       transportMode,
       transportLabel,
-      selectedPlaces: selectedPlaces.map((place) => {
+      selectedPlaces: navigationPlaces.map((place) => {
         const serverPlace = serverPlaceMap?.[place.placeId];
 
         return {
@@ -733,8 +737,11 @@ export default function AddScheduleLocationScreen({
     });
   };
 
-  const handleNext = async () => {
-    if (selectedPlaces.length === 0 || submitLoading) {
+  const handleNext = async (
+    overridePlaces?: SelectedPlace[],
+  ) => {
+    const placesToSubmit = overridePlaces ?? selectedPlaces;
+    if (placesToSubmit.length === 0 || submitLoading) {
       return;
     }
 
@@ -743,7 +750,7 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
-    const primaryPlace = selectedPlaces[0];
+    const primaryPlace = placesToSubmit[0];
 
     const nextLocation =
       primaryPlace?.name ||
@@ -772,7 +779,7 @@ export default function AddScheduleLocationScreen({
         }
 
         if (targetServerTripId) {
-          for (const place of selectedPlaces) {
+          for (const place of placesToSubmit) {
             const response = await addTripLocation(targetServerTripId, selectedDay, {
               place_id: place.googlePlaceId ?? place.placeId,
               name: place.name,
@@ -791,8 +798,9 @@ export default function AddScheduleLocationScreen({
           targetTripId,
           targetServerTripId,
           selectedDay,
-          count: selectedPlaces.length,
+          count: placesToSubmit.length,
           serverPlaceMap,
+          placesToNavigate: placesToSubmit,
         });
       } catch (serverError) {
         console.log(
@@ -1157,7 +1165,19 @@ export default function AddScheduleLocationScreen({
                     ]}
                     activeOpacity={0.85}
                     disabled={isDetailLoading || submitLoading}
-                    onPress={() => handlePlaceDetail(place)}
+                    onPress={() =>
+                      handleNext([
+                        {
+                          ...place,
+                          placeId: String(place.placeId),
+                          googlePlaceId: String(
+                            place.googlePlaceId ?? place.placeId,
+                          ),
+                          latitude: place.latitude ?? 0,
+                          longitude: place.longitude ?? 0,
+                        },
+                      ])
+                    }
                   >
                     {isDetailLoading ?
                       <ActivityIndicator
@@ -1385,22 +1405,6 @@ export default function AddScheduleLocationScreen({
           </View>
         </View>
       </Modal>
-
-      {selectedPlaces.length > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            submitLoading && styles.disabledNextButton,
-          ]}
-          activeOpacity={0.85}
-          onPress={handleNext}
-          disabled={submitLoading}
-        >
-          {submitLoading ?
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Ionicons name="checkmark" size={23} color="#FFFFFF" />}
-        </TouchableOpacity>
-      )}
     </View>
   );
 }

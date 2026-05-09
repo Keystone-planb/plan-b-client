@@ -619,8 +619,11 @@ export default function AddScheduleLocationScreen({
     }
   };
 
-  const handleNext = async () => {
-    if (selectedPlaces.length === 0 || submitLoading) {
+  const handleNext = async (
+    overridePlaces?: SelectedPlace[],
+  ) => {
+    const placesToSubmit = overridePlaces ?? selectedPlaces;
+    if (placesToSubmit.length === 0 || submitLoading) {
       return;
     }
 
@@ -631,15 +634,15 @@ export default function AddScheduleLocationScreen({
 
     const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
     console.log("[AddScheduleLocation] 선택 장소 목록:", {
-      count: selectedPlaces.length,
-      places: selectedPlaces.map((place) => ({
+      count: placesToSubmit.length,
+      places: placesToSubmit.map((place) => ({
         placeId: place.placeId,
         googlePlaceId: place.googlePlaceId,
         name: place.name,
       })),
     });
 
-    const primaryPlace = selectedPlaces[0];
+    const primaryPlace = placesToSubmit[0];
 
     const nextLocation =
       primaryPlace?.name || primaryPlace?.address || "선택한 장소";
@@ -661,7 +664,7 @@ export default function AddScheduleLocationScreen({
         serverTripId = tripResponse.tripId;
 
         if (serverTripId) {
-          for (const place of selectedPlaces) {
+          for (const place of placesToSubmit) {
             console.log("[addTripLocation request]", {
               tripId: serverTripId,
               day: selectedDay,
@@ -692,9 +695,9 @@ export default function AddScheduleLocationScreen({
         console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
           serverTripId,
           selectedDay,
-          count: selectedPlaces.length,
+          count: placesToSubmit.length,
           serverPlaceMap,
-          placeNames: selectedPlaces.map((place) => place.name),
+          placeNames: placesToSubmit.map((place) => place.name),
         });
       } catch (serverError) {
         console.log(
@@ -721,7 +724,7 @@ export default function AddScheduleLocationScreen({
         serverTripId,
         transportMode,
         transportLabel,
-        selectedPlaces: selectedPlaces.map((place) => ({
+        selectedPlaces: placesToSubmit.map((place) => ({
           id: place.placeId,
           placeId: place.placeId,
           googlePlaceId: place.googlePlaceId ?? place.placeId,
@@ -1110,7 +1113,19 @@ export default function AddScheduleLocationScreen({
                     style={styles.expandedSelectButton}
                     activeOpacity={0.8}
                     disabled={isDetailLoading || submitLoading}
-                    onPress={() => handlePlaceDetail(place)}
+                    onPress={() =>
+                      handleNext([
+                        {
+                          ...place,
+                          placeId: String(place.placeId),
+                          googlePlaceId: String(
+                            place.googlePlaceId ?? place.placeId,
+                          ),
+                          latitude: place.latitude ?? 0,
+                          longitude: place.longitude ?? 0,
+                        },
+                      ])
+                    }
                   >
                     {isDetailLoading ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1125,22 +1140,6 @@ export default function AddScheduleLocationScreen({
           })}
         </ScrollView>
       </View>
-
-      {selectedPlaces.length > 0 && (
-        <TouchableOpacity
-          style={[
-            styles.nextButton,
-            submitLoading && styles.disabledNextButton,
-          ]}
-          activeOpacity={0.85}
-          onPress={handleNext}
-          disabled={submitLoading}
-        >
-          {submitLoading ?
-            <ActivityIndicator size="small" color="#FFFFFF" />
-          : <Ionicons name="checkmark" size={23} color="#FFFFFF" />}
-        </TouchableOpacity>
-      )}
     </View>
   );
 }
