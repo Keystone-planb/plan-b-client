@@ -700,11 +700,9 @@ export function usePlanAPlaces({
   };
 
   const handleUpdateTripName = (nextTripName: string) => {
-    const trimmedTripName = nextTripName.trim();
-
     const nextSchedule: TravelSchedule = {
       ...scheduleRef.current,
-      tripName: trimmedTripName || scheduleRef.current.tripName,
+      tripName: nextTripName,
       updatedAt: createNow(),
     };
 
