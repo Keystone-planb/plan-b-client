@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -11,7 +11,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
-import { Swipeable } from "react-native-gesture-handler";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
 import RadialBackground from "../components/RadialBackground";
@@ -42,6 +41,18 @@ const guessLocationFromTitle = (title: string) => {
   return firstWord || "지역 미정";
 };
 
+const getDateSortValue = (date?: string) => {
+  if (!date) return 0;
+
+  const parsed = new Date(date.replace(/\./g, "-"));
+
+  if (Number.isNaN(parsed.getTime())) {
+    return 0;
+  }
+
+  return parsed.getTime();
+};
+
 const convertTripToPlanXTrip = (trip: TripSummary): PlanXDisplayTrip => {
   return {
     id: String(trip.tripId),
@@ -61,14 +72,16 @@ export default function PlanXScreen({ navigation }: Props) {
   const [loading, setLoading] = useState(false);
   const [deletingTripId, setDeletingTripId] = useState<string | null>(null);
 
-  const swipeableRefs = useRef<Record<string, Swipeable | null>>({});
-
   const loadTrips = useCallback(async () => {
     try {
       setLoading(true);
 
       const serverTrips = await getTrips("PAST");
-      const nextTrips = serverTrips.map(convertTripToPlanXTrip);
+
+      const nextTrips = serverTrips
+        .filter((trip) => trip.startDate && trip.endDate)
+        .map(convertTripToPlanXTrip)
+        .sort((a, b) => getDateSortValue(b.endDate) - getDateSortValue(a.endDate));
 
       setTrips(nextTrips);
     } catch (error) {
@@ -85,18 +98,6 @@ export default function PlanXScreen({ navigation }: Props) {
     }, [loadTrips]),
   );
 
-  const closeOtherSwipeables = (currentTripId: string) => {
-    Object.entries(swipeableRefs.current).forEach(([tripId, ref]) => {
-      if (tripId !== currentTripId) {
-        ref?.close();
-      }
-    });
-  };
-
-  const closeCurrentSwipeable = (tripId: string) => {
-    swipeableRefs.current[tripId]?.close();
-  };
-
   const handleBack = () => {
     if (navigation.canGoBack()) {
       navigation.goBack();
@@ -111,10 +112,7 @@ export default function PlanXScreen({ navigation }: Props) {
       (item) => item.id === trip.id && item.title === trip.title,
     );
 
-    if (!selectedTrip) {
-      console.log("[PlanX] 선택한 여행을 찾지 못했습니다.", trip);
-      return;
-    }
+    if (!selectedTrip) return;
 
     const detailParams = {
       tripId: selectedTrip.tripId,
@@ -141,13 +139,7 @@ export default function PlanXScreen({ navigation }: Props) {
       "지난 여행 삭제",
       `"${trip.title}" 여행을 삭제할까요?\n서버에서도 삭제됩니다.`,
       [
-        {
-          text: "취소",
-          style: "cancel",
-          onPress: () => {
-            closeCurrentSwipeable(trip.tripId);
-          },
-        },
+        { text: "취소", style: "cancel" },
         {
           text: "삭제",
           style: "destructive",
@@ -160,47 +152,16 @@ export default function PlanXScreen({ navigation }: Props) {
               setTrips((prev) =>
                 prev.filter((item) => item.tripId !== trip.tripId),
               );
-
-              console.log("[PlanX] 지난 여행 삭제 완료", {
-                tripId: trip.tripId,
-                title: trip.title,
-              });
             } catch (error) {
               console.log("[PlanX] 지난 여행 삭제 실패:", error);
 
-              Alert.alert(
-                "삭제 실패",
-                "지난 여행을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.",
-              );
-
-              closeCurrentSwipeable(trip.tripId);
+              Alert.alert("삭제 실패", "지난 여행을 삭제하지 못했습니다.");
             } finally {
               setDeletingTripId(null);
             }
           },
         },
       ],
-    );
-  };
-
-  const renderRightActions = (trip: PlanXDisplayTrip) => {
-    const isDeleting = deletingTripId === trip.tripId;
-
-    return (
-      <TouchableOpacity
-        style={styles.swipeDeleteAction}
-        activeOpacity={0.85}
-        disabled={isDeleting}
-        onPress={() => handleDeleteTrip(trip)}
-      >
-        {isDeleting ?
-          <ActivityIndicator size="small" color="#FFFFFF" />
-        : <>
-            <Ionicons name="trash-outline" size={22} color="#FFFFFF" />
-            <Text style={styles.swipeDeleteText}>삭제</Text>
-          </>
-        }
-      </TouchableOpacity>
     );
   };
 
@@ -234,14 +195,14 @@ export default function PlanXScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.listSection}>
-          {loading ?
+          {loading ? (
             <View style={styles.loadingBox}>
               <ActivityIndicator color="#2158E8" />
               <Text style={styles.loadingText}>여행 목록을 불러오는 중...</Text>
             </View>
-          : null}
+          ) : null}
 
-          {!loading && !hasTrips ?
+          {!loading && !hasTrips ? (
             <View style={styles.emptyBox}>
               <View style={styles.emptyRadialBackground} pointerEvents="none">
                 <RadialBackground />
@@ -259,23 +220,36 @@ export default function PlanXScreen({ navigation }: Props) {
                 </Text>
               </View>
             </View>
-          : null}
+          ) : null}
 
-          {trips.map((trip) => (
-            <Swipeable
-              key={`${trip.source}-${trip.id}`}
-              ref={(ref) => {
-                swipeableRefs.current[trip.tripId] = ref;
-              }}
-              friction={2}
-              rightThreshold={44}
-              overshootRight={false}
-              renderRightActions={() => renderRightActions(trip)}
-              onSwipeableWillOpen={() => closeOtherSwipeables(trip.tripId)}
-            >
-              <PlanXTripCard trip={trip} onPress={handlePressTrip} />
-            </Swipeable>
-          ))}
+          {trips.map((trip) => {
+            const isDeleting = deletingTripId === trip.tripId;
+
+            return (
+              <View key={`${trip.source}-${trip.id}`} style={styles.tripCardWrapper}>
+                <PlanXTripCard trip={trip} onPress={handlePressTrip} />
+
+                <TouchableOpacity
+                  style={[
+                    styles.deleteTextButton,
+                    isDeleting && styles.deleteTextButtonDisabled,
+                  ]}
+                  activeOpacity={0.85}
+                  disabled={isDeleting}
+                  onPress={() => handleDeleteTrip(trip)}
+                >
+                  {isDeleting ? (
+                    <ActivityIndicator size="small" color="#EF4444" />
+                  ) : (
+                    <>
+                      <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                      <Text style={styles.deleteTextButtonLabel}>여행 삭제</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -346,6 +320,35 @@ const styles = StyleSheet.create({
     paddingHorizontal: 21,
   },
 
+  tripCardWrapper: {
+    position: "relative",
+    marginBottom: 16,
+  },
+
+  deleteTextButton: {
+    alignSelf: "flex-end",
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+
+  deleteTextButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  deleteTextButtonLabel: {
+    color: "#EF4444",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
   loadingBox: {
     minHeight: 44,
     borderRadius: 14,
@@ -363,23 +366,6 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 13,
     fontWeight: "800",
-  },
-
-  swipeDeleteAction: {
-    width: 84,
-    minHeight: 114,
-    borderRadius: 16,
-    backgroundColor: "#EF4444",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 16,
-  },
-
-  swipeDeleteText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 4,
   },
 
   emptyBox: {

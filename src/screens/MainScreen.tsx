@@ -133,7 +133,6 @@ const getPlaceCount = (schedule?: StoredSchedule) => {
   }, 0);
 };
 
-
 const isRecord = (value: unknown): value is Record<string, any> => {
   return Boolean(value) && typeof value === "object";
 };
@@ -274,7 +273,8 @@ const enrichDaysWithServerTripPlaceIds = async (
 
         const visitTime =
           serverPlace.visitTime ?? matchedLocalPlace?.visitTime ?? null;
-        const endTime = serverPlace.endTime ?? matchedLocalPlace?.endTime ?? null;
+        const endTime =
+          serverPlace.endTime ?? matchedLocalPlace?.endTime ?? null;
 
         return {
           ...(matchedLocalPlace ?? {}),
@@ -297,7 +297,8 @@ const enrichDaysWithServerTripPlaceIds = async (
           time:
             matchedLocalPlace?.time ??
             [visitTime, endTime].filter(Boolean).join(" - "),
-          order: serverPlace.visitOrder ?? matchedLocalPlace?.order ?? index + 1,
+          order:
+            serverPlace.visitOrder ?? matchedLocalPlace?.order ?? index + 1,
           memo: serverPlace.memo ?? matchedLocalPlace?.memo ?? null,
           memos: matchedLocalPlace?.memos ?? [],
         };
@@ -305,7 +306,6 @@ const enrichDaysWithServerTripPlaceIds = async (
     };
   });
 };
-
 
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
@@ -699,9 +699,7 @@ export default function MainScreen({ navigation }: Props) {
           onPress={handleTriggerWeatherCheck}
         >
           <Ionicons name="cloudy-outline" size={17} color="#2563EB" />
-          <Text style={styles.weatherTriggerButtonText}>
-            날씨 알림 테스트
-          </Text>
+          <Text style={styles.weatherTriggerButtonText}>날씨 알림 테스트</Text>
         </TouchableOpacity>
 
         {notifications.length > 0 ?
@@ -756,10 +754,10 @@ export default function MainScreen({ navigation }: Props) {
           </Swipeable>
         </View>
 
-        {nextSchedule ? (
-          <View style={styles.nextTripSection}>
-            <Text style={styles.homeSectionTitle}>다음 여행</Text>
+        <View style={styles.nextTripSection}>
+          <Text style={styles.homeSectionTitle}>다음 여행</Text>
 
+          {nextSchedule ?
             <TouchableOpacity
               style={styles.nextTripCard}
               activeOpacity={0.86}
@@ -775,32 +773,34 @@ export default function MainScreen({ navigation }: Props) {
                 </Text>
 
                 <View style={styles.nextTripMetaRow}>
-                  <Ionicons
-                    name="calendar-outline"
-                    size={15}
-                    color="#94A3B8"
-                  />
+                  <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
                   <Text style={styles.nextTripMetaText}>
                     {getScheduleDate(nextSchedule)}
                   </Text>
                 </View>
 
                 <View style={styles.nextTripMetaRow}>
-                  <Ionicons
-                    name="location-outline"
-                    size={15}
-                    color="#94A3B8"
-                  />
+                  <Ionicons name="location-outline" size={15} color="#94A3B8" />
                   <Text style={styles.nextTripMetaText}>
-                    {getScheduleLocation(nextSchedule)} · {getPlaceCount(nextSchedule)}개 장소
+                    {getScheduleLocation(nextSchedule)} ·{" "}
+                    {getPlaceCount(nextSchedule)}개 장소
                   </Text>
                 </View>
               </View>
 
               <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
             </TouchableOpacity>
-          </View>
-        ) : null}
+          : <View style={styles.emptyNextTripCard}>
+              <Text style={styles.emptyNextTripTitle}>
+                예정된 다음 여행이 없어요
+              </Text>
+
+              <Text style={styles.emptyNextTripDescription}>
+                새로운 여행 일정을 추가해보세요.
+              </Text>
+            </View>
+          }
+        </View>
 
         <TouchableOpacity
           style={styles.newScheduleCardButton}
@@ -1060,6 +1060,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 14,
     elevation: 2,
+  },
+
+  emptyNextTripCard: {
+    marginTop: 14,
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 24,
+    paddingHorizontal: 22,
+  },
+  emptyNextTripTitle: {
+    color: "#0F172A",
+    fontSize: 16,
+    fontWeight: "800",
+    marginBottom: 8,
+  },
+  emptyNextTripDescription: {
+    color: "#64748B",
+    fontSize: 14,
+    lineHeight: 21,
+    fontWeight: "600",
   },
 
   nextTripCard: {

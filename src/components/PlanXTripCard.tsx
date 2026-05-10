@@ -15,19 +15,22 @@ export type PlanXTrip = {
 type Props = {
   trip: PlanXTrip;
   onPress?: (trip: PlanXTrip) => void;
+  onDelete?: (trip: PlanXTrip) => void;
+  deleting?: boolean;
 };
 
 function formatDate(date: string) {
   return date.replace(/-/g, ".");
 }
 
-export default function PlanXTripCard({ trip, onPress }: Props) {
+export default function PlanXTripCard({
+  trip,
+  onPress,
+  onDelete,
+  deleting = false,
+}: Props) {
   return (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.85}
-      onPress={() => onPress?.(trip)}
-    >
+    <View style={styles.card}>
       <View style={styles.thumbnail}>
         <Text style={styles.thumbnailEmoji}>{trip.emoji ?? "🏝️"}</Text>
       </View>
@@ -48,16 +51,37 @@ export default function PlanXTripCard({ trip, onPress }: Props) {
 
             <View style={styles.infoRow}>
               <Ionicons name="location-outline" size={17} color="#627187" />
-              <Text style={styles.infoText}>
+              <Text style={styles.infoText} numberOfLines={1}>
                 {trip.location} · {trip.placeCount}개 장소
               </Text>
             </View>
           </View>
 
-          <Ionicons name="chevron-forward" size={24} color="#8C9BB1" />
+          {onDelete ? (
+            <TouchableOpacity
+              style={[
+                styles.deleteButton,
+                deleting && styles.deleteButtonDisabled,
+              ]}
+              activeOpacity={0.85}
+              disabled={deleting}
+              onPress={() => onDelete(trip)}
+            >
+              <Ionicons name="trash-outline" size={16} color="#EF4444" />
+            </TouchableOpacity>
+          ) : null}
         </View>
+
+        <TouchableOpacity
+          style={styles.detailButton}
+          activeOpacity={0.85}
+          onPress={() => onPress?.(trip)}
+        >
+          <Text style={styles.detailButtonText}>상세 보기</Text>
+          <Ionicons name="chevron-forward" size={14} color="#2158E8" />
+        </TouchableOpacity>
       </View>
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -103,7 +127,7 @@ const styles = StyleSheet.create({
 
   topRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
   },
 
@@ -130,5 +154,38 @@ const styles = StyleSheet.create({
     color: "#627187",
     fontSize: 12,
     fontWeight: "600",
+  },
+
+  deleteButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  deleteButtonDisabled: {
+    opacity: 0.55,
+  },
+
+  detailButton: {
+    alignSelf: "flex-start",
+    marginTop: 12,
+    minHeight: 32,
+    paddingHorizontal: 12,
+    borderRadius: 999,
+    backgroundColor: "#EFF6FF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  detailButtonText: {
+    color: "#2158E8",
+    fontSize: 12,
+    fontWeight: "900",
   },
 });
