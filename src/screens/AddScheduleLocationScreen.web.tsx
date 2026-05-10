@@ -470,6 +470,10 @@ export default function AddScheduleLocationScreen({
   const transportMode = route?.params?.transportMode ?? "TRANSIT";
   const transportLabel = route?.params?.transportLabel ?? "대중교통";
 
+  const existingTripId = route?.params?.tripId;
+  const existingServerTripId = route?.params?.serverTripId;
+  const resolvedExistingTripId = existingServerTripId ?? existingTripId;
+
   const getExistingServerTripId = () => {
     const candidates = [
       route?.params?.serverTripId,
@@ -663,21 +667,23 @@ export default function AddScheduleLocationScreen({
     const nextLocation =
       primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
-    let serverTripId: number | string | undefined;
+    let serverTripId: number | string | undefined = resolvedExistingTripId;
     const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
       setSubmitLoading(true);
 
       try {
-        const tripResponse = await createTrip({
-          title: tripName,
-          startDate,
-          endDate,
-          travelStyles: ["HEALING"],
-        });
+        if (!serverTripId) {
+          const tripResponse = await createTrip({
+            title: tripName,
+            startDate,
+            endDate,
+            travelStyles: ["HEALING"],
+          });
 
-        serverTripId = tripResponse.tripId;
+          serverTripId = tripResponse.tripId;
+        }
 
         if (serverTripId) {
           for (const place of placesToSubmit) {
@@ -708,7 +714,7 @@ export default function AddScheduleLocationScreen({
           }
         }
 
-        console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
+        console.log("[AddScheduleLocation] 서버 일정/장소 저장 완료:", {
           serverTripId,
           selectedDay,
           count: placesToSubmit.length,
@@ -727,6 +733,7 @@ export default function AddScheduleLocationScreen({
           route.params?.scheduleId ??
           route.params?.serverTripId ??
           serverTripId,
+        refreshPlanAAt: Date.now(),
         initialSchedule: route.params?.initialSchedule,
         existingPlaces:
           route.params?.existingPlaces ??
@@ -738,7 +745,6 @@ export default function AddScheduleLocationScreen({
         location: nextLocation,
         tripId: serverTripId,
         serverTripId,
-        refreshPlanAAt: Date.now(),
         transportMode,
         transportLabel,
         selectedPlaces: placesToSubmit.map((place) => ({
@@ -754,8 +760,7 @@ export default function AddScheduleLocationScreen({
           longitude: place.longitude,
           time: "",
           day: selectedDay,
-        })),
-      });
+        })),      });
     } catch (error) {
       console.log("일정 생성 실패:", error);
 
