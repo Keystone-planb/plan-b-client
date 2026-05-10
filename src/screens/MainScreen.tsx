@@ -357,6 +357,60 @@ const buildDemoWeatherNotification = (
   };
 };
 
+const getFirstPlaceNameFromDays = (days?: unknown[]) => {
+  if (!Array.isArray(days)) {
+    return "";
+  }
+
+  for (const day of days) {
+    if (!isRecord(day) || !Array.isArray(day.places)) {
+      continue;
+    }
+
+    const firstPlace = day.places.find((place) => {
+      return isRecord(place) && typeof place.name === "string" && place.name;
+    });
+
+    if (isRecord(firstPlace) && typeof firstPlace.name === "string") {
+      return firstPlace.name;
+    }
+  }
+
+  return "";
+};
+
+const hydrateMainScheduleWithDetail = async (
+  schedule: StoredSchedule,
+): Promise<StoredSchedule> => {
+  const resolvedTripId = schedule.serverTripId ?? schedule.tripId;
+
+  if (!resolvedTripId) {
+    return schedule;
+  }
+
+  try {
+    const days = await enrichDaysWithServerTripPlaceIds(
+      resolvedTripId,
+      schedule.days,
+    );
+
+    const firstPlaceName = getFirstPlaceNameFromDays(days);
+
+    return {
+      ...schedule,
+      days,
+      location: firstPlaceName || schedule.location || "장소 미정",
+    };
+  } catch (error) {
+    console.log("[Main] 메인 카드 상세 보강 실패:", {
+      tripId: resolvedTripId,
+      error,
+    });
+
+    return schedule;
+  }
+};
+
 const enrichDaysWithServerTripPlaceIds = async (
   tripId: number | string,
   localDays?: unknown[],
@@ -544,9 +598,19 @@ export default function MainScreen({ navigation }: Props) {
           (trip) => !isPastTripSummary(trip),
         );
 
-        const serverSchedules = activeServerTrips
+        let serverSchedules = activeServerTrips
           .map(convertTripSummaryToStoredSchedule)
           .sort(sortMainTrips);
+
+        serverSchedules = await Promise.all(
+          serverSchedules.map(async (schedule, index) => {
+            if (index > 1) {
+              return schedule;
+            }
+
+            return hydrateMainScheduleWithDetail(schedule);
+          }),
+        );
 
         if (serverTrips.length > 0 && serverSchedules.length === 0) {
           console.log("[Main] 서버 일정은 있지만 진행중/예정 일정 없음:", {
