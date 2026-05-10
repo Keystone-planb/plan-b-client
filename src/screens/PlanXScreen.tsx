@@ -7,6 +7,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
@@ -134,32 +135,66 @@ export default function PlanXScreen({ navigation }: Props) {
     navigation.navigate("PlanXDetail", detailParams);
   };
 
+  const executeDeleteTrip = async (trip: PlanXDisplayTrip) => {
+    try {
+      console.log("[PlanX] deleteTrip 요청:", {
+        tripId: trip.tripId,
+        title: trip.title,
+      });
+
+      setDeletingTripId(trip.tripId);
+
+      await deleteTrip(trip.tripId);
+
+      console.log("[PlanX] deleteTrip 성공:", {
+        tripId: trip.tripId,
+      });
+
+      setTrips((prev) =>
+        prev.filter((item) => String(item.tripId) !== String(trip.tripId)),
+      );
+    } catch (error) {
+      console.log("[PlanX] 지난 여행 삭제 실패:", error);
+      Alert.alert("삭제 실패", "지난 여행을 삭제하지 못했습니다.");
+    } finally {
+      setDeletingTripId(null);
+    }
+  };
+
   const handleDeleteTrip = (trip: PlanXDisplayTrip) => {
+    console.log("[PlanX] handleDeleteTrip 호출:", {
+      tripId: trip.tripId,
+      title: trip.title,
+      platform: Platform.OS,
+    });
+
+    if (Platform.OS === "web") {
+      const confirmed = window.confirm(
+        `"${trip.title}" 여행을 삭제할까요?
+서버에서도 삭제됩니다.`,
+      );
+
+      if (!confirmed) {
+        console.log("[PlanX] 웹 삭제 취소:", {
+          tripId: trip.tripId,
+        });
+        return;
+      }
+
+      executeDeleteTrip(trip);
+      return;
+    }
+
     Alert.alert(
       "지난 여행 삭제",
-      `"${trip.title}" 여행을 삭제할까요?\n서버에서도 삭제됩니다.`,
+      `"${trip.title}" 여행을 삭제할까요?
+서버에서도 삭제됩니다.`,
       [
         { text: "취소", style: "cancel" },
         {
           text: "삭제",
           style: "destructive",
-          onPress: async () => {
-            try {
-              setDeletingTripId(trip.tripId);
-
-              await deleteTrip(trip.tripId);
-
-              setTrips((prev) =>
-                prev.filter((item) => item.tripId !== trip.tripId),
-              );
-            } catch (error) {
-              console.log("[PlanX] 지난 여행 삭제 실패:", error);
-
-              Alert.alert("삭제 실패", "지난 여행을 삭제하지 못했습니다.");
-            } finally {
-              setDeletingTripId(null);
-            }
-          },
+          onPress: () => executeDeleteTrip(trip),
         },
       ],
     );
@@ -231,19 +266,25 @@ export default function PlanXScreen({ navigation }: Props) {
 
                 <TouchableOpacity
                   style={[
-                    styles.deleteTextButton,
-                    isDeleting && styles.deleteTextButtonDisabled,
+                    styles.deleteIconButton,
+                    isDeleting && styles.deleteIconButtonDisabled,
                   ]}
                   activeOpacity={0.85}
                   disabled={isDeleting}
-                  onPress={() => handleDeleteTrip(trip)}
+                  onPress={() => {
+                    console.log("[PlanX] 카드 안 휴지통 삭제 버튼 클릭:", {
+                      tripId: trip.tripId,
+                      title: trip.title,
+                    });
+
+                    handleDeleteTrip(trip);
+                  }}
                 >
                   {isDeleting ? (
                     <ActivityIndicator size="small" color="#EF4444" />
                   ) : (
                     <>
-                      <Ionicons name="trash-outline" size={15} color="#EF4444" />
-                      <Text style={styles.deleteTextButtonLabel}>여행 삭제</Text>
+                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
                     </>
                   )}
                 </TouchableOpacity>
@@ -296,6 +337,8 @@ const styles = StyleSheet.create({
     height: 34,
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 999,
+    elevation: 999,
   },
 
   iconPlaceholder: {
@@ -325,28 +368,24 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 
-  deleteTextButton: {
-    alignSelf: "flex-end",
-    marginTop: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
+  deleteIconButton: {
+    position: "absolute",
+    right: 22,
+    bottom: 32,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     backgroundColor: "#FEF2F2",
     borderWidth: 1,
     borderColor: "#FECACA",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    justifyContent: "center",
+    zIndex: 999,
+    elevation: 999,
   },
 
-  deleteTextButtonDisabled: {
-    opacity: 0.6,
-  },
-
-  deleteTextButtonLabel: {
-    color: "#EF4444",
-    fontSize: 12,
-    fontWeight: "800",
+  deleteIconButtonDisabled: {
+    opacity: 0.45,
   },
 
   loadingBox: {

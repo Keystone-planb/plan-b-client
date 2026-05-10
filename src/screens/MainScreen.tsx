@@ -88,12 +88,62 @@ const getScheduleLocation = (schedule: StoredSchedule) => {
   return schedule.location || "장소 미정";
 };
 
-const getCurrentDayLabel = (schedule?: StoredSchedule) => {
-  if (!schedule?.days || !Array.isArray(schedule.days)) {
+const getCurrentDayLabel = (
+  startDate?: string,
+  endDate?: string,
+) => {
+  if (!startDate) {
     return "Day 1";
   }
 
-  return "Day 1";
+  const normalizeDate = (value: string) => {
+    const normalized = value.replace(/\./g, "-");
+
+    const parsed = new Date(normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+      return null;
+    }
+
+    parsed.setHours(0, 0, 0, 0);
+
+    return parsed;
+  };
+
+  const tripStartDate = normalizeDate(startDate);
+
+  if (!tripStartDate) {
+    return "Day 1";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffMs = today.getTime() - tripStartDate.getTime();
+
+  const diffDays = Math.floor(
+    diffMs / (1000 * 60 * 60 * 24),
+  );
+
+  const currentDay = Math.max(1, diffDays + 1);
+
+  if (endDate) {
+    const tripEndDate = normalizeDate(endDate);
+
+    if (tripEndDate) {
+      const totalDiffMs =
+        tripEndDate.getTime() - tripStartDate.getTime();
+
+      const totalDays =
+        Math.floor(
+          totalDiffMs / (1000 * 60 * 60 * 24),
+        ) + 1;
+
+      return `Day ${Math.min(currentDay, totalDays)}`;
+    }
+  }
+
+  return `Day ${currentDay}`;
 };
 
 const getFirstPlaceName = (schedule?: StoredSchedule) => {
@@ -688,7 +738,7 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>🗺️</Text>
             <Text style={styles.todayInfoText}>
-              {getCurrentDayLabel(currentSchedule)}
+              {getCurrentDayLabel(currentSchedule.startDate, currentSchedule.endDate)}
             </Text>
           </View>
         </View>

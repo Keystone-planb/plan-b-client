@@ -901,36 +901,7 @@ export default function AddScheduleLocationScreen({
               "payload.keywords",
             ]);
 
-            const googleReview =
-              getFirstText(unwrappedSummary, [
-                "googleReview",
-                "googleReviewSummary",
-                "platformSummaries.google",
-                "data.googleReview",
-                "result.googleReview",
-              ]) || "서버에서 구글 리뷰 요약을 제공하지 않았습니다.";
-
-            const naverReview =
-              getFirstText(unwrappedSummary, [
-                "naverReview",
-                "naverReviewSummary",
-                "platformSummaries.naver",
-                "data.naverReview",
-                "result.naverReview",
-              ]) || "서버에서 네이버 리뷰 요약을 제공하지 않았습니다.";
-
-            const instaReview =
-              getFirstText(unwrappedSummary, [
-                "instaReview",
-                "instagramReviewSummary",
-                "instaReviewSummary",
-                "platformSummaries.instagram",
-                "platformSummaries.insta",
-                "data.instaReview",
-                "result.instaReview",
-              ]) || "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다.";
-
-            const freshnessStatus = getFirstText(unwrappedFreshness, [
+             const freshnessStatus = getFirstText(unwrappedFreshness, [
               "status",
               "freshnessStatus",
               "data.status",
@@ -1064,11 +1035,15 @@ export default function AddScheduleLocationScreen({
                     </View>
 
                     <View style={styles.aiReviewBox}>
-                      <Text style={styles.aiReviewText}>📊 {aiSummary}</Text>
+                      <View style={styles.aiReviewHeader}>
+                        <Text style={styles.aiReviewTitle}>AI 리뷰 요약</Text>
 
-                      <View style={styles.aiBadge}>
-                        <Text style={styles.aiBadgeText}>AI</Text>
+                        <View style={styles.aiBadge}>
+                          <Text style={styles.aiBadgeText}>AI</Text>
+                        </View>
                       </View>
+
+                      <Text style={styles.aiReviewText}>{aiSummary}</Text>
                     </View>
 
                     {keywords.length > 0 && (
@@ -1083,28 +1058,6 @@ export default function AddScheduleLocationScreen({
                         ))}
                       </View>
                     )}
-
-                    <View style={styles.reviewLineArea}>
-                      <View style={styles.reviewVerticalLine} />
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🟢 {googleReview}
-                        </Text>
-                      </View>
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          📸 {naverReview}
-                        </Text>
-                      </View>
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🌈 {instaReview}
-                        </Text>
-                      </View>
-                    </View>
                   </View>
                 : null}
 
@@ -1121,8 +1074,8 @@ export default function AddScheduleLocationScreen({
                           googlePlaceId: String(
                             place.googlePlaceId ?? place.placeId,
                           ),
-                          latitude: place.latitude,
-                          longitude: place.longitude,
+                          latitude: place.latitude ?? INITIAL_REGION.latitude,
+                          longitude: place.longitude ?? INITIAL_REGION.longitude,
                         },
                       ])
                     }
@@ -1408,14 +1361,26 @@ const styles = StyleSheet.create({
   },
 
   aiReviewBox: {
-    position: "relative",
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#CFE0FF",
     backgroundColor: "#EEF4FF",
     paddingHorizontal: 18,
     paddingVertical: 14,
     marginBottom: 20,
+  },
+
+  aiReviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  aiReviewTitle: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   aiReviewText: {
@@ -1426,12 +1391,9 @@ const styles = StyleSheet.create({
   },
 
   aiBadge: {
-    position: "absolute",
-    right: -12,
-    top: -12,
     width: 34,
-    height: 34,
-    borderRadius: 17,
+    height: 24,
+    borderRadius: 999,
     backgroundColor: "#5B3DFF",
     alignItems: "center",
     justifyContent: "center",

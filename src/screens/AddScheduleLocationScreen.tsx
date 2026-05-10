@@ -53,7 +53,6 @@ type PlaceReviewInfo = {
   freshness?: PlaceFreshnessResponse;
 };
 
-
 const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
@@ -169,7 +168,6 @@ export default function AddScheduleLocationScreen({
     navigation.navigate("Main");
   };
 
-
   const toNumericPlaceId = (value: unknown): number | null => {
     if (typeof value === "number" && Number.isFinite(value)) {
       return value;
@@ -181,7 +179,6 @@ export default function AddScheduleLocationScreen({
 
     return null;
   };
-
 
   const getFeedbackPlaceId = (value: unknown): number | null => {
     const target = value as {
@@ -235,7 +232,9 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getPlaceDetail(place.googlePlaceId ?? String(place.placeId));
+      const detail = await getPlaceDetail(
+        place.googlePlaceId ?? String(place.placeId),
+      );
 
       const nextPlace: SelectedPlace = {
         placeId: String(place.placeId),
@@ -337,9 +336,7 @@ export default function AddScheduleLocationScreen({
     }
   };
 
-  const handleNext = async (
-    overridePlaces?: SelectedPlace[],
-  ) => {
+  const handleNext = async (overridePlaces?: SelectedPlace[]) => {
     const placesToSubmit = overridePlaces ?? selectedPlaces;
     if (placesToSubmit.length === 0 || submitLoading) {
       return;
@@ -366,7 +363,8 @@ export default function AddScheduleLocationScreen({
       primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
     let serverTripId: number | string | undefined;
-    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> =
+      {};
 
     try {
       setSubmitLoading(true);
@@ -392,13 +390,17 @@ export default function AddScheduleLocationScreen({
               },
             });
 
-            const locationResponse = await addTripLocation(serverTripId, selectedDay, {
-              place_id: place.googlePlaceId ?? place.placeId,
-              name: place.name,
-              visitTime: null,
-              endTime: null,
-              memo: null,
-            });
+            const locationResponse = await addTripLocation(
+              serverTripId,
+              selectedDay,
+              {
+                place_id: place.googlePlaceId ?? place.placeId,
+                name: place.name,
+                visitTime: null,
+                endTime: null,
+                memo: null,
+              },
+            );
 
             serverPlaceMap[place.placeId] = {
               tripPlaceId: locationResponse.tripPlaceId,
@@ -427,9 +429,7 @@ export default function AddScheduleLocationScreen({
           serverTripId,
         initialSchedule: route.params?.initialSchedule,
         existingPlaces:
-          route.params?.existingPlaces ??
-          route.params?.places ??
-          [],
+          route.params?.existingPlaces ?? route.params?.places ?? [],
         tripName,
         startDate,
         endDate,
@@ -457,9 +457,9 @@ export default function AddScheduleLocationScreen({
       console.log("일정 생성 실패:", error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "여행 일정을 생성하지 못했습니다.";
+        error instanceof Error ?
+          error.message
+        : "여행 일정을 생성하지 못했습니다.";
 
       Alert.alert("일정 생성 실패", message);
     } finally {
@@ -561,7 +561,8 @@ export default function AddScheduleLocationScreen({
             const isSelected = selectedPlaces.some(
               (item) => item.placeId === String(place.placeId),
             );
-            const isDetailLoading = detailLoadingPlaceId === String(place.placeId);
+            const isDetailLoading =
+              detailLoadingPlaceId === String(place.placeId);
             const isReviewLoading = reviewLoadingPlaceId === place.placeId;
             const isExpanded = expandedPlaceId === place.placeId;
             const reviewInfo = placeReviewMap[place.placeId];
@@ -573,31 +574,11 @@ export default function AddScheduleLocationScreen({
               "아직 요약 정보가 없습니다.";
             const keywords = summary?.keywords ?? [];
 
-            const googleReview =
-              summary?.googleReview ||
-              summary?.googleReviewSummary ||
-              summary?.platformSummaries?.google ||
-              "서버에서 구글 리뷰 요약을 제공하지 않았습니다.";
-
-            const naverReview =
-              summary?.naverReview ||
-              summary?.naverReviewSummary ||
-              summary?.platformSummaries?.naver ||
-              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다.";
-
-            const instaReview =
-              summary?.instaReview ||
-              summary?.instagramReviewSummary ||
-              summary?.instaReviewSummary ||
-              summary?.platformSummaries?.instagram ||
-              summary?.platformSummaries?.insta ||
-              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다.";
             const freshnessText =
-              freshness?.status === "FRESH" || freshness?.isFresh
-                ? "최신 정보"
-                : freshness?.lastSyncedAt || freshness?.last_updated
-                  ? "최근 업데이트 확인"
-                  : "최신성 확인 중";
+              freshness?.status === "FRESH" || freshness?.isFresh ? "최신 정보"
+              : freshness?.lastSyncedAt || freshness?.last_updated ?
+                "최근 업데이트 확인"
+              : "최신성 확인 중";
 
             return (
               <View
@@ -636,7 +617,11 @@ export default function AddScheduleLocationScreen({
                   ]}
                   activeOpacity={0.8}
                   disabled={isPreview || isReviewLoading}
-                  onPress={() => handleTogglePlaceReview(place.googlePlaceId ?? String(place.placeId))}
+                  onPress={() =>
+                    handleTogglePlaceReview(
+                      place.googlePlaceId ?? String(place.placeId),
+                    )
+                  }
                 >
                   {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
@@ -708,33 +693,15 @@ export default function AddScheduleLocationScreen({
                     </View>
 
                     <View style={styles.aiReviewBox}>
-                      <Text style={styles.aiReviewText}>📊 {aiSummary}</Text>
+                      <View style={styles.aiReviewHeader}>
+                        <Text style={styles.aiReviewTitle}>AI 리뷰 요약</Text>
 
-                      <View style={styles.aiBadge}>
-                        <Text style={styles.aiBadgeText}>AI</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.reviewLineArea}>
-                      <View style={styles.reviewVerticalLine} />
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🟢 {googleReview}
-                        </Text>
+                        <View style={styles.aiBadge}>
+                          <Text style={styles.aiBadgeText}>AI</Text>
+                        </View>
                       </View>
 
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          📸 {naverReview}
-                        </Text>
-                      </View>
-
-                      <View style={styles.platformReviewCard}>
-                        <Text style={styles.platformReviewText}>
-                          🌈 {instaReview}
-                        </Text>
-                      </View>
+                      <Text style={styles.aiReviewText}>{aiSummary}</Text>
                     </View>
                   </View>
                 : null}
@@ -752,8 +719,8 @@ export default function AddScheduleLocationScreen({
                           googlePlaceId: String(
                             place.googlePlaceId ?? place.placeId,
                           ),
-                          latitude: place.latitude,
-                          longitude: place.longitude,
+                          latitude: place.latitude ?? INITIAL_REGION.latitude,
+                          longitude: place.longitude ?? INITIAL_REGION.longitude,
                         },
                       ])
                     }
@@ -1093,14 +1060,26 @@ const styles = StyleSheet.create({
   },
 
   aiReviewBox: {
-    position: "relative",
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#CFE0FF",
     backgroundColor: "#EEF4FF",
     paddingHorizontal: 18,
     paddingVertical: 14,
     marginBottom: 20,
+  },
+
+  aiReviewHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  aiReviewTitle: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
   aiReviewText: {
@@ -1111,12 +1090,9 @@ const styles = StyleSheet.create({
   },
 
   aiBadge: {
-    position: "absolute",
-    right: -12,
-    top: -12,
     width: 34,
-    height: 34,
-    borderRadius: 17,
+    height: 24,
+    borderRadius: 999,
     backgroundColor: "#5B3DFF",
     alignItems: "center",
     justifyContent: "center",
@@ -1162,7 +1138,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: "800",
   },
-
 
   reviewSummaryCard: {
     marginTop: 14,
