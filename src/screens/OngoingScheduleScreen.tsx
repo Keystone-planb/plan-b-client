@@ -11,6 +11,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
+import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -158,6 +159,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const hasPlaces = places.length > 0;
 
+  console.log("[OngoingSchedule] map places:", places.map((place) => ({
+    name: place.name,
+    latitude: place.latitude,
+    longitude: place.longitude,
+  })));
+
   const handleBack = () => {
     navigation.goBack();
   };
@@ -284,36 +291,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.mapSection}>
-            <View style={styles.mapFake}>
-              <View style={styles.mapRoadDiagonalOne} />
-              <View style={styles.mapRoadDiagonalTwo} />
-              <View style={styles.mapRoadHorizontalOne} />
-              <View style={styles.mapRoadHorizontalTwo} />
-
-              <Text style={[styles.mapLabel, styles.mapLabelOne]}>교동</Text>
-              <Text style={[styles.mapLabel, styles.mapLabelTwo]}>MBC</Text>
-              <Text style={[styles.mapLabel, styles.mapLabelThree]}>
-                강릉해양경찰서
-              </Text>
-              <Text style={[styles.mapLabel, styles.mapLabelFour]}>
-                교통하늘채{"\n"}스카이파크
-              </Text>
-
-              <View style={styles.mapMarkerMain}>
-                <Ionicons name="location-outline" size={16} color="#FFFFFF" />
-              </View>
-
-              <View style={styles.mapMarkerSmallOne}>
-                <Ionicons name="pin-outline" size={15} color="#FFFFFF" />
-              </View>
-
-              <TouchableOpacity
-                style={styles.mapExpandButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="expand-outline" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
+            <PlanAMapPreview places={places} />
           </View>
 
           <View style={styles.todayHeader}>
