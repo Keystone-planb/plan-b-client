@@ -484,8 +484,8 @@ export default function AddScheduleLocationScreen({
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
-  const transportMode = route?.params?.transportMode ?? "TRANSIT";
-  const transportLabel = route?.params?.transportLabel ?? "대중교통";
+  const transportMode = route?.params?.transportMode ?? "WALK";
+  const transportLabel = route?.params?.transportLabel ?? "도보";
 
   const existingTripId = route?.params?.tripId;
   const existingServerTripId = route?.params?.serverTripId;
