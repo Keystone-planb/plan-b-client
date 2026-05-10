@@ -416,7 +416,11 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         const resolvedTripId = params.tripId ?? params.serverTripId;
 
         const resolvedCurrentPlanId =
-          targetPlace?.tripPlaceId ?? targetPlace?.serverTripPlaceId;
+          targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+
+        console.log("[DEBUG] targetPlace:", targetPlace);
+        console.log("[DEBUG] params:", params);
+        console.log("[DEBUG] resolvedCurrentPlanId:", resolvedCurrentPlanId);
 
         const resolvedGooglePlaceId =
           targetPlace?.googlePlaceId ??
@@ -427,17 +431,25 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         let currentLng = targetPlace?.longitude;
         let category = targetPlace?.category;
 
-        if (
-          (currentLat === undefined || currentLng === undefined || !category) &&
-          resolvedGooglePlaceId
-        ) {
+        const hasInvalidCoordinate =
+          currentLat === undefined ||
+          currentLng === undefined ||
+          (Number(currentLat) === 0 && Number(currentLng) === 0);
+
+        if ((hasInvalidCoordinate || !category) && resolvedGooglePlaceId) {
           const placeDetail = await fetchPlaceDetailForRecommendation(
             resolvedGooglePlaceId,
           );
 
           if (placeDetail) {
-            currentLat = currentLat ?? placeDetail.latitude ?? placeDetail.lat;
-            currentLng = currentLng ?? placeDetail.longitude ?? placeDetail.lng;
+            currentLat =
+              hasInvalidCoordinate ?
+                placeDetail.latitude ?? placeDetail.lat ?? currentLat
+              : currentLat;
+            currentLng =
+              hasInvalidCoordinate ?
+                placeDetail.longitude ?? placeDetail.lng ?? currentLng
+              : currentLng;
             category = category ?? placeDetail.category;
           }
         }
@@ -458,6 +470,16 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
         const payload = removeUndefined(rawPayload) as RecommendRequest;
 
+        if (
+          payload.currentLat === undefined ||
+          payload.currentLng === undefined ||
+          (Number(payload.currentLat) === 0 && Number(payload.currentLng) === 0)
+        ) {
+          throw new Error(
+            "추천 요청에 필요한 장소 좌표를 가져오지 못했습니다. 장소 상세 API 응답 또는 장소 저장 좌표를 확인해주세요.",
+          );
+        }
+
         console.log("[AIAnalysisLoading] stream payload:", payload);
 
         if (!payload.currentPlanId) {
@@ -477,7 +499,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
         console.log("[AIAnalysisLoading] FINAL STREAM PAYLOAD:", payload);
 
-      await streamRecommendations(payload, {
+        await streamRecommendations(payload, {
           onProgress: (message) => {
             if (cancelled) return;
 

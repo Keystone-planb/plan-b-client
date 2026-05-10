@@ -1173,8 +1173,8 @@ export default function AddScheduleLocationScreen({
                           googlePlaceId: String(
                             place.googlePlaceId ?? place.placeId,
                           ),
-                          latitude: place.latitude ?? 0,
-                          longitude: place.longitude ?? 0,
+                          latitude: place.latitude,
+                          longitude: place.longitude,
                         },
                       ])
                     }

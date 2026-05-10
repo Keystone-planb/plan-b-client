@@ -34,6 +34,7 @@ type PlaceScope = "INDOOR" | "OUTDOOR";
 type RecommendationType = "PLACE" | "GAP";
 
 type TodayPlace = {
+  currentPlanId?: number | string;
   id?: string | number;
 
   // 서버 장소 ID
