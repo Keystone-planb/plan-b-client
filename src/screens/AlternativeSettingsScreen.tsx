@@ -359,36 +359,38 @@ export default function AlternativeSettingsScreen({
             />
           </View>
 
-          <View style={styles.conditionCard}>
-            <Text style={styles.sectionTitle}>실내/실외</Text>
+          {changeCategory ? (
+            <View style={styles.conditionCard}>
+              <Text style={styles.sectionTitle}>실내/실외</Text>
 
-            <View style={styles.scopeRow}>
-              {PLACE_SCOPE_OPTIONS.map((option) => {
-                const selected = selectedPlaceScope === option.key;
+              <View style={styles.scopeRow}>
+                {PLACE_SCOPE_OPTIONS.map((option) => {
+                  const selected = selectedPlaceScope === option.key;
 
-                return (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[
-                      styles.scopeButton,
-                      selected && styles.scopeButtonActive,
-                    ]}
-                    activeOpacity={0.82}
-                    onPress={() => setSelectedPlaceScope(option.key)}
-                  >
-                    <Text
+                  return (
+                    <TouchableOpacity
+                      key={option.key}
                       style={[
-                        styles.scopeButtonText,
-                        selected && styles.scopeButtonTextActive,
+                        styles.scopeButton,
+                        selected && styles.scopeButtonActive,
                       ]}
+                      activeOpacity={0.82}
+                      onPress={() => setSelectedPlaceScope(option.key)}
                     >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
+                      <Text
+                        style={[
+                          styles.scopeButtonText,
+                          selected && styles.scopeButtonTextActive,
+                        ]}
+                      >
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
             </View>
-          </View>
+          ) : null}
         </ScrollView>
 
         <View style={styles.footer}>
