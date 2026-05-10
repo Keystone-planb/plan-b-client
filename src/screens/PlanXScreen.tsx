@@ -97,20 +97,9 @@ export default function PlanXScreen({ navigation }: Props) {
     try {
       setLoading(true);
 
-      const serverTrips = await getTrips("ALL");
+      const serverTrips = await getTrips("PAST");
 
       console.log("[PlanX] getTrips PAST response:", {
-        count: serverTrips.length,
-        trips: serverTrips.map((trip) => ({
-          tripId: trip.tripId,
-          title: trip.title,
-          startDate: trip.startDate,
-          endDate: trip.endDate,
-          status: trip.status,
-        })),
-      });
-
-      console.log("[PlanX] getTrips ALL response:", {
         count: serverTrips.length,
         trips: serverTrips.map((trip) => ({
           tripId: trip.tripId,
