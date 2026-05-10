@@ -203,6 +203,62 @@ const getPlaceDisplayTime = (place: PlaceItem) => {
   return "";
 };
 
+const parsePickerTimeValue = (value: string) => {
+  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if (!match) {
+    return null;
+  }
+
+  return {
+    hour: Number(match[1]),
+    minute: Number(match[2]),
+    period: match[3].toUpperCase() as "AM" | "PM",
+  };
+};
+
+const formatPickerTimeValue = (
+  hour: number,
+  minute: number,
+  period: "AM" | "PM",
+) => {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
+    2,
+    "0",
+  )} ${period}`;
+};
+
+const addOneHourToDisplayTime = (value: string) => {
+  const parsed = parsePickerTimeValue(value);
+
+  if (!parsed) {
+    return "";
+  }
+
+  let nextHour = parsed.hour + 1;
+  let nextPeriod = parsed.period;
+
+  if (nextHour === 12) {
+    nextPeriod = parsed.period === "AM" ? "PM" : "AM";
+  }
+
+  if (nextHour > 12) {
+    nextHour = 1;
+  }
+
+  return formatPickerTimeValue(nextHour, parsed.minute, nextPeriod);
+};
+
+const getMissingTimePlaceNames = (schedule: TravelSchedule) => {
+  return schedule.days
+    .flatMap((day) => day.places)
+    .filter((place) => {
+      return !getPlaceVisitTime(place) || !getPlaceEndTime(place);
+    })
+    .map((place) => place.name)
+    .filter(Boolean);
+};
+
 const getBottomTabIconName = (
   tabName: BottomTabName,
   focused: boolean,
@@ -430,6 +486,19 @@ export default function PlanAScreen({ navigation, route }: Props) {
   ) => {
     const { moveToMainAfterSave = false } = options;
 
+    const missingTimePlaceNames = getMissingTimePlaceNames(schedule);
+
+    if (missingTimePlaceNames.length > 0) {
+      Alert.alert(
+        "시간 입력 필요",
+        `방문 시작/종료 시간이 없는 장소가 있습니다.\n\n${missingTimePlaceNames
+          .slice(0, 3)
+          .join("\n")}${missingTimePlaceNames.length > 3 ? "\n..." : ""}`,
+      );
+
+      return;
+    }
+
     resetEditingState();
 
     try {
@@ -552,19 +621,55 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const increaseHour = () => {
-    setTimePickerHour((prev) => (prev >= 12 ? 1 : prev + 1));
+    setTimePickerHour((prev) => {
+      if (prev === 11) {
+        setTimePickerPeriod((period) => (period === "AM" ? "PM" : "AM"));
+        return 12;
+      }
+
+      if (prev >= 12) {
+        return 1;
+      }
+
+      return prev + 1;
+    });
   };
 
   const decreaseHour = () => {
-    setTimePickerHour((prev) => (prev <= 1 ? 12 : prev - 1));
+    setTimePickerHour((prev) => {
+      if (prev === 12) {
+        setTimePickerPeriod((period) => (period === "AM" ? "PM" : "AM"));
+        return 11;
+      }
+
+      if (prev <= 1) {
+        return 12;
+      }
+
+      return prev - 1;
+    });
   };
 
   const increaseMinute = () => {
-    setTimePickerMinute((prev) => (prev >= 55 ? 0 : prev + 5));
+    setTimePickerMinute((prev) => {
+      if (prev >= 55) {
+        increaseHour();
+        return 0;
+      }
+
+      return prev + 5;
+    });
   };
 
   const decreaseMinute = () => {
-    setTimePickerMinute((prev) => (prev <= 0 ? 55 : prev - 5));
+    setTimePickerMinute((prev) => {
+      if (prev <= 0) {
+        decreaseHour();
+        return 55;
+      }
+
+      return prev - 5;
+    });
   };
 
   const toggleTimePeriod = () => {
@@ -623,7 +728,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
     const nextVisitTime =
       timePickerTarget === "visitTime" ? selectedTime : currentVisitTime;
     const nextEndTime =
-      timePickerTarget === "endTime" ? selectedTime : currentEndTime;
+      timePickerTarget === "endTime" ? selectedTime
+      : currentEndTime ? currentEndTime
+      : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
+      : currentEndTime;
 
     handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
