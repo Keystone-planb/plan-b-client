@@ -222,6 +222,78 @@ const getFirstServerPlaceFromSchedule = (schedule?: StoredSchedule) => {
   return null;
 };
 
+const normalizeDateForCompare = (value?: string) => {
+  if (!value) return null;
+
+  const parsed = new Date(value.replace(/\./g, "-"));
+
+  if (Number.isNaN(parsed.getTime())) {
+    return null;
+  }
+
+  parsed.setHours(0, 0, 0, 0);
+
+  return parsed;
+};
+
+const isPastTripSummary = (trip: TripSummary) => {
+  if (trip.status === "PAST") {
+    return true;
+  }
+
+  const endDate = normalizeDateForCompare(trip.endDate);
+
+  if (!endDate) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return endDate.getTime() < today.getTime();
+};
+
+const sortMainTrips = (a: StoredSchedule, b: StoredSchedule) => {
+  const aStart = normalizeDateForCompare(a.startDate)?.getTime() ?? 0;
+  const bStart = normalizeDateForCompare(b.startDate)?.getTime() ?? 0;
+
+  return aStart - bStart;
+};
+
+const isPastSchedule = (schedule: StoredSchedule) => {
+  const endDate = normalizeDateForCompare(schedule.endDate);
+
+  if (!endDate) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return endDate.getTime() < today.getTime();
+};
+
+const isOngoingSchedule = (schedule: StoredSchedule) => {
+  const startDate = normalizeDateForCompare(schedule.startDate);
+  const endDate = normalizeDateForCompare(schedule.endDate);
+
+  if (!startDate || !endDate) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return startDate.getTime() <= today.getTime() && today.getTime() <= endDate.getTime();
+};
+
+const sortSchedulesByStartDate = (a: StoredSchedule, b: StoredSchedule) => {
+  const aTime = normalizeDateForCompare(a.startDate)?.getTime() ?? 0;
+  const bTime = normalizeDateForCompare(b.startDate)?.getTime() ?? 0;
+
+  return aTime - bTime;
+};
+
 const convertTripSummaryToStoredSchedule = (
   trip: TripSummary,
 ): StoredSchedule => {
@@ -468,14 +540,23 @@ export default function MainScreen({ navigation }: Props) {
       try {
         const serverTrips = await getTrips("ALL");
 
-        const serverSchedules = serverTrips
-          .map(convertTripSummaryToStoredSchedule)
-          .sort((a, b) => {
-            const aTime = new Date(a.startDate || 0).getTime();
-            const bTime = new Date(b.startDate || 0).getTime();
+        const activeServerTrips = serverTrips.filter(
+          (trip) => !isPastTripSummary(trip),
+        );
 
-            return aTime - bTime;
+        const serverSchedules = activeServerTrips
+          .map(convertTripSummaryToStoredSchedule)
+          .sort(sortMainTrips);
+
+        if (serverTrips.length > 0 && serverSchedules.length === 0) {
+          console.log("[Main] 서버 일정은 있지만 진행중/예정 일정 없음:", {
+            totalCount: serverTrips.length,
           });
+
+          setSchedules([]);
+          await loadNotifications([]);
+          return;
+        }
 
         if (serverSchedules.length > 0) {
           console.log("[Main] 서버 일정 목록 사용:", {
@@ -768,8 +849,19 @@ export default function MainScreen({ navigation }: Props) {
   };
 
   const renderHomeContent = () => {
-    const currentSchedule = schedules[0];
-    const nextSchedule = schedules[1];
+    const activeSchedules = schedules
+      .filter((schedule) => !isPastSchedule(schedule))
+      .sort(sortSchedulesByStartDate);
+
+    if (activeSchedules.length === 0) {
+      return renderEmptyState();
+    }
+
+    const ongoingSchedule = activeSchedules.find(isOngoingSchedule);
+    const currentSchedule = ongoingSchedule ?? activeSchedules[0];
+    const nextSchedule = activeSchedules.find((schedule) => {
+      return getScheduleId(schedule) !== getScheduleId(currentSchedule);
+    });
     const currentFirstPlaceName = getFirstPlaceName(currentSchedule);
 
     return (
