@@ -32,6 +32,7 @@ type UsePlanAPlacesParams = {
   selectedDay: number;
   selectedPlace?: SelectedPlaceParam;
   selectedPlaces?: SelectedPlacesParam;
+  gapSelectedPlace?: SelectedPlaceParam;
   tripName: string;
   startDate: string;
   endDate: string;
@@ -370,6 +371,7 @@ export function usePlanAPlaces({
   selectedDay,
   selectedPlace,
   selectedPlaces,
+  gapSelectedPlace,
   tripName,
   startDate,
   endDate,
@@ -581,6 +583,7 @@ export function usePlanAPlaces({
 
     const placesToAdd =
       selectedPlaces && selectedPlaces.length > 0 ? selectedPlaces
+      : gapSelectedPlace ? [gapSelectedPlace]
       : selectedPlace ? [selectedPlace]
       : [];
 
@@ -734,24 +737,22 @@ export function usePlanAPlaces({
         tripName: scheduleBase.tripName,
       });
 
-      if (scheduleBase.serverTripId) {
-        try {
-          await deleteTrip(scheduleBase.serverTripId);
+      const createdTrip =
+        scheduleBase.serverTripId ?
+          {
+            tripId: scheduleBase.serverTripId,
+            title: scheduleBase.tripName,
+            startDate: scheduleBase.startDate,
+            endDate: scheduleBase.endDate,
+          }
+        : await createTrip(toCreateTripRequest(scheduleBase));
 
-          console.log("[PlanA 기존 서버 여행 삭제 완료]", {
-            serverTripId: scheduleBase.serverTripId,
-          });
-        } catch (deleteError) {
-          console.log("[PlanA 기존 서버 여행 삭제 실패 - 재생성 계속 진행]", {
-            serverTripId: scheduleBase.serverTripId,
-            error: deleteError,
-          });
-        }
-      }
-
-      const createdTrip = await createTrip(toCreateTripRequest(scheduleBase));
-
-      console.log("[PlanA 서버 여행 생성 완료]", createdTrip);
+      console.log(
+        scheduleBase.serverTripId ?
+          "[PlanA 기존 서버 여행 재사용]"
+        : "[PlanA 서버 여행 생성 완료]",
+        createdTrip,
+      );
 
       const locationRequests = toAddLocationRequests(scheduleBase);
       const createdLocations: CreatedLocationWithDay[] = [];

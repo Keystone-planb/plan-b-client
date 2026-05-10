@@ -20,15 +20,21 @@ import type { RecommendedPlace } from "../../types/recommendation";
 
 type Props = {
   tripId?: number | string | null;
+  onSelectPlace?: (place: RecommendedPlace) => void;
 };
 
 type Status = "idle" | "loading" | "done" | "error";
 
-export default function GapRecommendationCard({ tripId }: Props) {
+export default function GapRecommendationCard({
+  tripId,
+  onSelectPlace,
+}: Props) {
   const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
   const [selectedGap, setSelectedGap] = useState<TripScheduleGap | null>(null);
   const [places, setPlaces] = useState<RecommendedPlace[]>([]);
-  const [selectedPlaceId, setSelectedPlaceId] = useState<number | string | null>(null);
+  const [selectedPlaceId, setSelectedPlaceId] = useState<
+    number | string | null
+  >(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState(
     "일정 사이에 비는 시간을 찾아 추천 장소를 받아보세요.",
@@ -54,7 +60,7 @@ export default function GapRecommendationCard({ tripId }: Props) {
             availableMinutes: 45,
             gapMinutes: 60,
             estimatedTravelMinutes: 0,
-        transportMode: "WALK",
+            transportMode: "WALK",
           },
         ];
 
@@ -119,7 +125,12 @@ export default function GapRecommendationCard({ tripId }: Props) {
 
   const handleSelectPlace = (place: RecommendedPlace) => {
     setSelectedPlaceId(place.placeId);
-    setMessage(`${place.name}을(를) 틈새 추천 장소로 임시 반영했습니다.`);
+
+    console.log("[GapRecommendation] selected place:", place);
+
+    setMessage(`${place.name}을(를) 일정에 추가하는 중입니다.`);
+
+    onSelectPlace?.(place);
   };
 
   return (
@@ -136,12 +147,14 @@ export default function GapRecommendationCard({ tripId }: Props) {
           </View>
         </View>
 
-        {isLoading ? <ActivityIndicator color="#2563EB" /> : null}
+        {isLoading ?
+          <ActivityIndicator color="#2563EB" />
+        : null}
       </View>
 
       <Text style={styles.message}>{message}</Text>
 
-      {gaps.length > 0 ? (
+      {gaps.length > 0 ?
         <View style={styles.gapList}>
           {gaps.map((gap) => {
             const gapKey = `${gap.beforePlanId}-${gap.afterPlanId}`;
@@ -185,80 +198,79 @@ export default function GapRecommendationCard({ tripId }: Props) {
                   >
                     추천 받기
                   </Text>
-                  <Ionicons
-                    name="chevron-forward"
-                    size={18}
-                    color="#1D4ED8"
-                  />
+                  <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
                 </View>
               </TouchableOpacity>
             );
           })}
         </View>
-      ) : null}
+      : null}
 
-      {places.length > 0 ? (
+      {places.length > 0 ?
         <View style={styles.placeList}>
           {places.map((place) => {
             const isSelectedPlace =
               String(selectedPlaceId) === String(place.placeId);
 
             return (
-            <View
-              key={String(place.placeId)}
-              style={[styles.placeCard, isSelectedPlace && styles.selectedPlaceCard]}
-            >
-              <View style={styles.placeHeader}>
-                <Text style={styles.placeName}>{place.name}</Text>
-
-                {place.rating ? (
-                  <View style={styles.ratingBadge}>
-                    <Ionicons name="star" size={12} color="#F59E0B" />
-                    <Text style={styles.ratingText}>{place.rating}</Text>
-                  </View>
-                ) : null}
-              </View>
-
-              {place.category ? (
-                <Text style={styles.category}>{place.category}</Text>
-              ) : null}
-
-              {place.address ? (
-                <Text style={styles.address}>{place.address}</Text>
-              ) : null}
-
-              {place.reason ? (
-                <Text style={styles.reason}>{place.reason}</Text>
-              ) : null}
-
-              {isSelectedPlace ? (
-                <View style={styles.selectedBadge}>
-                  <Text style={styles.selectedBadgeText}>선택 완료</Text>
-                </View>
-              ) : null}
-
-              <TouchableOpacity
+              <View
+                key={String(place.placeId)}
                 style={[
-                  styles.selectButton,
-                  isSelectedPlace && styles.selectedSelectButton,
+                  styles.placeCard,
+                  isSelectedPlace && styles.selectedPlaceCard,
                 ]}
-                activeOpacity={0.85}
-                onPress={() => handleSelectPlace(place)}
               >
-                <Text
+                <View style={styles.placeHeader}>
+                  <Text style={styles.placeName}>{place.name}</Text>
+
+                  {place.rating ?
+                    <View style={styles.ratingBadge}>
+                      <Ionicons name="star" size={12} color="#F59E0B" />
+                      <Text style={styles.ratingText}>{place.rating}</Text>
+                    </View>
+                  : null}
+                </View>
+
+                {place.category ?
+                  <Text style={styles.category}>{place.category}</Text>
+                : null}
+
+                {place.address ?
+                  <Text style={styles.address}>{place.address}</Text>
+                : null}
+
+                {place.reason ?
+                  <Text style={styles.reason}>{place.reason}</Text>
+                : null}
+
+                {isSelectedPlace ?
+                  <View style={styles.selectedBadge}>
+                    <Text style={styles.selectedBadgeText}>선택 완료</Text>
+                  </View>
+                : null}
+
+                <TouchableOpacity
                   style={[
-                    styles.selectButtonText,
-                    isSelectedPlace && styles.selectedSelectButtonText,
+                    styles.selectButton,
+                    isSelectedPlace && styles.selectedSelectButton,
                   ]}
+                  activeOpacity={0.85}
+                  onPress={() => handleSelectPlace(place)}
                 >
-                  {isSelectedPlace ? "선택 완료" : "이 장소 추가하기"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                  <Text
+                    style={[
+                      styles.selectButtonText,
+                      isSelectedPlace && styles.selectedSelectButtonText,
+                    ]}
+                  >
+                    {isSelectedPlace ? "선택 완료" : "이 장소 추가하기"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             );
           })}
         </View>
-      ) : null}
+      : null}
     </View>
   );
 }

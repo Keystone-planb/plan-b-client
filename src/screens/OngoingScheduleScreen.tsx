@@ -66,7 +66,6 @@ type Props = {
   };
 };
 
-
 const getSortTimeValue = (time?: string | null) => {
   if (!time) return Number.MAX_SAFE_INTEGER;
 
@@ -85,7 +84,9 @@ const getSortTimeValue = (time?: string | null) => {
   return hour * 60 + minute;
 };
 
-const sortPlacesByTime = <T extends { time?: string | null; visitTime?: string | null; order?: number }>(
+const sortPlacesByTime = <
+  T extends { time?: string | null; visitTime?: string | null; order?: number },
+>(
   places: T[],
 ) => {
   return [...places].sort((a, b) => {
@@ -97,7 +98,6 @@ const sortPlacesByTime = <T extends { time?: string | null; visitTime?: string |
     return (a.order ?? 0) - (b.order ?? 0);
   });
 };
-
 
 const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
 
@@ -113,7 +113,6 @@ const isValidServerPlanId = (value?: string | number) => {
 
   return Number.isFinite(Number(text));
 };
-
 
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
@@ -134,7 +133,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const resolvedTripId =
     tripId ??
     serverTripId ??
-    (scheduleId && Number.isFinite(Number(scheduleId)) ? scheduleId : undefined);
+    (scheduleId && Number.isFinite(Number(scheduleId)) ?
+      scheduleId
+    : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
 
@@ -176,7 +177,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
-    const serverPlanId = place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
+    const serverPlanId =
+      place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
 
     console.log("[OngoingSchedule] 대안찾기 클릭:", {
       scheduleId,
@@ -408,11 +410,54 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </View>
                   : null}
 
-                  {index === 0 && places.length >= 2 ? (
+                  {index === 0 && places.length >= 2 ?
                     <View style={styles.gapRecommendationSection}>
-                      <GapRecommendationCard tripId={resolvedTripId} />
+                      <GapRecommendationCard
+                        tripId={resolvedTripId}
+                        onSelectPlace={(place) => {
+                          console.log(
+                            "[OngoingSchedule] gap place selected:",
+                            place,
+                          );
+
+                          navigation.navigate("PlanA", {
+                            scheduleId,
+                            tripId: resolvedTripId,
+                            serverTripId: resolvedTripId,
+                            tripName,
+                            startDate,
+                            endDate,
+                            location,
+                            transportMode,
+                            transportLabel,
+
+                            gapSelectedPlace: {
+                              id: String(place.placeId),
+
+                              placeId: String(place.placeId),
+
+                              googlePlaceId: String(
+                                place.googlePlaceId ?? place.placeId,
+                              ),
+
+                              tripPlaceId: undefined,
+                              serverTripPlaceId: undefined,
+
+                              name: place.name,
+                              address: place.address,
+                              category: place.category,
+
+                              latitude: place.latitude,
+                              longitude: place.longitude,
+
+                              time: "",
+                              day: 1,
+                            },
+                          });
+                        }}
+                      />
                     </View>
-                  ) : null}
+                  : null}
                 </React.Fragment>
               );
             })}
