@@ -473,21 +473,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  selectedBadge: {
-    marginTop: 10,
-    alignSelf: "flex-start",
-    backgroundColor: "#2563EB",
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 999,
-  },
-
-  selectedBadgeText: {
-    fontSize: 11,
-    fontWeight: "900",
-    color: "#FFFFFF",
-  },
-
   selectButton: {
     marginTop: 12,
     alignSelf: "flex-start",
