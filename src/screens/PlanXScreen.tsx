@@ -125,13 +125,6 @@ export default function PlanXScreen({ navigation }: Props) {
       emoji: selectedTrip.emoji,
     };
 
-    const parentNavigation = navigation.getParent?.();
-
-    if (parentNavigation) {
-      parentNavigation.navigate("PlanXDetail", detailParams);
-      return;
-    }
-
     navigation.navigate("PlanXDetail", detailParams);
   };
 
