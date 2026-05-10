@@ -1184,7 +1184,7 @@ export default function AddScheduleLocationScreen({
                   <View style={styles.ratingRow}>
                     <Ionicons name="star" size={13} color="#FACC15" />
                     <Text style={styles.ratingText}>
-                      {place.rating.toFixed(2)}
+                      {place.rating.toFixed(1)}
                     </Text>
                   </View>
                 )}
@@ -1298,7 +1298,7 @@ export default function AddScheduleLocationScreen({
 
                     <Text style={styles.detailMetaText}>
                       {typeof modalRating === "number" ?
-                        modalRating.toFixed(2)
+                        modalRating.toFixed(1)
                       : "평점 정보 없음"}
                     </Text>
 

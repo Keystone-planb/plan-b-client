@@ -998,7 +998,7 @@ export default function AddScheduleLocationScreen({
                       <View style={styles.ratingRow}>
                         <Ionicons name="star" size={13} color="#FACC15" />
                         <Text style={styles.ratingText}>
-                          {place.rating.toFixed(2)}
+                          {place.rating.toFixed(1)}
                         </Text>
                       </View>
                     )}
@@ -1069,7 +1069,7 @@ export default function AddScheduleLocationScreen({
 
                           <Text style={styles.expandedMetaText}>
                             {typeof place.rating === "number" ?
-                              place.rating.toFixed(2)
+                              place.rating.toFixed(1)
                             : "4.58"}
                           </Text>
 
