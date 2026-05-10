@@ -9,7 +9,20 @@ export const getTripTransportMode = async (
       `/api/trips/${tripId}/transport-mode`,
     );
 
-    return response.data;
+    console.log(
+      "[transport-mode/get] response:",
+      response.status,
+      response.data,
+    );
+
+    const mode =
+      response.data === "WALK" ||
+      response.data === "TRANSIT" ||
+      response.data === "CAR"
+        ? response.data
+        : "WALK";
+
+    return mode;
   } catch (error) {
     console.log("[trip transport-mode] mock fallback:", error);
     return "WALK";

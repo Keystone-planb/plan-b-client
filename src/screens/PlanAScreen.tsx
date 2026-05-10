@@ -29,6 +29,13 @@ import {
 import { TravelSchedule } from "../types/schedule";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
 
+import {
+  getTripTransportMode,
+  updateTripTransportMode,
+} from "../../api/schedules/transportMode";
+
+type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
 type Props = {
   navigation: any;
   route?: {
@@ -40,22 +47,20 @@ type Props = {
       startDate?: string;
       endDate?: string;
       location?: string;
-      transportMode?: "WALK" | "TRANSIT" | "CAR";
+      transportMode?: TransportMode;
       transportLabel?: string;
-
-      /**
-       * 기존 단일 장소 추가 호환용
-       */
       selectedPlace?: SelectedPlaceParam;
-
-      /**
-       * AddScheduleLocation에서 여러 장소를 한 번에 선택했을 때 사용
-       */
       selectedPlaces?: SelectedPlacesParam;
-
-      /**
-       * RecommendationResult에서 PLAN B 교체 후 Plan.A 재조회 트리거
-       */
+      gapSelectedPlace?: {
+        id?: string;
+        placeId?: string;
+        googlePlaceId?: string;
+        name?: string;
+        address?: string;
+        category?: string;
+        latitude?: number;
+        longitude?: number;
+      };
       refreshPlanAAt?: number;
     };
   };
@@ -65,6 +70,25 @@ type BottomTabName = "PlanX" | "Home" | "Profile";
 type IconName = keyof typeof Ionicons.glyphMap;
 type TimePickerTarget = "visitTime" | "endTime";
 
+const DEFAULT_DAY_OPTIONS: DayOption[] = [
+  { id: 1, label: "Day 1" },
+  { id: 2, label: "Day 2" },
+  { id: 3, label: "Day 3" },
+];
+
+const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
+
+const getTransportLabel = (mode: TransportMode) => {
+  switch (mode) {
+    case "TRANSIT":
+      return "대중교통";
+    case "CAR":
+      return "자동차";
+    case "WALK":
+    default:
+      return "도보";
+  }
+};
 
 const getSortTimeValue = (time?: string | null) => {
   if (!time) return Number.MAX_SAFE_INTEGER;
@@ -99,12 +123,6 @@ const sortPlacesByTime = <
   });
 };
 
-const DEFAULT_DAY_OPTIONS: DayOption[] = [
-  { id: 1, label: "Day 1" },
-  { id: 2, label: "Day 2" },
-  { id: 3, label: "Day 3" },
-];
-
 const getTripDayCount = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) return DEFAULT_DAY_OPTIONS.length;
 
@@ -129,8 +147,6 @@ const makeDayOptions = (startDate?: string, endDate?: string): DayOption[] => {
     label: `Day ${index + 1}`,
   }));
 };
-
-const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
 
 const formatDisplayDate = (value: string) => {
   if (!value) return "";
@@ -190,14 +206,8 @@ const getBottomTabIconName = (
   tabName: BottomTabName,
   focused: boolean,
 ): IconName => {
-  if (tabName === "PlanX") {
-    return focused ? "time" : "time-outline";
-  }
-
-  if (tabName === "Home") {
-    return focused ? "home" : "home-outline";
-  }
-
+  if (tabName === "PlanX") return focused ? "time" : "time-outline";
+  if (tabName === "Home") return focused ? "home" : "home-outline";
   return focused ? "person" : "person-outline";
 };
 
@@ -220,15 +230,67 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const serverTripId = route?.params?.serverTripId ?? route?.params?.tripId;
   const tripName = route?.params?.tripName ?? "신나는 강릉 여행";
   const startDate = route?.params?.startDate ?? "2026.04.21";
-  const endDate = route?.params?.endDate ?? "04.23";
+  const endDate = route?.params?.endDate ?? "2026.04.23";
   const location = route?.params?.location ?? "";
-  const transportMode = route?.params?.transportMode ?? "WALK";
-  const transportLabel = route?.params?.transportLabel ?? "도보";
-  const selectedPlace = route?.params?.selectedPlace;
-  const selectedPlaces = route?.params?.selectedPlaces;
-  const dayOptions = makeDayOptions(startDate, endDate);
 
   const resolvedTripId = tripId ?? serverTripId;
+  const routeTransportMode = route?.params?.transportMode ?? "WALK";
+
+  const [transportMode, setTransportMode] =
+    useState<TransportMode>(routeTransportMode);
+  const [transportLabel, setTransportLabel] = useState(
+    route?.params?.transportLabel ?? getTransportLabel(routeTransportMode),
+  );
+
+  const handleChangeTransportMode = async (nextMode: TransportMode) => {
+    try {
+      if (!resolvedTripId) {
+        Alert.alert("이동수단 변경 실패", "tripId가 없습니다.");
+        return;
+      }
+
+      await updateTripTransportMode(Number(resolvedTripId), nextMode);
+
+      setTransportMode(nextMode);
+      setTransportLabel(getTransportLabel(nextMode));
+
+      Alert.alert(
+        "이동수단 변경 완료",
+        `${getTransportLabel(nextMode)}로 변경되었습니다.`,
+      );
+    } catch (error) {
+      console.log("[transport-mode/patch] failed:", error);
+      Alert.alert("이동수단 변경 실패", "잠시 후 다시 시도해주세요.");
+    }
+  };
+
+  const selectedPlace = route?.params?.selectedPlace;
+  const selectedPlaces = route?.params?.selectedPlaces;
+  const gapSelectedPlace = route?.params?.gapSelectedPlace;
+
+  const normalizedGapSelectedPlace: SelectedPlaceParam | undefined =
+    gapSelectedPlace?.id && gapSelectedPlace?.name ?
+      {
+        id: String(gapSelectedPlace.id),
+        placeId:
+          gapSelectedPlace.placeId ?
+            String(gapSelectedPlace.placeId)
+          : undefined,
+        googlePlaceId:
+          gapSelectedPlace.googlePlaceId ?
+            String(gapSelectedPlace.googlePlaceId)
+          : undefined,
+        name: gapSelectedPlace.name,
+        address: gapSelectedPlace.address,
+        category: gapSelectedPlace.category,
+        latitude: gapSelectedPlace.latitude,
+        longitude: gapSelectedPlace.longitude,
+        time: "",
+        day: selectedDay,
+      }
+    : undefined;
+
+  const dayOptions = makeDayOptions(startDate, endDate);
 
   const {
     schedule,
@@ -270,6 +332,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     selectedDay,
     selectedPlace,
     selectedPlaces,
+    gapSelectedPlace: normalizedGapSelectedPlace,
     tripName,
     startDate,
     endDate,
@@ -285,6 +348,29 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     setSelectedDay(firstSelectedDay);
   }, [selectedPlace?.day, selectedPlaces]);
+
+  useEffect(() => {
+    const loadTransportMode = async () => {
+      if (!resolvedTripId) return;
+
+      try {
+        const serverMode = await getTripTransportMode(Number(resolvedTripId));
+
+        if (
+          serverMode === "WALK" ||
+          serverMode === "TRANSIT" ||
+          serverMode === "CAR"
+        ) {
+          setTransportMode(serverMode);
+          setTransportLabel(getTransportLabel(serverMode));
+        }
+      } catch (error) {
+        console.log("[PlanA] transport mode load failed:", error);
+      }
+    };
+
+    loadTransportMode();
+  }, [resolvedTripId]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -316,21 +402,12 @@ export default function PlanAScreen({ navigation, route }: Props) {
     try {
       const savedSchedule = await handleSaveSchedule();
 
-      console.log("[PlanA] 저장 완료 후 Main으로 이동", {
-        scheduleId: savedSchedule.id,
-        tripId: savedSchedule.serverTripId,
-        tripName: savedSchedule.tripName,
-      });
-
       if (Platform.OS === "web") {
         const browserWindow = globalThis as typeof globalThis & {
           alert?: (message?: string) => void;
         };
 
-        if (typeof browserWindow.alert === "function") {
-          browserWindow.alert("일정이 저장되었습니다.");
-        }
-
+        browserWindow.alert?.("일정이 저장되었습니다.");
         moveToMain(savedSchedule);
         return;
       }
@@ -402,10 +479,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     place: PlaceItem,
     target: TimePickerTarget,
   ) => {
-    if (target === "visitTime") {
-      return getPlaceVisitTime(place);
-    }
-
+    if (target === "visitTime") return getPlaceVisitTime(place);
     return getPlaceEndTime(place);
   };
 
@@ -643,7 +717,34 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   {formatDisplayDate(schedule.endDate)}
                 </Text>
 
-                <Text style={styles.planTransport}>{transportLabel}</Text>
+                <View style={styles.transportButtonRow}>
+                  {(["WALK", "TRANSIT", "CAR"] as TransportMode[]).map(
+                    (mode) => {
+                      const active = transportMode === mode;
+
+                      return (
+                        <TouchableOpacity
+                          key={mode}
+                          style={[
+                            styles.transportButton,
+                            active && styles.transportButtonActive,
+                          ]}
+                          activeOpacity={0.85}
+                          onPress={() => handleChangeTransportMode(mode)}
+                        >
+                          <Text
+                            style={[
+                              styles.planTransport,
+                              active && styles.planTransportActive,
+                            ]}
+                          >
+                            {getTransportLabel(mode)}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    },
+                  )}
+                </View>
               </View>
 
               <View style={styles.headerActionRow}>
@@ -787,7 +888,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 {saving ? "저장 중..." : "변경사항 저장"}
               </Text>
             </TouchableOpacity>
-</View>
+          </View>
         </ScrollView>
 
         <View
@@ -1023,7 +1124,6 @@ const styles = StyleSheet.create({
     minHeight: 86,
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingHorizontal: 0,
   },
   backButton: {
     width: 32,
@@ -1044,16 +1144,42 @@ const styles = StyleSheet.create({
     color: "#627187",
     fontSize: 15,
     fontWeight: "700",
-    marginBottom: 6,
+    marginBottom: 8,
   },
-  planTransport: { color: "#627187", fontSize: 15, fontWeight: "700" },
+  transportButtonRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignItems: "center",
+    gap: 6,
+  },
+  transportButton: {
+    minHeight: 30,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  transportButtonActive: {
+    backgroundColor: "#2158E8",
+    borderColor: "#2158E8",
+  },
+  planTransport: {
+    color: "#627187",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  planTransportActive: {
+    color: "#FFFFFF",
+  },
   headerActionRow: {
     width: 82,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 12,
-    paddingRight: 0,
     paddingTop: 6,
   },
   headerIconButton: {
@@ -1062,11 +1188,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  headerIconDisabled: {
-    opacity: 0.55,
-  },
+  headerIconDisabled: { opacity: 0.55 },
   saveFeedbackBox: {
-    marginHorizontal: 0,
     marginTop: 8,
     minHeight: 32,
     borderRadius: 10,
@@ -1102,7 +1225,6 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     justifyContent: "center",
     marginTop: 18,
-    paddingLeft: 0,
   },
   sheet: {
     minHeight: 430,
@@ -1125,13 +1247,11 @@ const styles = StyleSheet.create({
     width: "100%",
     flexDirection: "row",
     alignItems: "stretch",
-    paddingHorizontal: 0,
   },
-  emptyScheduleContent: { flex: 1, paddingRight: 0 },
+  emptyScheduleContent: { flex: 1 },
   addPlaceButton: {
     marginTop: 10,
     marginLeft: 43,
-    marginRight: 0,
     minHeight: 48,
     borderRadius: 12,
     backgroundColor: "#ECF5FF",
@@ -1160,15 +1280,12 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  bottomSaveButtonDisabled: {
-    opacity: 0.55,
-  },
+  bottomSaveButtonDisabled: { opacity: 0.55 },
   bottomSaveButtonText: {
     color: "#FFFFFF",
     fontSize: 15,
     fontWeight: "900",
   },
-
   roadmapList: {
     position: "relative",
     width: "100%",
@@ -1187,7 +1304,6 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     marginBottom: 18,
-    paddingHorizontal: 0,
     position: "relative",
     zIndex: 1,
   },
@@ -1209,7 +1325,6 @@ const styles = StyleSheet.create({
   simplePlaceCard: {
     flex: 1,
     minHeight: 100,
-    marginRight: 0,
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -1238,9 +1353,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
   },
-  simplePlaceContent: {
-    flex: 1,
-  },
+  simplePlaceContent: { flex: 1 },
   simplePlaceHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -1366,17 +1479,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  timeTargetTabActive: {
-    backgroundColor: "#2158E8",
-  },
+  timeTargetTabActive: { backgroundColor: "#2158E8" },
   timeTargetTabText: {
     color: "#64748B",
     fontSize: 13,
     fontWeight: "900",
   },
-  timeTargetTabTextActive: {
-    color: "#FFFFFF",
-  },
+  timeTargetTabTextActive: { color: "#FFFFFF" },
   timePickerPreview: {
     height: 52,
     borderRadius: 12,
