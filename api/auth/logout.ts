@@ -12,8 +12,27 @@ interface LogoutErrorResponse {
   error?: string;
 }
 
+const clearBrowserStorage = () => {
+  if (
+    typeof window !== "undefined" &&
+    window.localStorage
+  ) {
+    window.localStorage.removeItem("access_token");
+    window.localStorage.removeItem("refresh_token");
+    window.localStorage.removeItem("user_id");
+    window.localStorage.removeItem("nickname");
+  }
+};
+
 const clearAuthTokens = async () => {
-  await AsyncStorage.multiRemove(["access_token", "refresh_token"]);
+  await AsyncStorage.multiRemove([
+    "access_token",
+    "refresh_token",
+    "user_id",
+    "nickname",
+  ]);
+
+  clearBrowserStorage();
 };
 
 const isHtmlResponse = (data: unknown) => {
