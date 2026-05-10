@@ -54,6 +54,26 @@ const getDateSortValue = (date?: string) => {
   return parsed.getTime();
 };
 
+const isPastTrip = (trip: TripSummary) => {
+  if (trip.status === "PAST") {
+    return true;
+  }
+
+  const endDateTime = getDateSortValue(trip.endDate);
+
+  if (!endDateTime) {
+    return false;
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const endDate = new Date(endDateTime);
+  endDate.setHours(0, 0, 0, 0);
+
+  return endDate.getTime() < today.getTime();
+};
+
 const convertTripToPlanXTrip = (trip: TripSummary): PlanXDisplayTrip => {
   return {
     id: String(trip.tripId),
@@ -77,10 +97,34 @@ export default function PlanXScreen({ navigation }: Props) {
     try {
       setLoading(true);
 
-      const serverTrips = await getTrips("PAST");
+      const serverTrips = await getTrips("ALL");
+
+      console.log("[PlanX] getTrips PAST response:", {
+        count: serverTrips.length,
+        trips: serverTrips.map((trip) => ({
+          tripId: trip.tripId,
+          title: trip.title,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          status: trip.status,
+        })),
+      });
+
+      console.log("[PlanX] getTrips ALL response:", {
+        count: serverTrips.length,
+        trips: serverTrips.map((trip) => ({
+          tripId: trip.tripId,
+          title: trip.title,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          status: trip.status,
+          isPast: isPastTrip(trip),
+        })),
+      });
 
       const nextTrips = serverTrips
         .filter((trip) => trip.startDate && trip.endDate)
+        .filter(isPastTrip)
         .map(convertTripToPlanXTrip)
         .sort((a, b) => getDateSortValue(b.startDate) - getDateSortValue(a.startDate));
 
