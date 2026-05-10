@@ -9,50 +9,6 @@ import type {
 } from "../../src/types/gapRecommendation";
 import type { RecommendedPlace } from "../../src/types/recommendation";
 
-export const MOCK_TRIP_GAPS: TripScheduleGap[] = [
-  {
-    beforePlanId: 11,
-    beforePlanTitle: "투썸플레이스 부평역점",
-    beforePlanEndTime: "2026-07-03T11:00:00",
-    beforePlaceLat: 37.4919,
-    beforePlaceLng: 126.7245,
-    afterPlanId: 12,
-    afterPlanTitle: "스타벅스 부평역점",
-    afterPlanStartTime: "2026-07-03T12:00:00",
-    afterPlaceLat: 37.4951,
-    afterPlaceLng: 126.7223,
-    gapMinutes: 60,
-    estimatedTravelMinutes: 5,
-    availableMinutes: 45,
-    transportMode: "WALK",
-  },
-];
-
-export const MOCK_GAP_RECOMMENDED_PLACES: RecommendedPlace[] = [
-  {
-    placeId: 401,
-    googlePlaceId: "mock-gap-bookstore-401",
-    name: "부평 감성 서점",
-    address: "인천 부평구 부평대로",
-    rating: 4.4,
-    category: "문화시설",
-    reason: "다음 일정 전 45분 정도 가볍게 들르기 좋은 장소예요.",
-    latitude: 37.4931,
-    longitude: 126.7232,
-  },
-  {
-    placeId: 402,
-    googlePlaceId: "mock-gap-dessert-402",
-    name: "부평 디저트 카페",
-    address: "인천 부평구 시장로",
-    rating: 4.3,
-    category: "카페",
-    reason: "이동 동선 안에서 짧게 쉬어가기 좋은 카페예요.",
-    latitude: 37.4942,
-    longitude: 126.7228,
-  },
-];
-
 export const getTripGaps = async (
   tripId: number | string,
   mode?: string,
@@ -65,24 +21,11 @@ export const getTripGaps = async (
       },
     );
 
-    return response.data.length > 0 ? response.data : MOCK_TRIP_GAPS;
+    return response.data;
   } catch (error) {
-    console.log("[trip gaps] mock fallback:", error);
-    return MOCK_TRIP_GAPS;
+    console.log("[trip gaps] request failed:", error);
+    return [];
   }
-};
-
-const emitMockGapStream = async (
-  handlers: GapRecommendationStreamHandlers,
-) => {
-  handlers.onProgress?.("빈 시간에 들를 수 있는 장소를 분석 중입니다...", 2);
-
-  for (const place of MOCK_GAP_RECOMMENDED_PLACES) {
-    await new Promise((resolve) => setTimeout(resolve, 350));
-    handlers.onPlace?.(place);
-  }
-
-  handlers.onDone?.();
 };
 
 const parseSseChunk = (chunk: string) => {
@@ -151,13 +94,11 @@ export const streamGapRecommendations = async (
     });
 
     if (!accessToken) {
-      console.log(
-        "[gap recommendations/stream] no token - mock fallback",
-      );
-
-      await emitMockGapStream(handlers);
-      return;
-    }
+    const error = new Error("로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.");
+    console.log("[gap recommendations/stream] no token");
+    handlers.onError?.(error);
+    return;
+  }
 
     const response = await fetch(
       `${API_CONFIG.BASE_URL}/api/trips/${tripId}/gaps/recommend/stream`,
@@ -219,8 +160,7 @@ export const streamGapRecommendations = async (
 
     handlers.onDone?.();
   } catch (error) {
-    console.log("[gap recommendations/stream] mock fallback:", error);
+    console.log("[gap recommendations/stream] request failed:", error);
     handlers.onError?.(error);
-    await emitMockGapStream(handlers);
   }
 };
