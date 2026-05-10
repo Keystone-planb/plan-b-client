@@ -82,7 +82,7 @@ export default function PlanXScreen({ navigation }: Props) {
       const nextTrips = serverTrips
         .filter((trip) => trip.startDate && trip.endDate)
         .map(convertTripToPlanXTrip)
-        .sort((a, b) => getDateSortValue(b.endDate) - getDateSortValue(a.endDate));
+        .sort((a, b) => getDateSortValue(b.startDate) - getDateSortValue(a.startDate));
 
       setTrips(nextTrips);
     } catch (error) {
@@ -145,6 +145,8 @@ export default function PlanXScreen({ navigation }: Props) {
       setDeletingTripId(trip.tripId);
 
       await deleteTrip(trip.tripId);
+
+    console.log("[PlanX] sync after delete");
 
       console.log("[PlanX] deleteTrip 성공:", {
         tripId: trip.tripId,
