@@ -264,6 +264,13 @@ export default function TravelDateRangeModal({
           <Calendar
             markingType="period"
             markedDates={markedDates}
+            renderArrow={(direction) => (
+              <Ionicons
+                name={direction === "left" ? "chevron-back" : "chevron-forward"}
+                size={22}
+                color="#2158E8"
+              />
+            )}
             dayComponent={renderDay}
             onDayPress={handleDayPress}
             hideExtraDays
