@@ -26,7 +26,6 @@ import {
 import {
   dismissNotification,
   getWeatherNotifications,
-  triggerWeatherCheck,
 } from "../../api/notifications/notifications";
 import type { WeatherNotification } from "../types/notification";
 
@@ -60,6 +59,15 @@ type StoredSchedule = {
 
 const PLAN_A_STORAGE_PREFIX = "plan_a_schedule:";
 
+const getTodayDisplayText = () => {
+  const today = new Date();
+
+  return `${today.getFullYear()}.${String(today.getMonth() + 1).padStart(
+    2,
+    "0",
+  )}.${String(today.getDate()).padStart(2, "0")}`;
+};
+
 const formatDisplayDate = (value?: string) => {
   if (!value) return "";
   return value.replace(/-/g, ".");
@@ -91,6 +99,46 @@ const getScheduleDate = (schedule: StoredSchedule) => {
 
 const getScheduleLocation = (schedule: StoredSchedule) => {
   return schedule.location || "장소 미정";
+};
+
+const getWeatherStatusText = (notifications: WeatherNotification[]) => {
+  if (notifications.length === 0) {
+    return "날씨 알림 없음";
+  }
+
+  const weatherType = String(notifications[0]?.weatherType ?? "").toUpperCase();
+
+  const label =
+    weatherType === "RAIN" ? "비 예보"
+    : weatherType === "SNOW" ? "눈 예보"
+    : weatherType === "HEAT" ? "폭염 주의"
+    : weatherType === "COLD" ? "한파 주의"
+    : weatherType === "WIND" ? "강풍 주의"
+    : weatherType === "STORM" ? "악천후 주의"
+    : "날씨 알림";
+
+  if (notifications.length > 1) {
+    return `${label} 외 ${notifications.length - 1}건`;
+  }
+
+  return label;
+};
+
+const getWeatherStatusEmoji = (notifications: WeatherNotification[]) => {
+  if (notifications.length === 0) {
+    return "☁️";
+  }
+
+  const weatherType = String(notifications[0]?.weatherType ?? "").toUpperCase();
+
+  if (weatherType === "RAIN") return "🌧️";
+  if (weatherType === "SNOW") return "❄️";
+  if (weatherType === "HEAT") return "☀️";
+  if (weatherType === "COLD") return "🥶";
+  if (weatherType === "WIND") return "🌬️";
+  if (weatherType === "STORM") return "⛈️";
+
+  return "☁️";
 };
 
 const getCurrentDayLabel = (
@@ -313,49 +361,7 @@ const convertTripSummaryToStoredSchedule = (
   };
 };
 
-const buildDemoWeatherNotification = (
-  schedule?: StoredSchedule,
-): WeatherNotification | null => {
-  if (!schedule) return null;
 
-  const resolvedTripId = schedule.serverTripId ?? schedule.tripId;
-  const targetPlace = getFirstServerPlaceFromSchedule(schedule);
-
-  if (!resolvedTripId || !targetPlace) {
-    return null;
-  }
-
-  return {
-    notificationId: `demo-weather-${resolvedTripId}-${targetPlace.tripPlaceId}`,
-    userId: undefined,
-    tripId: resolvedTripId,
-    tripPlaceId: targetPlace.tripPlaceId,
-    placeId: targetPlace.googlePlaceId,
-    placeName: String(targetPlace.name ?? "현재 일정"),
-    message:
-      "날씨 변화 가능성이 있어요. 현재 일정 대신 방문하기 좋은 실내 대안 장소를 확인해보세요.",
-    weatherType: "RAIN",
-    recommendedPlaces: [
-      {
-        placeId: targetPlace.googlePlaceId ?? "demo-weather-place-1",
-        googlePlaceId: String(targetPlace.googlePlaceId ?? ""),
-        name: "근처 실내 대안 장소",
-        address: schedule.location ?? "현재 여행지 주변",
-        rating: 4.5,
-        category: "실내 추천",
-        latitude:
-          typeof targetPlace.latitude === "number" ?
-            targetPlace.latitude
-          : undefined,
-        longitude:
-          typeof targetPlace.longitude === "number" ?
-            targetPlace.longitude
-          : undefined,
-      },
-    ],
-    createdAt: new Date().toISOString(),
-  };
-};
 
 const getFirstPlaceNameFromDays = (days?: unknown[]) => {
   if (!Array.isArray(days)) {
@@ -537,18 +543,14 @@ export default function MainScreen({ navigation }: Props) {
         return;
       }
 
-      const demoNotification = buildDemoWeatherNotification(baseSchedules[0]);
-
-      const nextNotifications = demoNotification ? [demoNotification] : [];
-
       console.log("[Main] 날씨 알림 조회:", {
         userId: storedUserId,
-        count: nextNotifications.length,
-        notifications: nextNotifications,
-        source: demoNotification ? "demo-current-schedule" : "empty",
+        count: 0,
+        notifications: [],
+        source: "empty",
       });
 
-      setNotifications(nextNotifications);
+      setNotifications([]);
     } catch (error) {
       console.log("[Main] 날씨 알림 조회 실패:", error);
       setNotifications([]);
@@ -680,36 +682,6 @@ export default function MainScreen({ navigation }: Props) {
     } catch (error) {
       console.log("[Main] 날씨 알림 dismiss 실패:", error);
     }
-  };
-
-  const handleTriggerWeatherCheck = async () => {
-    console.log("[Main] 날씨 알림 테스트 버튼 클릭");
-
-    const storedUserId = await AsyncStorage.getItem("user_id");
-
-    console.log("[Main] triggerWeatherCheck userId:", storedUserId);
-
-    const success = await triggerWeatherCheck(storedUserId ?? undefined);
-
-    console.log("[Main] triggerWeatherCheck result:", success);
-
-    if (!success) {
-      Alert.alert(
-        "날씨 알림 생성 실패",
-        "테스트용 날씨 알림 트리거 요청에 실패했습니다.",
-      );
-      return;
-    }
-
-    for (let index = 0; index < 3; index += 1) {
-      await new Promise((resolve) => setTimeout(resolve, 700));
-      await loadNotifications(schedules);
-    }
-
-    Alert.alert(
-      "날씨 알림 확인",
-      "테스트 트리거 후 알림을 다시 조회했습니다. 알림이 뜨지 않으면 서버에서 생성된 알림이 없는 상태입니다.",
-    );
   };
 
   const handleOpenNotificationRecommendation = (
@@ -936,8 +908,10 @@ export default function MainScreen({ navigation }: Props) {
       >
         <View style={styles.todayInfoPill}>
           <View style={styles.todayInfoItem}>
-            <Text style={styles.todayEmoji}>☀️</Text>
-            <Text style={styles.todayInfoText}>23°</Text>
+            <Text style={styles.todayEmoji}>{getWeatherStatusEmoji(notifications)}</Text>
+            <Text style={styles.todayInfoText}>
+              {getWeatherStatusText(notifications)}
+            </Text>
           </View>
 
           <View style={styles.todayDivider} />
@@ -945,7 +919,7 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>📅</Text>
             <Text style={styles.todayInfoText}>
-              {formatDisplayDate(currentSchedule.startDate) || "2026.04.30"}
+              {getTodayDisplayText()}
             </Text>
           </View>
 
@@ -959,14 +933,8 @@ export default function MainScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <TouchableOpacity
-          style={styles.weatherTriggerButton}
-          activeOpacity={0.85}
-          onPress={handleTriggerWeatherCheck}
-        >
-          <Ionicons name="cloudy-outline" size={17} color="#2563EB" />
-          <Text style={styles.weatherTriggerButtonText}>날씨 알림 테스트</Text>
-        </TouchableOpacity>
+        
+
 
         {notifications.length > 0 ?
           <View style={styles.notificationSection}>
@@ -1196,25 +1164,6 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
 
-  weatherTriggerButton: {
-    minHeight: 42,
-    borderRadius: 14,
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    marginBottom: 12,
-    paddingHorizontal: 14,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
-  },
-
-  weatherTriggerButtonText: {
-    color: "#2563EB",
-    fontSize: 13,
-    fontWeight: "900",
-  },
 
   ongoingSection: {
     borderRadius: 22,
