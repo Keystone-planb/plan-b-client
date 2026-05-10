@@ -6,6 +6,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -298,6 +299,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     saveSuccessMessage,
     saving,
     handleSaveSchedule,
+    handleUpdateTripName,
     loadingSchedule,
     loadError,
     currentPlaces,
@@ -338,6 +340,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     endDate,
     location,
     scheduleId,
+    serverTripId: resolvedTripId,
     reloadKey: route?.params?.refreshPlanAAt,
   });
 
@@ -373,7 +376,33 @@ export default function PlanAScreen({ navigation, route }: Props) {
   }, [resolvedTripId]);
 
   const handleBack = () => {
-    navigation.goBack();
+    Alert.alert(
+      "저장하지 않고 나갈까요?",
+      "저장하지 않은 변경사항은 사라질 수 있습니다.",
+      [
+        {
+          text: "취소",
+          style: "cancel",
+        },
+        {
+          text: "나가기",
+          style: "destructive",
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: "Main",
+                  params: {
+                    refreshSchedules: true,
+                  },
+                },
+              ],
+            });
+          },
+        },
+      ],
+    );
   };
 
   const moveToMain = (savedSchedule: TravelSchedule = schedule) => {
@@ -396,30 +425,52 @@ export default function PlanAScreen({ navigation, route }: Props) {
     });
   };
 
-  const handleSavePlanA = async () => {
+  const handleSavePlanA = async (
+    options: { moveToMainAfterSave?: boolean } = {},
+  ) => {
+    const { moveToMainAfterSave = false } = options;
+
     resetEditingState();
 
     try {
       const savedSchedule = await handleSaveSchedule();
+
+      console.log("[PlanA] 저장 완료:", {
+        scheduleId: savedSchedule.id,
+        tripId: savedSchedule.serverTripId,
+        tripName: savedSchedule.tripName,
+        moveToMainAfterSave,
+      });
 
       if (Platform.OS === "web") {
         const browserWindow = globalThis as typeof globalThis & {
           alert?: (message?: string) => void;
         };
 
-        browserWindow.alert?.("일정이 저장되었습니다.");
-        moveToMain(savedSchedule);
+        if (moveToMainAfterSave) {
+          browserWindow.alert?.("일정 저장이 완료되었습니다. 홈으로 이동합니다.");
+          moveToMain(savedSchedule);
+          return;
+        }
+
+        browserWindow.alert?.("중간 저장이 완료되었습니다. 현재 Plan.A 화면에 저장되었습니다.");
         return;
       }
 
-      Alert.alert("저장 완료", "일정이 저장되었습니다.", [
-        {
-          text: "확인",
-          onPress: () => moveToMain(savedSchedule),
-        },
-      ]);
+      if (moveToMainAfterSave) {
+        Alert.alert("일정 저장 완료", "저장 후 홈으로 이동합니다.", [
+          {
+            text: "확인",
+            onPress: () => moveToMain(savedSchedule),
+          },
+        ]);
+
+        return;
+      }
+
+      Alert.alert("중간 저장 완료", "현재 Plan.A 화면에 저장되었습니다.");
     } catch (error) {
-      console.log("[PlanA] 저장 후 이동 실패:", error);
+      console.log("[PlanA] 저장 실패:", error);
 
       Alert.alert(
         "저장 실패",
@@ -646,6 +697,24 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 </Text>
               </TouchableOpacity>
             </View>
+
+            {place.memos?.length > 0 ? (
+              <View style={styles.simpleMemoPreviewBox}>
+                <Ionicons
+                  name="chatbubble-ellipses-outline"
+                  size={14}
+                  color="#94A3B8"
+                />
+
+                <Text style={styles.simpleMemoPreviewText} numberOfLines={2}>
+                  {place.memos
+                    .slice(0, 2)
+                    .map((memo) => memo.text)
+                    .filter(Boolean)
+                    .join(" · ")}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </View>
@@ -708,9 +777,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </TouchableOpacity>
 
               <View style={styles.headerInfo}>
-                <Text style={styles.planTitle} numberOfLines={1}>
-                  {schedule.tripName}
-                </Text>
+                {isEditMode ? (
+                  <TextInput
+                    style={styles.planTitleInput}
+                    value={schedule.tripName}
+                    onChangeText={handleUpdateTripName}
+                    placeholder="일정 제목을 입력해주세요"
+                    placeholderTextColor="#94A3B8"
+                    maxLength={30}
+                    returnKeyType="done"
+                  />
+                ) : (
+                  <Text style={styles.planTitle} numberOfLines={1}>
+                    {schedule.tripName}
+                  </Text>
+                )}
 
                 <Text style={styles.planDate}>
                   {formatDisplayDate(schedule.startDate)} -{" "}
@@ -749,7 +830,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
               <View style={styles.headerActionRow}>
                 <TouchableOpacity
-                  style={styles.headerIconButton}
+                  style={[
+                    styles.editModeButton,
+                    isEditMode && styles.editModeButtonActive,
+                  ]}
                   activeOpacity={0.8}
                   onPress={() => {
                     resetEditingState();
@@ -758,25 +842,18 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 >
                   <Ionicons
                     name={isEditMode ? "checkmark" : "create-outline"}
-                    size={22}
-                    color="#2158E8"
+                    size={15}
+                    color={isEditMode ? "#FFFFFF" : "#2158E8"}
                   />
-                </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={[
-                    styles.headerIconButton,
-                    (loadingSchedule || saving) && styles.headerIconDisabled,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={handleSavePlanA}
-                  disabled={loadingSchedule || saving}
-                >
-                  <Ionicons
-                    name="download-outline"
-                    size={22}
-                    color={loadingSchedule || saving ? "#94A3B8" : "#2158E8"}
-                  />
+                  <Text
+                    style={[
+                      styles.editModeButtonText,
+                      isEditMode && styles.editModeButtonTextActive,
+                    ]}
+                  >
+                    {isEditMode ? "편집 완료" : "일정 편집"}
+                  </Text>
                 </TouchableOpacity>
               </View>
             </View>
@@ -867,27 +944,41 @@ export default function PlanAScreen({ navigation, route }: Props) {
               activeOpacity={0.85}
               onPress={handleAddPlace}
             >
+              <Ionicons name="add-circle-outline" size={18} color="#2158E8" />
               <Text style={styles.addPlaceButtonText}>장소 추가</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.bottomSaveButton,
-                (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
-              ]}
-              activeOpacity={0.85}
-              onPress={handleSavePlanA}
-              disabled={loadingSchedule || saving}
-            >
-              <Ionicons
-                name="checkmark-circle-outline"
-                size={20}
-                color="#FFFFFF"
-              />
-              <Text style={styles.bottomSaveButtonText}>
-                {saving ? "저장 중..." : "변경사항 저장"}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.saveButtonRow}>
+              <TouchableOpacity
+                style={[
+                  styles.secondarySaveButton,
+                  (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => handleSavePlanA({ moveToMainAfterSave: false })}
+                disabled={loadingSchedule || saving}
+              >
+                <Ionicons name="save-outline" size={17} color="#2158E8" />
+                <Text style={styles.secondarySaveButtonText}>
+                  {saving ? "저장 중..." : "현재 변경 저장"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.primarySaveButton,
+                  (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
+                ]}
+                activeOpacity={0.85}
+                onPress={() => handleSavePlanA({ moveToMainAfterSave: true })}
+                disabled={loadingSchedule || saving}
+              >
+                <Ionicons name="home-outline" size={17} color="#FFFFFF" />
+                <Text style={styles.primarySaveButtonText}>
+                  {saving ? "저장 중..." : "저장하고 홈으로"}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
 
@@ -1106,6 +1197,57 @@ export default function PlanAScreen({ navigation, route }: Props) {
 }
 
 const styles = StyleSheet.create({
+  saveButtonRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 14,
+    marginLeft: 43,
+  },
+
+  secondarySaveButton: {
+    flex: 1,
+    minHeight: 50,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  secondarySaveButtonText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  primarySaveButton: {
+    flex: 1.15,
+    minHeight: 50,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+
+  primarySaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
   safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
   screen: { flex: 1, backgroundColor: "#F7F9FB", position: "relative" },
   container: { flex: 1 },
@@ -1139,6 +1281,18 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -0.7,
     marginBottom: 7,
+  },
+  planTitleInput: {
+    minHeight: 38,
+    color: "#1C2534",
+    fontSize: 25,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+    marginBottom: 7,
+    paddingVertical: 0,
+    paddingHorizontal: 0,
+    borderBottomWidth: 1,
+    borderBottomColor: "#CFE3FF",
   },
   planDate: {
     color: "#627187",
@@ -1175,11 +1329,10 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   headerActionRow: {
-    width: 82,
+    minWidth: 92,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
-    gap: 12,
     paddingTop: 6,
   },
   headerIconButton: {
@@ -1187,6 +1340,34 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  editModeButton: {
+    minHeight: 34,
+    borderRadius: 999,
+    backgroundColor: "#EEF5FF",
+    borderWidth: 1,
+    borderColor: "#CFE3FF",
+    paddingHorizontal: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+  editModeButtonActive: {
+    backgroundColor: "#2158E8",
+    borderColor: "#2158E8",
+  },
+
+  editModeButtonText: {
+    color: "#2158E8",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  editModeButtonTextActive: {
+    color: "#FFFFFF",
   },
   headerIconDisabled: { opacity: 0.55 },
   saveFeedbackBox: {
@@ -1253,17 +1434,20 @@ const styles = StyleSheet.create({
     marginTop: 10,
     marginLeft: 43,
     minHeight: 48,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: "#ECF5FF",
+    borderWidth: 1,
+    borderColor: "#CFE3FF",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.18,
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    elevation: 4,
+    gap: 7,
   },
-  addPlaceButtonText: { color: "#2158E8", fontSize: 15, fontWeight: "900" },
+  addPlaceButtonText: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "900",
+  },
   bottomSaveButton: {
     marginTop: 14,
     marginLeft: 43,
@@ -1381,6 +1565,21 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+
+  simpleMemoPreviewBox: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+
+  simpleMemoPreviewText: {
+    flex: 1,
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
   },
   simpleTimeAction: {
     borderRadius: 999,
