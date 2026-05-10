@@ -348,7 +348,7 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 140,
   },
 
   header: {
@@ -400,6 +400,7 @@ const styles = StyleSheet.create({
 
   listSection: {
     paddingHorizontal: 21,
+    paddingBottom: 32,
   },
 
   tripCardWrapper: {
