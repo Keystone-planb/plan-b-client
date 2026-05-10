@@ -546,7 +546,38 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
             console.log("[AIAnalysisLoading] stream error:", error);
 
             setProgress(100);
-            setErrorMessage(getErrorMessage(error));
+
+            const message = getErrorMessage(error);
+
+            if (message.includes("500")) {
+              setErrorMessage(
+                "현재 추천 서버가 불안정합니다. 잠시 후 다시 시도해주세요.",
+              );
+            } else if (
+              message.includes("좌표") ||
+              message.includes("장소")
+            ) {
+              setErrorMessage(
+                "장소 정보를 불러오지 못했습니다. 장소를 다시 선택한 뒤 시도해주세요.",
+              );
+            } else if (
+              message.includes("Failed to fetch") ||
+              message.includes("Network") ||
+              message.includes("fetch")
+            ) {
+              setErrorMessage(
+                "네트워크 연결이 불안정합니다. 인터넷 상태를 확인해주세요.",
+              );
+            } else if (
+              message.includes("끊겼습니다") ||
+              message.includes("stream")
+            ) {
+              setErrorMessage(
+                "추천 결과를 끝까지 불러오지 못했습니다. 다시 시도해주세요.",
+              );
+            } else {
+              setErrorMessage(message);
+            }
           },
         });
       } catch (error) {
@@ -555,7 +586,38 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         console.log("[AIAnalysisLoading] run stream failed:", error);
 
         setProgress(100);
-        setErrorMessage(getErrorMessage(error));
+
+        const message = getErrorMessage(error);
+
+        if (message.includes("500")) {
+          setErrorMessage(
+            "현재 추천 서버가 불안정합니다. 잠시 후 다시 시도해주세요.",
+          );
+        } else if (
+          message.includes("좌표") ||
+          message.includes("장소")
+        ) {
+          setErrorMessage(
+            "장소 정보를 불러오지 못했습니다. 장소를 다시 선택한 뒤 시도해주세요.",
+          );
+        } else if (
+          message.includes("Failed to fetch") ||
+          message.includes("Network") ||
+          message.includes("fetch")
+        ) {
+          setErrorMessage(
+            "네트워크 연결이 불안정합니다. 인터넷 상태를 확인해주세요.",
+          );
+        } else if (
+          message.includes("끊겼습니다") ||
+          message.includes("stream")
+        ) {
+          setErrorMessage(
+            "추천 결과를 끝까지 불러오지 못했습니다. 다시 시도해주세요.",
+          );
+        } else {
+          setErrorMessage(message);
+        }
       }
     };
 
