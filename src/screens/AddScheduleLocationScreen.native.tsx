@@ -74,6 +74,24 @@ type ReviewItem = {
   authorName?: string;
 };
 
+
+const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
+  places: T[],
+) => {
+  const seen = new Set<string>();
+
+  return places.filter((place) => {
+    const key = String(place.googlePlaceId ?? place.placeId);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
 const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
@@ -432,8 +450,6 @@ export default function AddScheduleLocationScreen({
   const submitLockRef = useRef(false);
   const mapRef = useRef<MapView>(null);
 
-  console.log("[AddScheduleLocation] route params:", route?.params);
-
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
@@ -743,12 +759,24 @@ export default function AddScheduleLocationScreen({
   const handleNext = async (
     overridePlaces?: SelectedPlace[],
   ) => {
-    const placesToSubmit = overridePlaces ?? selectedPlaces;
-    if (placesToSubmit.length === 0 || submitLoading || submitLockRef.current) {
+    if (submitLoading || submitLockRef.current) {
+      console.log("[AddScheduleLocation] 중복 저장 실행 차단:", {
+        submitLoading,
+        locked: submitLockRef.current,
+      });
+      return;
+    }
+
+    submitLockRef.current = true;
+
+    const placesToSubmit = getUniquePlaces(overridePlaces ?? selectedPlaces);
+    if (placesToSubmit.length === 0) {
+      submitLockRef.current = false;
       return;
     }
 
     if (!tripName || !startDate || !endDate) {
+      submitLockRef.current = false;
       Alert.alert("알림", "여행 이름과 날짜 정보가 없습니다.");
       return;
     }
@@ -766,7 +794,6 @@ export default function AddScheduleLocationScreen({
     const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
-      submitLockRef.current = true;
       setSubmitLoading(true);
 
       try {
@@ -784,12 +811,31 @@ export default function AddScheduleLocationScreen({
 
         if (targetServerTripId) {
           for (const place of placesToSubmit) {
+
+
+            console.log("[QA_DUPLICATE] before addTripLocation:", {
+              file: "AddScheduleLocationScreen.native.tsx",
+              tripId: targetServerTripId,
+              selectedDay,
+              placeId: place.placeId,
+              googlePlaceId: place.googlePlaceId,
+              name: place.name,
+            });
+
             const response = await addTripLocation(targetServerTripId, selectedDay, {
               place_id: place.googlePlaceId ?? place.placeId,
               name: place.name,
               visitTime: null,
               endTime: null,
               memo: null,
+            });
+
+            console.log("[QA_DUPLICATE] after addTripLocation:", {
+              file: "AddScheduleLocationScreen.native.tsx",
+              tripPlaceId: response.tripPlaceId,
+              placeId: place.placeId,
+              googlePlaceId: place.googlePlaceId,
+              name: place.name,
             });
 
             serverPlaceMap[place.placeId] = {
@@ -819,6 +865,7 @@ export default function AddScheduleLocationScreen({
         targetServerTripId,
         targetLocation: existingLocation || nextLocation,
         serverPlaceMap,
+        placesToNavigate: placesToSubmit,
       });
     } catch (error) {
       console.log("일정 저장 실패:", error);
@@ -1148,7 +1195,7 @@ export default function AddScheduleLocationScreen({
                     isPreview && styles.disabledDetailButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isReviewLoading}
+                  disabled={isPreview || isReviewLoading || submitLockRef.current}
                   onPress={() => handleTogglePlaceReview(place)}
                 >
                   {isReviewLoading ?
@@ -1169,7 +1216,7 @@ export default function AddScheduleLocationScreen({
                       isSelected && styles.selectPlaceButtonActive,
                     ]}
                     activeOpacity={0.85}
-                    disabled={isDetailLoading || submitLoading}
+                    disabled={isDetailLoading || submitLoading || submitLockRef.current}
                     onPress={() =>
                       handleNext([
                         {

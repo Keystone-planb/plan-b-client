@@ -362,6 +362,24 @@ const isMockLikeSummary = (summary: string) => {
   );
 };
 
+
+const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
+  places: T[],
+) => {
+  const seen = new Set<string>();
+
+  return places.filter((place) => {
+    const key = String(place.googlePlaceId ?? place.placeId);
+
+    if (seen.has(key)) {
+      return false;
+    }
+
+    seen.add(key);
+    return true;
+  });
+};
+
 const INITIAL_REGION = {
   latitude: 37.7519,
   longitude: 128.8761,
@@ -462,8 +480,6 @@ export default function AddScheduleLocationScreen({
       return [...prev, place];
     });
   };
-
-  console.log("[AddScheduleLocation] route params:", route?.params);
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -643,12 +659,24 @@ export default function AddScheduleLocationScreen({
   const handleNext = async (
     overridePlaces?: SelectedPlace[],
   ) => {
-    const placesToSubmit = overridePlaces ?? selectedPlaces;
-    if (placesToSubmit.length === 0 || submitLoading || submitLockRef.current) {
+    if (submitLoading || submitLockRef.current) {
+      console.log("[AddScheduleLocation] 중복 저장 실행 차단:", {
+        submitLoading,
+        locked: submitLockRef.current,
+      });
+      return;
+    }
+
+    submitLockRef.current = true;
+
+    const placesToSubmit = getUniquePlaces(overridePlaces ?? selectedPlaces);
+    if (placesToSubmit.length === 0) {
+      submitLockRef.current = false;
       return;
     }
 
     if (!tripName || !startDate || !endDate) {
+      submitLockRef.current = false;
       Alert.alert("알림", "여행 이름과 날짜 정보가 없습니다.");
       return;
     }
@@ -672,7 +700,6 @@ export default function AddScheduleLocationScreen({
     const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
-      submitLockRef.current = true;
       setSubmitLoading(true);
 
       try {
@@ -689,6 +716,8 @@ export default function AddScheduleLocationScreen({
 
         if (serverTripId) {
           for (const place of placesToSubmit) {
+
+
             console.log("[addTripLocation request]", {
               tripId: serverTripId,
               day: selectedDay,
@@ -983,7 +1012,7 @@ export default function AddScheduleLocationScreen({
                     isExpanded && styles.compactButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isReviewLoading}
+                  disabled={isPreview || isReviewLoading || submitLockRef.current}
                   onPress={() =>
                     handleTogglePlaceReview(
                       place.googlePlaceId ?? String(place.placeId),
@@ -1090,7 +1119,7 @@ export default function AddScheduleLocationScreen({
                   <TouchableOpacity
                     style={styles.expandedSelectButton}
                     activeOpacity={0.8}
-                    disabled={isDetailLoading || submitLoading}
+                    disabled={isDetailLoading || submitLoading || submitLockRef.current}
                     onPress={() =>
                       handleNext([
                         {

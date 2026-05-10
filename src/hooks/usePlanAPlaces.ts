@@ -17,6 +17,7 @@ import {
   addLocationToTripDay,
   createTrip,
   deleteTrip,
+  updateTrip,
 } from "../../api/schedules/server";
 import {
   toAddLocationRequests,
@@ -38,6 +39,7 @@ type UsePlanAPlacesParams = {
   endDate: string;
   location?: string;
   scheduleId?: string;
+  serverTripId?: number | string;
   reloadKey?: number;
 };
 
@@ -377,6 +379,7 @@ export function usePlanAPlaces({
   endDate,
   location,
   scheduleId,
+  serverTripId,
   reloadKey,
 }: UsePlanAPlacesParams) {
   const initialSchedule = useMemo(
@@ -696,9 +699,26 @@ export function usePlanAPlaces({
     setEditingPlaceEndTime("");
   };
 
+  const handleUpdateTripName = (nextTripName: string) => {
+    const trimmedTripName = nextTripName.trim();
+
+    const nextSchedule: TravelSchedule = {
+      ...scheduleRef.current,
+      tripName: trimmedTripName || scheduleRef.current.tripName,
+      updatedAt: createNow(),
+    };
+
+    scheduleRef.current = nextSchedule;
+    cacheDraftSchedule(nextSchedule);
+    setSchedule(nextSchedule);
+  };
+
   const handleSaveSchedule = async (): Promise<TravelSchedule> => {
     const scheduleBase: TravelSchedule = {
       ...scheduleRef.current,
+      serverTripId:
+        scheduleRef.current.serverTripId ??
+        (serverTripId ? Number(serverTripId) : undefined),
       updatedAt: createNow(),
     };
 
@@ -739,25 +759,61 @@ export function usePlanAPlaces({
 
       const createdTrip =
         scheduleBase.serverTripId ?
-          {
-            tripId: scheduleBase.serverTripId,
-            title: scheduleBase.tripName,
-            startDate: scheduleBase.startDate,
-            endDate: scheduleBase.endDate,
-          }
+          await updateTrip(scheduleBase.serverTripId, toCreateTripRequest(scheduleBase))
         : await createTrip(toCreateTripRequest(scheduleBase));
 
       console.log(
         scheduleBase.serverTripId ?
-          "[PlanA 기존 서버 여행 재사용]"
+          "[PlanA 기존 서버 여행 수정 완료]"
         : "[PlanA 서버 여행 생성 완료]",
         createdTrip,
       );
 
-      const locationRequests = toAddLocationRequests(scheduleBase);
+      const locationRequests = toAddLocationRequests(scheduleBase).filter(
+        (item) => {
+          const existingPlace = scheduleBase.days
+            .find((day) => Number(day.day) === Number(item.day))
+            ?.places.find((place) => {
+              const requestPlaceId = String(item.payload.place_id ?? "");
+              const placeIdCandidates = [
+                place.placeId,
+                place.googlePlaceId,
+                place.id,
+              ]
+                .filter(Boolean)
+                .map(String);
+
+              return placeIdCandidates.includes(requestPlaceId);
+            });
+
+          const existingTripPlaceId =
+            existingPlace?.serverTripPlaceId ?? existingPlace?.tripPlaceId;
+
+          const shouldCreate = !hasValidServerPlaceId(existingTripPlaceId);
+
+          if (!shouldCreate) {
+            console.log("[PlanA 서버 장소 추가 생략 - 기존 tripPlaceId 존재]", {
+              day: item.day,
+              placeName: existingPlace?.name,
+              placeId: item.payload.place_id,
+              tripPlaceId: existingTripPlaceId,
+            });
+          }
+
+          return shouldCreate;
+        },
+      );
+
       const createdLocations: CreatedLocationWithDay[] = [];
 
       for (const item of locationRequests) {
+        console.log("[QA_DUPLICATE] PlanA before addLocationToTripDay:", {
+          tripId: createdTrip.tripId,
+          day: item.day,
+          placeId: item.payload.place_id,
+          name: item.payload.name,
+        });
+
         const createdLocation = await addLocationToTripDay({
           tripId: createdTrip.tripId,
           day: item.day,
@@ -1014,6 +1070,7 @@ export function usePlanAPlaces({
     saveError,
     saveSuccessMessage,
     handleSaveSchedule,
+    handleUpdateTripName,
 
     loadingSchedule,
     loadError,
