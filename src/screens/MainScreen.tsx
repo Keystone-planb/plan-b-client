@@ -172,7 +172,7 @@ const buildDemoWeatherNotification = (
 ): WeatherNotification | null => {
   if (!schedule) return null;
 
-  const resolvedTripId = schedule.tripId ?? schedule.serverTripId;
+  const resolvedTripId = schedule.serverTripId ?? schedule.tripId;
   const targetPlace = getFirstServerPlaceFromSchedule(schedule);
 
   if (!resolvedTripId || !targetPlace) {
