@@ -37,7 +37,7 @@ export default function GapRecommendationCard({
   >(null);
   const [status, setStatus] = useState<Status>("idle");
   const [message, setMessage] = useState(
-    "일정 사이에 비는 시간을 찾아 추천 장소를 받아보세요.",
+    "일정 사이에 비는 시간을 활용할 장소를 추천받아보세요.",
   );
 
   const isLoading = status === "loading";
@@ -45,27 +45,8 @@ export default function GapRecommendationCard({
   useEffect(() => {
     const loadGaps = async () => {
       if (!tripId || String(tripId) === "mock-trip") {
-        const mockGaps: TripScheduleGap[] = [
-          {
-            beforePlanId: 101,
-            afterPlanId: 102,
-            beforePlanTitle: "투썸플레이스 부평역점",
-            afterPlanTitle: "스타벅스 부평역점",
-            beforePlanEndTime: "14:00",
-            afterPlanStartTime: "15:00",
-            beforePlaceLat: 37.4895,
-            beforePlaceLng: 126.7245,
-            afterPlaceLat: 37.4903,
-            afterPlaceLng: 126.7251,
-            availableMinutes: 45,
-            gapMinutes: 60,
-            estimatedTravelMinutes: 0,
-            transportMode: "WALK",
-          },
-        ];
-
-        setGaps(mockGaps);
-        setMessage("서버 여행 ID가 없어 mock 틈새 시간을 표시합니다.");
+        setGaps([]);
+        setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
         return;
       }
 
@@ -75,7 +56,7 @@ export default function GapRecommendationCard({
       if (nextGaps.length === 0) {
         setMessage("현재 60분 이상 비는 시간이 없습니다.");
       } else {
-        setMessage("비는 시간을 선택하면 주변 장소를 추천해드려요.");
+        setMessage("비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.");
       }
     };
 
@@ -97,7 +78,12 @@ export default function GapRecommendationCard({
       radiusMinute: gap.availableMinutes,
     };
 
-    await streamGapRecommendations(tripId ?? "mock-trip", payload, {
+    if (!tripId || String(tripId) === "mock-trip") {
+      setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
+      return;
+    }
+
+    await streamGapRecommendations(tripId, payload, {
       onProgress: (nextMessage) => {
         setMessage(nextMessage);
       },
@@ -114,11 +100,11 @@ export default function GapRecommendationCard({
       },
       onDone: () => {
         setStatus("done");
-        setMessage("틈새 시간 추천이 완료되었습니다.");
+        setMessage("추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.");
       },
       onError: () => {
         setStatus("error");
-        setMessage("서버 연결이 불안정해 mock 틈새 추천을 표시합니다.");
+        setMessage("추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.");
       },
     });
   };
@@ -142,8 +128,8 @@ export default function GapRecommendationCard({
           </View>
 
           <View>
-            <Text style={styles.title}>틈새 시간 추천</Text>
-            <Text style={styles.subTitle}>60분 이상 비는 일정 기반 추천</Text>
+            <Text style={styles.title}>빈 시간 장소 추천</Text>
+            <Text style={styles.subTitle}>일정 사이 60분 이상 남는 시간 기준</Text>
           </View>
         </View>
 
@@ -196,7 +182,7 @@ export default function GapRecommendationCard({
                       isSelected && styles.selectedGapActionText,
                     ]}
                   >
-                    추천 받기
+                    장소 추천받기
                   </Text>
                   <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
                 </View>
@@ -257,7 +243,7 @@ export default function GapRecommendationCard({
                       isSelectedPlace && styles.selectedSelectButtonText,
                     ]}
                   >
-                    {isSelectedPlace ? "선택 완료" : "이 장소 추가하기"}
+                    {isSelectedPlace ? "Plan.A에 추가됨" : "Plan.A에 추가하기"}
                   </Text>
                 </TouchableOpacity>
               </View>
