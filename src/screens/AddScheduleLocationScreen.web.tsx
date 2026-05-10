@@ -430,6 +430,7 @@ export default function AddScheduleLocationScreen({
   route,
 }: Props) {
   const inputRef = useRef<TextInput>(null);
+  const submitLockRef = useRef(false);
 
   const [keyword, setKeyword] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -643,7 +644,7 @@ export default function AddScheduleLocationScreen({
     overridePlaces?: SelectedPlace[],
   ) => {
     const placesToSubmit = overridePlaces ?? selectedPlaces;
-    if (placesToSubmit.length === 0 || submitLoading) {
+    if (placesToSubmit.length === 0 || submitLoading || submitLockRef.current) {
       return;
     }
 
@@ -671,6 +672,7 @@ export default function AddScheduleLocationScreen({
     const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
 
     try {
+      submitLockRef.current = true;
       setSubmitLoading(true);
 
       try {
@@ -771,6 +773,7 @@ export default function AddScheduleLocationScreen({
 
       Alert.alert("일정 생성 실패", message);
     } finally {
+      submitLockRef.current = false;
       setSubmitLoading(false);
     }
   };
