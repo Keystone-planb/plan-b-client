@@ -153,11 +153,27 @@ export default function AddScheduleLocationScreen({
     });
   };
 
+  console.log("[AddScheduleLocation] route params:", route?.params);
+
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
   const transportMode = route?.params?.transportMode ?? "TRANSIT";
   const transportLabel = route?.params?.transportLabel ?? "대중교통";
+
+  const getExistingServerTripId = () => {
+    const candidates = [
+      route?.params?.serverTripId,
+      route?.params?.tripId,
+      route?.params?.scheduleId,
+    ];
+
+    return candidates.find((value) => {
+      if (value === undefined || value === null) return false;
+      const textValue = String(value).trim();
+      return textValue.length > 0 && /^\d+$/.test(textValue);
+    });
+  };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -362,7 +378,7 @@ export default function AddScheduleLocationScreen({
     const nextLocation =
       primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
-    let serverTripId: number | string | undefined;
+    let serverTripId: number | string | undefined = getExistingServerTripId();
     const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> =
       {};
 
@@ -370,14 +386,16 @@ export default function AddScheduleLocationScreen({
       setSubmitLoading(true);
 
       try {
-        const tripResponse = await createTrip({
-          title: tripName,
-          startDate,
-          endDate,
-          travelStyles: ["HEALING"],
-        });
+        if (!serverTripId) {
+          const tripResponse = await createTrip({
+            title: tripName,
+            startDate,
+            endDate,
+            travelStyles: ["HEALING"],
+          });
 
-        serverTripId = tripResponse.tripId;
+          serverTripId = tripResponse.tripId;
+        }
 
         if (serverTripId) {
           for (const place of placesToSubmit) {
@@ -436,6 +454,7 @@ export default function AddScheduleLocationScreen({
         location: nextLocation,
         tripId: serverTripId,
         serverTripId,
+        refreshPlanAAt: Date.now(),
         transportMode,
         transportLabel,
         selectedPlaces: placesToSubmit.map((place) => ({

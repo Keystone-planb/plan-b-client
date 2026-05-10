@@ -462,11 +462,27 @@ export default function AddScheduleLocationScreen({
     });
   };
 
+  console.log("[AddScheduleLocation] route params:", route?.params);
+
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
   const transportMode = route?.params?.transportMode ?? "TRANSIT";
   const transportLabel = route?.params?.transportLabel ?? "대중교통";
+
+  const getExistingServerTripId = () => {
+    const candidates = [
+      route?.params?.serverTripId,
+      route?.params?.tripId,
+      route?.params?.scheduleId,
+    ];
+
+    return candidates.find((value) => {
+      if (value === undefined || value === null) return false;
+      const textValue = String(value).trim();
+      return textValue.length > 0 && /^\d+$/.test(textValue);
+    });
+  };
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -722,6 +738,7 @@ export default function AddScheduleLocationScreen({
         location: nextLocation,
         tripId: serverTripId,
         serverTripId,
+        refreshPlanAAt: Date.now(),
         transportMode,
         transportLabel,
         selectedPlaces: placesToSubmit.map((place) => ({

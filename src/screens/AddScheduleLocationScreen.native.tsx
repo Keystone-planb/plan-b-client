@@ -431,6 +431,8 @@ export default function AddScheduleLocationScreen({
   const inputRef = useRef<TextInput>(null);
   const mapRef = useRef<MapView>(null);
 
+  console.log("[AddScheduleLocation] route params:", route?.params);
+
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
@@ -1173,8 +1175,8 @@ export default function AddScheduleLocationScreen({
                           googlePlaceId: String(
                             place.googlePlaceId ?? place.placeId,
                           ),
-                          latitude: place.latitude,
-                          longitude: place.longitude,
+                          latitude: place.latitude ?? INITIAL_REGION.latitude,
+                          longitude: place.longitude ?? INITIAL_REGION.longitude,
                         },
                       ])
                     }

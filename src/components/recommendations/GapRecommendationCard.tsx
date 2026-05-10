@@ -243,12 +243,6 @@ export default function GapRecommendationCard({
                   <Text style={styles.reason}>{place.reason}</Text>
                 : null}
 
-                {isSelectedPlace ?
-                  <View style={styles.selectedBadge}>
-                    <Text style={styles.selectedBadgeText}>선택 완료</Text>
-                  </View>
-                : null}
-
                 <TouchableOpacity
                   style={[
                     styles.selectButton,

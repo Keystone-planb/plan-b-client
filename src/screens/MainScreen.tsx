@@ -17,7 +17,12 @@ import { Swipeable } from "react-native-gesture-handler";
 import RadialBackground from "../components/RadialBackground";
 import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
 import { removePlanASchedule } from "../api/schedules/planAStorage";
-import { deleteTrip, getTripDetail } from "../../api/schedules/server";
+import {
+  deleteTrip,
+  getTripDetail,
+  getTrips,
+  TripSummary,
+} from "../../api/schedules/server";
 import {
   dismissNotification,
   getWeatherNotifications,
@@ -217,6 +222,25 @@ const getFirstServerPlaceFromSchedule = (schedule?: StoredSchedule) => {
   return null;
 };
 
+const convertTripSummaryToStoredSchedule = (
+  trip: TripSummary,
+): StoredSchedule => {
+  return {
+    id: String(trip.tripId),
+    scheduleId: String(trip.tripId),
+    tripId: trip.tripId,
+    serverTripId: trip.tripId,
+    tripName: trip.title,
+    title: trip.title,
+    startDate: trip.startDate,
+    endDate: trip.endDate,
+    location: "장소 미정",
+    updatedAt: trip.endDate,
+    createdAt: trip.startDate,
+    days: [],
+  };
+};
+
 const buildDemoWeatherNotification = (
   schedule?: StoredSchedule,
 ): WeatherNotification | null => {
@@ -405,43 +429,79 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
+  const loadLocalSchedules = async () => {
+    const keys = await AsyncStorage.getAllKeys();
+    const planAKeys = keys.filter((key) =>
+      key.startsWith(PLAN_A_STORAGE_PREFIX),
+    );
+
+    if (planAKeys.length === 0) {
+      return [];
+    }
+
+    const entries = await AsyncStorage.multiGet(planAKeys);
+
+    return entries
+      .map(([, value]) => {
+        if (!value) return null;
+
+        try {
+          return JSON.parse(value) as StoredSchedule;
+        } catch (error) {
+          console.log("[Main] 일정 파싱 실패:", error);
+          return null;
+        }
+      })
+      .filter((item): item is StoredSchedule => Boolean(item))
+      .sort((a, b) => {
+        const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
+        const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
+
+        return bTime - aTime;
+      });
+  };
+
   const loadSchedules = async () => {
     try {
       setLoading(true);
 
-      const keys = await AsyncStorage.getAllKeys();
-      const planAKeys = keys.filter((key) =>
-        key.startsWith(PLAN_A_STORAGE_PREFIX),
-      );
+      try {
+        const serverTrips = await getTrips("ALL");
 
-      if (planAKeys.length === 0) {
-        setSchedules([]);
-        return;
+        const serverSchedules = serverTrips
+          .map(convertTripSummaryToStoredSchedule)
+          .sort((a, b) => {
+            const aTime = new Date(a.startDate || 0).getTime();
+            const bTime = new Date(b.startDate || 0).getTime();
+
+            return aTime - bTime;
+          });
+
+        if (serverSchedules.length > 0) {
+          console.log("[Main] 서버 일정 목록 사용:", {
+            count: serverSchedules.length,
+            schedules: serverSchedules.map((schedule) => ({
+              tripId: schedule.serverTripId,
+              title: getScheduleTitle(schedule),
+              startDate: schedule.startDate,
+              endDate: schedule.endDate,
+            })),
+          });
+
+          setSchedules(serverSchedules);
+          await loadNotifications(serverSchedules);
+          return;
+        }
+
+        console.log("[Main] 서버 일정 없음 - 로컬 fallback 조회");
+      } catch (serverError) {
+        console.log("[Main] 서버 일정 조회 실패 - 로컬 fallback 사용:", serverError);
       }
 
-      const entries = await AsyncStorage.multiGet(planAKeys);
+      const localSchedules = await loadLocalSchedules();
 
-      const loadedSchedules = entries
-        .map(([, value]) => {
-          if (!value) return null;
-
-          try {
-            return JSON.parse(value) as StoredSchedule;
-          } catch (error) {
-            console.log("[Main] 일정 파싱 실패:", error);
-            return null;
-          }
-        })
-        .filter((item): item is StoredSchedule => Boolean(item))
-        .sort((a, b) => {
-          const aTime = new Date(a.updatedAt || a.createdAt || 0).getTime();
-          const bTime = new Date(b.updatedAt || b.createdAt || 0).getTime();
-
-          return bTime - aTime;
-        });
-
-      setSchedules(loadedSchedules);
-      await loadNotifications(loadedSchedules);
+      setSchedules(localSchedules);
+      await loadNotifications(localSchedules);
     } catch (error) {
       console.log("[Main] 일정 불러오기 실패:", error);
       setSchedules([]);
