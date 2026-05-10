@@ -88,30 +88,50 @@ export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
   };
 };
 
-export const saveOAuthTokens = async (payload: OAuthSuccessPayload) => {
-  await AsyncStorage.multiSet([
-    [ACCESS_TOKEN_KEY, payload.accessToken],
-    [REFRESH_TOKEN_KEY, payload.refreshToken],
-  ]);
-
-  if (typeof window !== "undefined") {
-    window.localStorage.setItem(ACCESS_TOKEN_KEY, payload.accessToken);
-    window.localStorage.setItem(REFRESH_TOKEN_KEY, payload.refreshToken);
+export const saveOAuthTokens = async ({
+  accessToken,
+  refreshToken,
+  userId,
+  nickname,
+}: {
+  accessToken?: string | null;
+  refreshToken?: string | null;
+  userId?: string | number | null;
+  nickname?: string | null;
+}) => {
+  if (!accessToken || !refreshToken) {
+    throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
   }
 
-  if (payload.userId) {
-    await AsyncStorage.setItem("user_id", payload.userId);
+  await AsyncStorage.setItem("access_token", String(accessToken));
+  await AsyncStorage.setItem("refresh_token", String(refreshToken));
 
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("user_id", payload.userId);
+  if (userId !== undefined && userId !== null && String(userId).length > 0) {
+    await AsyncStorage.setItem("user_id", String(userId));
+  } else {
+    await AsyncStorage.removeItem("user_id");
+  }
+
+  if (nickname !== undefined && nickname !== null && String(nickname).length > 0) {
+    await AsyncStorage.setItem("nickname", String(nickname));
+  } else {
+    await AsyncStorage.removeItem("nickname");
+  }
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    window.localStorage.setItem("access_token", String(accessToken));
+    window.localStorage.setItem("refresh_token", String(refreshToken));
+
+    if (userId !== undefined && userId !== null && String(userId).length > 0) {
+      window.localStorage.setItem("user_id", String(userId));
+    } else {
+      window.localStorage.removeItem("user_id");
     }
-  }
 
-  if (payload.nickname) {
-    await AsyncStorage.setItem("nickname", payload.nickname);
-
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("nickname", payload.nickname);
+    if (nickname !== undefined && nickname !== null && String(nickname).length > 0) {
+      window.localStorage.setItem("nickname", String(nickname));
+    } else {
+      window.localStorage.removeItem("nickname");
     }
   }
 };
