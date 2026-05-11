@@ -140,6 +140,39 @@ const getTripDayCount = (startDate?: string, endDate?: string) => {
   return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
 };
 
+
+const getCurrentTripDay = (startDate?: string, endDate?: string) => {
+  const dayCount = getTripDayCount(startDate, endDate);
+
+  if (!startDate || !endDate) {
+    return 1;
+  }
+
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const today = new Date();
+
+  if (Number.isNaN(start.getTime())) {
+    return 1;
+  }
+
+  start.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor(
+    (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (diffDays < 0) {
+    return 1;
+  }
+
+  if (diffDays >= dayCount) {
+    return dayCount;
+  }
+
+  return diffDays + 1;
+};
+
 const makeDayOptions = (startDate?: string, endDate?: string): DayOption[] => {
   const dayCount = getTripDayCount(startDate, endDate);
 
@@ -405,7 +438,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     if (!firstSelectedDay) return;
 
-    setSelectedDay(firstSelectedDay);
+    const currentTripDay = getCurrentTripDay(startDate, endDate);
+    setSelectedDay(currentTripDay);
   }, [selectedPlace?.day, selectedPlaces]);
 
   useEffect(() => {
