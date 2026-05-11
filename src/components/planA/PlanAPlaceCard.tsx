@@ -103,7 +103,7 @@ export default function PlanAPlaceCard({
       </View>
 
       <View style={styles.placeCard}>
-        {isEditingPlace ?
+        {isEditingPlace ? (
           <View style={styles.placeEditBox}>
             <Text style={styles.editLabel}>장소명</Text>
 
@@ -187,7 +187,8 @@ export default function PlanAPlaceCard({
               </TouchableOpacity>
             </View>
           </View>
-        : <>
+        ) : (
+          <>
             <TouchableOpacity
               style={styles.placeHeader}
               activeOpacity={0.85}
@@ -198,9 +199,34 @@ export default function PlanAPlaceCard({
                 <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
               </View>
 
-              <View style={styles.placeActionBadge}>
-                <Ionicons name="create-outline" size={14} color="#2158E8" />
-                <Text style={styles.placeActionText}>수정</Text>
+              <View style={styles.placeHeaderActions}>
+                <TouchableOpacity
+                  style={styles.placeDeleteIconButton}
+                  activeOpacity={0.85}
+                  onPress={(event) => {
+                    event.stopPropagation();
+
+                    Alert.alert(
+                      "장소 삭제",
+                      "이 장소와 연결된 메모가 함께 삭제됩니다. 삭제할까요?",
+                      [
+                        { text: "취소", style: "cancel" },
+                        {
+                          text: "삭제",
+                          style: "destructive",
+                          onPress: () => onDeletePlace(place.id),
+                        },
+                      ],
+                    );
+                  }}
+                >
+                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                </TouchableOpacity>
+
+                <View style={styles.placeActionBadge}>
+                  <Ionicons name="create-outline" size={14} color="#2158E8" />
+                  <Text style={styles.placeActionText}>수정</Text>
+                </View>
               </View>
             </TouchableOpacity>
 
@@ -219,7 +245,7 @@ export default function PlanAPlaceCard({
               onChangeEditingMemoText={onChangeEditingMemoText}
             />
           </>
-        }
+        )}
       </View>
     </View>
   );
@@ -293,6 +319,23 @@ const styles = StyleSheet.create({
     color: "#627187",
     fontSize: 12,
     fontWeight: "600",
+  },
+
+  placeHeaderActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  placeDeleteIconButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   placeActionBadge: {
