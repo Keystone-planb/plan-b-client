@@ -55,6 +55,17 @@ type RootStackParamList = {
     selectedPlace?: undefined;
     selectedPlaces?: undefined;
   };
+  OngoingSchedule: {
+    scheduleId?: string;
+    tripId?: string | number;
+    serverTripId?: string | number;
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+    transportMode?: TransportMode;
+    transportLabel?: string;
+  };
   RecommendationResult: {
     scheduleId?: string;
     tripId?: string | number;
@@ -64,6 +75,7 @@ type RootStackParamList = {
     endDate?: string;
     location?: string;
     transportMode?: TransportMode;
+      transportLabel?: string;
     moveTime?: MoveTime;
     considerDistance?: boolean;
     considerCrowd?: boolean;
@@ -332,17 +344,29 @@ export default function RecommendationResultScreen({
         setSelectedPlaceId(placeId);
 
         Alert.alert(
-          "장소 교체 완료",
-          "날씨 알림 기반 대안 장소로 교체했습니다.",
+          "장소 선택 완료",
+          "진행중인 일정에 대안 장소를 반영했습니다.",
           [
             {
               text: "확인",
               onPress: () => {
-                navigation.navigate("Main");
+                navigation.navigate("OngoingSchedule", {
+                  scheduleId: params.scheduleId,
+                  tripId: params.tripId ?? params.serverTripId,
+                  serverTripId: params.serverTripId ?? params.tripId,
+                  tripName: params.tripName,
+                  startDate: params.startDate,
+                  endDate: params.endDate,
+                  location: params.location,
+                  transportMode: params.transportMode,
+                  transportLabel: params.transportLabel,
+                });
               },
             },
           ],
         );
+
+        return;
       } catch (error) {
         console.log("[RecommendationResult] weather notification replace failed:", error);
 
