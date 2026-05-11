@@ -342,7 +342,7 @@ const createKeywordsFromReviews = (_reviews: ReviewItem[]) => {
 
 const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
   // 서버 AI 요약이 없을 때 플랫폼별 리뷰를 가공해 AI 요약처럼 보이지 않게 한다.
-  return "AI 리뷰 요약 정보가 없습니다.";
+  return "";
 };
 
 const formatConfidenceScore = (score?: number) => {
@@ -423,6 +423,7 @@ export default function AddScheduleLocationScreen({
     Record<string, PlaceReviewInfo>
   >({});
   const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
+  const [businessHoursExpanded, setBusinessHoursExpanded] = useState(false);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -856,6 +857,9 @@ export default function AddScheduleLocationScreen({
 
   const rawAiSummary = getFirstText(detailModalSummary, [
     "ai_summary",
+    "ai_summary",
+    "ai_summary",
+    "ai_summary",
     "aiSummary",
     "summary",
     "reviewSummary",
@@ -866,104 +870,118 @@ export default function AddScheduleLocationScreen({
     "overallSummary",
     "totalSummary",
     "data.ai_summary",
+    "data.ai_summary",
+    "data.ai_summary",
+    "data.ai_summary",
     "data.aiSummary",
     "data.summary",
     "data.reviewSummary",
     "data.placeSummary",
     "result.ai_summary",
+    "result.ai_summary",
+    "result.ai_summary",
+    "result.ai_summary",
     "result.aiSummary",
     "result.summary",
+    "payload.ai_summary",
+    "payload.ai_summary",
+    "payload.ai_summary",
     "payload.ai_summary",
     "payload.aiSummary",
     "payload.summary",
   ]);
 
+  const detailModalRawGoogleReviews = useMemo(() => {
+    return getDetailReviews(detailModalDetail).slice(0, 3);
+  }, [detailModalDetail]);
+
   const detailModalReviews = useMemo(() => {
+    const getPlatformReviewText = (paths: string[]) => {
+      const summaryText = getFirstText(detailModalSummary, paths).trim();
+      const detailText = getFirstText(detailModalDetail, paths).trim();
+
+      return summaryText || detailText;
+    };
+
+    const googleAiReviewText = getPlatformReviewText([
+      "googleReview",
+      "data.googleReview",
+      "result.googleReview",
+      "payload.googleReview",
+    ]);
+
+    const googleRawReviewText = detailModalRawGoogleReviews
+      .map((review) => {
+        const ratingText =
+          typeof review.rating === "number" ?
+            `평점 ${review.rating.toFixed(1)}`
+          : "리뷰";
+
+        const timeText = review.relativeTimeDescription ?
+          ` · ${review.relativeTimeDescription}`
+        : "";
+
+        return `${ratingText}${timeText}\n${review.text}`;
+      })
+      .filter(Boolean)
+      .join("\n\n");
+
     return [
       {
         id: "googleReview",
         platform: "Google",
         icon: "G",
-        text:
-          getFirstText(detailModalSummary, [
-            "googleReview",
-            "googleReviewSummary",
-            "google_review",
-            "data.googleReview",
-            "data.googleReviewSummary",
-            "data.google_review",
-            "result.googleReview",
-            "result.googleReviewSummary",
-            "result.google_review",
-            "payload.googleReview",
-            "payload.googleReviewSummary",
-            "payload.google_review",
-          ]) || "서버에서 Google 리뷰를 제공하지 않았습니다.",
+        text: googleAiReviewText || googleRawReviewText || "분석 데이터 없음",
       },
       {
         id: "naverReview",
         platform: "Naver",
         icon: "N",
         text:
-          getFirstText(detailModalSummary, [
+          getPlatformReviewText([
             "naverReview",
-            "naverReviewSummary",
-            "naver_review",
             "data.naverReview",
-            "data.naverReviewSummary",
-            "data.naver_review",
             "result.naverReview",
-            "result.naverReviewSummary",
-            "result.naver_review",
             "payload.naverReview",
-            "payload.naverReviewSummary",
-            "payload.naver_review",
-          ]) || "서버에서 Naver 리뷰를 제공하지 않았습니다.",
+          ]) || "분석 데이터 없음",
       },
       {
         id: "instaReview",
         platform: "Instagram",
         icon: "I",
         text:
-          getFirstText(detailModalSummary, [
+          getPlatformReviewText([
             "instaReview",
-            "instaReviewSummary",
             "instagramReview",
-            "instagramReviewSummary",
-            "insta_review",
-            "instagram_review",
             "data.instaReview",
-            "data.instaReviewSummary",
             "data.instagramReview",
-            "data.instagramReviewSummary",
-            "data.insta_review",
-            "data.instagram_review",
             "result.instaReview",
-            "result.instaReviewSummary",
             "result.instagramReview",
-            "result.instagramReviewSummary",
-            "result.insta_review",
-            "result.instagram_review",
             "payload.instaReview",
-            "payload.instaReviewSummary",
             "payload.instagramReview",
-            "payload.instagramReviewSummary",
-            "payload.insta_review",
-            "payload.instagram_review",
-          ]) || "Instagram 리뷰 데이터가 부족합니다.",
+          ]) || "분석 데이터 없음",
       },
     ];
-  }, [detailModalSummary]);
+  }, [detailModalDetail, detailModalRawGoogleReviews, detailModalSummary]);
 
-  const reviewBasedSummary = "AI 리뷰 요약 정보가 없습니다.";
+  const reviewBasedSummary = "";
+
+  const rawDetailReviewSummary = getFirstText(detailModalDetail, [
+    "reviewSummary",
+    "data.reviewSummary",
+    "result.reviewSummary",
+    "payload.reviewSummary",
+  ]);
 
   const detailModalAiSummary =
-    rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
-      truncateText(rawAiSummary, 120)
-    : reviewBasedSummary;
+    rawAiSummary.trim() || rawDetailReviewSummary.trim() || "분석 데이터 없음";
 
   const detailModalKeywords = useMemo(() => {
     const spaceTag = getFirstText(detailModalDetail, [
+      "space",
+      "data.space",
+      "result.space",
+      "payload.space",
       "tags.space",
       "data.tags.space",
       "result.tags.space",
@@ -971,6 +989,10 @@ export default function AddScheduleLocationScreen({
     ]).trim();
 
     const typeTag = getFirstText(detailModalDetail, [
+      "type",
+      "data.type",
+      "result.type",
+      "payload.type",
       "tags.type",
       "data.tags.type",
       "result.tags.type",
@@ -978,13 +1000,19 @@ export default function AddScheduleLocationScreen({
     ]).trim();
 
     const moodTag = getFirstText(detailModalDetail, [
+      "mood",
+      "data.mood",
+      "result.mood",
+      "payload.mood",
       "tags.mood",
       "data.tags.mood",
       "result.tags.mood",
       "payload.tags.mood",
     ]).trim();
 
-    return [spaceTag, typeTag, moodTag].filter(Boolean);
+    const aiTags = [spaceTag, typeTag, moodTag].filter(Boolean);
+
+    return aiTags;
   }, [detailModalDetail]);
 
 
@@ -1083,6 +1111,26 @@ export default function AddScheduleLocationScreen({
       "result.rating",
     ]) ?? detailModalPlace?.rating;
 
+  const formattedOpeningHours =
+    detailModalOpeningHours && detailModalOpeningHours !== "운영 시간 정보 없음" ?
+      detailModalOpeningHours
+        .split(" / ")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .join("\n")
+    : "";
+
+  console.log("[AddScheduleLocation] extracted AI review fields:", {
+    placeId: detailModalPlaceId,
+    aiSummary: rawAiSummary.trim(),
+    reviewSummary: rawDetailReviewSummary.trim(),
+    googleReview: detailModalReviews.find((item) => item.id === "googleReview")?.text,
+    naverReview: detailModalReviews.find((item) => item.id === "naverReview")?.text,
+    instaReview: detailModalReviews.find((item) => item.id === "instaReview")?.text,
+    rawGoogleReviewCount: detailModalRawGoogleReviews.length,
+    tags: detailModalKeywords,
+  });
+
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||
     detailModalKeywords.length > 0 ||
@@ -1168,7 +1216,7 @@ export default function AddScheduleLocationScreen({
                 선택한 장소 {selectedPlaces.length}개
               </Text>
 
-              <Text style={styles.selectedSummaryText} numberOfLines={2}>
+              <Text style={styles.selectedSummaryText}>
                 {selectedPlaces.map((place) => place.name).join(" · ")}
               </Text>
             </View>
@@ -1196,7 +1244,7 @@ export default function AddScheduleLocationScreen({
               >
                 <Text style={styles.placeName}>{place.name}</Text>
 
-                <Text style={styles.placeAddress} numberOfLines={1}>
+                <Text style={styles.placeAddress}>
                   {place.address}
                 </Text>
 
@@ -1310,11 +1358,11 @@ export default function AddScheduleLocationScreen({
                 </View>
 
                 <View style={styles.detailTitleArea}>
-                  <Text style={styles.detailTitle} numberOfLines={1}>
+                  <Text style={styles.detailTitle}>
                     {detailModalPlace?.name ?? "장소 상세 정보"}
                   </Text>
 
-                  <Text style={styles.detailAddress} numberOfLines={1}>
+                  <Text style={styles.detailAddress}>
                     {modalAddress}
                   </Text>
 
@@ -1331,8 +1379,8 @@ export default function AddScheduleLocationScreen({
 
                     <Ionicons name="time-outline" size={15} color="#8DC7FF" />
 
-                    <Text style={styles.detailMetaText} numberOfLines={1}>
-                      {detailModalOpeningHours}
+                    <Text style={styles.detailMetaText}>
+                      {formattedOpeningHours ? "영업시간 보기" : "운영 시간 정보 없음"}
                     </Text>
                   </View>
                 </View>
@@ -1346,9 +1394,81 @@ export default function AddScheduleLocationScreen({
                   </Text>
                 </View>
               : <>
+                  {formattedOpeningHours ?
+
+                    <View style={styles.businessHoursCard}>
+
+                      <TouchableOpacity
+
+                        style={styles.businessHoursHeader}
+
+                        activeOpacity={0.75}
+
+                        onPress={() => setBusinessHoursExpanded((prev) => !prev)}
+
+                      >
+
+                        <View style={styles.businessHoursTitleRow}>
+
+                          <Ionicons
+
+                            name="time-outline"
+
+                            size={17}
+
+                            color="#2158E8"
+
+                          />
+
+                          <Text style={styles.businessHoursTitle}>영업시간</Text>
+
+                        </View>
+
+
+                        <Ionicons
+
+                          name={businessHoursExpanded ? "chevron-up" : "chevron-down"}
+
+                          size={18}
+
+                          color="#64748B"
+
+                        />
+
+                      </TouchableOpacity>
+
+
+                      <Text
+
+                        style={styles.businessHoursText}
+
+                        numberOfLines={businessHoursExpanded ? undefined : 2}
+
+                      >
+
+                        {formattedOpeningHours}
+
+                      </Text>
+
+
+                      {!businessHoursExpanded ?
+
+                        <Text style={styles.businessHoursHint}>
+
+                          눌러서 전체 영업시간 보기
+
+                        </Text>
+
+                      : null}
+
+                    </View>
+
+                  : null}
+
+
                   {detailModalAiSummary ?
                     <View style={styles.aiSummaryCard}>
-                      <Text style={styles.aiSummaryText} numberOfLines={4}>
+                      <Text style={styles.aiSummaryText}>
                         📊 {detailModalAiSummary}
                       </Text>
 
@@ -1361,22 +1481,16 @@ export default function AddScheduleLocationScreen({
                   {detailModalKeywords.length > 0 ?
                     <View style={styles.keywordSection}>
                       <View style={styles.keywordWrap}>
-                        {detailModalKeywords.length > 0 ?
-                          detailModalKeywords.map((keywordItem) => (
-                            <View
-                              key={`keyword-${keywordItem}`}
-                              style={styles.keywordChip}
-                            >
-                              <Text style={styles.keywordChipText}>
-                                #{keywordItem}
-                              </Text>
-                            </View>
-                          ))
-                        : <View style={styles.keywordChip}>
+                        {detailModalKeywords.map((keywordItem) => (
+                          <View
+                            key={`keyword-${keywordItem}`}
+                            style={styles.keywordChip}
+                          >
                             <Text style={styles.keywordChipText}>
-                              태그 정보 없음
+                              #{keywordItem}
                             </Text>
-                          </View>}
+                          </View>
+                        ))}
                       </View>
                     </View>
                   : null}
@@ -1409,7 +1523,6 @@ export default function AddScheduleLocationScreen({
 
                               <Text
                                 style={styles.platformText}
-                                numberOfLines={3}
                               >
                                 {truncateText(review.text)}
                               </Text>
@@ -1840,6 +1953,90 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "900",
   },
+
+  businessHoursCard: {
+
+
+    marginTop: 16,
+
+
+    marginBottom: 14,
+
+
+    paddingHorizontal: 18,
+
+
+    paddingVertical: 16,
+
+
+    borderRadius: 18,
+
+
+    backgroundColor: "#F8FAFC",
+
+
+    borderWidth: 1,
+
+
+    borderColor: "#E2E8F0",
+
+
+  },
+
+
+
+  businessHoursHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 10,
+  },
+
+
+
+  businessHoursTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 1,
+  },
+
+  businessHoursTitle: {
+
+
+    fontSize: 15,
+
+
+    lineHeight: 20,
+
+
+    fontWeight: "900",
+
+
+    color: "#1E293B",
+
+
+  },
+
+
+
+  businessHoursText: {
+    fontSize: 14,
+    lineHeight: 22,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+
+  businessHoursHint: {
+    marginTop: 8,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
+    color: "#94A3B8",
+  },
+
+
 
   aiSummaryCard: {
     position: "relative",
