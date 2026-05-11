@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -11,8 +11,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
-import PlanAMapPreview from "../components/planA/PlanAMapPreview";
-import { getTripDetail } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -25,20 +23,13 @@ type ScheduleMemo = {
 
 type TodayPlace = {
   id?: string | number;
-
-  // 서버에서 생성된 여행 장소 ID
   tripPlaceId?: number | string;
   serverTripPlaceId?: number | string;
-
-  // 외부 장소 ID
   placeId?: string;
   googlePlaceId?: string;
-
   name?: string;
   address?: string;
   time?: string;
-    visitTime?: string | null;
-    endTime?: string | null;
   latitude?: number;
   longitude?: number;
   category?: string;
@@ -69,6 +60,9 @@ type Props = {
     };
   };
 };
+
+const MIN_DAY_TAB_COUNT = 3;
+const VISIBLE_DAY_TAB_COUNT = 3;
 
 const getSortTimeValue = (time?: string | null) => {
   if (!time) return Number.MAX_SAFE_INTEGER;
@@ -103,7 +97,22 @@ const sortPlacesByTime = <
   });
 };
 
-const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
+const getTripDayCount = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return 0;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 0;
+  }
+
+  const diffDays = Math.floor(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return Math.max(diffDays + 1, 0);
+};
 
 const isValidServerPlanId = (value?: string | number) => {
   if (value === undefined || value === null) return false;
@@ -111,244 +120,10 @@ const isValidServerPlanId = (value?: string | number) => {
   const text = String(value).trim();
 
   if (!text) return false;
-
-  // Google Place ID는 서버 planId가 아니므로 차단
   if (text.startsWith("ChIJ")) return false;
 
   return Number.isFinite(Number(text));
 };
-
-const getOngoingValueByPath = (source: unknown, path: string): unknown => {
-  if (!source || typeof source !== "object") {
-    return undefined;
-  }
-
-  return path.split(".").reduce<unknown>((current, key) => {
-    if (!current || typeof current !== "object") {
-      return undefined;
-    }
-
-    return (current as Record<string, unknown>)[key];
-  }, source);
-};
-
-const getOngoingArrayByPaths = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = getOngoingValueByPath(source, path);
-
-    if (Array.isArray(value)) {
-      return value;
-    }
-  }
-
-  return [];
-};
-
-const getOngoingTextByPaths = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = getOngoingValueByPath(source, path);
-
-    if (value !== undefined && value !== null && String(value).trim()) {
-      return String(value).trim();
-    }
-  }
-
-  return undefined;
-};
-
-const getOngoingNumberByPaths = (source: unknown, paths: string[]) => {
-  for (const path of paths) {
-    const value = getOngoingValueByPath(source, path);
-
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
-
-    if (typeof value === "string" && value.trim()) {
-      const parsed = Number(value);
-
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
-    }
-  }
-
-  return undefined;
-};
-
-const normalizeServerPlace = (source: unknown, index: number): TodayPlace => {
-  const rawTripPlaceId =
-    getOngoingValueByPath(source, "tripPlaceId") ??
-    getOngoingValueByPath(source, "serverTripPlaceId") ??
-    getOngoingValueByPath(source, "planId") ??
-    getOngoingValueByPath(source, "id");
-
-  const tripPlaceId =
-    typeof rawTripPlaceId === "number" || typeof rawTripPlaceId === "string" ?
-      rawTripPlaceId
-    : undefined;
-
-  const placeId = getOngoingTextByPaths(source, [
-    "placeId",
-    "googlePlaceId",
-    "google_place_id",
-  ]);
-
-  const visitTime = getOngoingTextByPaths(source, ["visitTime", "startTime"]);
-  const endTime = getOngoingTextByPaths(source, ["endTime"]);
-  const time = [visitTime, endTime].filter(Boolean).join(" - ");
-
-  return {
-    id: tripPlaceId ?? placeId ?? `server-place-${index}`,
-    tripPlaceId,
-    serverTripPlaceId: tripPlaceId,
-    placeId,
-    googlePlaceId: placeId,
-    name: getOngoingTextByPaths(source, ["name", "placeName"]) ?? "이름 없는 장소",
-    address: getOngoingTextByPaths(source, ["address", "placeAddress", "location"]),
-    time,
-    visitTime,
-    endTime,
-    latitude: getOngoingNumberByPaths(source, ["latitude", "lat"]),
-    longitude: getOngoingNumberByPaths(source, ["longitude", "lng"]),
-    category: getOngoingTextByPaths(source, ["category", "placeCategory"]),
-    order: getOngoingNumberByPaths(source, ["visitOrder", "order"]) ?? index + 1,
-  };
-};
-
-const normalizeServerTripDays = (source: unknown): ScheduleDay[] => {
-  const unwrapped =
-    getOngoingValueByPath(source, "data") ??
-    getOngoingValueByPath(source, "result") ??
-    getOngoingValueByPath(source, "payload") ??
-    source;
-
-  const itineraryItems = getOngoingArrayByPaths(unwrapped, [
-    "itineraries",
-    "itinerary",
-    "days",
-    "tripDays",
-  ]);
-
-  if (itineraryItems.length > 0) {
-    return itineraryItems
-      .map((item, dayIndex) => {
-        const day =
-          getOngoingNumberByPaths(item, ["day", "dayNumber", "dayIndex"]) ??
-          dayIndex + 1;
-
-        const places = getOngoingArrayByPaths(item, [
-          "places",
-          "locations",
-          "tripPlaces",
-          "plans",
-        ]).map((place, placeIndex) => normalizeServerPlace(place, placeIndex));
-
-        return {
-          day,
-          places,
-        };
-      })
-      .filter((day) => day.places.length > 0);
-  }
-
-  const flatPlaces = getOngoingArrayByPaths(unwrapped, [
-    "places",
-    "locations",
-    "tripPlaces",
-    "plans",
-  ]);
-
-  const grouped = new Map<number, TodayPlace[]>();
-
-  flatPlaces.forEach((place, index) => {
-    const day = getOngoingNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
-    const normalizedPlace = normalizeServerPlace(place, index);
-
-    grouped.set(day, [...(grouped.get(day) ?? []), normalizedPlace]);
-  });
-
-  return Array.from(grouped.entries())
-    .sort(([a], [b]) => a - b)
-    .map(([day, places]) => ({
-      day,
-      places,
-    }));
-};
-
-const parsePlanBPlaceName = (name?: string) => {
-  const rawName = name?.trim() || "이름 없는 장소";
-  const isPlanB = rawName.includes("(PLAN B)");
-
-  const displayName =
-    rawName
-      .replace("(PLAN B)", "")
-      .replace(/^\[/, "")
-      .replace(/\]$/, "")
-      .trim() || "이름 없는 장소";
-
-  return {
-    displayName,
-    isPlanB,
-  };
-};
-
-const getOngoingPlaceKey = (place: TodayPlace) => {
-  return String(
-    place.serverTripPlaceId ??
-      place.tripPlaceId ??
-      place.placeId ??
-      place.googlePlaceId ??
-      place.id ??
-      place.name ??
-      "",
-  );
-};
-
-
-const getCleanPlanBText = (value?: string | null) => {
-  const rawValue = value?.trim();
-
-  if (!rawValue) {
-    return "";
-  }
-
-  return rawValue
-    .replace("(PLAN B)", "")
-    .replace(/^\[/, "")
-    .replace(/\]$/, "")
-    .trim();
-};
-
-const getDisplayAddress = (
-  place: TodayPlace,
-  fallbackLocation?: string,
-) => {
-  const rawAddress = place.address?.trim() ?? "";
-
-  /**
-   * 서버에서 PLAN B 교체 후 address 자리에
-   * "[장소명] (PLAN B)" 형태의 라벨이 들어오는 경우 주소처럼 노출하지 않는다.
-   */
-  if (rawAddress.includes("(PLAN B)")) {
-    return "";
-  }
-
-  const cleanAddress = getCleanPlanBText(rawAddress);
-
-  if (cleanAddress) {
-    return cleanAddress;
-  }
-
-  const fallback = fallbackLocation?.trim() ?? "";
-
-  if (fallback.includes("(PLAN B)")) {
-    return "";
-  }
-
-  return getCleanPlanBText(fallback);
-};
-
 
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
@@ -369,71 +144,64 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const resolvedTripId =
     tripId ??
     serverTripId ??
-    (scheduleId && Number.isFinite(Number(scheduleId)) ?
-      scheduleId
-    : undefined);
+    (scheduleId && Number.isFinite(Number(scheduleId))
+      ? scheduleId
+      : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-  const [serverDays, setServerDays] = useState<ScheduleDay[] | null>(null);
-  const [isPlaceEditing, setIsPlaceEditing] = useState(false);
-  const [editableDays, setEditableDays] = useState<ScheduleDay[] | null>(null);
 
-  useEffect(() => {
-    let mounted = true;
+  const totalDayCount = useMemo(() => {
+    const maxDayFromData =
+      days.length > 0 ? Math.max(...days.map((day) => day.day)) : 0;
 
-    const loadServerTripDetail = async () => {
-      if (!resolvedTripId) {
-        setServerDays(null);
-        return;
-      }
+    return Math.max(
+      MIN_DAY_TAB_COUNT,
+      maxDayFromData,
+      getTripDayCount(startDate, endDate),
+    );
+  }, [days, startDate, endDate]);
 
-      try {
-        const detail = await getTripDetail(resolvedTripId);
-        const nextDays = normalizeServerTripDays(detail);
+  const dayTabs = useMemo(() => {
+    return Array.from(
+      { length: totalDayCount },
+      (_, index) => `Day ${index + 1}`,
+    );
+  }, [totalDayCount]);
 
-        if (!mounted) {
-          return;
-        }
+  const dayPageIndex = Math.floor(selectedDayIndex / VISIBLE_DAY_TAB_COUNT);
 
-        if (nextDays.length > 0) {
-          setServerDays(nextDays);
+  const maxDayPageIndex = Math.max(
+    0,
+    Math.ceil(dayTabs.length / VISIBLE_DAY_TAB_COUNT) - 1,
+  );
 
-          console.log("[OngoingSchedule] 서버 상세 places 동기화:", {
-            tripId: resolvedTripId,
-            days: nextDays.map((day) => ({
-              day: day.day,
-              places: day.places.map((place) => ({
-                name: place.name,
-                tripPlaceId: place.tripPlaceId,
-                placeId: place.placeId,
-              })),
-            })),
-          });
-        }
-      } catch (error) {
-        console.log("[OngoingSchedule] 서버 상세 조회 실패 - route params 사용:", {
-          tripId: resolvedTripId,
-          error,
-        });
-      }
-    };
+  const visibleDayTabs = useMemo(() => {
+    const startIndex = dayPageIndex * VISIBLE_DAY_TAB_COUNT;
 
-    loadServerTripDetail();
+    return dayTabs.slice(startIndex, startIndex + VISIBLE_DAY_TAB_COUNT);
+  }, [dayTabs, dayPageIndex]);
 
-    return () => {
-      mounted = false;
-    };
-  }, [resolvedTripId]);
+  const canGoPreviousDayPage = dayPageIndex > 0;
+  const canGoNextDayPage = dayPageIndex < maxDayPageIndex;
 
-  const displayDays =
-    editableDays?.length ? editableDays
-    : serverDays?.length ? serverDays
-    : days;
+  const handlePreviousDayPage = () => {
+    if (!canGoPreviousDayPage) return;
+
+    setSelectedDayIndex((dayPageIndex - 1) * VISIBLE_DAY_TAB_COUNT);
+  };
+
+  const handleNextDayPage = () => {
+    if (!canGoNextDayPage) return;
+
+    setSelectedDayIndex(
+      Math.min((dayPageIndex + 1) * VISIBLE_DAY_TAB_COUNT, dayTabs.length - 1),
+    );
+  };
 
   const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
-    return displayDays.find((day) => day.day === dayNumber);
-  }, [displayDays, selectedDayIndex]);
+    return days.find((day) => day.day === dayNumber);
+  }, [days, selectedDayIndex]);
 
   const places = useMemo(() => {
     if (currentDay?.places?.length) {
@@ -449,64 +217,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const hasPlaces = places.length > 0;
 
-  console.log("[OngoingSchedule] map places:", places.map((place) => ({
-    name: place.name,
-    latitude: place.latitude,
-    longitude: place.longitude,
-  })));
-
   const handleBack = () => {
     navigation.goBack();
-  };
-
-  const updateCurrentDayPlaces = (
-    updater: (currentPlaces: TodayPlace[]) => TodayPlace[],
-  ) => {
-    const dayNumber = selectedDayIndex + 1;
-    const baseDays = displayDays.length > 0 ? displayDays : days;
-
-    const hasCurrentDay = baseDays.some((day) => day.day === dayNumber);
-
-    const nextDays = (
-      hasCurrentDay ? baseDays : [...baseDays, { day: dayNumber, places: [] }]
-    ).map((day) => {
-      if (day.day !== dayNumber) {
-        return day;
-      }
-
-      const nextPlaces = updater(day.places).map((place, placeIndex) => ({
-        ...place,
-        order: placeIndex + 1,
-      }));
-
-      return {
-        ...day,
-        places: nextPlaces,
-      };
-    });
-
-    setEditableDays(nextDays);
-  };
-
-  const handleDeletePlace = (targetPlace: TodayPlace) => {
-    Alert.alert("장소 삭제", "이 장소를 삭제할까요?", [
-      {
-        text: "취소",
-        style: "cancel",
-      },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: () => {
-          updateCurrentDayPlaces((currentPlaces) =>
-            currentPlaces.filter(
-              (place) =>
-                getOngoingPlaceKey(place) !== getOngoingPlaceKey(targetPlace),
-            ),
-          );
-        },
-      },
-    ]);
   };
 
   const handleEdit = () => {
@@ -527,21 +239,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     const serverPlanId =
       place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
 
-    console.log("[OngoingSchedule] 대안찾기 클릭:", {
-      scheduleId,
-      tripId,
-      serverTripId,
-      resolvedTripId,
-      place,
-      serverPlanId,
-    });
-
     if (!isValidServerPlanId(serverPlanId)) {
-      console.log("[OngoingSchedule] 잘못된 serverPlanId 차단:", {
-        serverPlanId,
-        place,
-      });
-
       Alert.alert(
         "AI 대안 추천 불가",
         "이 일정은 서버 장소 ID가 없는 이전 로컬 일정입니다. 새 일정으로 장소를 다시 추가한 뒤 AI 추천을 시도해주세요.",
@@ -564,16 +262,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       serverTripPlaceId: serverPlanId,
       targetPlace: {
         id: place.id,
-
-        // 서버 장소 ID
         tripPlaceId: serverPlanId,
         serverTripPlaceId: serverPlanId,
-
-        // Google Place ID
         placeId: place.placeId ?? place.googlePlaceId ?? String(place.id ?? ""),
         googlePlaceId:
           place.googlePlaceId ?? place.placeId ?? String(place.id ?? ""),
-
         name: place.name,
         address: place.address,
         time: place.time,
@@ -606,9 +299,22 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.dayTabsRow}>
+          <View style={styles.dayPagerRow}>
+            <TouchableOpacity
+              style={[
+                styles.dayPageButton,
+                !canGoPreviousDayPage && styles.dayPageButtonDisabled,
+              ]}
+              activeOpacity={0.75}
+              disabled={!canGoPreviousDayPage}
+              onPress={handlePreviousDayPage}
+            >
+              <Ionicons name="chevron-back" size={16} color="#94A3B8" />
+            </TouchableOpacity>
+
             <View style={styles.dayTabs}>
-              {DAY_TABS.map((day, index) => {
+              {visibleDayTabs.map((day, offset) => {
+                const index = dayPageIndex * VISIBLE_DAY_TAB_COUNT + offset;
                 const selected = selectedDayIndex === index;
 
                 return (
@@ -623,6 +329,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         styles.dayTabText,
                         selected && styles.dayTabTextActive,
                       ]}
+                      numberOfLines={1}
                     >
                       {day}
                     </Text>
@@ -630,43 +337,77 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 );
               })}
             </View>
+
             <TouchableOpacity
-              style={styles.fullScheduleEditButton}
+              style={[
+                styles.dayPageButton,
+                !canGoNextDayPage && styles.dayPageButtonDisabled,
+              ]}
+              activeOpacity={0.75}
+              disabled={!canGoNextDayPage}
+              onPress={handleNextDayPage}
+            >
+              <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.fullEditButton}
               activeOpacity={0.82}
               onPress={handleEdit}
             >
-              <Text style={styles.fullScheduleEditButtonText}>전체 편집</Text>
+              <Text style={styles.fullEditButtonText}>전체 편집</Text>
             </TouchableOpacity>
-</View>
-<View style={styles.mapSection}>
-            <PlanAMapPreview places={places} />
+          </View>
+
+          <View style={styles.mapSection}>
+            <View style={styles.mapFake}>
+              <View style={styles.mapRoadDiagonalOne} />
+              <View style={styles.mapRoadDiagonalTwo} />
+              <View style={styles.mapRoadHorizontalOne} />
+              <View style={styles.mapRoadHorizontalTwo} />
+
+              <Text style={[styles.mapLabel, styles.mapLabelOne]}>교동</Text>
+              <Text style={[styles.mapLabel, styles.mapLabelTwo]}>MBC</Text>
+              <Text style={[styles.mapLabel, styles.mapLabelThree]}>
+                강릉해양경찰서
+              </Text>
+              <Text style={[styles.mapLabel, styles.mapLabelFour]}>
+                교통하늘채{"\n"}스카이파크
+              </Text>
+
+              <View style={styles.mapMarkerMain}>
+                <Ionicons name="location-outline" size={16} color="#FFFFFF" />
+              </View>
+
+              <View style={styles.mapMarkerSmallOne}>
+                <Ionicons name="pin-outline" size={15} color="#FFFFFF" />
+              </View>
+
+              <TouchableOpacity
+                style={styles.mapExpandButton}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="expand-outline" size={22} color="#64748B" />
+              </TouchableOpacity>
+            </View>
           </View>
 
           <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>오늘 일정</Text>
-
-            <TouchableOpacity
-                activeOpacity={0.75}
-                onPress={() => setIsPlaceEditing((prev) => !prev)}
-              >
-                <Text style={styles.editText}>
-                  {isPlaceEditing ? "장소 수정 완료" : "장소 수정"}
-                </Text>
-              </TouchableOpacity>
           </View>
 
           <View style={styles.timelineList}>
-            {!hasPlaces ?
+            {!hasPlaces ? (
               <View style={styles.emptyDayCard}>
                 <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
                 <Text style={styles.emptyDayTitle}>
                   이 Day에는 저장된 장소가 없어요
                 </Text>
                 <Text style={styles.emptyDayDescription}>
-                  수정 버튼을 눌러 장소를 추가해보세요.
+                  전체 편집 버튼을 눌러 장소를 추가해보세요.
                 </Text>
               </View>
-            : null}
+            ) : null}
 
             {places.map((place, index) => {
               const focused = index === 0;
@@ -674,11 +415,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 place.serverTripPlaceId ?? place.tripPlaceId,
               );
 
-              
-                const planBPlace = parsePlanBPlaceName(place.name);
-
-                  const displayAddress = getDisplayAddress(place, location);
-return (
+              return (
                 <React.Fragment
                   key={`${String(place.tripPlaceId ?? place.id ?? place.name)}-${index}`}
                 >
@@ -693,23 +430,13 @@ return (
                     </View>
 
                     <View style={styles.placeInfo}>
-                      <View style={styles.placeNameRow}>
-                          <Text style={styles.placeName} numberOfLines={1}>
-                            {planBPlace.displayName}
-                          </Text>
+                      <Text style={styles.placeName} numberOfLines={1}>
+                        {place.name || "이름 없는 장소"}
+                      </Text>
 
-                          {planBPlace.isPlanB ? (
-                            <View style={styles.planBBadge}>
-                              <Text style={styles.planBBadgeText}>PLAN B</Text>
-                            </View>
-                          ) : null}
-                        </View>
-
-                      {displayAddress ?
-                          <Text style={styles.placeAddress} numberOfLines={1}>
-                            {displayAddress}
-                          </Text>
-                        : null}
+                      <Text style={styles.placeAddress} numberOfLines={1}>
+                        {place.address || location}
+                      </Text>
 
                       <View style={styles.timeRow}>
                         <Ionicons
@@ -721,29 +448,9 @@ return (
                           {place.time || "시간 미정"}
                         </Text>
                       </View>
-
-                        {isPlaceEditing ?
-                          <View style={styles.deleteOnlyRow}>
-                          <TouchableOpacity
-                            style={styles.deletePlaceButton}
-                            activeOpacity={0.75}
-                            onPress={() => handleDeletePlace(place)}
-                          >
-                            <Ionicons
-                              name="trash-outline"
-                              size={14}
-                              color="#EF4444"
-                            />
-                            <Text style={styles.deletePlaceButtonText}>
-                              삭제
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
-                        : null}
                     </View>
 
-                    {!isPlaceEditing ?
-                      <TouchableOpacity
+                    <TouchableOpacity
                       style={[
                         styles.alternativeButton,
                         !hasServerPlanId && styles.disabledAlternativeButton,
@@ -758,10 +465,9 @@ return (
                         color="#FFFFFF"
                       />
                     </TouchableOpacity>
-                    : null}
                   </View>
 
-                  {place.memos?.length ?
+                  {place.memos?.length ? (
                     <View style={styles.memoList}>
                       {place.memos.map((memo) => (
                         <View key={memo.id} style={styles.memoCard}>
@@ -774,18 +480,13 @@ return (
                         </View>
                       ))}
                     </View>
-                  : null}
+                  ) : null}
 
-                  {index === 0 && places.length >= 2 ?
+                  {index === 0 && places.length >= 2 ? (
                     <View style={styles.gapRecommendationSection}>
                       <GapRecommendationCard
                         tripId={resolvedTripId}
                         onSelectPlace={(place) => {
-                          console.log(
-                            "[OngoingSchedule] gap place selected:",
-                            place,
-                          );
-
                           navigation.navigate("PlanA", {
                             scheduleId,
                             tripId: resolvedTripId,
@@ -796,34 +497,27 @@ return (
                             location,
                             transportMode,
                             transportLabel,
-
                             gapSelectedPlace: {
                               id: String(place.placeId),
-
                               placeId: String(place.placeId),
-
                               googlePlaceId: String(
                                 place.googlePlaceId ?? place.placeId,
                               ),
-
                               tripPlaceId: undefined,
                               serverTripPlaceId: undefined,
-
                               name: place.name,
                               address: place.address,
                               category: place.category,
-
                               latitude: place.latitude,
                               longitude: place.longitude,
-
                               time: "",
-                              day: 1,
+                              day: selectedDayIndex + 1,
                             },
                           });
                         }}
                       />
                     </View>
-                  : null}
+                  ) : null}
                 </React.Fragment>
               );
             })}
@@ -881,30 +575,42 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  dayTabsRow: {
-    paddingHorizontal: 24,
+  dayPagerRow: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
+    paddingHorizontal: 14,
+    gap: 6,
     marginBottom: 18,
+  },
+
+  dayPageButton: {
+    width: 20,
+    height: 40,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  dayPageButtonDisabled: {
+    opacity: 0.35,
   },
 
   dayTabs: {
     flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 7,
   },
 
   dayTab: {
-    height: 48,
-    minWidth: 82,
-    borderRadius: 24,
+    flex: 1,
+    minWidth: 0,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 6,
   },
 
   dayTabActive: {
@@ -921,7 +627,7 @@ const styles = StyleSheet.create({
 
   dayTabText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: "900",
   },
 
@@ -929,23 +635,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-  fullScheduleEditButton: {
-    flexShrink: 0,
+  fullEditButton: {
+    width: 72,
+    height: 34,
+    borderRadius: 17,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
-    borderRadius: 999,
-    backgroundColor: "#F4F8FF",
-    borderWidth: 1,
-    borderColor: "#D6E4FF",
   },
 
-  fullScheduleEditButtonText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "900",
+  fullEditButtonText: {
     color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   mapSection: {
@@ -1077,7 +781,6 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
   },
 
   todayTitle: {
@@ -1085,12 +788,6 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "900",
     letterSpacing: -0.6,
-  },
-
-  editText: {
-    color: "#2158E8",
-    fontSize: 17,
-    fontWeight: "800",
   },
 
   timelineList: {
@@ -1135,39 +832,12 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
 
-  placeNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    flexShrink: 1,
-    minWidth: 0,
-    maxWidth: "100%",
-  },
-
   placeName: {
-    flexShrink: 1,
-    minWidth: 0,
-    fontSize: 15,
-    lineHeight: 20,
+    color: "#1F2937",
+    fontSize: 19,
     fontWeight: "900",
-    color: "#1E293B",
-  },
-
-  planBBadge: {
-    flexShrink: 0,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 999,
-    backgroundColor: "#EAF1FF",
-    borderWidth: 1,
-    borderColor: "#BFD2FF",
-  },
-
-  planBBadgeText: {
-    fontSize: 9,
-    lineHeight: 11,
-    fontWeight: "900",
-    color: "#2158E8",
+    letterSpacing: -0.4,
+    marginBottom: 5,
   },
 
   placeAddress: {
@@ -1187,31 +857,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     marginLeft: 5,
-  },
-
-  deleteOnlyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 10,
-  },
-
-  deletePlaceButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-    borderRadius: 999,
-    backgroundColor: "#FFF1F2",
-    borderWidth: 1,
-    borderColor: "#FFE4E6",
-  },
-
-  deletePlaceButtonText: {
-    fontSize: 11,
-    lineHeight: 14,
-    fontWeight: "900",
-    color: "#EF4444",
   },
 
   alternativeButton: {
