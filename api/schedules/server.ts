@@ -1,4 +1,5 @@
 import apiClient from "../client";
+import { getApiErrorMessage } from "../utils/apiErrorMessage";
 
 export type TripStatus = "ALL" | "UPCOMING" | "ONGOING" | "PAST";
 
@@ -283,7 +284,7 @@ export const replacePlanPlace = async (
     });
 
     if (status !== 404) {
-      throw error;
+      throw new Error(getApiErrorMessage(error, "일정 시간 수정에 실패했습니다."));
     }
 
     console.log("[replacePlanPlace] fallback request:", {

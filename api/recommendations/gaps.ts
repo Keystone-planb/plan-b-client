@@ -135,7 +135,7 @@ export const streamGapRecommendations = async (
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          Accept: "text/event-stream",
+          Accept: "text/event-stream;charset=UTF-8",
         },
         body: JSON.stringify(payload),
       },
