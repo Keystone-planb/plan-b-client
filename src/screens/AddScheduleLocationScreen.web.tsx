@@ -271,80 +271,18 @@ const getDetailReviews = (detail: unknown): ReviewItem[] => {
   return [];
 };
 
-const createKeywordsFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return [];
-  }
-
-  const reviewText = reviews.map((review) => review.text).join(" ");
-
-  const keywordCandidates = [
-    "분위기",
-    "맛집",
-    "친절",
-    "커피",
-    "디저트",
-    "가성비",
-    "웨이팅",
-    "깔끔",
-    "뷰",
-    "사진",
-    "데이트",
-    "가족",
-    "혼밥",
-    "주차",
-    "추천",
-    "재방문",
-    "양",
-    "가격",
-    "서비스",
-  ];
-
-  return keywordCandidates
-    .filter((keyword) => reviewText.includes(keyword))
-    .slice(0, 5);
+const createKeywordsFromReviews = (_reviews: ReviewItem[]) => {
+  return [];
 };
 
-const createReviewSummaryFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return "";
-  }
-
-  const validRatings = reviews
-    .map((review) => review.rating)
-    .filter(
-      (rating): rating is number =>
-        typeof rating === "number" && Number.isFinite(rating),
-    );
-
-  const averageRating =
-    validRatings.length > 0 ?
-      validRatings.reduce((sum, rating) => sum + rating, 0) /
-      validRatings.length
-    : undefined;
-
-  const keywords = createKeywordsFromReviews(reviews);
-  const keywordPart =
-    keywords.length > 0 ?
-      `${keywords.slice(0, 3).join(", ")} 관련 언급이 많습니다.`
-    : "";
-
-  const ratingPart =
-    typeof averageRating === "number" ?
-      `실제 리뷰 평균 평점은 ${averageRating.toFixed(1)}점입니다.`
-    : `실제 리뷰 ${reviews.length}개를 기준으로 요약했습니다.`;
-
-  const firstReview = truncateText(reviews[0].text, 52);
-
-  return [ratingPart, keywordPart, `대표 리뷰: ${firstReview}`]
-    .filter(Boolean)
-    .join(" ");
+const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
+  return "AI 리뷰 요약 정보가 없습니다.";
 };
 
 const isMockLikeSummary = (summary: string) => {
   const MOCK_LIKE_SUMMARY_PATTERNS = [
     "분위기 있는 인테리어",
-    "친절한 직원으로 유명한 카페",
+    
     "커피 퀄리티가 높고",
     "디저트도 맛있습니다",
     "힐링 분위기와 잘 맞는 조용한 카페",
@@ -945,15 +883,26 @@ export default function AddScheduleLocationScreen({
                 truncateText(rawAiSummary, 120)
               : reviewBasedSummary || "아직 요약 정보가 없습니다.";
 
-            const keywords = getFirstArray(unwrappedSummary, [
-              "keywords",
-              "keywordList",
-              "tags",
-              "data.keywords",
-              "data.keywordList",
-              "result.keywords",
-              "payload.keywords",
-            ]);
+            const keywords = [
+              getFirstText(unwrappedDetail, [
+                "tags.space",
+                "data.tags.space",
+                "result.tags.space",
+                "payload.tags.space",
+              ]).trim(),
+              getFirstText(unwrappedDetail, [
+                "tags.type",
+                "data.tags.type",
+                "result.tags.type",
+                "payload.tags.type",
+              ]).trim(),
+              getFirstText(unwrappedDetail, [
+                "tags.mood",
+                "data.tags.mood",
+                "result.tags.mood",
+                "payload.tags.mood",
+              ]).trim(),
+            ].filter(Boolean);
 
              const freshnessStatus = getFirstText(unwrappedFreshness, [
               "status",
@@ -1096,18 +1045,20 @@ export default function AddScheduleLocationScreen({
                       <Text style={styles.aiReviewText}>{aiSummary}</Text>
                     </View>
 
-                    {keywords.length > 0 && (
-                      <View style={styles.keywordWrap}>
-                        {keywords.map((keyword) => (
+                    <View style={styles.keywordWrap}>
+                      {keywords.length > 0 ?
+                        keywords.map((keyword) => (
                           <View
                             key={`keyword-${keyword}`}
                             style={styles.keywordChip}
                           >
                             <Text style={styles.keywordText}>#{keyword}</Text>
                           </View>
-                        ))}
-                      </View>
-                    )}
+                        ))
+                      : <View style={styles.keywordChip}>
+                          <Text style={styles.keywordText}>태그 정보 없음</Text>
+                        </View>}
+                    </View>
                   </View>
                 : null}
 

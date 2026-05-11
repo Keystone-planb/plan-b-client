@@ -334,74 +334,15 @@ const isMockLikeSummary = (summary: string) => {
   );
 };
 
-const createKeywordsFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return [];
-  }
-
-  const reviewText = reviews.map((review) => review.text).join(" ");
-
-  const keywordCandidates = [
-    "분위기",
-    "맛집",
-    "친절",
-    "커피",
-    "디저트",
-    "가성비",
-    "웨이팅",
-    "깔끔",
-    "뷰",
-    "사진",
-    "데이트",
-    "가족",
-    "혼밥",
-    "주차",
-    "추천",
-    "재방문",
-    "양",
-    "가격",
-    "서비스",
-  ];
-
-  return keywordCandidates
-    .filter((keyword) => reviewText.includes(keyword))
-    .slice(0, 5);
+const createKeywordsFromReviews = (_reviews: ReviewItem[]) => {
+  // 장소 상세 태그는 서버 detail.tags.space/type/mood만 사용한다.
+  // 리뷰 기반 키워드 fallback은 목값처럼 보일 수 있어 사용하지 않는다.
+  return [];
 };
 
-const createReviewSummaryFromReviews = (reviews: ReviewItem[]) => {
-  if (reviews.length === 0) {
-    return "";
-  }
-
-  const validRatings = reviews
-    .map((review) => review.rating)
-    .filter(
-      (rating): rating is number =>
-        typeof rating === "number" && Number.isFinite(rating),
-    );
-
-  const averageRating =
-    validRatings.length > 0 ?
-      validRatings.reduce((sum, rating) => sum + rating, 0) /
-      validRatings.length
-    : undefined;
-
-  const keywords = createKeywordsFromReviews(reviews);
-  const keywordPart =
-    keywords.length > 0 ?
-      `${keywords.slice(0, 3).join(", ")} 관련 언급이 많습니다.`
-    : "";
-
-  const ratingPart =
-    typeof averageRating === "number" ?
-      `실제 리뷰 평균 평점은 ${averageRating.toFixed(1)}점입니다.`
-    : `실제 리뷰 ${reviews.length}개를 기준으로 요약했습니다.`;
-
-  const firstReview = truncateText(reviews[0].text, 52);
-
-  return [ratingPart, keywordPart, `대표 리뷰: ${firstReview}`]
-    .filter(Boolean)
-    .join(" ");
+const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
+  // 서버 AI 요약이 없을 때 플랫폼별 리뷰를 가공해 AI 요약처럼 보이지 않게 한다.
+  return "AI 리뷰 요약 정보가 없습니다.";
 };
 
 const formatConfidenceScore = (score?: number) => {
@@ -914,6 +855,7 @@ export default function AddScheduleLocationScreen({
   const detailModalFreshness = unwrapApiData(rawDetailModalFreshness);
 
   const rawAiSummary = getFirstText(detailModalSummary, [
+    "ai_summary",
     "aiSummary",
     "summary",
     "reviewSummary",
@@ -923,23 +865,97 @@ export default function AddScheduleLocationScreen({
     "description",
     "overallSummary",
     "totalSummary",
+    "data.ai_summary",
     "data.aiSummary",
     "data.summary",
     "data.reviewSummary",
     "data.placeSummary",
+    "result.ai_summary",
     "result.aiSummary",
     "result.summary",
+    "payload.ai_summary",
     "payload.aiSummary",
     "payload.summary",
   ]);
 
   const detailModalReviews = useMemo(() => {
-    return getDetailReviews(detailModalDetail).slice(0, 2);
-  }, [detailModalDetail]);
+    return [
+      {
+        id: "googleReview",
+        platform: "Google",
+        icon: "G",
+        text:
+          getFirstText(detailModalSummary, [
+            "googleReview",
+            "googleReviewSummary",
+            "google_review",
+            "data.googleReview",
+            "data.googleReviewSummary",
+            "data.google_review",
+            "result.googleReview",
+            "result.googleReviewSummary",
+            "result.google_review",
+            "payload.googleReview",
+            "payload.googleReviewSummary",
+            "payload.google_review",
+          ]) || "서버에서 Google 리뷰를 제공하지 않았습니다.",
+      },
+      {
+        id: "naverReview",
+        platform: "Naver",
+        icon: "N",
+        text:
+          getFirstText(detailModalSummary, [
+            "naverReview",
+            "naverReviewSummary",
+            "naver_review",
+            "data.naverReview",
+            "data.naverReviewSummary",
+            "data.naver_review",
+            "result.naverReview",
+            "result.naverReviewSummary",
+            "result.naver_review",
+            "payload.naverReview",
+            "payload.naverReviewSummary",
+            "payload.naver_review",
+          ]) || "서버에서 Naver 리뷰를 제공하지 않았습니다.",
+      },
+      {
+        id: "instaReview",
+        platform: "Instagram",
+        icon: "I",
+        text:
+          getFirstText(detailModalSummary, [
+            "instaReview",
+            "instaReviewSummary",
+            "instagramReview",
+            "instagramReviewSummary",
+            "insta_review",
+            "instagram_review",
+            "data.instaReview",
+            "data.instaReviewSummary",
+            "data.instagramReview",
+            "data.instagramReviewSummary",
+            "data.insta_review",
+            "data.instagram_review",
+            "result.instaReview",
+            "result.instaReviewSummary",
+            "result.instagramReview",
+            "result.instagramReviewSummary",
+            "result.insta_review",
+            "result.instagram_review",
+            "payload.instaReview",
+            "payload.instaReviewSummary",
+            "payload.instagramReview",
+            "payload.instagramReviewSummary",
+            "payload.insta_review",
+            "payload.instagram_review",
+          ]) || "Instagram 리뷰 데이터가 부족합니다.",
+      },
+    ];
+  }, [detailModalSummary]);
 
-  const reviewBasedSummary = useMemo(() => {
-    return createReviewSummaryFromReviews(detailModalReviews);
-  }, [detailModalReviews]);
+  const reviewBasedSummary = "AI 리뷰 요약 정보가 없습니다.";
 
   const detailModalAiSummary =
     rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
@@ -947,130 +963,29 @@ export default function AddScheduleLocationScreen({
     : reviewBasedSummary;
 
   const detailModalKeywords = useMemo(() => {
-    const getTagValues = (arrayPaths: string[], textPaths: string[]) => {
-      const detailArrayValues = getFirstArray(detailModalDetail, arrayPaths)
-        .map((tag) => String(tag).trim())
-        .filter(Boolean);
+    const spaceTag = getFirstText(detailModalDetail, [
+      "tags.space",
+      "data.tags.space",
+      "result.tags.space",
+      "payload.tags.space",
+    ]).trim();
 
-      if (detailArrayValues.length > 0) {
-        return detailArrayValues;
-      }
+    const typeTag = getFirstText(detailModalDetail, [
+      "tags.type",
+      "data.tags.type",
+      "result.tags.type",
+      "payload.tags.type",
+    ]).trim();
 
-      const summaryArrayValues = getFirstArray(detailModalSummary, arrayPaths)
-        .map((tag) => String(tag).trim())
-        .filter(Boolean);
+    const moodTag = getFirstText(detailModalDetail, [
+      "tags.mood",
+      "data.tags.mood",
+      "result.tags.mood",
+      "payload.tags.mood",
+    ]).trim();
 
-      if (summaryArrayValues.length > 0) {
-        return summaryArrayValues;
-      }
-
-      const detailTextValue = getFirstText(detailModalDetail, textPaths).trim();
-
-      if (detailTextValue) {
-        return detailTextValue
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean);
-      }
-
-      const summaryTextValue = getFirstText(detailModalSummary, textPaths).trim();
-
-      if (summaryTextValue) {
-        return summaryTextValue
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean);
-      }
-
-      return [];
-    };
-
-    const spaceTags = getTagValues(
-      [
-        "space",
-        "spaceTags",
-        "tags.space",
-        "data.space",
-        "data.spaceTags",
-        "data.tags.space",
-        "result.space",
-        "result.spaceTags",
-        "result.tags.space",
-        "payload.space",
-        "payload.spaceTags",
-        "payload.tags.space",
-      ],
-      [
-        "space",
-        "tags.space",
-        "data.space",
-        "data.tags.space",
-        "result.space",
-        "result.tags.space",
-        "payload.space",
-        "payload.tags.space",
-      ],
-    );
-
-    const typeTags = getTagValues(
-      [
-        "type",
-        "typeTags",
-        "tags.type",
-        "data.type",
-        "data.typeTags",
-        "data.tags.type",
-        "result.type",
-        "result.typeTags",
-        "result.tags.type",
-        "payload.type",
-        "payload.typeTags",
-        "payload.tags.type",
-      ],
-      [
-        "type",
-        "tags.type",
-        "data.type",
-        "data.tags.type",
-        "result.type",
-        "result.tags.type",
-        "payload.type",
-        "payload.tags.type",
-      ],
-    );
-
-    const moodTags = getTagValues(
-      [
-        "mood",
-        "moodTags",
-        "tags.mood",
-        "data.mood",
-        "data.moodTags",
-        "data.tags.mood",
-        "result.mood",
-        "result.moodTags",
-        "result.tags.mood",
-        "payload.mood",
-        "payload.moodTags",
-        "payload.tags.mood",
-      ],
-      [
-        "mood",
-        "tags.mood",
-        "data.mood",
-        "data.tags.mood",
-        "result.mood",
-        "result.tags.mood",
-        "payload.mood",
-        "payload.tags.mood",
-      ],
-    );
-
-    return [...spaceTags, ...typeTags, ...moodTags]
-      .map((tag) => String(tag).trim())
-      .filter(Boolean)
-      .slice(0, 3);
-  }, [detailModalDetail, detailModalSummary]);
+    return [spaceTag, typeTag, moodTag].filter(Boolean);
+  }, [detailModalDetail]);
 
 
   const detailModalFreshnessStatus = getFirstText(detailModalFreshness, [
@@ -1446,16 +1361,22 @@ export default function AddScheduleLocationScreen({
                   {detailModalKeywords.length > 0 ?
                     <View style={styles.keywordSection}>
                       <View style={styles.keywordWrap}>
-                        {detailModalKeywords.map((keywordItem) => (
-                          <View
-                            key={`keyword-${keywordItem}`}
-                            style={styles.keywordChip}
-                          >
+                        {detailModalKeywords.length > 0 ?
+                          detailModalKeywords.map((keywordItem) => (
+                            <View
+                              key={`keyword-${keywordItem}`}
+                              style={styles.keywordChip}
+                            >
+                              <Text style={styles.keywordChipText}>
+                                #{keywordItem}
+                              </Text>
+                            </View>
+                          ))
+                        : <View style={styles.keywordChip}>
                             <Text style={styles.keywordChipText}>
-                              #{keywordItem}
+                              태그 정보 없음
                             </Text>
-                          </View>
-                        ))}
+                          </View>}
                       </View>
                     </View>
                   : null}
@@ -1463,43 +1384,28 @@ export default function AddScheduleLocationScreen({
                   {detailModalReviews.length > 0 ?
                     <View style={styles.reviewSection}>
                       <View style={styles.reviewSectionHeader}>
-                        <Text style={styles.reviewSectionTitle}>실제 리뷰</Text>
+                        <Text style={styles.reviewSectionTitle}>플랫폼별 리뷰</Text>
                         <Text style={styles.reviewSectionSubtitle}>
-                          Google 기반
+                          Google · Naver · Instagram
                         </Text>
                       </View>
 
                       <View style={styles.reviewList}>
                         {detailModalReviews.map((review, index) => (
                           <View
-                            key={`detail-review-${index}-${review.text}`}
+                            key={review.id}
                             style={styles.reviewCard}
                           >
                             <View style={styles.reviewIconCircle}>
-                              <Text style={styles.googleIcon}>G</Text>
+                              <Text style={styles.googleIcon}>{review.icon}</Text>
                             </View>
 
                             <View style={styles.platformTextBox}>
                               <View style={styles.reviewMetaRow}>
-                                {typeof review.rating === "number" ?
-                                  <>
-                                    <Ionicons
-                                      name="star"
-                                      size={12}
-                                      color="#FFD600"
-                                    />
-                                    <Text style={styles.reviewRatingText}>
-                                      {review.rating.toFixed(1)}
-                                    </Text>
-                                  </>
-                                : null}
-
-                                {review.relativeTimeDescription ?
-                                  <Text style={styles.reviewTimeText}>
-                                    {review.relativeTimeDescription}
+                                  <Text style={styles.reviewRatingText}>
+                                    {review.platform}
                                   </Text>
-                                : null}
-                              </View>
+                                </View>
 
                               <Text
                                 style={styles.platformText}
@@ -1529,6 +1435,7 @@ export default function AddScheduleLocationScreen({
                 </>
               }
 
+            
               <TouchableOpacity
                 style={styles.compactButton}
                 activeOpacity={0.85}
@@ -1537,7 +1444,7 @@ export default function AddScheduleLocationScreen({
                 <Text style={styles.compactButtonText}>간략히</Text>
                 <Ionicons name="chevron-up" size={18} color="#7A889B" />
               </TouchableOpacity>
-            </ScrollView>
+</ScrollView>
           </View>
         </View>
       </Modal>

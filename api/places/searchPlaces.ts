@@ -242,9 +242,34 @@ export const searchPlaces = async (
 
     assertNotHtmlResponse(response.data, "장소 검색");
 
-    const places = response.data?.places ?? [];
+      const responseData = response.data as unknown;
 
-    return places.map(normalizePlace).filter((place) => place.placeId);
+      const getArrayValue = (source: unknown, key: string) => {
+        if (!source || typeof source !== "object") {
+          return undefined;
+        }
+
+        const value = (source as Record<string, unknown>)[key];
+
+        return Array.isArray(value) ? value : undefined;
+      };
+
+      const dataValue =
+        responseData && typeof responseData === "object" ?
+          (responseData as Record<string, unknown>).data
+        : undefined;
+
+      const places =
+        Array.isArray(responseData) ? responseData
+        : getArrayValue(responseData, "places") ??
+          getArrayValue(responseData, "results") ??
+          getArrayValue(dataValue, "places") ??
+          getArrayValue(dataValue, "results") ??
+          (Array.isArray(dataValue) ? dataValue : []);
+
+      return places
+        .map((place) => normalizePlace(place as PlaceSearchResult))
+        .filter((place) => place.placeId);
   } catch (error) {
     logPlaceApiError({
       tag: "[places/search] failed:",
