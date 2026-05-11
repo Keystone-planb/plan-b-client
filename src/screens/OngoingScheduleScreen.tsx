@@ -276,6 +276,23 @@ const normalizeServerTripDays = (source: unknown): ScheduleDay[] => {
     }));
 };
 
+const parsePlanBPlaceName = (name?: string) => {
+  const rawName = name?.trim() || "이름 없는 장소";
+  const isPlanB = rawName.includes("(PLAN B)");
+
+  const displayName =
+    rawName
+      .replace("(PLAN B)", "")
+      .replace(/^\[/, "")
+      .replace(/\]$/, "")
+      .trim() || "이름 없는 장소";
+
+  return {
+    displayName,
+    isPlanB,
+  };
+};
+
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
@@ -532,7 +549,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 place.serverTripPlaceId ?? place.tripPlaceId,
               );
 
-              return (
+              
+                const planBPlace = parsePlanBPlaceName(place.name);
+return (
                 <React.Fragment
                   key={`${String(place.tripPlaceId ?? place.id ?? place.name)}-${index}`}
                 >
@@ -547,9 +566,17 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </View>
 
                     <View style={styles.placeInfo}>
-                      <Text style={styles.placeName} numberOfLines={1}>
-                        {place.name || "이름 없는 장소"}
-                      </Text>
+                      <View style={styles.placeNameRow}>
+                          <Text style={styles.placeName} numberOfLines={1}>
+                            {planBPlace.displayName}
+                          </Text>
+
+                          {planBPlace.isPlanB ? (
+                            <View style={styles.planBBadge}>
+                              <Text style={styles.planBBadgeText}>PLAN B</Text>
+                            </View>
+                          ) : null}
+                        </View>
 
                       <Text style={styles.placeAddress} numberOfLines={1}>
                         {place.address || location}
@@ -931,12 +958,39 @@ const styles = StyleSheet.create({
     paddingRight: 10,
   },
 
+  placeNameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: "100%",
+  },
+
   placeName: {
-    color: "#1F2937",
-    fontSize: 19,
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 15,
+    lineHeight: 20,
     fontWeight: "900",
-    letterSpacing: -0.4,
-    marginBottom: 5,
+    color: "#1E293B",
+  },
+
+  planBBadge: {
+    flexShrink: 0,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "#EAF1FF",
+    borderWidth: 1,
+    borderColor: "#BFD2FF",
+  },
+
+  planBBadgeText: {
+    fontSize: 9,
+    lineHeight: 11,
+    fontWeight: "900",
+    color: "#2158E8",
   },
 
   placeAddress: {
