@@ -28,6 +28,34 @@ export const getTripGaps = async (
   }
 };
 
+const getErrorMessageFromResponse = async (response: Response) => {
+  try {
+    const contentType = response.headers.get("content-type") ?? "";
+    const responseText = await response.text();
+
+    if (!responseText.trim()) {
+      return `빈 시간 추천 요청에 실패했습니다. (${response.status})`;
+    }
+
+    if (contentType.includes("application/json")) {
+      const parsed = JSON.parse(responseText) as {
+        error?: string;
+        message?: string;
+      };
+
+      return (
+        parsed.error ??
+        parsed.message ??
+        `빈 시간 추천 요청에 실패했습니다. (${response.status})`
+      );
+    }
+
+    return responseText;
+  } catch {
+    return `빈 시간 추천 요청에 실패했습니다. (${response.status})`;
+  }
+};
+
 const parseSseChunk = (chunk: string) => {
   const events: Array<
     | { type: "progress"; message: string; total?: number }
@@ -94,11 +122,11 @@ export const streamGapRecommendations = async (
     });
 
     if (!accessToken) {
-    const error = new Error("로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.");
-    console.log("[gap recommendations/stream] no token");
-    handlers.onError?.(error);
-    return;
-  }
+      const error = new Error("로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.");
+      console.log("[gap recommendations/stream] no token");
+      handlers.onError?.(error);
+      return;
+    }
 
     const response = await fetch(
       `${API_CONFIG.BASE_URL}/api/trips/${tripId}/gaps/recommend/stream`,
@@ -119,8 +147,13 @@ export const streamGapRecommendations = async (
       hasBody: Boolean(response.body),
     });
 
-    if (!response.ok || !response.body) {
-      throw new Error(`틈새 추천 스트리밍 요청 실패: ${response.status}`);
+    if (!response.ok) {
+      const errorMessage = await getErrorMessageFromResponse(response);
+      throw new Error(errorMessage);
+    }
+
+    if (!response.body) {
+      throw new Error("빈 시간 추천 스트림 응답이 비어 있습니다.");
     }
 
     const reader = response.body.getReader();

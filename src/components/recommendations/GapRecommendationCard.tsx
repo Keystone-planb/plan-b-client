@@ -102,9 +102,14 @@ export default function GapRecommendationCard({
         setStatus("done");
         setMessage("추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.");
       },
-      onError: () => {
+      onError: (error) => {
+        const errorMessage =
+          error instanceof Error ?
+            error.message
+          : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
+
         setStatus("error");
-        setMessage("추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.");
+        setMessage(errorMessage);
       },
     });
   };
