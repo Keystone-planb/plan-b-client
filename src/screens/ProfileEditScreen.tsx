@@ -44,13 +44,13 @@ export default function ProfileEditScreen({ navigation }: Props) {
   const loadStoredProfile = useCallback(async () => {
     const nickname =
       (await AsyncStorage.getItem("nickname")) ??
-      (typeof window !== "undefined"
+      (typeof window !== "undefined" && window.localStorage
         ? window.localStorage.getItem("nickname")
         : null);
 
     const email =
       (await AsyncStorage.getItem("email")) ??
-      (typeof window !== "undefined"
+      (typeof window !== "undefined" && window.localStorage
         ? window.localStorage.getItem("email")
         : null);
 
