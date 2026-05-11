@@ -46,17 +46,29 @@ export default function GapRecommendationCard({
     const loadGaps = async () => {
       if (!tripId || String(tripId) === "mock-trip") {
         setGaps([]);
-        setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
+        setMessage(
+          "서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.",
+        );
         return;
       }
 
       const nextGaps = await getTripGaps(tripId);
-      setGaps(nextGaps);
 
-      if (nextGaps.length === 0) {
-        setMessage("현재 60분 이상 비는 시간이 없습니다.");
+      const filteredGaps = nextGaps.filter((gap) => {
+        return (
+          gap.availableMinutes > 0 &&
+          gap.gapMinutes > gap.estimatedTravelMinutes
+        );
+      });
+
+      setGaps(filteredGaps);
+
+      if (filteredGaps.length === 0) {
+        setMessage("현재 추천 가능한 빈 시간이 없습니다.");
       } else {
-        setMessage("비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.");
+        setMessage(
+          "비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.",
+        );
       }
     };
 
@@ -100,13 +112,15 @@ export default function GapRecommendationCard({
       },
       onDone: () => {
         setStatus("done");
-        setMessage("추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.");
+        setMessage(
+          "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
+        );
       },
       onError: (error) => {
         const errorMessage =
-          error instanceof Error ?
-            error.message
-          : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
+          error instanceof Error
+            ? error.message
+            : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
 
         setStatus("error");
         setMessage(errorMessage);
@@ -117,7 +131,11 @@ export default function GapRecommendationCard({
   const handleSelectPlace = (place: RecommendedPlace) => {
     setSelectedPlaceId(place.placeId);
 
-    console.log("[GapRecommendation] selected place:", { placeId: place?.placeId, googlePlaceId: place?.googlePlaceId, name: place?.name });
+    console.log("[GapRecommendation] selected place:", {
+      placeId: place?.placeId,
+      googlePlaceId: place?.googlePlaceId,
+      name: place?.name,
+    });
 
     setMessage(`${place.name}을(를) 일정에 추가하는 중입니다.`);
 
@@ -134,18 +152,18 @@ export default function GapRecommendationCard({
 
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
-            <Text style={styles.subTitle}>일정 사이 60분 이상 남는 시간 기준</Text>
+            <Text style={styles.subTitle}>
+              일정 사이 60분 이상 남는 시간 기준
+            </Text>
           </View>
         </View>
 
-        {isLoading ?
-          <ActivityIndicator color="#2563EB" />
-        : null}
+        {isLoading ? <ActivityIndicator color="#2563EB" /> : null}
       </View>
 
       <Text style={styles.message}>{message}</Text>
 
-      {gaps.length > 0 ?
+      {gaps.length > 0 ? (
         <View style={styles.gapList}>
           {gaps.map((gap) => {
             const gapKey = `${gap.beforePlanId}-${gap.afterPlanId}`;
@@ -195,9 +213,9 @@ export default function GapRecommendationCard({
             );
           })}
         </View>
-      : null}
+      ) : null}
 
-      {places.length > 0 ?
+      {places.length > 0 ? (
         <View style={styles.placeList}>
           {places.map((place) => {
             const isSelectedPlace =
@@ -214,25 +232,25 @@ export default function GapRecommendationCard({
                 <View style={styles.placeHeader}>
                   <Text style={styles.placeName}>{place.name}</Text>
 
-                  {place.rating ?
+                  {place.rating ? (
                     <View style={styles.ratingBadge}>
                       <Ionicons name="star" size={12} color="#F59E0B" />
                       <Text style={styles.ratingText}>{place.rating}</Text>
                     </View>
-                  : null}
+                  ) : null}
                 </View>
 
-                {place.category ?
+                {place.category ? (
                   <Text style={styles.category}>{place.category}</Text>
-                : null}
+                ) : null}
 
-                {place.address ?
+                {place.address ? (
                   <Text style={styles.address}>{place.address}</Text>
-                : null}
+                ) : null}
 
-                {place.reason ?
+                {place.reason ? (
                   <Text style={styles.reason}>{place.reason}</Text>
-                : null}
+                ) : null}
 
                 <TouchableOpacity
                   style={[
@@ -255,7 +273,7 @@ export default function GapRecommendationCard({
             );
           })}
         </View>
-      : null}
+      ) : null}
     </View>
   );
 }

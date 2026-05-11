@@ -21,6 +21,12 @@ export const getTripGaps = async (
       },
     );
 
+    console.log("[trip gaps] response:", {
+      tripId,
+      count: Array.isArray(response.data) ? response.data.length : -1,
+      data: response.data,
+    });
+
     return response.data;
   } catch (error) {
     console.log("[trip gaps] request failed:", error);
@@ -86,7 +92,8 @@ const parseSseChunk = (chunk: string) => {
       if (eventName === "progress") {
         events.push({
           type: "progress",
-          message: parsed.message ?? "빈 시간에 들를 수 있는 장소를 분석 중입니다...",
+          message:
+            parsed.message ?? "빈 시간에 들를 수 있는 장소를 분석 중입니다...",
           total: parsed.total,
         });
       }
@@ -117,12 +124,13 @@ export const streamGapRecommendations = async (
       tripId,
       payload,
       hasAccessToken: Boolean(accessToken),
-      platform:
-        typeof window !== "undefined" ? "web" : "native",
+      platform: typeof window !== "undefined" ? "web" : "native",
     });
 
     if (!accessToken) {
-      const error = new Error("로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.");
+      const error = new Error(
+        "로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.",
+      );
       console.log("[gap recommendations/stream] no token");
       handlers.onError?.(error);
       return;
