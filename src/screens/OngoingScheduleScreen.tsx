@@ -23,6 +23,26 @@ type ScheduleMemo = {
   updatedAt?: string;
 };
 
+const toCoordinateNumber = (value: unknown) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+};
+
+const pickCoordinate = (source: Record<string, any>, keys: string[]) => {
+  for (const key of keys) {
+    const value = key
+      .split(".")
+      .reduce<any>((acc, part) => acc?.[part], source);
+    const parsed = toCoordinateNumber(value);
+    if (parsed !== null) return parsed;
+  }
+  return null;
+};
+
 type TodayPlace = {
   id?: string | number;
   tripPlaceId?: number | string;
@@ -284,8 +304,31 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
             return {
               ...place,
-              latitude: detail.latitude ?? detail.lat,
-              longitude: detail.longitude ?? detail.lng,
+              latitude:
+                pickCoordinate(detail as Record<string, any>, [
+                  "latitude",
+                  "lat",
+                  "y",
+                  "mapY",
+                  "location.latitude",
+                  "location.lat",
+                  "geometry.location.lat",
+                  "coordinate.latitude",
+                  "coordinate.lat",
+                ]) ?? place.latitude,
+              longitude:
+                pickCoordinate(detail as Record<string, any>, [
+                  "longitude",
+                  "lng",
+                  "lon",
+                  "x",
+                  "mapX",
+                  "location.longitude",
+                  "location.lng",
+                  "geometry.location.lng",
+                  "coordinate.longitude",
+                  "coordinate.lng",
+                ]) ?? place.longitude,
             };
           } catch (error) {
             console.log(
