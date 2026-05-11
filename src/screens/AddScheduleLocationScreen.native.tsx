@@ -1405,29 +1405,6 @@ export default function AddScheduleLocationScreen({
                   : null}
 
                   {hasFreshnessInfo ?
-                    <View style={styles.freshnessCard}>
-                      <View style={styles.freshnessIconBox}>
-                        <Ionicons
-                          name="shield-checkmark-outline"
-                          size={18}
-                          color="#2158E8"
-                        />
-                      </View>
-
-                      <View style={styles.freshnessContent}>
-                        <Text style={styles.freshnessTitle}>정보 최신성</Text>
-
-                        <Text style={styles.freshnessText} numberOfLines={2}>
-                          {detailModalFreshnessLabel}
-                          {detailModalConfidenceScore ?
-                            ` · 신뢰도 ${detailModalConfidenceScore}`
-                          : ""}
-                          {detailModalLastUpdated ?
-                            ` · ${detailModalLastUpdated} 기준`
-                          : ""}
-                        </Text>
-                      </View>
-                    </View>
                   : null}
 
                   {!hasAnyRealDetailContent ?
@@ -2011,47 +1988,6 @@ const styles = StyleSheet.create({
     color: "#4285F4",
     fontSize: 16,
     fontWeight: "900",
-  },
-
-  freshnessCard: {
-    minHeight: 58,
-    borderRadius: 12,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DDE6F1",
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 14,
-  },
-
-  freshnessIconBox: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: "#EAF3FF",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 10,
-  },
-
-  freshnessContent: {
-    flex: 1,
-  },
-
-  freshnessTitle: {
-    color: "#1E293B",
-    fontSize: 12,
-    fontWeight: "900",
-    marginBottom: 3,
-  },
-
-  freshnessText: {
-    color: "#8A97A8",
-    fontSize: 11,
-    fontWeight: "800",
-    lineHeight: 16,
   },
 
   emptyDetailBox: {

@@ -116,6 +116,133 @@ function MapFocus({ selectedPlace }: { selectedPlace: SelectedPlace | null }) {
   return null;
 }
 
+
+type ReviewSummaryLike = {
+  reviewSummary?: string;
+  ReviewSummary?: string;
+  aiSummary?: string;
+  summary?: string;
+  googleReview?: string;
+  naverReview?: string;
+  instaReview?: string;
+  instagramReview?: string;
+  [key: string]: unknown;
+};
+
+type PlaceDetailLike = {
+  space?: string | string[];
+  type?: string | string[];
+  mood?: string | string[];
+  tags?: {
+    space?: string | string[];
+    type?: string | string[];
+    mood?: string | string[];
+  } | string[];
+  spaceTags?: string[];
+  typeTags?: string[];
+  moodTags?: string[];
+  openingHours?: string | string[];
+  businessHours?: string | string[];
+  [key: string]: unknown;
+};
+
+const toText = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return value.filter(Boolean).join("\n");
+  }
+
+  if (typeof value === "string") {
+    return value.trim();
+  }
+
+  if (value == null) {
+    return "";
+  }
+
+  return String(value).trim();
+};
+
+const toFirstTagText = (value: unknown) => {
+  if (Array.isArray(value)) {
+    return toText(value[0]);
+  }
+
+  return toText(value);
+};
+
+const getFullReviewSummaryText = (summary?: ReviewSummaryLike | null) => {
+  if (!summary) {
+    return "서버에서 AI 리뷰 요약을 제공하지 않았습니다.";
+  }
+
+  return (
+    toText(summary.reviewSummary) ||
+    toText(summary.ReviewSummary) ||
+    toText(summary.aiSummary) ||
+    toText(summary.summary) ||
+    "서버에서 AI 리뷰 요약을 제공하지 않았습니다."
+  );
+};
+
+const getThreePlaceTags = (detail?: PlaceDetailLike | null) => {
+  const tags = detail?.tags && !Array.isArray(detail.tags) ? detail.tags : undefined;
+
+  const space =
+    toFirstTagText(tags?.space) ||
+    toFirstTagText(detail?.space) ||
+    toFirstTagText(detail?.spaceTags);
+
+  const type =
+    toFirstTagText(tags?.type) ||
+    toFirstTagText(detail?.type) ||
+    toFirstTagText(detail?.typeTags);
+
+  const mood =
+    toFirstTagText(tags?.mood) ||
+    toFirstTagText(detail?.mood) ||
+    toFirstTagText(detail?.moodTags);
+
+  return [
+    { key: "space", label: space || "Space" },
+    { key: "type", label: type || "Type" },
+    { key: "mood", label: mood || "Mood" },
+  ];
+};
+
+const getPlatformReviewSummaries = (summary?: ReviewSummaryLike | null) => [
+  {
+    key: "googleReview",
+    title: "Google",
+    content:
+      toText(summary?.googleReview) ||
+      "서버에서 Google 리뷰 요약을 제공하지 않았습니다.",
+  },
+  {
+    key: "naverReview",
+    title: "Naver",
+    content:
+      toText(summary?.naverReview) ||
+      "서버에서 Naver 리뷰 요약을 제공하지 않았습니다.",
+  },
+  {
+    key: "instaReview",
+    title: "Instagram",
+    content:
+      toText(summary?.instaReview) ||
+      toText(summary?.instagramReview) ||
+      "Instagram 리뷰 데이터가 부족합니다.",
+  },
+];
+
+const getOpeningHoursText = (detail?: PlaceDetailLike | null) => {
+  return (
+    toText(detail?.openingHours) ||
+    toText(detail?.businessHours) ||
+    "영업 시간 정보가 없습니다."
+  );
+};
+
+
 export default function AddScheduleLocationScreen({
   navigation,
   route,
@@ -703,10 +830,6 @@ export default function AddScheduleLocationScreen({
                             size={14}
                             color="#60A5FA"
                           />
-
-                          <Text style={styles.expandedMetaText}>
-                            {freshnessText}
-                          </Text>
                         </View>
                       </View>
                     </View>
@@ -783,7 +906,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#DDE7F2",
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
   },
 
   mapGridLineHorizontal: {
@@ -884,7 +1006,6 @@ const styles = StyleSheet.create({
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
     backgroundColor: "#F7F9FC",
-    overflow: "hidden",
   },
 
   handleBar: {
@@ -1006,7 +1127,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#E2E8F0",
     marginTop: 24,
-    overflow: "hidden",
   },
 
   reviewProgressFill: {
@@ -1194,6 +1314,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700",
     lineHeight: 22,
+    flexWrap: "wrap",
   },
 
   expandedSelectButton: {

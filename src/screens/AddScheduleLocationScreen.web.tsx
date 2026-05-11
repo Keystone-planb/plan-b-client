@@ -1080,10 +1080,6 @@ export default function AddScheduleLocationScreen({
                             size={14}
                             color="#60A5FA"
                           />
-
-                          <Text style={styles.expandedMetaText}>
-                            {freshnessText}
-                          </Text>
                         </View>
                       </View>
                     </View>
