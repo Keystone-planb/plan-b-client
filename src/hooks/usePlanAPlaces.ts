@@ -93,43 +93,7 @@ const createMemo = (text: string): MemoItem => {
 };
 
 const toServerTimeText = (value?: string | null) => {
-  const normalized = value?.trim();
-
-  if (!normalized) {
-    return null;
-  }
-
-  const amPmMatch = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-  if (amPmMatch) {
-    let hour = Number(amPmMatch[1]);
-    const minute = amPmMatch[2];
-    const period = amPmMatch[3].toUpperCase();
-
-    if (period === "AM" && hour === 12) {
-      hour = 0;
-    }
-
-    if (period === "PM" && hour < 12) {
-      hour += 12;
-    }
-
-    return `${String(hour).padStart(2, "0")}:${minute}`;
-  }
-
-  const hhmmssMatch = normalized.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
-
-  if (hhmmssMatch) {
-    return `${String(Number(hhmmssMatch[1])).padStart(2, "0")}:${hhmmssMatch[2]}`;
-  }
-
-  const hhmmMatch = normalized.match(/^(\d{1,2}):(\d{2})$/);
-
-  if (hhmmMatch) {
-    return `${String(Number(hhmmMatch[1])).padStart(2, "0")}:${hhmmMatch[2]}`;
-  }
-
-  return normalized;
+  return normalizeServerTimeToHHmm(value);
 };
 
 const normalizeNullableTime = (value?: string | null) => {
@@ -149,6 +113,69 @@ const makeDisplayTime = (
   if (end) return end;
 
   return "";
+};
+
+
+const normalizeServerTimeToHHmm = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const raw = String(value).trim();
+
+  if (!raw) {
+    return null;
+  }
+
+  const normalized = raw
+    .replace(/\s+/g, " ")
+    .replace("오전", "AM")
+    .replace("오후", "PM")
+    .trim();
+
+  const hhmmMatch = normalized.match(/^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
+
+  if (hhmmMatch) {
+    return `${hhmmMatch[1].padStart(2, "0")}:${hhmmMatch[2]}`;
+  }
+
+  const prefixMeridiemMatch = normalized.match(/^(AM|PM)\s*(\d{1,2}):([0-5]\d)$/i);
+
+  if (prefixMeridiemMatch) {
+    const meridiem = prefixMeridiemMatch[1].toUpperCase();
+    let hour = Number(prefixMeridiemMatch[2]);
+    const minute = prefixMeridiemMatch[3];
+
+    if (meridiem === "PM" && hour < 12) {
+      hour += 12;
+    }
+
+    if (meridiem === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  }
+
+  const suffixMeridiemMatch = normalized.match(/^(\d{1,2}):([0-5]\d)\s*(AM|PM)$/i);
+
+  if (suffixMeridiemMatch) {
+    let hour = Number(suffixMeridiemMatch[1]);
+    const minute = suffixMeridiemMatch[2];
+    const meridiem = suffixMeridiemMatch[3].toUpperCase();
+
+    if (meridiem === "PM" && hour < 12) {
+      hour += 12;
+    }
+
+    if (meridiem === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  }
+
+  return null;
 };
 
 const parseLegacyTime = (time?: string | null) => {
