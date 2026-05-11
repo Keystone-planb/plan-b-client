@@ -95,7 +95,7 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
     handledRef.current = true;
 
     if (__DEV__) {
-      console.log("[OAuthRedirect] received url:", url);
+      console.log("[OAuthRedirect] received url:", { isSuccess: isOAuthSuccessUrl(url), isFailure: isOAuthFailureUrl(url) });
     }
 
     try {

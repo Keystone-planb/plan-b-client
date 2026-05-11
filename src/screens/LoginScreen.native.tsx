@@ -183,7 +183,7 @@ export default function LoginScreen({ navigation }: any) {
     const isFailure = isOAuthFailureUrl(url);
 
     if (__DEV__) {
-      console.log("[OAuth] redirect url:", url);
+      console.log("[OAuth] redirect url received:", { isSuccess, isFailure });
       console.log("[OAuth] is success:", isSuccess);
       console.log("[OAuth] is failure:", isFailure);
       console.log("[OAuth] failure message:", getOAuthFailureMessage(url));
@@ -239,7 +239,11 @@ export default function LoginScreen({ navigation }: any) {
       );
 
       if (__DEV__) {
-        console.log(`[${provider} OAuth] result:`, result);
+        console.log(`[${provider} OAuth] result:`, {
+          type: result.type,
+          hasUrl: "url" in result && Boolean(result.url),
+          hasError: "error" in result && Boolean(result.error),
+        });
       }
 
       if (result.type === "success") {

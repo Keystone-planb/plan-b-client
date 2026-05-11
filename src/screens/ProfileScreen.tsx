@@ -68,7 +68,7 @@ export default function ProfileScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
-      console.log("[Profile getMe result]", result);
+      console.log("[Profile] getMe success:", { hasEmail: Boolean(result?.email), hasNickname: Boolean(result?.nickname), provider: result?.provider });
       setMe(result);
     } catch (error) {
       console.log("[Profile] 프로필 유저 정보 조회 실패:", error);

@@ -71,7 +71,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
-      console.log("[ProfileEdit getMe result]", result);
+      console.log("[ProfileEdit] getMe success:", { hasEmail: Boolean(result?.email), hasNickname: Boolean(result?.nickname), provider: result?.provider });
 
       setMe(result);
       setNicknameDraft(result.nickname ?? "");
