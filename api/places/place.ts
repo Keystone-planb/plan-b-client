@@ -81,7 +81,17 @@ export type PlaceSearchResponse = {
   places: PlaceSearchResult[];
 };
 
-export type PlaceDetailResponse = PlaceDetail;
+export type PlaceDetailResponse = PlaceDetail & {
+  tags?: PlaceDetailTagGroup | string[];
+  spaceTags?: string[];
+  typeTags?: string[];
+  moodTags?: string[];
+  openingHours?: string[] | string;
+  businessHours?: string[] | string;
+  photoUrl?: string;
+  imageUrl?: string;
+  [key: string]: unknown;
+};
 
 export type PlaceSummaryResponse = PlaceSummary;
 
@@ -100,33 +110,6 @@ export type PlaceDetailTagGroup = {
   mood?: string[];
 };
 
-export type PlaceDetailResponse = {
-  placeId?: string;
-  googlePlaceId?: string;
-  id?: string | number;
-
-  name?: string;
-  address?: string;
-  formattedAddress?: string;
-  phoneNumber?: string;
-  website?: string;
-  rating?: number;
-  userRatingsTotal?: number;
-
-  latitude?: number;
-  longitude?: number;
-
-  tags?: PlaceDetailTagGroup | string[];
-  spaceTags?: string[];
-  typeTags?: string[];
-  moodTags?: string[];
-
-  openingHours?: string[] | string;
-  photoUrl?: string;
-  imageUrl?: string;
-
-  [key: string]: unknown;
-};
 
 /**
  * 장소 리뷰 요약
@@ -225,21 +208,30 @@ export const getPrimaryReviewSummaryText = (
   );
 };
 
+
+type PlaceDetailTagCarrier = {
+  tags?: PlaceDetailTagGroup | string[];
+  spaceTags?: string[];
+  typeTags?: string[];
+  moodTags?: string[];
+};
+
 export const getPlaceTagGroups = (detail?: PlaceDetailResponse | null) => {
-  const tags = detail?.tags;
+  const tagDetail = detail as (PlaceDetailResponse & PlaceDetailTagCarrier) | null | undefined;
+  const tags = tagDetail?.tags;
 
   if (tags && !Array.isArray(tags)) {
     return {
-      space: tags.space ?? detail?.spaceTags ?? [],
-      type: tags.type ?? detail?.typeTags ?? [],
-      mood: tags.mood ?? detail?.moodTags ?? [],
+      space: tags.space ?? tagDetail?.spaceTags ?? [],
+      type: tags.type ?? tagDetail?.typeTags ?? [],
+      mood: tags.mood ?? tagDetail?.moodTags ?? [],
     };
   }
 
   return {
-    space: detail?.spaceTags ?? [],
-    type: detail?.typeTags ?? [],
-    mood: detail?.moodTags ?? [],
+    space: tagDetail?.spaceTags ?? [],
+    type: tagDetail?.typeTags ?? [],
+    mood: tagDetail?.moodTags ?? [],
   };
 };
 
