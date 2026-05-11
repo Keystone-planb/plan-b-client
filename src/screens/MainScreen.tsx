@@ -27,6 +27,7 @@ import {
   dismissNotification,
   getWeatherNotifications,
 } from "../../api/notifications/notifications";
+import { seedTestWeatherNotification } from "../../api/notifications/testSeed";
 import type { WeatherNotification } from "../types/notification";
 
 type Props = {
@@ -654,21 +655,50 @@ export default function MainScreen({ navigation }: Props) {
     }, []),
   );
 
+  const handleSeedWeatherNotification = async () => {
+    try {
+      const result = await seedTestWeatherNotification(6, 166);
+
+      console.log("[Main] 테스트 날씨 알림 생성:", result);
+
+      await loadNotifications(schedules);
+
+      Alert.alert("테스트 알림 생성 완료", "날씨 알림을 다시 조회했습니다.");
+    } catch (error) {
+      console.log("[Main] 테스트 날씨 알림 생성 실패:", error);
+
+      Alert.alert(
+        "테스트 알림 생성 실패",
+        error instanceof Error ?
+          error.message
+        : "테스트 알림 생성 중 오류가 발생했습니다.",
+      );
+    }
+  };
+
   const handleDismissNotification = async (
     notification: WeatherNotification,
   ) => {
     try {
-      await dismissNotification(notification.notificationId);
+      const notificationId = notification.notificationId ?? notification.id;
+
+      if (!notificationId) {
+        Alert.alert("알림 닫기 실패", "날씨 알림 ID를 찾을 수 없습니다.");
+        return;
+      }
+
+      await dismissNotification(notificationId);
 
       setNotifications((prev) =>
-        prev.filter(
-          (item) =>
-            String(item.notificationId) !== String(notification.notificationId),
-        ),
+        prev.filter((item) => {
+          const itemNotificationId = item.notificationId ?? item.id;
+
+          return String(itemNotificationId) !== String(notificationId);
+        }),
       );
 
       console.log("[Main] 날씨 알림 dismiss 완료:", {
-        notificationId: notification.notificationId,
+        notificationId,
       });
     } catch (error) {
       console.log("[Main] 날씨 알림 dismiss 실패:", error);
@@ -678,7 +708,10 @@ export default function MainScreen({ navigation }: Props) {
   const handleOpenNotificationRecommendation = (
     notification: WeatherNotification,
   ) => {
-    const recommendedPlaces = notification.recommendedPlaces ?? [];
+    const notificationId = notification.notificationId ?? notification.id;
+    const tripPlaceId = notification.tripPlaceId ?? notification.planId;
+    const recommendedPlaces =
+      notification.recommendedPlaces ?? notification.alternatives ?? [];
 
     if (recommendedPlaces.length === 0) {
       Alert.alert(
@@ -688,7 +721,7 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
-    if (!notification.tripPlaceId) {
+    if (!tripPlaceId) {
       Alert.alert(
         "대안 추천 불가",
         "이 알림에 연결된 서버 일정 장소 ID가 없습니다.",
@@ -933,6 +966,19 @@ export default function MainScreen({ navigation }: Props) {
         
 
 
+        {__DEV__ ?
+          <TouchableOpacity
+            style={styles.seedWeatherButton}
+            activeOpacity={0.85}
+            onPress={handleSeedWeatherNotification}
+          >
+            <Ionicons name="flask-outline" size={16} color="#FFFFFF" />
+            <Text style={styles.seedWeatherButtonText}>
+              테스트 날씨 알림 생성
+            </Text>
+          </TouchableOpacity>
+        : null}
+
         {notifications.length > 0 ?
           <View style={styles.notificationSection}>
             {notifications.map((notification) => (
@@ -1130,6 +1176,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingBottom: 110,
+  },
+
+  seedWeatherButton: {
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: "#2563EB",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 14,
+  },
+
+  seedWeatherButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   scheduleList: {
