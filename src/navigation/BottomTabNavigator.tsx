@@ -17,6 +17,9 @@ type BottomTabParamList = {
   Profile: undefined;
 };
 
+const ANDROID_NAVIGATION_BAR_HEIGHT = 48;
+const TAB_BAR_FLOATING_GAP = 18;
+
 const Tab = createBottomTabNavigator<BottomTabParamList>();
 type IconName = keyof typeof Ionicons.glyphMap;
 
@@ -49,7 +52,10 @@ function CustomBottomTabBar({
       style={[
         styles.tabBarOuter,
         {
-          bottom: Platform.OS === "ios" ? Math.max(insets.bottom, 16) : 18,
+          bottom:
+            Platform.OS === "android"
+              ? ANDROID_NAVIGATION_BAR_HEIGHT + TAB_BAR_FLOATING_GAP
+              : Math.max(insets.bottom, 16),
         },
       ]}
     >
