@@ -308,7 +308,16 @@ export default function App() {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-        if (!accessToken || !refreshToken) {
+        console.log("[App] bootstrap token check:", {
+          hasAccessToken: Boolean(accessToken),
+          hasRefreshToken: Boolean(refreshToken),
+        });
+
+        /**
+         * 사용자가 직접 로그아웃하지 않는 이상 로그인 유지.
+         * access_token은 만료/누락될 수 있으므로 refresh_token 존재를 로그인 유지 기준으로 본다.
+         */
+        if (!refreshToken) {
           setInitialRoute("OnboardingFirst");
           return;
         }
@@ -343,7 +352,7 @@ export default function App() {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-        if (!accessToken || !refreshToken) {
+        if (!refreshToken) {
           return;
         }
 
