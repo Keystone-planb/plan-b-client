@@ -22,7 +22,11 @@ type Props = {
 };
 
 const setWebStorageItem = (key: string, value: string) => {
-  if (typeof window === "undefined") {
+  if (
+    typeof window === "undefined" ||
+    !window.localStorage ||
+    typeof window.localStorage.setItem !== "function"
+  ) {
     return;
   }
 
