@@ -74,7 +74,6 @@ type ReviewItem = {
   authorName?: string;
 };
 
-
 const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
   places: T[],
 ) => {
@@ -756,9 +755,7 @@ export default function AddScheduleLocationScreen({
     });
   };
 
-  const handleNext = async (
-    overridePlaces?: SelectedPlace[],
-  ) => {
+  const handleNext = async (overridePlaces?: SelectedPlace[]) => {
     if (submitLoading || submitLockRef.current) {
       console.log("[AddScheduleLocation] 중복 저장 실행 차단:", {
         submitLoading,
@@ -791,7 +788,8 @@ export default function AddScheduleLocationScreen({
 
     let targetTripId = resolvedExistingTripId;
     let targetServerTripId = resolvedExistingTripId;
-    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> =
+      {};
 
     try {
       setSubmitLoading(true);
@@ -811,8 +809,6 @@ export default function AddScheduleLocationScreen({
 
         if (targetServerTripId) {
           for (const place of placesToSubmit) {
-
-
             console.log("[QA_DUPLICATE] before addTripLocation:", {
               file: "AddScheduleLocationScreen.native.tsx",
               tripId: targetServerTripId,
@@ -822,13 +818,17 @@ export default function AddScheduleLocationScreen({
               name: place.name,
             });
 
-            const response = await addTripLocation(targetServerTripId, selectedDay, {
-              place_id: place.googlePlaceId ?? place.placeId,
-              name: place.name,
-              visitTime: null,
-              endTime: null,
-              memo: null,
-            });
+            const response = await addTripLocation(
+              targetServerTripId,
+              selectedDay,
+              {
+                place_id: place.googlePlaceId ?? place.placeId,
+                name: place.name,
+                visitTime: null,
+                endTime: null,
+                memo: null,
+              },
+            );
 
             console.log("[QA_DUPLICATE] after addTripLocation:", {
               file: "AddScheduleLocationScreen.native.tsx",
@@ -871,9 +871,9 @@ export default function AddScheduleLocationScreen({
       console.log("일정 저장 실패:", error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "여행 일정을 저장하지 못했습니다.";
+        error instanceof Error ?
+          error.message
+        : "여행 일정을 저장하지 못했습니다.";
 
       Alert.alert("일정 저장 실패", message);
     } finally {
@@ -938,71 +938,13 @@ export default function AddScheduleLocationScreen({
   }, [detailModalDetail]);
 
   const reviewBasedSummary = useMemo(() => {
-    return "AI 리뷰 요약 정보가 없습니다.";
+    return createReviewSummaryFromReviews(detailModalReviews);
   }, [detailModalReviews]);
 
   const detailModalAiSummary =
     rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
       truncateText(rawAiSummary, 120)
     : reviewBasedSummary;
-
-  const detailModalPlatformReviews = [
-    {
-      key: "googleReview",
-      title: "Google 리뷰 요약",
-      content: getFirstText(rawDetailModalSummary, [
-        "googleReview",
-        "googleReviewSummary",
-        "data.googleReview",
-        "data.googleReviewSummary",
-        "result.googleReview",
-        "result.googleReviewSummary",
-        "payload.googleReview",
-        "payload.googleReviewSummary",
-      ]),
-    },
-    {
-      key: "naverReview",
-      title: "Naver 리뷰 요약",
-      content: getFirstText(rawDetailModalSummary, [
-        "naverReview",
-        "naverReviewSummary",
-        "data.naverReview",
-        "data.naverReviewSummary",
-        "result.naverReview",
-        "result.naverReviewSummary",
-        "payload.naverReview",
-        "payload.naverReviewSummary",
-      ]),
-    },
-    {
-      key: "instaReview",
-      title: "Instagram 리뷰 요약",
-      content:
-        getFirstText(rawDetailModalSummary, [
-          "instaReview",
-          "instaReviewSummary",
-          "instagramReview",
-          "instagramReviewSummary",
-          "data.instaReview",
-          "data.instaReviewSummary",
-          "data.instagramReview",
-          "data.instagramReviewSummary",
-          "result.instaReview",
-          "result.instaReviewSummary",
-          "result.instagramReview",
-          "result.instagramReviewSummary",
-          "payload.instaReview",
-          "payload.instaReviewSummary",
-          "payload.instagramReview",
-          "payload.instagramReviewSummary",
-        ]) || "Instagram 리뷰 데이터가 부족합니다.",
-    },
-  ];
-
-  const visibleDetailModalPlatformReviews = detailModalPlatformReviews.filter(
-    (review) => review.content.trim().length > 0,
-  );
 
   const detailModalKeywords = useMemo(() => {
     const serverKeywords = getFirstArray(detailModalSummary, [
@@ -1253,7 +1195,9 @@ export default function AddScheduleLocationScreen({
                     isPreview && styles.disabledDetailButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isReviewLoading || submitLockRef.current}
+                  disabled={
+                    isPreview || isReviewLoading || submitLockRef.current
+                  }
                   onPress={() => handleTogglePlaceReview(place)}
                 >
                   {isReviewLoading ?
@@ -1274,7 +1218,9 @@ export default function AddScheduleLocationScreen({
                       isSelected && styles.selectPlaceButtonActive,
                     ]}
                     activeOpacity={0.85}
-                    disabled={isDetailLoading || submitLoading || submitLockRef.current}
+                    disabled={
+                      isDetailLoading || submitLoading || submitLockRef.current
+                    }
                     onPress={() =>
                       handleNext([
                         {
@@ -1284,7 +1230,8 @@ export default function AddScheduleLocationScreen({
                             place.googlePlaceId ?? place.placeId,
                           ),
                           latitude: place.latitude ?? INITIAL_REGION.latitude,
-                          longitude: place.longitude ?? INITIAL_REGION.longitude,
+                          longitude:
+                            place.longitude ?? INITIAL_REGION.longitude,
                         },
                       ])
                     }
@@ -1381,7 +1328,7 @@ export default function AddScheduleLocationScreen({
               : <>
                   {detailModalAiSummary ?
                     <View style={styles.aiSummaryCard}>
-                      <Text style={styles.aiSummaryText}>
+                      <Text style={styles.aiSummaryText} numberOfLines={4}>
                         📊 {detailModalAiSummary}
                       </Text>
 
@@ -1461,7 +1408,6 @@ export default function AddScheduleLocationScreen({
                       </View>
                     </View>
                   : null}
-
 
                   {!hasAnyRealDetailContent ?
                     <View style={styles.emptyDetailBox}>
@@ -1898,31 +1844,6 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
 
-
-  platformSummarySection: {
-    gap: 10,
-    marginBottom: 18,
-  },
-  platformSummaryCard: {
-    borderRadius: 18,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  platformSummaryTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#334155",
-    marginBottom: 8,
-  },
-  platformSummaryText: {
-    fontSize: 13,
-    lineHeight: 20,
-    color: "#475569",
-    flexWrap: "wrap",
-  },
   aiSummaryText: {
     color: "#2F6BFF",
     fontSize: 14,
@@ -2070,11 +1991,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
   },
-
-
-
-
-
 
   emptyDetailBox: {
     minHeight: 96,
