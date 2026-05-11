@@ -14,6 +14,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
 import {
   loadPlanASchedule,
@@ -74,6 +75,9 @@ type RootStackParamList = {
     serverTripPlaceId?: string | number;
 
     placesJson?: string;
+    source?: "weather-notification" | string;
+    fromWeatherNotification?: boolean;
+    notificationId?: string | number;
     fromAIAnalysis?: boolean;
     hasError?: boolean;
     title?: string;
@@ -291,6 +295,69 @@ export default function RecommendationResultScreen({
       place.googlePlaceId ?? place.placeId ?? "",
     );
     const newPlaceName = place.name;
+
+    const isWeatherNotificationReplace =
+      params.source === "weather-notification" || params.fromWeatherNotification;
+
+    if (isWeatherNotificationReplace) {
+      const notificationId = params.notificationId;
+
+      if (!notificationId) {
+        Alert.alert(
+          "알림 교체 불가",
+          "날씨 알림 ID가 없어 장소 교체를 진행할 수 없습니다.",
+        );
+        return;
+      }
+
+      if (!newGooglePlaceId || !newPlaceName) {
+        Alert.alert(
+          "장소 정보 부족",
+          "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+        );
+        return;
+      }
+
+      try {
+        setSubmittingPlaceId(placeId);
+
+        console.log("[RecommendationResult] weather notification replace request:", {
+          notificationId,
+          newGooglePlaceId,
+          newPlaceName,
+        });
+
+        await replaceNotificationPlace(notificationId, newGooglePlaceId);
+
+        setSelectedPlaceId(placeId);
+
+        Alert.alert(
+          "장소 교체 완료",
+          "날씨 알림 기반 대안 장소로 교체했습니다.",
+          [
+            {
+              text: "확인",
+              onPress: () => {
+                navigation.navigate("Main");
+              },
+            },
+          ],
+        );
+      } catch (error) {
+        console.log("[RecommendationResult] weather notification replace failed:", error);
+
+        Alert.alert(
+          "장소 교체 실패",
+          error instanceof Error ?
+            error.message
+          : "날씨 알림 기반 장소 교체 중 오류가 발생했습니다.",
+        );
+      } finally {
+        setSubmittingPlaceId(null);
+      }
+
+      return;
+    }
 
     if (currentPlanIdCandidates.length === 0) {
       Alert.alert(
