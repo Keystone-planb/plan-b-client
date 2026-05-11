@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -12,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
+import { getTripDetail } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -36,6 +37,8 @@ type TodayPlace = {
   name?: string;
   address?: string;
   time?: string;
+    visitTime?: string | null;
+    endTime?: string | null;
   latitude?: number;
   longitude?: number;
   category?: string;
@@ -115,6 +118,164 @@ const isValidServerPlanId = (value?: string | number) => {
   return Number.isFinite(Number(text));
 };
 
+const getOngoingValueByPath = (source: unknown, path: string): unknown => {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+
+  return path.split(".").reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") {
+      return undefined;
+    }
+
+    return (current as Record<string, unknown>)[key];
+  }, source);
+};
+
+const getOngoingArrayByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getOngoingValueByPath(source, path);
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
+};
+
+const getOngoingTextByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getOngoingValueByPath(source, path);
+
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+
+  return undefined;
+};
+
+const getOngoingNumberByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getOngoingValueByPath(source, path);
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeServerPlace = (source: unknown, index: number): TodayPlace => {
+  const rawTripPlaceId =
+    getOngoingValueByPath(source, "tripPlaceId") ??
+    getOngoingValueByPath(source, "serverTripPlaceId") ??
+    getOngoingValueByPath(source, "planId") ??
+    getOngoingValueByPath(source, "id");
+
+  const tripPlaceId =
+    typeof rawTripPlaceId === "number" || typeof rawTripPlaceId === "string" ?
+      rawTripPlaceId
+    : undefined;
+
+  const placeId = getOngoingTextByPaths(source, [
+    "placeId",
+    "googlePlaceId",
+    "google_place_id",
+  ]);
+
+  const visitTime = getOngoingTextByPaths(source, ["visitTime", "startTime"]);
+  const endTime = getOngoingTextByPaths(source, ["endTime"]);
+  const time = [visitTime, endTime].filter(Boolean).join(" - ");
+
+  return {
+    id: tripPlaceId ?? placeId ?? `server-place-${index}`,
+    tripPlaceId,
+    serverTripPlaceId: tripPlaceId,
+    placeId,
+    googlePlaceId: placeId,
+    name: getOngoingTextByPaths(source, ["name", "placeName"]) ?? "이름 없는 장소",
+    address: getOngoingTextByPaths(source, ["address", "placeAddress", "location"]),
+    time,
+    visitTime,
+    endTime,
+    latitude: getOngoingNumberByPaths(source, ["latitude", "lat"]),
+    longitude: getOngoingNumberByPaths(source, ["longitude", "lng"]),
+    category: getOngoingTextByPaths(source, ["category", "placeCategory"]),
+    order: getOngoingNumberByPaths(source, ["visitOrder", "order"]) ?? index + 1,
+  };
+};
+
+const normalizeServerTripDays = (source: unknown): ScheduleDay[] => {
+  const unwrapped =
+    getOngoingValueByPath(source, "data") ??
+    getOngoingValueByPath(source, "result") ??
+    getOngoingValueByPath(source, "payload") ??
+    source;
+
+  const itineraryItems = getOngoingArrayByPaths(unwrapped, [
+    "itineraries",
+    "itinerary",
+    "days",
+    "tripDays",
+  ]);
+
+  if (itineraryItems.length > 0) {
+    return itineraryItems
+      .map((item, dayIndex) => {
+        const day =
+          getOngoingNumberByPaths(item, ["day", "dayNumber", "dayIndex"]) ??
+          dayIndex + 1;
+
+        const places = getOngoingArrayByPaths(item, [
+          "places",
+          "locations",
+          "tripPlaces",
+          "plans",
+        ]).map((place, placeIndex) => normalizeServerPlace(place, placeIndex));
+
+        return {
+          day,
+          places,
+        };
+      })
+      .filter((day) => day.places.length > 0);
+  }
+
+  const flatPlaces = getOngoingArrayByPaths(unwrapped, [
+    "places",
+    "locations",
+    "tripPlaces",
+    "plans",
+  ]);
+
+  const grouped = new Map<number, TodayPlace[]>();
+
+  flatPlaces.forEach((place, index) => {
+    const day = getOngoingNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
+    const normalizedPlace = normalizeServerPlace(place, index);
+
+    grouped.set(day, [...(grouped.get(day) ?? []), normalizedPlace]);
+  });
+
+  return Array.from(grouped.entries())
+    .sort(([a], [b]) => a - b)
+    .map(([day, places]) => ({
+      day,
+      places,
+    }));
+};
+
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
@@ -139,11 +300,61 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [serverDays, setServerDays] = useState<ScheduleDay[] | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const loadServerTripDetail = async () => {
+      if (!resolvedTripId) {
+        setServerDays(null);
+        return;
+      }
+
+      try {
+        const detail = await getTripDetail(resolvedTripId);
+        const nextDays = normalizeServerTripDays(detail);
+
+        if (!mounted) {
+          return;
+        }
+
+        if (nextDays.length > 0) {
+          setServerDays(nextDays);
+
+          console.log("[OngoingSchedule] 서버 상세 places 동기화:", {
+            tripId: resolvedTripId,
+            days: nextDays.map((day) => ({
+              day: day.day,
+              places: day.places.map((place) => ({
+                name: place.name,
+                tripPlaceId: place.tripPlaceId,
+                placeId: place.placeId,
+              })),
+            })),
+          });
+        }
+      } catch (error) {
+        console.log("[OngoingSchedule] 서버 상세 조회 실패 - route params 사용:", {
+          tripId: resolvedTripId,
+          error,
+        });
+      }
+    };
+
+    loadServerTripDetail();
+
+    return () => {
+      mounted = false;
+    };
+  }, [resolvedTripId]);
+
+  const displayDays = serverDays?.length ? serverDays : days;
 
   const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
-    return days.find((day) => day.day === dayNumber);
-  }, [days, selectedDayIndex]);
+    return displayDays.find((day) => day.day === dayNumber);
+  }, [displayDays, selectedDayIndex]);
 
   const places = useMemo(() => {
     if (currentDay?.places?.length) {
