@@ -148,4 +148,4 @@ android/
 
 # Storybook build outputs
 test-results/
-playwright-report/
+playwright-report/.DS_Store

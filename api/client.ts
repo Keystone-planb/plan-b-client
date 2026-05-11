@@ -24,7 +24,7 @@ const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
 
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
-  timeout: 15000,
+  timeout: 30000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -120,7 +120,7 @@ apiClient.interceptors.response.use(
             refreshToken,
           },
           {
-            timeout: 15000,
+            timeout: 30000,
             headers: {
               "Content-Type": "application/json",
             },

@@ -1,15 +1,34 @@
-const appJson = require("./app.json");
+export default {
+  expo: {
+    name: "Keystone",
+    slug: "keystone",
+    scheme: "planb",
+    version: "1.0.0",
+    orientation: "portrait",
+    userInterfaceStyle: "light",
 
-module.exports = ({ config }) => ({
-  ...config,
-  ...appJson.expo,
-  android: {
-    ...appJson.expo.android,
-    config: {
-      ...(appJson.expo.android?.config ?? {}),
-      googleMaps: {
-        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "",
+    android: {
+      package: "com.anonymous.keystone",
+      config: {
+        googleMaps: {
+          apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY,
+        },
+      },
+    },
+
+    ios: {
+      bundleIdentifier: "com.anonymous.keystone",
+      config: {
+        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY,
+      },
+    },
+
+    plugins: ["expo-web-browser"],
+
+    extra: {
+      eas: {
+        projectId: "ae4365b2-a5ee-46b6-b12c-e4ef3fd10f7a",
       },
     },
   },
-});
+};

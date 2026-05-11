@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -11,6 +11,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
+import PlanAMapPreview from "../components/planA/PlanAMapPreview";
+import { getPlaceDetail } from "../../api/places/place";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -204,18 +206,110 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [days, selectedDayIndex]);
 
   const places = useMemo(() => {
-    if (currentDay?.places?.length) {
-      return sortPlacesByTime(currentDay.places);
-    }
+    const sourcePlaces = currentDay?.places?.length
+      ? currentDay.places
+      : params.places && params.places.length > 0
+        ? params.places
+        : [];
 
-    if (params.places && params.places.length > 0) {
-      return sortPlacesByTime(params.places);
-    }
+    return sortPlacesByTime(sourcePlaces).map((place) => {
+      const rawPlace = place as TodayPlace & Record<string, any>;
 
-    return [];
+      const latitude =
+        rawPlace.latitude ??
+        rawPlace.lat ??
+        rawPlace.y ??
+        rawPlace.mapY ??
+        rawPlace.coordinate?.latitude ??
+        rawPlace.coordinate?.lat ??
+        rawPlace.location?.latitude ??
+        rawPlace.location?.lat;
+
+      const longitude =
+        rawPlace.longitude ??
+        rawPlace.lng ??
+        rawPlace.lon ??
+        rawPlace.x ??
+        rawPlace.mapX ??
+        rawPlace.coordinate?.longitude ??
+        rawPlace.coordinate?.lng ??
+        rawPlace.coordinate?.lon ??
+        rawPlace.location?.longitude ??
+        rawPlace.location?.lng ??
+        rawPlace.location?.lon;
+
+      return {
+        ...place,
+        latitude,
+        longitude,
+      };
+    });
   }, [currentDay?.places, params.places]);
 
+  if (__DEV__) {
+    console.log(
+      "[OngoingScheduleScreen] map places:",
+      places.map((place) => ({
+        name: place.name,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        placeId: place.placeId,
+        googlePlaceId: place.googlePlaceId,
+      })),
+    );
+  }
+
+  const [resolvedPlaces, setResolvedPlaces] = useState(places);
+
   const hasPlaces = places.length > 0;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const resolveCoordinates = async () => {
+      const nextPlaces = await Promise.all(
+        places.map(async (place) => {
+          if (place.latitude && place.longitude) {
+            return place;
+          }
+
+          const placeId = place.googlePlaceId ?? place.placeId;
+
+          if (!placeId) {
+            return place;
+          }
+
+          try {
+            const detail = await getPlaceDetail(placeId);
+
+            return {
+              ...place,
+              latitude: detail.latitude ?? detail.lat,
+              longitude: detail.longitude ?? detail.lng,
+            };
+          } catch (error) {
+            console.log(
+              "[OngoingScheduleScreen] place detail coordinate resolve failed:",
+              placeId,
+              error,
+            );
+
+            return place;
+          }
+        }),
+      );
+
+      if (!mounted) return;
+
+      setResolvedPlaces(nextPlaces);
+    };
+
+    resolveCoordinates();
+
+    return () => {
+      mounted = false;
+    };
+  }, [places]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -360,36 +454,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.mapSection}>
-            <View style={styles.mapFake}>
-              <View style={styles.mapRoadDiagonalOne} />
-              <View style={styles.mapRoadDiagonalTwo} />
-              <View style={styles.mapRoadHorizontalOne} />
-              <View style={styles.mapRoadHorizontalTwo} />
-
-              <Text style={[styles.mapLabel, styles.mapLabelOne]}>교동</Text>
-              <Text style={[styles.mapLabel, styles.mapLabelTwo]}>MBC</Text>
-              <Text style={[styles.mapLabel, styles.mapLabelThree]}>
-                강릉해양경찰서
-              </Text>
-              <Text style={[styles.mapLabel, styles.mapLabelFour]}>
-                교통하늘채{"\n"}스카이파크
-              </Text>
-
-              <View style={styles.mapMarkerMain}>
-                <Ionicons name="location-outline" size={16} color="#FFFFFF" />
-              </View>
-
-              <View style={styles.mapMarkerSmallOne}>
-                <Ionicons name="pin-outline" size={15} color="#FFFFFF" />
-              </View>
-
-              <TouchableOpacity
-                style={styles.mapExpandButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="expand-outline" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
+            <PlanAMapPreview places={resolvedPlaces} height={220} />
           </View>
 
           <View style={styles.todayHeader}>
