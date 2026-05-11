@@ -116,7 +116,6 @@ const makeDisplayTime = (
   return "";
 };
 
-
 const normalizeServerTimeToHHmm = (value?: string | null) => {
   if (!value) {
     return null;
@@ -134,13 +133,17 @@ const normalizeServerTimeToHHmm = (value?: string | null) => {
     .replace("오후", "PM")
     .trim();
 
-  const hhmmMatch = normalized.match(/^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/);
+  const hhmmMatch = normalized.match(
+    /^([01]?\d|2[0-3]):([0-5]\d)(?::[0-5]\d)?$/,
+  );
 
   if (hhmmMatch) {
     return `${hhmmMatch[1].padStart(2, "0")}:${hhmmMatch[2]}`;
   }
 
-  const prefixMeridiemMatch = normalized.match(/^(AM|PM)\s*(\d{1,2}):([0-5]\d)$/i);
+  const prefixMeridiemMatch = normalized.match(
+    /^(AM|PM)\s*(\d{1,2}):([0-5]\d)$/i,
+  );
 
   if (prefixMeridiemMatch) {
     const meridiem = prefixMeridiemMatch[1].toUpperCase();
@@ -158,7 +161,9 @@ const normalizeServerTimeToHHmm = (value?: string | null) => {
     return `${String(hour).padStart(2, "0")}:${minute}`;
   }
 
-  const suffixMeridiemMatch = normalized.match(/^(\d{1,2}):([0-5]\d)\s*(AM|PM)$/i);
+  const suffixMeridiemMatch = normalized.match(
+    /^(\d{1,2}):([0-5]\d)\s*(AM|PM)$/i,
+  );
 
   if (suffixMeridiemMatch) {
     let hour = Number(suffixMeridiemMatch[1]);
@@ -409,9 +414,9 @@ const normalizeServerPlaceForPlanA = (
     getServerValueByPath(source, "id");
 
   const tripPlaceId =
-    typeof rawTripPlaceId === "number" || typeof rawTripPlaceId === "string" ?
-      rawTripPlaceId
-    : undefined;
+    typeof rawTripPlaceId === "number" || typeof rawTripPlaceId === "string"
+      ? rawTripPlaceId
+      : undefined;
 
   const placeId = getServerTextByPaths(source, [
     "placeId",
@@ -419,10 +424,7 @@ const normalizeServerPlaceForPlanA = (
     "google_place_id",
   ]);
 
-  const visitTime = getServerTextByPaths(source, [
-    "visitTime",
-    "startTime",
-  ]);
+  const visitTime = getServerTextByPaths(source, ["visitTime", "startTime"]);
 
   const endTime = getServerTextByPaths(source, ["endTime"]);
 
@@ -432,7 +434,8 @@ const normalizeServerPlaceForPlanA = (
     serverTripPlaceId: tripPlaceId,
     placeId,
     googlePlaceId: placeId,
-    name: getServerTextByPaths(source, ["name", "placeName"]) ?? "이름 없는 장소",
+    name:
+      getServerTextByPaths(source, ["name", "placeName"]) ?? "이름 없는 장소",
     address: getServerTextByPaths(source, [
       "address",
       "placeAddress",
@@ -488,55 +491,56 @@ const normalizeServerTripDetailToSchedule = ({
   ]);
 
   const normalizedDays =
-    itineraryItems.length > 0 ?
-      itineraryItems
-        .map((item, dayIndex) => {
-          const day =
-            getServerNumberByPaths(item, ["day", "dayNumber", "dayIndex"]) ??
-            dayIndex + 1;
+    itineraryItems.length > 0
+      ? itineraryItems
+          .map((item, dayIndex) => {
+            const day =
+              getServerNumberByPaths(item, ["day", "dayNumber", "dayIndex"]) ??
+              dayIndex + 1;
 
-          const places = getServerArrayByPaths(item, [
+            const places = getServerArrayByPaths(item, [
+              "places",
+              "locations",
+              "tripPlaces",
+              "plans",
+            ]).map((place, placeIndex) =>
+              normalizeServerPlaceForPlanA(place, placeIndex),
+            );
+
+            return {
+              day,
+              places,
+            };
+          })
+          .filter((day) => day.places.length > 0)
+      : (() => {
+          const flatPlaces = getServerArrayByPaths(unwrapped, [
             "places",
             "locations",
             "tripPlaces",
             "plans",
-          ]).map((place, placeIndex) =>
-            normalizeServerPlaceForPlanA(place, placeIndex),
-          );
+          ]);
 
-          return {
-            day,
-            places,
-          };
-        })
-        .filter((day) => day.places.length > 0)
-    : (() => {
-        const flatPlaces = getServerArrayByPaths(unwrapped, [
-          "places",
-          "locations",
-          "tripPlaces",
-          "plans",
-        ]);
+          const grouped = new Map<number, PlaceItem[]>();
 
-        const grouped = new Map<number, PlaceItem[]>();
+          flatPlaces.forEach((place, placeIndex) => {
+            const day =
+              getServerNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
+            const normalizedPlace = normalizeServerPlaceForPlanA(
+              place,
+              placeIndex,
+            );
 
-        flatPlaces.forEach((place, placeIndex) => {
-          const day = getServerNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
-          const normalizedPlace = normalizeServerPlaceForPlanA(
-            place,
-            placeIndex,
-          );
+            grouped.set(day, [...(grouped.get(day) ?? []), normalizedPlace]);
+          });
 
-          grouped.set(day, [...(grouped.get(day) ?? []), normalizedPlace]);
-        });
-
-        return Array.from(grouped.entries())
-          .sort(([a], [b]) => a - b)
-          .map(([day, places]) => ({
-            day,
-            places,
-          }));
-      })();
+          return Array.from(grouped.entries())
+            .sort(([a], [b]) => a - b)
+            .map(([day, places]) => ({
+              day,
+              places,
+            }));
+        })();
 
   if (normalizedDays.length === 0) {
     return null;
@@ -548,9 +552,9 @@ const normalizeServerTripDetailToSchedule = ({
     ...fallbackSchedule,
     id: scheduleId ?? fallbackSchedule.id,
     serverTripId:
-      typeof serverTripId === "number" || typeof serverTripId === "string" ?
-        Number(serverTripId)
-      : fallbackSchedule.serverTripId,
+      typeof serverTripId === "number" || typeof serverTripId === "string"
+        ? Number(serverTripId)
+        : fallbackSchedule.serverTripId,
     tripName:
       getServerTextByPaths(unwrapped, ["tripName", "title", "name"]) ??
       fallbackSchedule.tripName,
@@ -558,8 +562,7 @@ const normalizeServerTripDetailToSchedule = ({
       getServerTextByPaths(unwrapped, ["startDate"]) ??
       fallbackSchedule.startDate,
     endDate:
-      getServerTextByPaths(unwrapped, ["endDate"]) ??
-      fallbackSchedule.endDate,
+      getServerTextByPaths(unwrapped, ["endDate"]) ?? fallbackSchedule.endDate,
     location:
       getServerTextByPaths(unwrapped, ["location", "destination"]) ??
       fallbackSchedule.location,
@@ -567,7 +570,6 @@ const normalizeServerTripDetailToSchedule = ({
     updatedAt: now,
   };
 };
-
 
 const clearCachedDraftSchedule = (scheduleId?: string) => {
   if (!scheduleId) return;
@@ -772,60 +774,61 @@ export function usePlanAPlaces({
         setLoadingSchedule(true);
         setLoadError("");
 
-          const savedSchedule =
-            scheduleId ? await loadPlanASchedule(scheduleId) : null;
+        const savedSchedule = scheduleId
+          ? await loadPlanASchedule(scheduleId)
+          : null;
 
-          console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
+        console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
 
-          const fallbackSchedule = savedSchedule ?? initialSchedule;
-          const resolvedServerTripId =
-            serverTripId ??
-            savedSchedule?.serverTripId ??
-            fallbackSchedule.serverTripId;
+        const fallbackSchedule = savedSchedule ?? initialSchedule;
+        const resolvedServerTripId =
+          serverTripId ??
+          savedSchedule?.serverTripId ??
+          fallbackSchedule.serverTripId;
 
-          let serverSchedule: TravelSchedule | null = null;
+        let serverSchedule: TravelSchedule | null = null;
 
-          if (resolvedServerTripId) {
-            try {
-              const serverDetail = await getTripDetail(resolvedServerTripId);
+        if (resolvedServerTripId) {
+          try {
+            const serverDetail = await getTripDetail(resolvedServerTripId);
 
-              serverSchedule = normalizeServerTripDetailToSchedule({
-                detail: serverDetail,
-                fallbackSchedule,
-                scheduleId,
-                serverTripId: resolvedServerTripId,
+            serverSchedule = normalizeServerTripDetailToSchedule({
+              detail: serverDetail,
+              fallbackSchedule,
+              scheduleId,
+              serverTripId: resolvedServerTripId,
+            });
+
+            if (serverSchedule) {
+              console.log("[PlanA hook 서버 상세 우선 적용]", {
+                scheduleId: serverSchedule.id,
+                serverTripId: serverSchedule.serverTripId,
+                places: serverSchedule.days.flatMap((day) =>
+                  day.places.map((place) => ({
+                    day: day.day,
+                    name: place.name,
+                    tripPlaceId: place.tripPlaceId,
+                    placeId: place.placeId,
+                  })),
+                ),
               });
 
-              if (serverSchedule) {
-                console.log("[PlanA hook 서버 상세 우선 적용]", {
-                  scheduleId: serverSchedule.id,
-                  serverTripId: serverSchedule.serverTripId,
-                  places: serverSchedule.days.flatMap((day) =>
-                    day.places.map((place) => ({
-                      day: day.day,
-                      name: place.name,
-                      tripPlaceId: place.tripPlaceId,
-                      placeId: place.placeId,
-                    })),
-                  ),
-                });
-
-                await savePlanASchedule(serverSchedule);
-              }
-            } catch (serverError) {
-              console.log("[PlanA hook 서버 상세 조회 실패 - 로컬 사용]", {
-                serverTripId: resolvedServerTripId,
-                error: serverError,
-              });
+              await savePlanASchedule(serverSchedule);
             }
+          } catch (serverError) {
+            console.log("[PlanA hook 서버 상세 조회 실패 - 로컬 사용]", {
+              serverTripId: resolvedServerTripId,
+              error: serverError,
+            });
           }
+        }
 
-          const nextSchedule = serverSchedule ?? fallbackSchedule;
+        const nextSchedule = serverSchedule ?? fallbackSchedule;
 
-          scheduleRef.current = nextSchedule;
-          cacheDraftSchedule(nextSchedule);
-          setSchedule(nextSchedule);
-          setLoadedSavedSchedule(Boolean(savedSchedule || serverSchedule));
+        scheduleRef.current = nextSchedule;
+        cacheDraftSchedule(nextSchedule);
+        setSchedule(nextSchedule);
+        setLoadedSavedSchedule(Boolean(savedSchedule || serverSchedule));
         loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } catch (error) {
@@ -868,15 +871,14 @@ export function usePlanAPlaces({
     setScheduleSafely((prev) => {
       const hasTargetDay = prev.days.some((day) => day.day === dayNumber);
 
-      const nextDays =
-        hasTargetDay ?
-          prev.days.map((day) =>
-            day.day === dayNumber ?
-              {
-                ...day,
-                places: reorderPlaces(updater(day.places)),
-              }
-            : day,
+      const nextDays = hasTargetDay
+        ? prev.days.map((day) =>
+            day.day === dayNumber
+              ? {
+                  ...day,
+                  places: reorderPlaces(updater(day.places)),
+                }
+              : day,
           )
         : [
             ...prev.days,
@@ -920,10 +922,13 @@ export function usePlanAPlaces({
     if (!hasLoadedSavedSchedule) return;
 
     const placesToAdd =
-      selectedPlaces && selectedPlaces.length > 0 ? selectedPlaces
-      : gapSelectedPlace ? [gapSelectedPlace]
-      : selectedPlace ? [selectedPlace]
-      : [];
+      selectedPlaces && selectedPlaces.length > 0
+        ? selectedPlaces
+        : gapSelectedPlace
+          ? [gapSelectedPlace]
+          : selectedPlace
+            ? [selectedPlace]
+            : [];
 
     const validPlacesToAdd = placesToAdd.filter(
       (place) => place.id && place.name,
@@ -1004,15 +1009,15 @@ export function usePlanAPlaces({
 
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
-        place.id === placeId ?
-          {
-            ...place,
-            visitTime: nextVisitTime,
-            endTime: nextEndTime,
-            time: nextDisplayTime,
-            updatedAt: createNow(),
-          }
-        : place,
+        place.id === placeId
+          ? {
+              ...place,
+              visitTime: nextVisitTime,
+              endTime: nextEndTime,
+              time: nextDisplayTime,
+              updatedAt: createNow(),
+            }
+          : place,
       ),
     );
 
@@ -1090,17 +1095,58 @@ export function usePlanAPlaces({
         tripName: scheduleBase.tripName,
       });
 
-      const createdTrip =
-        scheduleBase.serverTripId ?
-          await updateTrip(scheduleBase.serverTripId, toCreateTripRequest(scheduleBase))
+      const createdTrip = scheduleBase.serverTripId
+        ? await updateTrip(
+            scheduleBase.serverTripId,
+            toCreateTripRequest(scheduleBase),
+          )
         : await createTrip(toCreateTripRequest(scheduleBase));
 
       console.log(
-        scheduleBase.serverTripId ?
-          "[PlanA 기존 서버 여행 수정 완료]"
-        : "[PlanA 서버 여행 생성 완료]",
+        scheduleBase.serverTripId
+          ? "[PlanA 기존 서버 여행 수정 완료]"
+          : "[PlanA 서버 여행 생성 완료]",
         createdTrip,
       );
+
+      const createdTripRecord = createdTrip as unknown as {
+        tripId?: number | string;
+        id?: number | string;
+      };
+
+      const refreshedTripId =
+        createdTripRecord.tripId ??
+        createdTripRecord.id ??
+        scheduleBase.serverTripId;
+
+      if (refreshedTripId) {
+        try {
+          const refreshedDetail = await getTripDetail(refreshedTripId);
+
+          const refreshedSchedule = normalizeServerTripDetailToSchedule({
+            detail: refreshedDetail,
+            fallbackSchedule: scheduleBase,
+            scheduleId: scheduleBase.id,
+            serverTripId: refreshedTripId,
+          });
+
+          if (refreshedSchedule) {
+            scheduleRef.current = refreshedSchedule;
+
+            cacheDraftSchedule(refreshedSchedule);
+
+            setSchedule(refreshedSchedule);
+
+            await savePlanASchedule(refreshedSchedule);
+
+            console.log("[PlanA 저장 후 서버 재동기화 완료]", {
+              tripId: refreshedTripId,
+            });
+          }
+        } catch (refreshError) {
+          console.log("[PlanA 저장 후 서버 재조회 실패]", refreshError);
+        }
+      }
 
       const existingScheduleUpdateRequests: Array<{
         tripPlaceId: number | string;
@@ -1145,12 +1191,9 @@ export function usePlanAPlaces({
                 tripPlaceId: existingTripPlaceId,
                 visitTime:
                   existingPlace?.visitTime ?? item.payload.visitTime ?? null,
-                endTime:
-                  existingPlace?.endTime ?? item.payload.endTime ?? null,
+                endTime: existingPlace?.endTime ?? item.payload.endTime ?? null,
                 memo:
-                  existingPlace?.memos?.[0]?.text ??
-                  item.payload.memo ??
-                  null,
+                  existingPlace?.memos?.[0]?.text ?? item.payload.memo ?? null,
                 placeName: existingPlace?.name,
               });
             }
@@ -1316,16 +1359,16 @@ export function usePlanAPlaces({
 
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
-        place.id === editingPlaceId ?
-          {
-            ...place,
-            name: trimmedName,
-            visitTime: nextVisitTime,
-            endTime: nextEndTime,
-            time: nextDisplayTime,
-            updatedAt: createNow(),
-          }
-        : place,
+        place.id === editingPlaceId
+          ? {
+              ...place,
+              name: trimmedName,
+              visitTime: nextVisitTime,
+              endTime: nextEndTime,
+              time: nextDisplayTime,
+              updatedAt: createNow(),
+            }
+          : place,
       ),
     );
 
@@ -1367,13 +1410,13 @@ export function usePlanAPlaces({
 
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
-        place.id === placeId ?
-          {
-            ...place,
-            memos: [...place.memos, createMemo(trimmedMemo)],
-            updatedAt: createNow(),
-          }
-        : place,
+        place.id === placeId
+          ? {
+              ...place,
+              memos: [...place.memos, createMemo(trimmedMemo)],
+              updatedAt: createNow(),
+            }
+          : place,
       ),
     );
 
@@ -1416,21 +1459,21 @@ export function usePlanAPlaces({
 
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
-        place.id === editingMemo.placeId ?
-          {
-            ...place,
-            memos: place.memos.map((memo) =>
-              memo.id === editingMemo.memoId ?
-                {
-                  ...memo,
-                  text: trimmedText,
-                  updatedAt: createNow(),
-                }
-              : memo,
-            ),
-            updatedAt: createNow(),
-          }
-        : place,
+        place.id === editingMemo.placeId
+          ? {
+              ...place,
+              memos: place.memos.map((memo) =>
+                memo.id === editingMemo.memoId
+                  ? {
+                      ...memo,
+                      text: trimmedText,
+                      updatedAt: createNow(),
+                    }
+                  : memo,
+              ),
+              updatedAt: createNow(),
+            }
+          : place,
       ),
     );
 
@@ -1440,13 +1483,13 @@ export function usePlanAPlaces({
   const handleDeleteMemo = (placeId: string, memoId: string) => {
     updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
-        place.id === placeId ?
-          {
-            ...place,
-            memos: place.memos.filter((memo) => memo.id !== memoId),
-            updatedAt: createNow(),
-          }
-        : place,
+        place.id === placeId
+          ? {
+              ...place,
+              memos: place.memos.filter((memo) => memo.id !== memoId),
+              updatedAt: createNow(),
+            }
+          : place,
       ),
     );
 
