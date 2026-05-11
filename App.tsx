@@ -1,8 +1,19 @@
 import "react-native-gesture-handler";
 
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Platform, View } from "react-native";
+import {
+  ActivityIndicator,
+  AppState,
+  Platform,
+  View,
+} from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  clearLoginSession,
+  isSessionExpiredByIdleTime,
+  markSessionActive,
+} from "./src/utils/sessionActivity";
+
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -279,6 +290,7 @@ export default function App() {
   const [initialRoute, setInitialRoute] = useState<
     keyof RootStackParamList | null
   >(null);
+  const [navigationSessionKey, setNavigationSessionKey] = useState(0);
 
   useEffect(() => {
     const bootstrapAuth = async () => {
@@ -296,9 +308,22 @@ export default function App() {
         const accessToken = await AsyncStorage.getItem("access_token");
         const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-        setInitialRoute(
-          accessToken && refreshToken ? "Main" : "OnboardingFirst",
-        );
+        if (!accessToken || !refreshToken) {
+          setInitialRoute("OnboardingFirst");
+          return;
+        }
+
+        const expiredByIdleTime = await isSessionExpiredByIdleTime();
+
+        if (expiredByIdleTime) {
+          await clearLoginSession();
+          console.log("[Session] 자동 로그아웃: 미접속 시간 초과");
+          setInitialRoute("OnboardingFirst");
+          return;
+        }
+
+        await markSessionActive();
+        setInitialRoute("Main");
       } catch (error) {
         console.log("[App] 초기 상태 확인 실패:", error);
         setInitialRoute("OnboardingFirst");
@@ -308,13 +333,49 @@ export default function App() {
     bootstrapAuth();
   }, []);
 
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", async (nextState) => {
+      if (nextState !== "active") {
+        return;
+      }
+
+      try {
+        const accessToken = await AsyncStorage.getItem("access_token");
+        const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+        if (!accessToken || !refreshToken) {
+          return;
+        }
+
+        const expiredByIdleTime = await isSessionExpiredByIdleTime();
+
+        if (expiredByIdleTime) {
+          await clearLoginSession();
+          console.log("[Session] 자동 로그아웃: 미접속 시간 초과");
+
+          setInitialRoute("OnboardingFirst");
+          setNavigationSessionKey((prev) => prev + 1);
+          return;
+        }
+
+        await markSessionActive();
+      } catch (error) {
+        console.log("[Session] AppState 세션 체크 실패:", error);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
   if (!initialRoute) {
     return <SplashLoading />;
   }
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <NavigationContainer linking={linking}>
+      <NavigationContainer key={navigationSessionKey} linking={linking}>
         <Stack.Navigator
           id={undefined}
           initialRouteName={initialRoute}
