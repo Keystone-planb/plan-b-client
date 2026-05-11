@@ -424,19 +424,21 @@ const enrichDaysWithServerTripPlaceIds = async (
   const detail = await getTripDetail(tripId);
   const serverItineraries = detail.itineraries ?? [];
 
-  console.log("[Main] 서버 상세 조회 성공:", {
-    tripId: detail.tripId,
-    itineraryCount: serverItineraries.length,
-    places: serverItineraries.flatMap((itinerary) =>
-      itinerary.places.map((place) => ({
-        day: itinerary.day,
-        tripPlaceId: place.tripPlaceId,
-        placeId: place.placeId,
-        name: place.name,
-        visitOrder: place.visitOrder,
-      })),
-    ),
-  });
+  if (__DEV__) {
+    console.log("[Main] 서버 상세 조회 성공:", {
+      tripId: detail.tripId,
+      itineraryCount: serverItineraries.length,
+      places: serverItineraries.flatMap((itinerary) =>
+        itinerary.places.map((place) => ({
+          day: itinerary.day,
+          tripPlaceId: place.tripPlaceId,
+          placeId: place.placeId,
+          name: place.name,
+          visitOrder: place.visitOrder,
+        })),
+      ),
+    });
+  }
 
   if (serverItineraries.length === 0) {
     return localDays ?? [];
@@ -532,28 +534,34 @@ export default function MainScreen({ navigation }: Props) {
       const serverNotifications = await getWeatherNotifications(storedUserId);
 
       if (serverNotifications.length > 0) {
-        console.log("[Main] 날씨 알림 조회:", {
-          userId: storedUserId,
-          count: serverNotifications.length,
-          notifications: serverNotifications,
-          source: "server",
-        });
+        if (__DEV__) {
+          console.log("[Main] 날씨 알림 조회:", {
+            userId: storedUserId,
+            count: serverNotifications.length,
+            notifications: serverNotifications,
+            source: "server",
+          });
+        }
 
         setNotifications(serverNotifications);
         return;
       }
 
-      console.log("[Main] 날씨 알림 조회:", {
-        userId: storedUserId,
-        count: 0,
-        notifications: [],
-        source: "empty",
-      });
+      if (__DEV__) {
+        console.log("[Main] 날씨 알림 조회:", {
+          userId: storedUserId,
+          count: 0,
+          notifications: [],
+          source: "empty",
+        });
+      }
 
       setNotifications([]);
     } catch (error) {
-      console.log("[Main] 날씨 알림 조회 실패:", error);
-      setNotifications([]);
+      if (__DEV__) {
+        console.log("[Main] 날씨 알림 조회 실패:", error);
+        setNotifications([]);
+      }
     }
   };
 
@@ -625,15 +633,17 @@ export default function MainScreen({ navigation }: Props) {
         }
 
         if (serverSchedules.length > 0) {
-          console.log("[Main] 서버 일정 목록 사용:", {
-            count: serverSchedules.length,
-            schedules: serverSchedules.map((schedule) => ({
-              tripId: schedule.serverTripId,
-              title: getScheduleTitle(schedule),
-              startDate: schedule.startDate,
-              endDate: schedule.endDate,
-            })),
-          });
+          if (__DEV__) {
+            console.log("[Main] 서버 일정 목록 사용:", {
+              count: serverSchedules.length,
+              schedules: serverSchedules.map((schedule) => ({
+                tripId: schedule.serverTripId,
+                title: getScheduleTitle(schedule),
+                startDate: schedule.startDate,
+                endDate: schedule.endDate,
+              })),
+            });
+          }
 
           setSchedules(serverSchedules);
           await loadNotifications(serverSchedules);
