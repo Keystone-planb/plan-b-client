@@ -82,8 +82,11 @@ export default function PlanAMapPreview({ places = [], height = 220 }: Props) {
   return (
     <View style={[styles.container, { height }]}>
       <MapView
+        key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
         style={StyleSheet.absoluteFillObject}
         initialRegion={initialRegion}
+        loadingEnabled
+        moveOnMarkerPress={false}
       >
         {visiblePlaces.map((place, index) => (
           <Marker
