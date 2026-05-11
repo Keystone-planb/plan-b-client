@@ -293,6 +293,63 @@ const parsePlanBPlaceName = (name?: string) => {
   };
 };
 
+const getOngoingPlaceKey = (place: TodayPlace) => {
+  return String(
+    place.serverTripPlaceId ??
+      place.tripPlaceId ??
+      place.placeId ??
+      place.googlePlaceId ??
+      place.id ??
+      place.name ??
+      "",
+  );
+};
+
+
+const getCleanPlanBText = (value?: string | null) => {
+  const rawValue = value?.trim();
+
+  if (!rawValue) {
+    return "";
+  }
+
+  return rawValue
+    .replace("(PLAN B)", "")
+    .replace(/^\[/, "")
+    .replace(/\]$/, "")
+    .trim();
+};
+
+const getDisplayAddress = (
+  place: TodayPlace,
+  fallbackLocation?: string,
+) => {
+  const rawAddress = place.address?.trim() ?? "";
+
+  /**
+   * 서버에서 PLAN B 교체 후 address 자리에
+   * "[장소명] (PLAN B)" 형태의 라벨이 들어오는 경우 주소처럼 노출하지 않는다.
+   */
+  if (rawAddress.includes("(PLAN B)")) {
+    return "";
+  }
+
+  const cleanAddress = getCleanPlanBText(rawAddress);
+
+  if (cleanAddress) {
+    return cleanAddress;
+  }
+
+  const fallback = fallbackLocation?.trim() ?? "";
+
+  if (fallback.includes("(PLAN B)")) {
+    return "";
+  }
+
+  return getCleanPlanBText(fallback);
+};
+
+
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
@@ -318,6 +375,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [serverDays, setServerDays] = useState<ScheduleDay[] | null>(null);
+  const [isPlaceEditing, setIsPlaceEditing] = useState(false);
+  const [editableDays, setEditableDays] = useState<ScheduleDay[] | null>(null);
 
   useEffect(() => {
     let mounted = true;
@@ -366,7 +425,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     };
   }, [resolvedTripId]);
 
-  const displayDays = serverDays?.length ? serverDays : days;
+  const displayDays =
+    editableDays?.length ? editableDays
+    : serverDays?.length ? serverDays
+    : days;
 
   const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
@@ -395,6 +457,56 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const handleBack = () => {
     navigation.goBack();
+  };
+
+  const updateCurrentDayPlaces = (
+    updater: (currentPlaces: TodayPlace[]) => TodayPlace[],
+  ) => {
+    const dayNumber = selectedDayIndex + 1;
+    const baseDays = displayDays.length > 0 ? displayDays : days;
+
+    const hasCurrentDay = baseDays.some((day) => day.day === dayNumber);
+
+    const nextDays = (
+      hasCurrentDay ? baseDays : [...baseDays, { day: dayNumber, places: [] }]
+    ).map((day) => {
+      if (day.day !== dayNumber) {
+        return day;
+      }
+
+      const nextPlaces = updater(day.places).map((place, placeIndex) => ({
+        ...place,
+        order: placeIndex + 1,
+      }));
+
+      return {
+        ...day,
+        places: nextPlaces,
+      };
+    });
+
+    setEditableDays(nextDays);
+  };
+
+  const handleDeletePlace = (targetPlace: TodayPlace) => {
+    Alert.alert("장소 삭제", "이 장소를 삭제할까요?", [
+      {
+        text: "취소",
+        style: "cancel",
+      },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: () => {
+          updateCurrentDayPlaces((currentPlaces) =>
+            currentPlaces.filter(
+              (place) =>
+                getOngoingPlaceKey(place) !== getOngoingPlaceKey(targetPlace),
+            ),
+          );
+        },
+      },
+    ]);
   };
 
   const handleEdit = () => {
@@ -494,40 +606,53 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.dayTabs}>
-            {DAY_TABS.map((day, index) => {
-              const selected = selectedDayIndex === index;
+          <View style={styles.dayTabsRow}>
+            <View style={styles.dayTabs}>
+              {DAY_TABS.map((day, index) => {
+                const selected = selectedDayIndex === index;
 
-              return (
-                <TouchableOpacity
-                  key={day}
-                  style={[styles.dayTab, selected && styles.dayTabActive]}
-                  activeOpacity={0.85}
-                  onPress={() => setSelectedDayIndex(index)}
-                >
-                  <Text
-                    style={[
-                      styles.dayTabText,
-                      selected && styles.dayTabTextActive,
-                    ]}
+                return (
+                  <TouchableOpacity
+                    key={day}
+                    style={[styles.dayTab, selected && styles.dayTabActive]}
+                    activeOpacity={0.85}
+                    onPress={() => setSelectedDayIndex(index)}
                   >
-                    {day}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-
-          <View style={styles.mapSection}>
+                    <Text
+                      style={[
+                        styles.dayTabText,
+                        selected && styles.dayTabTextActive,
+                      ]}
+                    >
+                      {day}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+            <TouchableOpacity
+              style={styles.fullScheduleEditButton}
+              activeOpacity={0.82}
+              onPress={handleEdit}
+            >
+              <Text style={styles.fullScheduleEditButtonText}>전체 편집</Text>
+            </TouchableOpacity>
+</View>
+<View style={styles.mapSection}>
             <PlanAMapPreview places={places} />
           </View>
 
           <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>오늘 일정</Text>
 
-            <TouchableOpacity activeOpacity={0.75} onPress={handleEdit}>
-              <Text style={styles.editText}>수정</Text>
-            </TouchableOpacity>
+            <TouchableOpacity
+                activeOpacity={0.75}
+                onPress={() => setIsPlaceEditing((prev) => !prev)}
+              >
+                <Text style={styles.editText}>
+                  {isPlaceEditing ? "장소 수정 완료" : "장소 수정"}
+                </Text>
+              </TouchableOpacity>
           </View>
 
           <View style={styles.timelineList}>
@@ -551,6 +676,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
               
                 const planBPlace = parsePlanBPlaceName(place.name);
+
+                  const displayAddress = getDisplayAddress(place, location);
 return (
                 <React.Fragment
                   key={`${String(place.tripPlaceId ?? place.id ?? place.name)}-${index}`}
@@ -578,9 +705,11 @@ return (
                           ) : null}
                         </View>
 
-                      <Text style={styles.placeAddress} numberOfLines={1}>
-                        {place.address || location}
-                      </Text>
+                      {displayAddress ?
+                          <Text style={styles.placeAddress} numberOfLines={1}>
+                            {displayAddress}
+                          </Text>
+                        : null}
 
                       <View style={styles.timeRow}>
                         <Ionicons
@@ -592,9 +721,29 @@ return (
                           {place.time || "시간 미정"}
                         </Text>
                       </View>
+
+                        {isPlaceEditing ?
+                          <View style={styles.deleteOnlyRow}>
+                          <TouchableOpacity
+                            style={styles.deletePlaceButton}
+                            activeOpacity={0.75}
+                            onPress={() => handleDeletePlace(place)}
+                          >
+                            <Ionicons
+                              name="trash-outline"
+                              size={14}
+                              color="#EF4444"
+                            />
+                            <Text style={styles.deletePlaceButtonText}>
+                              삭제
+                            </Text>
+                          </TouchableOpacity>
+                        </View>
+                        : null}
                     </View>
 
-                    <TouchableOpacity
+                    {!isPlaceEditing ?
+                      <TouchableOpacity
                       style={[
                         styles.alternativeButton,
                         !hasServerPlanId && styles.disabledAlternativeButton,
@@ -609,6 +758,7 @@ return (
                         color="#FFFFFF"
                       />
                     </TouchableOpacity>
+                    : null}
                   </View>
 
                   {place.memos?.length ?
@@ -731,12 +881,20 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  dayTabs: {
+  dayTabsRow: {
+    paddingHorizontal: 24,
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 12,
+    justifyContent: "space-between",
+    gap: 8,
     marginBottom: 18,
+  },
+
+  dayTabs: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
   },
 
   dayTab: {
@@ -769,6 +927,25 @@ const styles = StyleSheet.create({
 
   dayTabTextActive: {
     color: "#FFFFFF",
+  },
+
+  fullScheduleEditButton: {
+    flexShrink: 0,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: "#F4F8FF",
+    borderWidth: 1,
+    borderColor: "#D6E4FF",
+  },
+
+  fullScheduleEditButtonText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
+    color: "#2158E8",
   },
 
   mapSection: {
@@ -1010,6 +1187,31 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "700",
     marginLeft: 5,
+  },
+
+  deleteOnlyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 10,
+  },
+
+  deletePlaceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 999,
+    backgroundColor: "#FFF1F2",
+    borderWidth: 1,
+    borderColor: "#FFE4E6",
+  },
+
+  deletePlaceButtonText: {
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "900",
+    color: "#EF4444",
   },
 
   alternativeButton: {
