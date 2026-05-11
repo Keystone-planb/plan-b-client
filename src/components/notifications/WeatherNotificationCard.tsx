@@ -58,6 +58,26 @@ const getNumberValue = (source: unknown, keys: string[]) => {
   return undefined;
 };
 
+const getWeatherTypeLabel = (notification: WeatherNotification) => {
+  const type = getTextValue(notification, ["weatherType", "type"]).toUpperCase();
+
+  if (type.includes("RAIN")) return "비";
+  if (type.includes("SNOW")) return "눈";
+  if (type.includes("HEAT")) return "폭염";
+  if (type.includes("COLD")) return "한파";
+  if (type.includes("WIND")) return "강풍";
+
+  return "기상";
+};
+
+const getPlaceNameFromBody = (body?: string) => {
+  if (!body) return "";
+
+  const match = body.match(/^(.+?)\s*방문 시간/);
+
+  return match?.[1]?.trim() ?? "";
+};
+
 const formatTimeRange = (notification: WeatherNotification) => {
   const startTime = getTextValue(notification, [
     "visitTime",
@@ -75,13 +95,12 @@ const formatTimeRange = (notification: WeatherNotification) => {
     return startTime;
   }
 
-  return "시간 정보 없음";
+  return "방문 시간 기준";
 };
 
 const getWeatherSummary = (notification: WeatherNotification) => {
-  const timeRange = formatTimeRange(notification);
-
   const probability = getNumberValue(notification, [
+    "precipitationProb",
     "precipitationProbability",
     "rainProbability",
     "pop",
@@ -100,16 +119,15 @@ const getWeatherSummary = (notification: WeatherNotification) => {
   const rainAmountText =
     typeof rainAmount === "number" ? `예상 강수량 ${rainAmount}mm` : "";
 
+  const weatherTypeLabel = getWeatherTypeLabel(notification);
+
   const detailText = [probabilityText, rainAmountText].filter(Boolean).join(" · ");
 
   if (detailText) {
-    return `${timeRange}  ${detailText}`;
+    return `${formatTimeRange(notification)}  ${detailText}`;
   }
 
-  return (
-    getTextValue(notification, ["message"]) ||
-    `${timeRange}  날씨 변동이 예상됩니다.`
-  );
+  return `${formatTimeRange(notification)}  ${weatherTypeLabel} 예보가 있습니다.`;
 };
 
 export default function WeatherNotificationCard({
@@ -117,13 +135,33 @@ export default function WeatherNotificationCard({
   onPressRecommend,
   onDismiss,
 }: Props) {
-  const placeName = getTextValue(notification, ["placeName", "name"], "현재 일정");
+  const title = getTextValue(
+    notification,
+    ["title"],
+    "기상 변화가 예상됩니다",
+  );
+
+  const body = getTextValue(
+    notification,
+    ["body", "message"],
+    "기상 변화로 인해 실내 대안 장소를 추천받아보세요.",
+  );
+
+  const placeName =
+    getTextValue(notification, ["placeName", "name"]) ||
+    getPlaceNameFromBody(body) ||
+    "영향받는 일정";
+
   const address = getTextValue(
     notification,
     ["address", "placeAddress", "location"],
-    "장소 정보 없음",
+    "일정 장소 기준",
   );
-  const timeRange = formatTimeRange(notification);
+
+  const alternatives =
+    notification.recommendedPlaces ?? notification.alternatives ?? [];
+
+  const weatherTypeLabel = getWeatherTypeLabel(notification);
   const weatherSummary = getWeatherSummary(notification);
 
   return (
@@ -148,6 +186,9 @@ export default function WeatherNotificationCard({
 
       <View style={styles.divider} />
 
+      <Text style={styles.alertTitle}>{title}</Text>
+      <Text style={styles.alertBody}>{body}</Text>
+
       <Text style={styles.sectionLabel}>영향받는 일정</Text>
 
       <View style={styles.scheduleBox}>
@@ -157,18 +198,24 @@ export default function WeatherNotificationCard({
 
           <View style={styles.timeRow}>
             <Ionicons name="time-outline" size={13} color="#94A3B8" />
-            <Text style={styles.timeText}>{timeRange}</Text>
+            <Text style={styles.timeText}>{formatTimeRange(notification)}</Text>
           </View>
         </View>
 
-        <View style={styles.reserveBadge}>
-          <Ionicons name="ticket-outline" size={11} color="#FFFFFF" />
-          <Text style={styles.reserveBadgeText}>예약</Text>
+        <View style={styles.weatherBadge}>
+          <Ionicons name="warning-outline" size={11} color="#FFFFFF" />
+          <Text style={styles.weatherBadgeText}>{weatherTypeLabel}</Text>
         </View>
       </View>
 
       <View style={styles.weatherSummaryBox}>
         <Text style={styles.weatherSummaryText}>{weatherSummary}</Text>
+
+        {alternatives.length > 0 ? (
+          <Text style={styles.alternativeCountText}>
+            대안 장소 {alternatives.length}개 준비됨
+          </Text>
+        ) : null}
       </View>
 
       <TouchableOpacity
@@ -245,6 +292,22 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
+  alertTitle: {
+    fontSize: 15,
+    lineHeight: 21,
+    fontWeight: "900",
+    color: "#1E293B",
+  },
+
+  alertBody: {
+    marginTop: 6,
+    marginBottom: 16,
+    fontSize: 13,
+    lineHeight: 20,
+    fontWeight: "700",
+    color: "#64748B",
+  },
+
   sectionLabel: {
     marginBottom: 10,
     fontSize: 12,
@@ -295,7 +358,7 @@ const styles = StyleSheet.create({
     color: "#7B8798",
   },
 
-  reserveBadge: {
+  weatherBadge: {
     minWidth: 50,
     height: 24,
     paddingHorizontal: 8,
@@ -307,7 +370,7 @@ const styles = StyleSheet.create({
     gap: 3,
   },
 
-  reserveBadgeText: {
+  weatherBadgeText: {
     fontSize: 11,
     fontWeight: "900",
     color: "#FFFFFF",
@@ -324,8 +387,17 @@ const styles = StyleSheet.create({
   weatherSummaryText: {
     fontSize: 13,
     lineHeight: 19,
-    fontWeight: "800",
+    fontWeight: "900",
     color: "#2F3B4F",
+    textAlign: "center",
+  },
+
+  alternativeCountText: {
+    marginTop: 5,
+    fontSize: 12,
+    lineHeight: 17,
+    fontWeight: "800",
+    color: "#64748B",
     textAlign: "center",
   },
 

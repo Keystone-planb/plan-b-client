@@ -736,6 +736,12 @@ export default function MainScreen({ navigation }: Props) {
           String(notification.tripId),
       ) ?? schedules[0];
 
+    const resolvedBaseTripId =
+      notification.tripId ??
+      baseSchedule?.tripId ??
+      baseSchedule?.serverTripId ??
+      getScheduleId(baseSchedule ?? {});
+
     const normalizedPlaces = recommendedPlaces.map((place) => ({
       placeId: place.googlePlaceId ?? String(place.placeId),
       googlePlaceId: place.googlePlaceId ?? String(place.placeId),
@@ -768,7 +774,7 @@ export default function MainScreen({ navigation }: Props) {
       currentPlanId: notification.tripPlaceId,
       tripPlaceId: notification.tripPlaceId,
       serverTripPlaceId: notification.tripPlaceId,
-      notificationId: notification.notificationId,
+      notificationId,
       fromWeatherNotification: true,
 
       /**
@@ -789,7 +795,7 @@ export default function MainScreen({ navigation }: Props) {
     };
 
     console.log("[Main] 날씨 알림 AI 분석 상세 이동:", {
-      notificationId: notification.notificationId,
+      notificationId,
       tripId: notification.tripId,
       tripPlaceId: notification.tripPlaceId,
       placesCount: normalizedPlaces.length,
@@ -802,7 +808,7 @@ export default function MainScreen({ navigation }: Props) {
      * → AI 분석 상세 보기
      * → 추천 결과
      */
-    navigation.navigate("AIAnalysisLoading", nextParams);
+    navigation.navigate("RecommendationResult", nextParams);
   };
 
   const handleAddSchedule = () => {
@@ -983,7 +989,7 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.notificationSection}>
             {notifications.map((notification) => (
               <WeatherNotificationCard
-                key={String(notification.notificationId)}
+                key={String(notification.notificationId ?? notification.id)}
                 notification={notification}
                 onPressRecommend={handleOpenNotificationRecommendation}
                 onDismiss={handleDismissNotification}
