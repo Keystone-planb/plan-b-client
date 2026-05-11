@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   Modal,
@@ -139,7 +139,6 @@ const getTripDayCount = (startDate?: string, endDate?: string) => {
 
   return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
 };
-
 
 const getCurrentTripDay = (startDate?: string, endDate?: string) => {
   const dayCount = getTripDayCount(startDate, endDate);
@@ -306,6 +305,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const [selectedDay, setSelectedDay] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const [isPlaceDeleteMode, setIsPlaceDeleteMode] = useState(false);
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
     null,
   );
@@ -359,26 +359,24 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const gapSelectedPlace = route?.params?.gapSelectedPlace;
 
   const normalizedGapSelectedPlace: SelectedPlaceParam | undefined =
-    gapSelectedPlace?.id && gapSelectedPlace?.name ?
-      {
-        id: String(gapSelectedPlace.id),
-        placeId:
-          gapSelectedPlace.placeId ?
-            String(gapSelectedPlace.placeId)
-          : undefined,
-        googlePlaceId:
-          gapSelectedPlace.googlePlaceId ?
-            String(gapSelectedPlace.googlePlaceId)
-          : undefined,
-        name: gapSelectedPlace.name,
-        address: gapSelectedPlace.address,
-        category: gapSelectedPlace.category,
-        latitude: gapSelectedPlace.latitude,
-        longitude: gapSelectedPlace.longitude,
-        time: "",
-        day: selectedDay,
-      }
-    : undefined;
+    gapSelectedPlace?.id && gapSelectedPlace?.name
+      ? {
+          id: String(gapSelectedPlace.id),
+          placeId: gapSelectedPlace.placeId
+            ? String(gapSelectedPlace.placeId)
+            : undefined,
+          googlePlaceId: gapSelectedPlace.googlePlaceId
+            ? String(gapSelectedPlace.googlePlaceId)
+            : undefined,
+          name: gapSelectedPlace.name,
+          address: gapSelectedPlace.address,
+          category: gapSelectedPlace.category,
+          latitude: gapSelectedPlace.latitude,
+          longitude: gapSelectedPlace.longitude,
+          time: "",
+          day: selectedDay,
+        }
+      : undefined;
 
   const dayOptions = makeDayOptions(startDate, endDate);
 
@@ -432,6 +430,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
     serverTripId: resolvedTripId,
     reloadKey: route?.params?.refreshPlanAAt,
   });
+
+  const sortedCurrentPlaces = useMemo(() => {
+    return sortPlacesByTime(currentPlaces ?? []);
+  }, [currentPlaces]);
 
   useEffect(() => {
     const firstSelectedDay = selectedPlaces?.[0]?.day ?? selectedPlace?.day;
@@ -551,12 +553,16 @@ export default function PlanAScreen({ navigation, route }: Props) {
         };
 
         if (moveToMainAfterSave) {
-          browserWindow.alert?.("일정 저장이 완료되었습니다. 홈으로 이동합니다.");
+          browserWindow.alert?.(
+            "일정 저장이 완료되었습니다. 홈으로 이동합니다.",
+          );
           moveToMain(savedSchedule);
           return;
         }
 
-        browserWindow.alert?.("중간 저장이 완료되었습니다. 현재 Plan.A 화면에 저장되었습니다.");
+        browserWindow.alert?.(
+          "중간 저장이 완료되었습니다. 현재 Plan.A 화면에 저장되었습니다.",
+        );
         return;
       }
 
@@ -607,26 +613,62 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const parseTimeForPicker = (value?: string | null) => {
-    const normalized = value?.trim();
-    const match = normalized?.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    const normalized = String(value ?? "").trim();
+    const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
+
+    if (!firstTime) {
+      return { hour: 12, minute: 0, period: "AM" as const };
+    }
+
+    const match = firstTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
 
     if (!match) {
+      return { hour: 12, minute: 0, period: "AM" as const };
+    }
+
+    let hour = Number(match[1]);
+    const minute = Number(match[2]);
+    const explicitPeriod = match[3]?.toUpperCase() as "AM" | "PM" | undefined;
+
+    if (explicitPeriod) {
       return {
-        hour: 12,
-        minute: 0,
-        period: "AM" as const,
+        hour: Math.min(Math.max(hour, 1), 12),
+        minute: Math.min(Math.max(minute, 0), 55),
+        period: explicitPeriod,
       };
     }
 
-    const rawHour = Number(match[1]);
-    const rawMinute = Number(match[2]);
-    const period = match[3].toUpperCase() === "PM" ? "PM" : "AM";
+    if (hour === 0) {
+      return { hour: 12, minute, period: "AM" as const };
+    }
 
-    return {
-      hour: Math.min(Math.max(rawHour, 1), 12),
-      minute: Math.min(Math.max(rawMinute, 0), 55),
-      period: period as "AM" | "PM",
-    };
+    if (hour === 12) {
+      return { hour: 12, minute, period: "PM" as const };
+    }
+
+    if (hour > 12) {
+      return { hour: hour - 12, minute, period: "PM" as const };
+    }
+
+    return { hour, minute, period: "AM" as const };
+  };
+
+  const formatPickerTimeForServer = (
+    hour: number,
+    minute: number,
+    period: "AM" | "PM",
+  ) => {
+    let nextHour = hour;
+
+    if (period === "AM" && nextHour === 12) {
+      nextHour = 0;
+    }
+
+    if (period === "PM" && nextHour < 12) {
+      nextHour += 12;
+    }
+
+    return `${padTimeUnit(nextHour)}:${padTimeUnit(minute)}`;
   };
 
   const getTimeValueForTarget = (
@@ -641,7 +683,58 @@ export default function PlanAScreen({ navigation, route }: Props) {
     place: PlaceItem,
     target: TimePickerTarget = "visitTime",
   ) => {
-    const parsed = parseTimeForPicker(getTimeValueForTarget(place, target));
+    const rawPlace = place as PlaceItem & Record<string, any>;
+
+    const displayTime =
+      getPlaceDisplayTime(place) || String(rawPlace.time ?? "");
+    const [displayStartTime = "", displayEndTime = ""] = displayTime
+      .split("-")
+      .map((value) => value.trim());
+
+    const visitTimeCandidates = [
+      rawPlace.visitTime,
+      rawPlace.startTime,
+      rawPlace.startedAt,
+      displayStartTime,
+    ];
+
+    const endTimeCandidates = [
+      rawPlace.endTime,
+      rawPlace.finishTime,
+      rawPlace.finishedAt,
+      displayEndTime,
+    ];
+
+    const pickFirstTime = (values: unknown[]) => {
+      for (const value of values) {
+        const text = String(value ?? "").trim();
+
+        if (!text) continue;
+        if (/^\d{1,2}:\d{2}(\s*(AM|PM))?$/i.test(text)) return text;
+      }
+
+      return "";
+    };
+
+    const visitTime = pickFirstTime(visitTimeCandidates);
+    const endTime = pickFirstTime(endTimeCandidates);
+
+    const baseTime =
+      target === "visitTime"
+        ? visitTime
+        : endTime || (visitTime ? addOneHourToDisplayTime(visitTime) : "");
+
+    const parsed = parseTimeForPicker(baseTime || "12:00 PM");
+
+    console.log("[PlanA] openTimePicker:", {
+      placeName: place.name,
+      target,
+      displayTime,
+      visitTime,
+      endTime,
+      baseTime,
+      parsed,
+    });
 
     setTimePickerPlace(place);
     setTimePickerTarget(target);
@@ -733,9 +826,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
       visitTime: nextVisitTime || null,
       endTime: nextEndTime || null,
       time:
-        nextVisitTime && nextEndTime ?
-          `${nextVisitTime} - ${nextEndTime}`
-        : nextVisitTime || nextEndTime || "",
+        nextVisitTime && nextEndTime
+          ? `${nextVisitTime} - ${nextEndTime}`
+          : nextVisitTime || nextEndTime || "",
     };
 
     const parsed = parseTimeForPicker(
@@ -752,9 +845,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const handleSaveTimePicker = () => {
     if (!timePickerPlace) return;
 
-    const selectedTime = `${padTimeUnit(timePickerHour)}:${padTimeUnit(
+    const selectedTime = formatPickerTimeForServer(
+      timePickerHour,
       timePickerMinute,
-    )} ${timePickerPeriod}`;
+      timePickerPeriod,
+    );
 
     const currentVisitTime = getPlaceVisitTime(timePickerPlace);
     const currentEndTime = getPlaceEndTime(timePickerPlace);
@@ -762,10 +857,13 @@ export default function PlanAScreen({ navigation, route }: Props) {
     const nextVisitTime =
       timePickerTarget === "visitTime" ? selectedTime : currentVisitTime;
     const nextEndTime =
-      timePickerTarget === "endTime" ? selectedTime
-      : currentEndTime ? currentEndTime
-      : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
-      : currentEndTime;
+      timePickerTarget === "endTime"
+        ? selectedTime
+        : currentEndTime
+          ? currentEndTime
+          : timePickerTarget === "visitTime"
+            ? addOneHourToDisplayTime(selectedTime)
+            : currentEndTime;
 
     handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
@@ -818,27 +916,40 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            <View style={styles.timeActionRow}>
-              <TouchableOpacity
-                style={styles.simpleTimeAction}
-                activeOpacity={0.75}
-                onPress={() => openTimePicker(place, "visitTime")}
-              >
-                <Text style={styles.simpleTimeActionText}>
-                  {visitTime ? "시작 변경" : "시작 설정"}
-                </Text>
-              </TouchableOpacity>
+            {isPlaceDeleteMode || isEditMode ? (
+              <View style={styles.timeActionRow}>
+                <TouchableOpacity
+                  style={styles.simpleTimeAction}
+                  activeOpacity={0.75}
+                  onPress={() => openTimePicker(place, "visitTime")}
+                >
+                  <Text style={styles.simpleTimeActionText}>
+                    {visitTime ? "시작 변경" : "시작 설정"}
+                  </Text>
+                </TouchableOpacity>
 
+                <TouchableOpacity
+                  style={styles.simpleTimeAction}
+                  activeOpacity={0.75}
+                  onPress={() => openTimePicker(place, "endTime")}
+                >
+                  <Text style={styles.simpleTimeActionText}>
+                    {endTime ? "종료 변경" : "종료 설정"}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {isPlaceDeleteMode ? (
               <TouchableOpacity
-                style={styles.simpleTimeAction}
-                activeOpacity={0.75}
-                onPress={() => openTimePicker(place, "endTime")}
+                style={styles.simpleDeleteButton}
+                activeOpacity={0.8}
+                onPress={() => handleDeletePlace(place.id)}
               >
-                <Text style={styles.simpleTimeActionText}>
-                  {endTime ? "종료 변경" : "종료 설정"}
-                </Text>
+                <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                <Text style={styles.simpleDeleteButtonText}>장소 삭제</Text>
               </TouchableOpacity>
-            </View>
+            ) : null}
 
             {place.memos?.length > 0 ? (
               <View style={styles.simpleMemoPreviewBox}>
@@ -974,47 +1085,110 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 <TouchableOpacity
                   style={[
                     styles.editModeButton,
-                    isEditMode && styles.editModeButtonActive,
+                    (isPlaceDeleteMode || isEditMode) &&
+                      styles.editModeButtonActive,
                   ]}
                   activeOpacity={0.8}
                   onPress={() => {
                     resetEditingState();
-                    setIsEditMode((prev) => !prev);
+
+                    if (isPlaceDeleteMode || isEditMode) {
+                      setIsPlaceDeleteMode(false);
+                      setIsEditMode(false);
+                      return;
+                    }
+
+                    setIsPlaceDeleteMode(true);
                   }}
                 >
                   <Ionicons
-                    name={isEditMode ? "checkmark" : "create-outline"}
+                    name={
+                      isPlaceDeleteMode || isEditMode
+                        ? "checkmark"
+                        : "create-outline"
+                    }
                     size={15}
-                    color={isEditMode ? "#FFFFFF" : "#2158E8"}
+                    color={
+                      isPlaceDeleteMode || isEditMode ? "#FFFFFF" : "#2158E8"
+                    }
                   />
 
                   <Text
                     style={[
                       styles.editModeButtonText,
-                      isEditMode && styles.editModeButtonTextActive,
+                      (isPlaceDeleteMode || isEditMode) &&
+                        styles.editModeButtonTextActive,
                     ]}
                   >
-                    {isEditMode ? "편집 완료" : "일정 편집"}
+                    {isPlaceDeleteMode || isEditMode ? "편집 완료" : "편집"}
                   </Text>
                 </TouchableOpacity>
               </View>
             </View>
 
-            {saveSuccessMessage ?
+            {isPlaceDeleteMode || isEditMode ? (
+              <View style={styles.editSubModeRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.editSubModeButton,
+                    isPlaceDeleteMode && styles.editSubModeButtonActive,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    resetEditingState();
+                    setIsEditMode(false);
+                    setIsPlaceDeleteMode(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.editSubModeButtonText,
+                      isPlaceDeleteMode && styles.editSubModeButtonTextActive,
+                    ]}
+                  >
+                    장소 삭제
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.editSubModeButton,
+                    isEditMode && styles.editSubModeButtonActive,
+                  ]}
+                  activeOpacity={0.8}
+                  onPress={() => {
+                    resetEditingState();
+                    setIsPlaceDeleteMode(false);
+                    setIsEditMode(true);
+                  }}
+                >
+                  <Text
+                    style={[
+                      styles.editSubModeButtonText,
+                      isEditMode && styles.editSubModeButtonTextActive,
+                    ]}
+                  >
+                    메모 편집
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+
+            {saveSuccessMessage ? (
               <View style={styles.saveFeedbackBox}>
                 <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
                 <Text style={styles.saveSuccessText}>{saveSuccessMessage}</Text>
               </View>
-            : null}
+            ) : null}
 
-            {saveError ?
+            {saveError ? (
               <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
                 <Ionicons name="alert-circle" size={14} color="#EF4444" />
                 <Text style={styles.saveErrorText}>{saveError}</Text>
               </View>
-            : null}
+            ) : null}
 
-            {loadingSchedule ?
+            {loadingSchedule ? (
               <View style={styles.saveFeedbackBox}>
                 <Ionicons
                   name="cloud-download-outline"
@@ -1025,21 +1199,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   저장된 일정을 불러오는 중...
                 </Text>
               </View>
-            : null}
+            ) : null}
 
-            {saving ?
+            {saving ? (
               <View style={styles.saveFeedbackBox}>
                 <Ionicons name="sync-outline" size={14} color="#2158E8" />
                 <Text style={styles.loadingText}>일정을 저장하는 중...</Text>
               </View>
-            : null}
+            ) : null}
 
-            {loadError ?
+            {loadError ? (
               <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
                 <Ionicons name="alert-circle" size={14} color="#EF4444" />
                 <Text style={styles.saveErrorText}>{loadError}</Text>
               </View>
-            : null}
+            ) : null}
 
             <View style={styles.dayTabsWrapper}>
               <PlanADayTabs
@@ -1050,24 +1224,25 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          <PlanAMapPreview places={sortPlacesByTime(currentPlaces)} />
+          <PlanAMapPreview places={sortedCurrentPlaces} />
 
           <View style={styles.sheet}>
             <View style={styles.sheetHandleWrapper}>
               <View style={styles.sheetHandle} />
             </View>
 
-            {currentPlaces.length > 0 ?
+            {currentPlaces.length > 0 ? (
               <View style={styles.roadmapList}>
                 <View pointerEvents="none" style={styles.roadmapLine} />
 
-                {sortPlacesByTime(currentPlaces).map((place, index) =>
-                  isEditMode ?
-                    renderEditablePlaceCard(place, index)
-                  : renderPlaceCard(place, index),
+                {sortedCurrentPlaces.map((place, index) =>
+                  isEditMode
+                    ? renderEditablePlaceCard(place, index)
+                    : renderPlaceCard(place, index),
                 )}
               </View>
-            : <View style={styles.emptyScheduleRow}>
+            ) : (
+              <View style={styles.emptyScheduleRow}>
                 <View style={styles.timelineColumn}>
                   <View style={styles.timelineCircle} />
                 </View>
@@ -1079,7 +1254,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   />
                 </View>
               </View>
-            }
+            )}
 
             <TouchableOpacity
               style={styles.addPlaceButton}
@@ -1093,23 +1268,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
             <View style={styles.saveButtonRow}>
               <TouchableOpacity
                 style={[
-                  styles.secondarySaveButton,
-                  (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => handleSavePlanA({ moveToMainAfterSave: false })}
-                disabled={loadingSchedule || saving}
-              >
-                <Ionicons name="save-outline" size={17} color="#2158E8" />
-                <Text style={styles.secondarySaveButtonText}>
-                  {saving ? "저장 중..." : "현재 변경 저장"}
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
                   styles.primarySaveButton,
-                  (loadingSchedule || saving) && styles.bottomSaveButtonDisabled,
+                  (loadingSchedule || saving) &&
+                    styles.bottomSaveButtonDisabled,
                 ]}
                 activeOpacity={0.85}
                 onPress={() => handleSavePlanA({ moveToMainAfterSave: true })}
@@ -1511,6 +1672,38 @@ const styles = StyleSheet.create({
   editModeButtonTextActive: {
     color: "#FFFFFF",
   },
+
+  editSubModeRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 14,
+  },
+
+  editSubModeButton: {
+    height: 38,
+    borderRadius: 19,
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+  },
+
+  editSubModeButtonActive: {
+    backgroundColor: "#2158E8",
+    borderColor: "#2158E8",
+  },
+
+  editSubModeButtonText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  editSubModeButtonTextActive: {
+    color: "#FFFFFF",
+  },
   headerIconDisabled: { opacity: 0.55 },
   saveFeedbackBox: {
     marginTop: 8,
@@ -1707,6 +1900,25 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
+  },
+
+  simpleDeleteButton: {
+    marginTop: 12,
+    height: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    backgroundColor: "#FEF2F2",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  simpleDeleteButtonText: {
+    color: "#EF4444",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   simpleMemoPreviewBox: {
