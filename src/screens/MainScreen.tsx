@@ -410,14 +410,9 @@ const enrichDaysWithServerTripPlaceIds = async (
     console.log("[Main] 서버 상세 조회 성공:", {
       tripId: detail.tripId,
       itineraryCount: serverItineraries.length,
-      places: serverItineraries.flatMap((itinerary) =>
-        itinerary.places.map((place) => ({
-          day: itinerary.day,
-          tripPlaceId: place.tripPlaceId,
-          placeId: place.placeId,
-          name: place.name,
-          visitOrder: place.visitOrder,
-        })),
+      placeCount: serverItineraries.reduce(
+        (count, itinerary) => count + itinerary.places.length,
+        0,
       ),
     });
   }
@@ -618,12 +613,6 @@ export default function MainScreen({ navigation }: Props) {
           if (__DEV__) {
             console.log("[Main] 서버 일정 목록 사용:", {
               count: serverSchedules.length,
-              schedules: serverSchedules.map((schedule) => ({
-                tripId: schedule.serverTripId,
-                title: getScheduleTitle(schedule),
-                startDate: schedule.startDate,
-                endDate: schedule.endDate,
-              })),
             });
           }
 
@@ -659,7 +648,9 @@ export default function MainScreen({ navigation }: Props) {
     try {
       const result = await seedTestWeatherNotification(6, 166);
 
-      console.log("[Main] 테스트 날씨 알림 생성:", result);
+      console.log("[Main] 테스트 날씨 알림 생성:", {
+        success: Boolean(result),
+      });
 
       await loadNotifications(schedules);
 

@@ -101,14 +101,6 @@ export default function PlanXScreen({ navigation }: Props) {
 
       console.log("[PlanX] getTrips PAST response:", {
         count: serverTrips.length,
-        trips: serverTrips.map((trip) => ({
-          tripId: trip.tripId,
-          title: trip.title,
-          startDate: trip.startDate,
-          endDate: trip.endDate,
-          status: trip.status,
-          isPast: isPastTrip(trip),
-        })),
       });
 
       const nextTrips = serverTrips

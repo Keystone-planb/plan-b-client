@@ -419,7 +419,17 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
 
         console.log("[DEBUG] targetPlace:", targetPlace);
-        console.log("[DEBUG] params:", params);
+        const debugParams = params as Record<string, unknown>;
+
+        console.log("[AIAnalysisLoading] params summary:", {
+          source: debugParams.source,
+          hasNotificationId: Boolean(debugParams.notificationId),
+          hasTripId: Boolean(debugParams.tripId ?? debugParams.serverTripId),
+          hasTripPlaceId: Boolean(
+            debugParams.tripPlaceId ?? debugParams.serverTripPlaceId,
+          ),
+          hasTargetPlace: Boolean(debugParams.targetPlace),
+        });
         console.log("[DEBUG] resolvedCurrentPlanId:", resolvedCurrentPlanId);
 
         const resolvedGooglePlaceId =
@@ -480,7 +490,14 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           );
         }
 
-        console.log("[AIAnalysisLoading] stream payload:", payload);
+        console.log("[AIAnalysisLoading] stream payload:", {
+          tripId: payload.tripId,
+          currentPlanId: payload.currentPlanId,
+          transportMode: payload.transportMode,
+          radiusMinute: payload.radiusMinute,
+          hasCurrentLat: payload.currentLat !== undefined && payload.currentLat !== null,
+          hasCurrentLng: payload.currentLng !== undefined && payload.currentLng !== null,
+        });
 
         if (!payload.currentPlanId) {
           throw new Error(
@@ -497,7 +514,14 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           );
         }
 
-        console.log("[AIAnalysisLoading] FINAL STREAM PAYLOAD:", payload);
+        console.log("[AIAnalysisLoading] final stream payload:", {
+          tripId: payload.tripId,
+          currentPlanId: payload.currentPlanId,
+          transportMode: payload.transportMode,
+          radiusMinute: payload.radiusMinute,
+          hasCurrentLat: payload.currentLat !== undefined && payload.currentLat !== null,
+          hasCurrentLng: payload.currentLng !== undefined && payload.currentLng !== null,
+        });
 
         await streamRecommendations(payload, {
           onProgress: (message) => {

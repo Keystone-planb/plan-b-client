@@ -117,7 +117,7 @@ export default function GapRecommendationCard({
   const handleSelectPlace = (place: RecommendedPlace) => {
     setSelectedPlaceId(place.placeId);
 
-    console.log("[GapRecommendation] selected place:", place);
+    console.log("[GapRecommendation] selected place:", { placeId: place?.placeId, googlePlaceId: place?.googlePlaceId, name: place?.name });
 
     setMessage(`${place.name}을(를) 일정에 추가하는 중입니다.`);
 
