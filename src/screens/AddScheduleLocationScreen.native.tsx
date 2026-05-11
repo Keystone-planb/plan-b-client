@@ -938,13 +938,71 @@ export default function AddScheduleLocationScreen({
   }, [detailModalDetail]);
 
   const reviewBasedSummary = useMemo(() => {
-    return createReviewSummaryFromReviews(detailModalReviews);
+    return "AI 리뷰 요약 정보가 없습니다.";
   }, [detailModalReviews]);
 
   const detailModalAiSummary =
     rawAiSummary && !isMockLikeSummary(rawAiSummary) ?
       truncateText(rawAiSummary, 120)
     : reviewBasedSummary;
+
+  const detailModalPlatformReviews = [
+    {
+      key: "googleReview",
+      title: "Google 리뷰 요약",
+      content: getFirstText(rawDetailModalSummary, [
+        "googleReview",
+        "googleReviewSummary",
+        "data.googleReview",
+        "data.googleReviewSummary",
+        "result.googleReview",
+        "result.googleReviewSummary",
+        "payload.googleReview",
+        "payload.googleReviewSummary",
+      ]),
+    },
+    {
+      key: "naverReview",
+      title: "Naver 리뷰 요약",
+      content: getFirstText(rawDetailModalSummary, [
+        "naverReview",
+        "naverReviewSummary",
+        "data.naverReview",
+        "data.naverReviewSummary",
+        "result.naverReview",
+        "result.naverReviewSummary",
+        "payload.naverReview",
+        "payload.naverReviewSummary",
+      ]),
+    },
+    {
+      key: "instaReview",
+      title: "Instagram 리뷰 요약",
+      content:
+        getFirstText(rawDetailModalSummary, [
+          "instaReview",
+          "instaReviewSummary",
+          "instagramReview",
+          "instagramReviewSummary",
+          "data.instaReview",
+          "data.instaReviewSummary",
+          "data.instagramReview",
+          "data.instagramReviewSummary",
+          "result.instaReview",
+          "result.instaReviewSummary",
+          "result.instagramReview",
+          "result.instagramReviewSummary",
+          "payload.instaReview",
+          "payload.instaReviewSummary",
+          "payload.instagramReview",
+          "payload.instagramReviewSummary",
+        ]) || "Instagram 리뷰 데이터가 부족합니다.",
+    },
+  ];
+
+  const visibleDetailModalPlatformReviews = detailModalPlatformReviews.filter(
+    (review) => review.content.trim().length > 0,
+  );
 
   const detailModalKeywords = useMemo(() => {
     const serverKeywords = getFirstArray(detailModalSummary, [
@@ -1323,7 +1381,7 @@ export default function AddScheduleLocationScreen({
               : <>
                   {detailModalAiSummary ?
                     <View style={styles.aiSummaryCard}>
-                      <Text style={styles.aiSummaryText} numberOfLines={4}>
+                      <Text style={styles.aiSummaryText}>
                         📊 {detailModalAiSummary}
                       </Text>
 
@@ -1404,8 +1462,6 @@ export default function AddScheduleLocationScreen({
                     </View>
                   : null}
 
-                  {hasFreshnessInfo ?
-                  : null}
 
                   {!hasAnyRealDetailContent ?
                     <View style={styles.emptyDetailBox}>
@@ -1842,6 +1898,31 @@ const styles = StyleSheet.create({
     overflow: "visible",
   },
 
+
+  platformSummarySection: {
+    gap: 10,
+    marginBottom: 18,
+  },
+  platformSummaryCard: {
+    borderRadius: 18,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  platformSummaryTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#334155",
+    marginBottom: 8,
+  },
+  platformSummaryText: {
+    fontSize: 13,
+    lineHeight: 20,
+    color: "#475569",
+    flexWrap: "wrap",
+  },
   aiSummaryText: {
     color: "#2F6BFF",
     fontSize: 14,
@@ -1989,6 +2070,11 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "900",
   },
+
+
+
+
+
 
   emptyDetailBox: {
     minHeight: 96,

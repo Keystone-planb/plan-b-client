@@ -203,10 +203,10 @@ const getThreePlaceTags = (detail?: PlaceDetailLike | null) => {
     toFirstTagText(detail?.moodTags);
 
   return [
-    { key: "space", label: space || "Space" },
-    { key: "type", label: type || "Type" },
-    { key: "mood", label: mood || "Mood" },
-  ];
+    { key: "space", label: space },
+    { key: "type", label: type },
+    { key: "mood", label: mood },
+  ].filter((tag) => tag.label.trim().length > 0);
 };
 
 const getPlatformReviewSummaries = (summary?: ReviewSummaryLike | null) => [
