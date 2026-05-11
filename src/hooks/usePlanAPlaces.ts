@@ -18,6 +18,7 @@ import {
   createTrip,
   deleteTrip,
   updateTrip,
+  updatePlanSchedule,
 } from "../../api/schedules/server";
 import {
   toAddLocationRequests,
@@ -89,6 +90,46 @@ const createMemo = (text: string): MemoItem => {
     createdAt: now,
     updatedAt: now,
   };
+};
+
+const toServerTimeText = (value?: string | null) => {
+  const normalized = value?.trim();
+
+  if (!normalized) {
+    return null;
+  }
+
+  const amPmMatch = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if (amPmMatch) {
+    let hour = Number(amPmMatch[1]);
+    const minute = amPmMatch[2];
+    const period = amPmMatch[3].toUpperCase();
+
+    if (period === "AM" && hour === 12) {
+      hour = 0;
+    }
+
+    if (period === "PM" && hour < 12) {
+      hour += 12;
+    }
+
+    return `${String(hour).padStart(2, "0")}:${minute}`;
+  }
+
+  const hhmmssMatch = normalized.match(/^(\d{1,2}):(\d{2}):(\d{2})$/);
+
+  if (hhmmssMatch) {
+    return `${String(Number(hhmmssMatch[1])).padStart(2, "0")}:${hhmmssMatch[2]}`;
+  }
+
+  const hhmmMatch = normalized.match(/^(\d{1,2}):(\d{2})$/);
+
+  if (hhmmMatch) {
+    return `${String(Number(hhmmMatch[1])).padStart(2, "0")}:${hhmmMatch[2]}`;
+  }
+
+  return normalized;
 };
 
 const normalizeNullableTime = (value?: string | null) => {
@@ -767,6 +808,14 @@ export function usePlanAPlaces({
         createdTrip,
       );
 
+      const existingScheduleUpdateRequests: Array<{
+        tripPlaceId: number | string;
+        visitTime?: string | null;
+        endTime?: string | null;
+        memo?: string | null;
+        placeName?: string;
+      }> = [];
+
       const locationRequests = toAddLocationRequests(scheduleBase).filter(
         (item) => {
           const existingPlace = scheduleBase.days
@@ -796,11 +845,64 @@ export function usePlanAPlaces({
               placeId: item.payload.place_id,
               tripPlaceId: existingTripPlaceId,
             });
+
+            if (existingTripPlaceId) {
+              existingScheduleUpdateRequests.push({
+                tripPlaceId: existingTripPlaceId,
+                visitTime:
+                  existingPlace?.visitTime ?? item.payload.visitTime ?? null,
+                endTime:
+                  existingPlace?.endTime ?? item.payload.endTime ?? null,
+                memo:
+                  existingPlace?.memos?.[0]?.text ??
+                  item.payload.memo ??
+                  null,
+                placeName: existingPlace?.name,
+              });
+            }
           }
 
           return shouldCreate;
         },
       );
+
+      if (existingScheduleUpdateRequests.length > 0) {
+        await Promise.all(
+          existingScheduleUpdateRequests.map(async (item) => {
+            const updatePayload = {
+              visitTime: toServerTimeText(item.visitTime),
+              endTime: toServerTimeText(item.endTime),
+              memo: item.memo ?? null,
+            };
+
+            try {
+              console.log("[PlanA 기존 서버 장소 시간/메모 PATCH 요청]", {
+                tripPlaceId: item.tripPlaceId,
+                placeName: item.placeName,
+                payload: updatePayload,
+              });
+
+              const updateResponse = await updatePlanSchedule(
+                item.tripPlaceId,
+                updatePayload,
+              );
+
+              console.log("[PlanA 기존 서버 장소 시간/메모 수정 완료]", {
+                tripPlaceId: item.tripPlaceId,
+                placeName: item.placeName,
+                response: updateResponse,
+              });
+            } catch (error) {
+              console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {
+                tripPlaceId: item.tripPlaceId,
+                placeName: item.placeName,
+                payload: updatePayload,
+                error,
+              });
+            }
+          }),
+        );
+      }
 
       const createdLocations: CreatedLocationWithDay[] = [];
 
