@@ -715,6 +715,13 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
+    const baseSchedule =
+      schedules.find(
+        (schedule) =>
+          String(schedule.tripId ?? schedule.serverTripId) ===
+          String(notification.tripId),
+      ) ?? schedules[0];
+
     const normalizedPlaces = recommendedPlaces.map((place) => ({
       placeId: place.googlePlaceId ?? String(place.placeId),
       googlePlaceId: place.googlePlaceId ?? String(place.placeId),
@@ -731,32 +738,57 @@ export default function MainScreen({ navigation }: Props) {
       durationText: "",
     }));
 
-    console.log("[Main] 날씨 알림 대안 추천 이동:", {
-      notification,
-      normalizedPlaces,
-    });
-
-    navigation.navigate("RecommendationResult", {
-      scheduleId: getScheduleId(schedules[0] ?? {}),
+    const nextParams = {
+      source: "weather-notification",
+      scheduleId: getScheduleId(baseSchedule ?? {}),
       tripId: notification.tripId,
       serverTripId: notification.tripId,
-      tripName: getScheduleTitle(schedules[0] ?? {}),
-      startDate: schedules[0]?.startDate,
-      endDate: schedules[0]?.endDate,
-      location: schedules[0]?.location,
+      tripName: getScheduleTitle(baseSchedule ?? {}),
+      startDate: baseSchedule?.startDate,
+      endDate: baseSchedule?.endDate,
+      location: baseSchedule?.location,
+
+      /**
+       * 날씨 알림 기반 교체에 필요한 핵심 값
+       */
       currentPlanId: notification.tripPlaceId,
       tripPlaceId: notification.tripPlaceId,
       serverTripPlaceId: notification.tripPlaceId,
       notificationId: notification.notificationId,
       fromWeatherNotification: true,
+
+      /**
+       * 이미 서버 알림에 포함된 추천 장소를 추천 결과 화면까지 전달한다.
+       */
       placesJson: JSON.stringify(normalizedPlaces),
+
       targetPlace: {
         id: notification.tripPlaceId,
         tripPlaceId: notification.tripPlaceId,
         serverTripPlaceId: notification.tripPlaceId,
         name: notification.placeName,
       },
+
+      reason:
+        notification.message ??
+        "날씨 변화로 인해 기존 일정 대신 방문하기 좋은 대안 장소를 추천해주세요.",
+    };
+
+    console.log("[Main] 날씨 알림 AI 분석 상세 이동:", {
+      notificationId: notification.notificationId,
+      tripId: notification.tripId,
+      tripPlaceId: notification.tripPlaceId,
+      placesCount: normalizedPlaces.length,
+      nextParams,
     });
+
+    /**
+     * 흐름:
+     * 날씨 알림 카드 클릭
+     * → AI 분석 상세 보기
+     * → 추천 결과
+     */
+    navigation.navigate("AIAnalysisLoading", nextParams);
   };
 
   const handleAddSchedule = () => {
