@@ -102,26 +102,7 @@ const getScheduleLocation = (schedule: StoredSchedule) => {
 };
 
 const getWeatherStatusText = (notifications: WeatherNotification[]) => {
-  if (notifications.length === 0) {
-    return "날씨 알림 없음";
-  }
-
-  const weatherType = String(notifications[0]?.weatherType ?? "").toUpperCase();
-
-  const label =
-    weatherType === "RAIN" ? "비 예보"
-    : weatherType === "SNOW" ? "눈 예보"
-    : weatherType === "HEAT" ? "폭염 주의"
-    : weatherType === "COLD" ? "한파 주의"
-    : weatherType === "WIND" ? "강풍 주의"
-    : weatherType === "STORM" ? "악천후 주의"
-    : "날씨 알림";
-
-  if (notifications.length > 1) {
-    return `${label} 외 ${notifications.length - 1}건`;
-  }
-
-  return label;
+  return `날씨 알림 ${notifications.length}건`;
 };
 
 const getWeatherStatusEmoji = (notifications: WeatherNotification[]) => {
@@ -948,6 +929,24 @@ export default function MainScreen({ navigation }: Props) {
         contentContainerStyle={styles.homeContent}
         showsVerticalScrollIndicator={false}
       >
+
+        
+
+
+        {notifications.length > 0 ?
+          <View style={styles.notificationSection}>
+            {notifications.map((notification) => (
+              <WeatherNotificationCard
+                key={String(notification.notificationId)}
+                notification={notification}
+                onPressRecommend={handleOpenNotificationRecommendation}
+                onDismiss={handleDismissNotification}
+              />
+            ))}
+          </View>
+        : null}
+
+
         <View style={styles.todayInfoPill}>
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>{getWeatherStatusEmoji(notifications)}</Text>
@@ -974,23 +973,6 @@ export default function MainScreen({ navigation }: Props) {
             </Text>
           </View>
         </View>
-
-        
-
-
-        {notifications.length > 0 ?
-          <View style={styles.notificationSection}>
-            {notifications.map((notification) => (
-              <WeatherNotificationCard
-                key={String(notification.notificationId)}
-                notification={notification}
-                onPressRecommend={handleOpenNotificationRecommendation}
-                onDismiss={handleDismissNotification}
-              />
-            ))}
-          </View>
-        : null}
-
         <View style={styles.ongoingSection}>
           <Text style={styles.homeSectionTitle}>진행중인 일정</Text>
 
@@ -1158,21 +1140,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 150,
   },
-
   todayInfoPill: {
-    minHeight: 64,
-    borderRadius: 20,
+    marginTop: 14,
+    marginBottom: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    borderRadius: 16,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    marginBottom: 28,
+    borderWidth: 1,
+    borderColor: "#E6ECF5",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
+    justifyContent: "space-between",
+    gap: 6,
     shadowColor: "#0F172A",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 4,
     },
     shadowOpacity: 0.04,
     shadowRadius: 14,
@@ -1180,26 +1164,33 @@ const styles = StyleSheet.create({
   },
 
   todayInfoItem: {
+    flex: 1,
+    minWidth: 0,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
   },
 
   todayEmoji: {
-    fontSize: 18,
-    marginRight: 7,
+    fontSize: 12,
+    lineHeight: 16,
   },
 
   todayInfoText: {
-    color: "#111827",
-    fontSize: 16,
-    fontWeight: "900",
+    flexShrink: 1,
+    minWidth: 0,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
+    color: "#334155",
+    textAlign: "center",
   },
 
   todayDivider: {
     width: 1,
-    height: 22,
-    backgroundColor: "#E5EAF1",
-    marginHorizontal: 14,
+    height: 16,
+    backgroundColor: "#E2E8F0",
   },
 
   notificationSection: {
