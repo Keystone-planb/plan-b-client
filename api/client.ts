@@ -117,7 +117,7 @@ apiClient.interceptors.response.use(
         const refreshResponse = await axios.post<RefreshResponse>(
           `${API_CONFIG.BASE_URL}/api/auth/refresh`,
           {
-            refresh_token: refreshToken,
+            refreshToken,
           },
           {
             timeout: 15000,
