@@ -491,7 +491,7 @@ export default function AddScheduleLocationScreen({
 
       const places = await searchPlaces(trimmedKeyword);
 
-      console.log("[AddScheduleLocation] searchPlaces result:", places);
+      console.log("[AddScheduleLocation] searchPlaces result:", { count: places.length });
 
       setSearchResults(places);
       Keyboard.dismiss();

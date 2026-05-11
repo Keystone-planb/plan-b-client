@@ -238,7 +238,10 @@ export const searchPlaces = async (
       timeout: PLACE_API_TIMEOUT,
     });
 
-    console.log("[places/search] response:", response.data);
+    console.log("[places/search] response:", {
+      count: Array.isArray(response.data) ? response.data.length : undefined,
+      hasData: Boolean(response.data),
+    });
 
     assertNotHtmlResponse(response.data, "장소 검색");
 
@@ -301,7 +304,12 @@ export const getPlaceDetail = async (
       timeout: PLACE_API_TIMEOUT,
     });
 
-    console.log("[places/detail] response:", response.data);
+    console.log("[places/detail] response:", {
+      placeId: response.data?.placeId,
+      googlePlaceId: response.data?.googlePlaceId,
+      name: response.data?.name,
+      hasPhoto: Boolean(response.data?.photoUrl),
+    });
 
     assertNotHtmlResponse(response.data, "장소 상세");
 
@@ -337,7 +345,13 @@ export const getPlaceSummary = async (
       timeout: PLACE_API_TIMEOUT,
     });
 
-    console.log("[places/summary] response:", response.data);
+    console.log("[places/summary] response:", {
+      placeId: response.data?.placeId,
+      hasReviewSummary: Boolean(response.data?.reviewSummary),
+      hasGoogleReview: Boolean(response.data?.googleReview),
+      hasNaverReview: Boolean(response.data?.naverReview),
+      hasInstaReview: Boolean(response.data?.instaReview),
+    });
 
     assertNotHtmlResponse(response.data, "장소 AI 요약");
 
@@ -373,7 +387,11 @@ export const getPlaceFreshness = async (
       timeout: PLACE_API_TIMEOUT,
     });
 
-    console.log("[places/freshness] response:", response.data);
+    console.log("[places/freshness] response:", {
+      placeId: response.data?.placeId,
+      isFresh: response.data?.isFresh,
+      hasLastSyncedAt: Boolean(response.data?.lastSyncedAt),
+    });
 
     assertNotHtmlResponse(response.data, "장소 정보 최신성");
 

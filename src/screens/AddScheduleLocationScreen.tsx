@@ -280,7 +280,7 @@ export default function AddScheduleLocationScreen({
     });
   };
 
-  console.log("[AddScheduleLocation] route params:", route?.params);
+  console.log("[AddScheduleLocation] route params:", { hasParams: Boolean(route?.params) });
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
