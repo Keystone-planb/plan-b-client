@@ -19,6 +19,7 @@ import {
   deleteTrip,
   updateTrip,
   updatePlanSchedule,
+  getTripDetail,
 } from "../../api/schedules/server";
 import {
   toAddLocationRequests,
@@ -339,6 +340,235 @@ const getCachedDraftSchedule = (scheduleId?: string) => {
   return DRAFT_SCHEDULE_CACHE[scheduleId] ?? null;
 };
 
+const getServerValueByPath = (source: unknown, path: string): unknown => {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+
+  return path.split(".").reduce<unknown>((current, key) => {
+    if (!current || typeof current !== "object") {
+      return undefined;
+    }
+
+    return (current as Record<string, unknown>)[key];
+  }, source);
+};
+
+const getServerArrayByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getServerValueByPath(source, path);
+
+    if (Array.isArray(value)) {
+      return value;
+    }
+  }
+
+  return [];
+};
+
+const getServerTextByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getServerValueByPath(source, path);
+
+    if (value !== undefined && value !== null && String(value).trim()) {
+      return String(value).trim();
+    }
+  }
+
+  return undefined;
+};
+
+const getServerNumberByPaths = (source: unknown, paths: string[]) => {
+  for (const path of paths) {
+    const value = getServerValueByPath(source, path);
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+
+    if (typeof value === "string" && value.trim()) {
+      const parsed = Number(value);
+
+      if (Number.isFinite(parsed)) {
+        return parsed;
+      }
+    }
+  }
+
+  return undefined;
+};
+
+const normalizeServerPlaceForPlanA = (
+  source: unknown,
+  index: number,
+): PlaceItem => {
+  const rawTripPlaceId =
+    getServerValueByPath(source, "tripPlaceId") ??
+    getServerValueByPath(source, "serverTripPlaceId") ??
+    getServerValueByPath(source, "planId") ??
+    getServerValueByPath(source, "id");
+
+  const tripPlaceId =
+    typeof rawTripPlaceId === "number" || typeof rawTripPlaceId === "string" ?
+      rawTripPlaceId
+    : undefined;
+
+  const placeId = getServerTextByPaths(source, [
+    "placeId",
+    "googlePlaceId",
+    "google_place_id",
+  ]);
+
+  const visitTime = getServerTextByPaths(source, [
+    "visitTime",
+    "startTime",
+  ]);
+
+  const endTime = getServerTextByPaths(source, ["endTime"]);
+
+  return createPlace({
+    id: String(tripPlaceId ?? placeId ?? `server-place-${index}`),
+    tripPlaceId,
+    serverTripPlaceId: tripPlaceId,
+    placeId,
+    googlePlaceId: placeId,
+    name: getServerTextByPaths(source, ["name", "placeName"]) ?? "이름 없는 장소",
+    address: getServerTextByPaths(source, [
+      "address",
+      "placeAddress",
+      "location",
+    ]),
+    category: getServerTextByPaths(source, ["category", "placeCategory"]),
+    latitude: getServerNumberByPaths(source, [
+      "latitude",
+      "lat",
+      "place.latitude",
+      "place.lat",
+      "location.latitude",
+      "location.lat",
+    ]),
+    longitude: getServerNumberByPaths(source, [
+      "longitude",
+      "lng",
+      "lon",
+      "place.longitude",
+      "place.lng",
+      "location.longitude",
+      "location.lng",
+    ]),
+    visitTime,
+    endTime,
+    order: getServerNumberByPaths(source, ["visitOrder", "order"]) ?? index + 1,
+    memos: [],
+  });
+};
+
+const normalizeServerTripDetailToSchedule = ({
+  detail,
+  fallbackSchedule,
+  scheduleId,
+  serverTripId,
+}: {
+  detail: unknown;
+  fallbackSchedule: TravelSchedule;
+  scheduleId?: string;
+  serverTripId?: number | string;
+}): TravelSchedule | null => {
+  const unwrapped =
+    getServerValueByPath(detail, "data") ??
+    getServerValueByPath(detail, "result") ??
+    getServerValueByPath(detail, "payload") ??
+    detail;
+
+  const itineraryItems = getServerArrayByPaths(unwrapped, [
+    "itineraries",
+    "itinerary",
+    "days",
+    "tripDays",
+  ]);
+
+  const normalizedDays =
+    itineraryItems.length > 0 ?
+      itineraryItems
+        .map((item, dayIndex) => {
+          const day =
+            getServerNumberByPaths(item, ["day", "dayNumber", "dayIndex"]) ??
+            dayIndex + 1;
+
+          const places = getServerArrayByPaths(item, [
+            "places",
+            "locations",
+            "tripPlaces",
+            "plans",
+          ]).map((place, placeIndex) =>
+            normalizeServerPlaceForPlanA(place, placeIndex),
+          );
+
+          return {
+            day,
+            places,
+          };
+        })
+        .filter((day) => day.places.length > 0)
+    : (() => {
+        const flatPlaces = getServerArrayByPaths(unwrapped, [
+          "places",
+          "locations",
+          "tripPlaces",
+          "plans",
+        ]);
+
+        const grouped = new Map<number, PlaceItem[]>();
+
+        flatPlaces.forEach((place, placeIndex) => {
+          const day = getServerNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
+          const normalizedPlace = normalizeServerPlaceForPlanA(
+            place,
+            placeIndex,
+          );
+
+          grouped.set(day, [...(grouped.get(day) ?? []), normalizedPlace]);
+        });
+
+        return Array.from(grouped.entries())
+          .sort(([a], [b]) => a - b)
+          .map(([day, places]) => ({
+            day,
+            places,
+          }));
+      })();
+
+  if (normalizedDays.length === 0) {
+    return null;
+  }
+
+  const now = createNow();
+
+  return {
+    ...fallbackSchedule,
+    id: scheduleId ?? fallbackSchedule.id,
+    serverTripId:
+      typeof serverTripId === "number" || typeof serverTripId === "string" ?
+        Number(serverTripId)
+      : fallbackSchedule.serverTripId,
+    tripName:
+      getServerTextByPaths(unwrapped, ["tripName", "title", "name"]) ??
+      fallbackSchedule.tripName,
+    startDate:
+      getServerTextByPaths(unwrapped, ["startDate"]) ??
+      fallbackSchedule.startDate,
+    endDate:
+      getServerTextByPaths(unwrapped, ["endDate"]) ??
+      fallbackSchedule.endDate,
+    location:
+      getServerTextByPaths(unwrapped, ["location", "destination"]) ??
+      fallbackSchedule.location,
+    days: normalizedDays,
+    updatedAt: now,
+  };
+};
+
+
 const clearCachedDraftSchedule = (scheduleId?: string) => {
   if (!scheduleId) return;
   delete DRAFT_SCHEDULE_CACHE[scheduleId];
@@ -542,23 +772,60 @@ export function usePlanAPlaces({
         setLoadingSchedule(true);
         setLoadError("");
 
-        const savedSchedule =
-          scheduleId ? await loadPlanASchedule(scheduleId) : null;
+          const savedSchedule =
+            scheduleId ? await loadPlanASchedule(scheduleId) : null;
 
-        console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
+          console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
 
-        if (savedSchedule) {
-          scheduleRef.current = savedSchedule;
-          cacheDraftSchedule(savedSchedule);
-          setSchedule(savedSchedule);
-          setLoadedSavedSchedule(true);
-        } else {
-          scheduleRef.current = initialSchedule;
-          cacheDraftSchedule(initialSchedule);
-          setSchedule(initialSchedule);
-          setLoadedSavedSchedule(false);
-        }
+          const fallbackSchedule = savedSchedule ?? initialSchedule;
+          const resolvedServerTripId =
+            serverTripId ??
+            savedSchedule?.serverTripId ??
+            fallbackSchedule.serverTripId;
 
+          let serverSchedule: TravelSchedule | null = null;
+
+          if (resolvedServerTripId) {
+            try {
+              const serverDetail = await getTripDetail(resolvedServerTripId);
+
+              serverSchedule = normalizeServerTripDetailToSchedule({
+                detail: serverDetail,
+                fallbackSchedule,
+                scheduleId,
+                serverTripId: resolvedServerTripId,
+              });
+
+              if (serverSchedule) {
+                console.log("[PlanA hook 서버 상세 우선 적용]", {
+                  scheduleId: serverSchedule.id,
+                  serverTripId: serverSchedule.serverTripId,
+                  places: serverSchedule.days.flatMap((day) =>
+                    day.places.map((place) => ({
+                      day: day.day,
+                      name: place.name,
+                      tripPlaceId: place.tripPlaceId,
+                      placeId: place.placeId,
+                    })),
+                  ),
+                });
+
+                await savePlanASchedule(serverSchedule);
+              }
+            } catch (serverError) {
+              console.log("[PlanA hook 서버 상세 조회 실패 - 로컬 사용]", {
+                serverTripId: resolvedServerTripId,
+                error: serverError,
+              });
+            }
+          }
+
+          const nextSchedule = serverSchedule ?? fallbackSchedule;
+
+          scheduleRef.current = nextSchedule;
+          cacheDraftSchedule(nextSchedule);
+          setSchedule(nextSchedule);
+          setLoadedSavedSchedule(Boolean(savedSchedule || serverSchedule));
         loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } catch (error) {
