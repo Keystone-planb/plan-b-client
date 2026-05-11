@@ -1173,21 +1173,20 @@ const styles = StyleSheet.create({
   },
 
   todayEmoji: {
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
   },
 
   todayInfoText: {
     flexShrink: 1,
     minWidth: 0,
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 11,
+    lineHeight: 15,
     fontWeight: "800",
     color: "#334155",
     textAlign: "center",
   },
-
-  todayDivider: {
+todayDivider: {
     width: 1,
     height: 16,
     backgroundColor: "#E2E8F0",
