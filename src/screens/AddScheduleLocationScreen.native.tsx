@@ -947,26 +947,131 @@ export default function AddScheduleLocationScreen({
     : reviewBasedSummary;
 
   const detailModalKeywords = useMemo(() => {
-    const serverKeywords = getFirstArray(detailModalSummary, [
-      "keywords",
-      "keywordList",
-      "tags",
-      "data.keywords",
-      "data.keywordList",
-      "result.keywords",
-      "payload.keywords",
-    ]);
+    const getTagValues = (arrayPaths: string[], textPaths: string[]) => {
+      const detailArrayValues = getFirstArray(detailModalDetail, arrayPaths)
+        .map((tag) => String(tag).trim())
+        .filter(Boolean);
 
-    if (serverKeywords.length > 0 && !isMockLikeSummary(rawAiSummary)) {
-      return serverKeywords.slice(0, 4);
-    }
+      if (detailArrayValues.length > 0) {
+        return detailArrayValues;
+      }
 
-    const reviewKeywords = createKeywordsFromReviews(detailModalReviews);
+      const summaryArrayValues = getFirstArray(detailModalSummary, arrayPaths)
+        .map((tag) => String(tag).trim())
+        .filter(Boolean);
 
-    return reviewKeywords.length > 0 ?
-        reviewKeywords.slice(0, 4)
-      : serverKeywords.slice(0, 4);
-  }, [detailModalSummary, rawAiSummary, detailModalReviews]);
+      if (summaryArrayValues.length > 0) {
+        return summaryArrayValues;
+      }
+
+      const detailTextValue = getFirstText(detailModalDetail, textPaths).trim();
+
+      if (detailTextValue) {
+        return detailTextValue
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
+
+      const summaryTextValue = getFirstText(detailModalSummary, textPaths).trim();
+
+      if (summaryTextValue) {
+        return summaryTextValue
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter(Boolean);
+      }
+
+      return [];
+    };
+
+    const spaceTags = getTagValues(
+      [
+        "space",
+        "spaceTags",
+        "tags.space",
+        "data.space",
+        "data.spaceTags",
+        "data.tags.space",
+        "result.space",
+        "result.spaceTags",
+        "result.tags.space",
+        "payload.space",
+        "payload.spaceTags",
+        "payload.tags.space",
+      ],
+      [
+        "space",
+        "tags.space",
+        "data.space",
+        "data.tags.space",
+        "result.space",
+        "result.tags.space",
+        "payload.space",
+        "payload.tags.space",
+      ],
+    );
+
+    const typeTags = getTagValues(
+      [
+        "type",
+        "typeTags",
+        "tags.type",
+        "data.type",
+        "data.typeTags",
+        "data.tags.type",
+        "result.type",
+        "result.typeTags",
+        "result.tags.type",
+        "payload.type",
+        "payload.typeTags",
+        "payload.tags.type",
+      ],
+      [
+        "type",
+        "tags.type",
+        "data.type",
+        "data.tags.type",
+        "result.type",
+        "result.tags.type",
+        "payload.type",
+        "payload.tags.type",
+      ],
+    );
+
+    const moodTags = getTagValues(
+      [
+        "mood",
+        "moodTags",
+        "tags.mood",
+        "data.mood",
+        "data.moodTags",
+        "data.tags.mood",
+        "result.mood",
+        "result.moodTags",
+        "result.tags.mood",
+        "payload.mood",
+        "payload.moodTags",
+        "payload.tags.mood",
+      ],
+      [
+        "mood",
+        "tags.mood",
+        "data.mood",
+        "data.tags.mood",
+        "result.mood",
+        "result.tags.mood",
+        "payload.mood",
+        "payload.tags.mood",
+      ],
+    );
+
+    return [...spaceTags, ...typeTags, ...moodTags]
+      .map((tag) => String(tag).trim())
+      .filter(Boolean)
+      .slice(0, 3);
+  }, [detailModalDetail, detailModalSummary]);
+
 
   const detailModalFreshnessStatus = getFirstText(detailModalFreshness, [
     "status",
