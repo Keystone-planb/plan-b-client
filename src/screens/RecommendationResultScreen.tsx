@@ -75,10 +75,9 @@ type RootStackParamList = {
     endDate?: string;
     location?: string;
     transportMode?: TransportMode;
-      transportLabel?: string;
+    transportLabel?: string;
     moveTime?: MoveTime;
     considerDistance?: boolean;
-    considerCrowd?: boolean;
     changeCategory?: boolean;
     placeScope?: PlaceScope;
     targetPlace?: TodayPlace;
@@ -159,7 +158,9 @@ const updateStoredPlanAAfterReplace = async ({
   replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
 }) => {
   if (!scheduleId) {
-    console.log("[RecommendationResult] scheduleId 없음 - 로컬 Plan.A 반영 생략");
+    console.log(
+      "[RecommendationResult] scheduleId 없음 - 로컬 Plan.A 반영 생략",
+    );
     return;
   }
 
@@ -225,7 +226,6 @@ const updateStoredPlanAAfterReplace = async ({
     newPlaceName: place.name,
   });
 };
-
 
 export default function RecommendationResultScreen({
   navigation,
@@ -300,16 +300,17 @@ export default function RecommendationResultScreen({
         return value !== undefined && value !== null && value !== "";
       })
       .filter((value, index, array) => {
-        return array.findIndex((item) => String(item) === String(value)) === index;
+        return (
+          array.findIndex((item) => String(item) === String(value)) === index
+        );
       });
 
-    const newGooglePlaceId = String(
-      place.googlePlaceId ?? place.placeId ?? "",
-    );
+    const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
     const newPlaceName = place.name;
 
     const isWeatherNotificationReplace =
-      params.source === "weather-notification" || params.fromWeatherNotification;
+      params.source === "weather-notification" ||
+      params.fromWeatherNotification;
 
     if (isWeatherNotificationReplace) {
       const notificationId = params.notificationId;
@@ -333,11 +334,14 @@ export default function RecommendationResultScreen({
       try {
         setSubmittingPlaceId(placeId);
 
-        console.log("[RecommendationResult] weather notification replace request:", {
-          notificationId,
-          newGooglePlaceId,
-          newPlaceName,
-        });
+        console.log(
+          "[RecommendationResult] weather notification replace request:",
+          {
+            notificationId,
+            newGooglePlaceId,
+            newPlaceName,
+          },
+        );
 
         await replaceNotificationPlace(notificationId, newGooglePlaceId);
 
@@ -368,7 +372,10 @@ export default function RecommendationResultScreen({
 
         return;
       } catch (error) {
-        console.log("[RecommendationResult] weather notification replace failed:", error);
+        console.log(
+          "[RecommendationResult] weather notification replace failed:",
+          error,
+        );
 
         Alert.alert(
           "장소 교체 실패",
@@ -408,7 +415,8 @@ export default function RecommendationResultScreen({
         newPlaceName,
       });
 
-      let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null = null;
+      let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null =
+        null;
       let lastReplaceError: unknown = null;
       let usedCurrentPlanId: string | number | null = null;
 
@@ -507,9 +515,9 @@ export default function RecommendationResultScreen({
       console.log("[RecommendationResult] replace failed:", error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "일정 교체 요청에 실패했습니다.";
+        error instanceof Error ?
+          error.message
+        : "일정 교체 요청에 실패했습니다.";
 
       if (typeof window !== "undefined") {
         window.alert(`일정 교체 실패\n${message}`);

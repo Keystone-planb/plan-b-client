@@ -124,7 +124,6 @@ export default function AlternativeSettingsScreen({
     useState<TransportMode>(initialTransportMode);
   const [selectedMoveTime, setSelectedMoveTime] = useState<MoveTime>("10");
   const [considerDistance, setConsiderDistance] = useState(false);
-  const [considerCrowd, setConsiderCrowd] = useState(false);
   const [changeCategory, setChangeCategory] = useState(false);
   const [selectedPlaceScope, setSelectedPlaceScope] =
     useState<PlaceScope>("INDOOR");
@@ -149,7 +148,6 @@ export default function AlternativeSettingsScreen({
       transportLabel: selectedTransportLabel,
       moveTime: selectedMoveTime,
       considerDistance,
-      considerCrowd,
       changeCategory,
       placeScope: selectedPlaceScope,
     });
@@ -325,19 +323,7 @@ export default function AlternativeSettingsScreen({
           </View>
 
           <View style={styles.toggleCard}>
-            <View style={styles.toggleTextBox}>
-              <Text style={styles.toggleTitle}>혼잡도 고려</Text>
-            </View>
-
-            <Switch
-              value={considerCrowd}
-              onValueChange={setConsiderCrowd}
-              trackColor={{
-                false: "#CBD5E1",
-                true: "#BBD0FF",
-              }}
-              thumbColor={considerCrowd ? "#2158E8" : "#FFFFFF"}
-            />
+            <View style={styles.toggleTextBox}></View>
           </View>
 
           <View style={styles.toggleCard}>
@@ -359,7 +345,7 @@ export default function AlternativeSettingsScreen({
             />
           </View>
 
-          {changeCategory ? (
+          {changeCategory ?
             <View style={styles.conditionCard}>
               <Text style={styles.sectionTitle}>실내/실외</Text>
 
@@ -390,7 +376,7 @@ export default function AlternativeSettingsScreen({
                 })}
               </View>
             </View>
-          ) : null}
+          : null}
         </ScrollView>
 
         <View style={styles.footer}>
