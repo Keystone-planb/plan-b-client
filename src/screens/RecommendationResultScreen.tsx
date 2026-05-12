@@ -17,6 +17,10 @@ import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
 import {
+  getPlaceDetail,
+  getPlaceSummary,
+} from "../../api/places/place";
+import {
   loadPlanASchedule,
   savePlanASchedule,
 } from "../api/schedules/planAStorage";
@@ -114,6 +118,34 @@ type DisplayPlace = RecommendedPlace & {
     google?: string;
   };
 };
+
+type PlaceExtraDetail = {
+  loading?: boolean;
+  aiSummary?: string;
+  googleReview?: string;
+  naverReview?: string;
+  instagramReview?: string;
+  error?: string;
+};
+
+const toText = (value: unknown) => {
+  if (typeof value !== "string") return "";
+  return value.trim();
+};
+
+const pickText = (source: any, keys: string[]) => {
+  for (const key of keys) {
+    const value = toText(source?.[key]);
+    if (value) return value;
+  }
+
+  return "";
+};
+
+const unwrapData = (value: any) => {
+  return value?.data ?? value?.result ?? value?.payload ?? value;
+};
+
 
 const formatDateRange = (startDate?: string, endDate?: string) => {
   const start = startDate?.replace(/-/g, ".");
@@ -220,6 +252,9 @@ export default function RecommendationResultScreen({
   const [expandedPlaceId, setExpandedPlaceId] = useState<
     string | number | null
   >(null);
+  const [placeExtraDetails, setPlaceExtraDetails] = useState<
+    Record<string, PlaceExtraDetail>
+  >({});
 
   const params = route.params ?? {};
 
@@ -259,10 +294,105 @@ export default function RecommendationResultScreen({
     navigation.navigate("Main");
   };
 
-  const handleToggleDetail = (placeId: string | number) => {
-    setExpandedPlaceId((prev) =>
-      String(prev) === String(placeId) ? null : placeId,
-    );
+  const handleToggleDetail = async (
+    place: DisplayPlace,
+    placeId: string | number,
+  ) => {
+    const placeKey = String(placeId);
+    const isClosing = String(expandedPlaceId) === placeKey;
+
+    setExpandedPlaceId(isClosing ? null : placeId);
+
+    if (isClosing || placeExtraDetails[placeKey]?.aiSummary) {
+      return;
+    }
+
+    const googlePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
+
+    if (!googlePlaceId) {
+      setPlaceExtraDetails((prev) => ({
+        ...prev,
+        [placeKey]: {
+          error: "장소 ID가 없어 상세 정보를 불러올 수 없습니다.",
+        },
+      }));
+      return;
+    }
+
+    setPlaceExtraDetails((prev) => ({
+      ...prev,
+      [placeKey]: {
+        ...prev[placeKey],
+        loading: true,
+        error: undefined,
+      },
+    }));
+
+    try {
+      const [detailResponse, summaryResponse] = await Promise.allSettled([
+        getPlaceDetail(googlePlaceId),
+        getPlaceSummary(googlePlaceId),
+      ]);
+
+      const detail =
+        detailResponse.status === "fulfilled" ?
+          unwrapData(detailResponse.value)
+        : null;
+
+      const summary =
+        summaryResponse.status === "fulfilled" ?
+          unwrapData(summaryResponse.value)
+        : null;
+
+      const aiSummary =
+        pickText(summary, ["aiSummary", "ai_summary", "summary", "reviewSummary"]) ||
+        pickText(detail, ["aiSummary", "ai_summary", "summary", "reviewSummary"]);
+
+      const googleReview =
+        pickText(summary, ["googleReview", "googleReviewSummary", "google_review"]) ||
+        pickText(detail, ["googleReview", "googleReviewSummary", "google_review"]);
+
+      const naverReview =
+        pickText(summary, ["naverReview", "naverReviewSummary", "naver_review"]) ||
+        pickText(detail, ["naverReview", "naverReviewSummary", "naver_review"]);
+
+      const instagramReview =
+        pickText(summary, [
+          "instaReview",
+          "instagramReview",
+          "instaReviewSummary",
+          "instagramReviewSummary",
+          "insta_review",
+        ]) ||
+        pickText(detail, [
+          "instaReview",
+          "instagramReview",
+          "instaReviewSummary",
+          "instagramReviewSummary",
+          "insta_review",
+        ]);
+
+      setPlaceExtraDetails((prev) => ({
+        ...prev,
+        [placeKey]: {
+          loading: false,
+          aiSummary,
+          googleReview,
+          naverReview,
+          instagramReview,
+        },
+      }));
+    } catch (error) {
+      console.log("[RecommendationResult] place detail/summary failed:", error);
+
+      setPlaceExtraDetails((prev) => ({
+        ...prev,
+        [placeKey]: {
+          loading: false,
+          error: "상세 정보를 불러오지 못했습니다.",
+        },
+      }));
+    }
   };
 
   const handleSelectPlace = async (place: DisplayPlace) => {
@@ -569,6 +699,18 @@ export default function RecommendationResultScreen({
               const isSelected = String(selectedPlaceId) === String(placeId);
               const isSubmitting =
                 String(submittingPlaceId) === String(placeId);
+              const placeKey = String(placeId);
+              const extraDetail = placeExtraDetails[placeKey];
+              const displayAiSummary =
+                extraDetail?.aiSummary || place.reason || "";
+              const displayNaverReview =
+                extraDetail?.naverReview || place.sourceSummary?.naver || "";
+              const displayInstagramReview =
+                extraDetail?.instagramReview ||
+                place.sourceSummary?.instagram ||
+                "";
+              const displayGoogleReview =
+                extraDetail?.googleReview || place.sourceSummary?.google || "";
 
               const reviewCount =
                 typeof place.reviewCount === "number" ?
@@ -676,8 +818,7 @@ export default function RecommendationResultScreen({
                     <Text style={styles.aiSummaryIcon}>📊</Text>
 
                     <Text style={styles.aiSummaryText}>
-                      {place.reason ||
-                        "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                      {displayAiSummary || "AI 요약을 불러오는 중이에요."}
                     </Text>
                   </View>
 
@@ -692,8 +833,10 @@ export default function RecommendationResultScreen({
                           </View>
 
                           <Text style={styles.sourceText}>
-                            {place.sourceSummary?.naver ||
-                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                            {extraDetail?.loading ?
+                              "네이버 리뷰 요약을 불러오는 중이에요."
+                            : displayNaverReview ||
+                              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다."}
                           </Text>
                         </View>
 
@@ -705,8 +848,10 @@ export default function RecommendationResultScreen({
                           </View>
 
                           <Text style={styles.sourceText}>
-                            {place.sourceSummary?.instagram ||
-                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                            {extraDetail?.loading ?
+                              "인스타그램 리뷰 요약을 불러오는 중이에요."
+                            : displayInstagramReview ||
+                              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다."}
                           </Text>
                         </View>
 
@@ -718,8 +863,10 @@ export default function RecommendationResultScreen({
                           </View>
 
                           <Text style={styles.sourceText}>
-                            {place.sourceSummary?.google ||
-                              "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요"}
+                            {extraDetail?.loading ?
+                              "구글 리뷰 요약을 불러오는 중이에요."
+                            : displayGoogleReview ||
+                              "서버에서 구글 리뷰 요약을 제공하지 않았습니다."}
                           </Text>
                         </View>
                       </View>
@@ -751,7 +898,7 @@ export default function RecommendationResultScreen({
                   <TouchableOpacity
                     style={styles.detailButton}
                     activeOpacity={0.8}
-                    onPress={() => handleToggleDetail(placeId)}
+                    onPress={() => handleToggleDetail(place, placeId)}
                   >
                     <Text style={styles.detailButtonText}>
                       {isExpanded ? "간략히" : "자세히"}
