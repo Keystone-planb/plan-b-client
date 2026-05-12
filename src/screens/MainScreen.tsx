@@ -27,7 +27,6 @@ import {
   dismissNotification,
   getWeatherNotifications,
 } from "../../api/notifications/notifications";
-import { seedTestWeatherNotification } from "../../api/notifications/testSeed";
 import type { WeatherNotification } from "../types/notification";
 
 type Props = {
@@ -123,10 +122,7 @@ const getWeatherStatusEmoji = (notifications: WeatherNotification[]) => {
   return "☁️";
 };
 
-const getCurrentDayLabel = (
-  startDate?: string,
-  endDate?: string,
-) => {
+const getCurrentDayLabel = (startDate?: string, endDate?: string) => {
   if (!startDate) {
     return "Day 1";
   }
@@ -156,9 +152,7 @@ const getCurrentDayLabel = (
 
   const diffMs = today.getTime() - tripStartDate.getTime();
 
-  const diffDays = Math.floor(
-    diffMs / (1000 * 60 * 60 * 24),
-  );
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
   const currentDay = Math.max(1, diffDays + 1);
 
@@ -166,13 +160,9 @@ const getCurrentDayLabel = (
     const tripEndDate = normalizeDate(endDate);
 
     if (tripEndDate) {
-      const totalDiffMs =
-        tripEndDate.getTime() - tripStartDate.getTime();
+      const totalDiffMs = tripEndDate.getTime() - tripStartDate.getTime();
 
-      const totalDays =
-        Math.floor(
-          totalDiffMs / (1000 * 60 * 60 * 24),
-        ) + 1;
+      const totalDays = Math.floor(totalDiffMs / (1000 * 60 * 60 * 24)) + 1;
 
       return `Day ${Math.min(currentDay, totalDays)}`;
     }
@@ -314,7 +304,10 @@ const isOngoingSchedule = (schedule: StoredSchedule) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  return startDate.getTime() <= today.getTime() && today.getTime() <= endDate.getTime();
+  return (
+    startDate.getTime() <= today.getTime() &&
+    today.getTime() <= endDate.getTime()
+  );
 };
 
 const sortSchedulesByStartDate = (a: StoredSchedule, b: StoredSchedule) => {
@@ -342,8 +335,6 @@ const convertTripSummaryToStoredSchedule = (
     days: [],
   };
 };
-
-
 
 const getFirstPlaceNameFromDays = (days?: unknown[]) => {
   if (!Array.isArray(days)) {
@@ -645,29 +636,6 @@ export default function MainScreen({ navigation }: Props) {
     }, []),
   );
 
-  const handleSeedWeatherNotification = async () => {
-    try {
-      const result = await seedTestWeatherNotification(6, 166);
-
-      console.log("[Main] 테스트 날씨 알림 생성:", {
-        success: Boolean(result),
-      });
-
-      await loadNotifications(schedules);
-
-      Alert.alert("테스트 알림 생성 완료", "날씨 알림을 다시 조회했습니다.");
-    } catch (error) {
-      console.log("[Main] 테스트 날씨 알림 생성 실패:", error);
-
-      Alert.alert(
-        "테스트 알림 생성 실패",
-        error instanceof Error ?
-          error.message
-        : "테스트 알림 생성 중 오류가 발생했습니다.",
-      );
-    }
-  };
-
   const handleDismissNotification = async (
     notification: WeatherNotification,
   ) => {
@@ -700,23 +668,20 @@ export default function MainScreen({ navigation }: Props) {
   const handleOpenNotificationRecommendation = (
     notification: WeatherNotification,
   ) => {
-    const notificationId = notification.notificationId ?? notification.id;
-    const tripPlaceId = notification.tripPlaceId ?? notification.planId;
-    const recommendedPlaces =
-      notification.recommendedPlaces ?? notification.alternatives ?? [];
+    const rawNotification = notification as any;
 
-    if (recommendedPlaces.length === 0) {
-      Alert.alert(
-        "추천 장소 없음",
-        "이 알림에 연결된 대안 장소가 아직 없습니다.",
-      );
-      return;
-    }
+    const notificationId =
+      rawNotification.notificationId ?? rawNotification.id;
 
-    if (!tripPlaceId) {
+    const currentPlanId =
+      rawNotification.currentPlanId ??
+      rawNotification.tripPlaceId ??
+      rawNotification.planId;
+
+    if (!currentPlanId) {
       Alert.alert(
         "대안 추천 불가",
-        "이 알림에 연결된 서버 일정 장소 ID가 없습니다.",
+        "이 알림에 연결된 현재 일정 ID가 없습니다.",
       );
       return;
     }
@@ -725,82 +690,86 @@ export default function MainScreen({ navigation }: Props) {
       schedules.find(
         (schedule) =>
           String(schedule.tripId ?? schedule.serverTripId) ===
-          String(notification.tripId),
+          String(rawNotification.tripId),
       ) ?? schedules[0];
 
-    const resolvedBaseTripId =
-      notification.tripId ??
+    const tripId =
+      rawNotification.tripId ??
       baseSchedule?.tripId ??
-      baseSchedule?.serverTripId ??
-      getScheduleId(baseSchedule ?? {});
+      baseSchedule?.serverTripId;
 
-    const normalizedPlaces = recommendedPlaces.map((place) => ({
-      placeId: place.googlePlaceId ?? String(place.placeId),
-      googlePlaceId: place.googlePlaceId ?? String(place.placeId),
-      notificationPlaceId: place.placeId,
-      name: place.name,
-      address: place.address,
-      rating: place.rating,
-      category: place.category,
-      latitude: place.latitude,
-      longitude: place.longitude,
-      reason:
-        "날씨 변화로 인해 기존 야외 일정 대신 방문하기 좋은 대안 장소예요.",
-      distanceText: "",
-      durationText: "",
-    }));
+    if (!tripId) {
+      Alert.alert("대안 추천 불가", "여행 ID를 찾을 수 없습니다.");
+      return;
+    }
+
+    const currentLat =
+      rawNotification.currentLat ??
+      rawNotification.latitude ??
+      rawNotification.lat ??
+      rawNotification.placeLatitude;
+
+    const currentLng =
+      rawNotification.currentLng ??
+      rawNotification.longitude ??
+      rawNotification.lng ??
+      rawNotification.placeLongitude;
+
+    if (currentLat == null || currentLng == null) {
+      Alert.alert(
+        "대안 추천 불가",
+        "현재 장소의 위도/경도 정보가 없습니다.",
+      );
+      return;
+    }
 
     const nextParams = {
       source: "weather-notification",
+
+      tripId: Number(tripId),
+      serverTripId: Number(tripId),
+      currentPlanId: Number(currentPlanId),
+      tripPlaceId: Number(currentPlanId),
+      serverTripPlaceId: Number(currentPlanId),
+
+      currentLat: Number(currentLat),
+      currentLng: Number(currentLng),
+      radiusMinute: 15,
+      transportMode: (baseSchedule as any)?.transportMode ?? "WALK",
+      selectedSpace: "INDOOR",
+      selectedType: "CAFE",
+      keepOriginalCategory: false,
+      considerNextPlan: true,
+
+      nextLat: rawNotification.nextLat,
+      nextLng: rawNotification.nextLng,
+
+      notificationId,
+      fromWeatherNotification: true,
+
       scheduleId: getScheduleId(baseSchedule ?? {}),
-      tripId: notification.tripId,
-      serverTripId: notification.tripId,
       tripName: getScheduleTitle(baseSchedule ?? {}),
       startDate: baseSchedule?.startDate,
       endDate: baseSchedule?.endDate,
       location: baseSchedule?.location,
 
-      /**
-       * 날씨 알림 기반 교체에 필요한 핵심 값
-       */
-      currentPlanId: notification.tripPlaceId,
-      tripPlaceId: notification.tripPlaceId,
-      serverTripPlaceId: notification.tripPlaceId,
-      notificationId,
-      fromWeatherNotification: true,
-
-      /**
-       * 이미 서버 알림에 포함된 추천 장소를 추천 결과 화면까지 전달한다.
-       */
-      placesJson: JSON.stringify(normalizedPlaces),
-
       targetPlace: {
-        id: notification.tripPlaceId,
-        tripPlaceId: notification.tripPlaceId,
-        serverTripPlaceId: notification.tripPlaceId,
-        name: notification.placeName,
+        id: currentPlanId,
+        tripPlaceId: currentPlanId,
+        serverTripPlaceId: currentPlanId,
+        name: rawNotification.placeName,
+        latitude: Number(currentLat),
+        longitude: Number(currentLng),
       },
 
       reason:
-        notification.message ??
+        rawNotification.message ??
         "날씨 변화로 인해 기존 일정 대신 방문하기 좋은 대안 장소를 추천해주세요.",
     };
 
-    console.log("[Main] 날씨 알림 AI 분석 상세 이동:", {
-      notificationId,
-      tripId: notification.tripId,
-      tripPlaceId: notification.tripPlaceId,
-      placesCount: normalizedPlaces.length,
-      nextParams,
-    });
+    console.log("[Main] 날씨 알림 AI 대안 추천 payload:", nextParams);
 
-    /**
-     * 흐름:
-     * 날씨 알림 카드 클릭
-     * → AI 분석 상세 보기
-     * → 추천 결과
-     */
-    navigation.navigate("RecommendationResult", nextParams);
+    navigation.navigate("AIAnalysisLoading", nextParams);
   };
 
   const handleAddSchedule = () => {
@@ -960,23 +929,6 @@ export default function MainScreen({ navigation }: Props) {
         contentContainerStyle={styles.homeContent}
         showsVerticalScrollIndicator={false}
       >
-
-        
-
-
-        {__DEV__ ?
-          <TouchableOpacity
-            style={styles.seedWeatherButton}
-            activeOpacity={0.85}
-            onPress={handleSeedWeatherNotification}
-          >
-            <Ionicons name="flask-outline" size={16} color="#FFFFFF" />
-            <Text style={styles.seedWeatherButtonText}>
-              테스트 날씨 알림 생성
-            </Text>
-          </TouchableOpacity>
-        : null}
-
         {notifications.length > 0 ?
           <View style={styles.notificationSection}>
             {notifications.map((notification) => (
@@ -990,10 +942,11 @@ export default function MainScreen({ navigation }: Props) {
           </View>
         : null}
 
-
         <View style={styles.todayInfoPill}>
           <View style={styles.todayInfoItem}>
-            <Text style={styles.todayEmoji}>{getWeatherStatusEmoji(notifications)}</Text>
+            <Text style={styles.todayEmoji}>
+              {getWeatherStatusEmoji(notifications)}
+            </Text>
             <Text style={styles.todayInfoText}>
               {getWeatherStatusText(notifications)}
             </Text>
@@ -1003,9 +956,7 @@ export default function MainScreen({ navigation }: Props) {
 
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>📅</Text>
-            <Text style={styles.todayInfoText}>
-              {getTodayDisplayText()}
-            </Text>
+            <Text style={styles.todayInfoText}>{getTodayDisplayText()}</Text>
           </View>
 
           <View style={styles.todayDivider} />
@@ -1013,7 +964,10 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>🗺️</Text>
             <Text style={styles.todayInfoText}>
-              {getCurrentDayLabel(currentSchedule.startDate, currentSchedule.endDate)}
+              {getCurrentDayLabel(
+                currentSchedule.startDate,
+                currentSchedule.endDate,
+              )}
             </Text>
           </View>
         </View>
@@ -1247,7 +1201,7 @@ const styles = StyleSheet.create({
     color: "#334155",
     textAlign: "center",
   },
-todayDivider: {
+  todayDivider: {
     width: 1,
     height: 16,
     backgroundColor: "#E2E8F0",
@@ -1256,7 +1210,6 @@ todayDivider: {
   notificationSection: {
     marginBottom: 12,
   },
-
 
   ongoingSection: {
     borderRadius: 22,
