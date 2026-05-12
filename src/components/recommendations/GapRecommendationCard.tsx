@@ -299,7 +299,7 @@ export default function GapRecommendationCard({
                       isSelected && styles.selectedGapSubText,
                     ]}
                   >
-                    사용 가능 {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
+                    총 공백 {gap.gapMinutes}분 · 추천 가능 {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
                     {gap.transportMode}
                   </Text>
                 </View>
