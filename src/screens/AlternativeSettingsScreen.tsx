@@ -14,6 +14,16 @@ type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
 type PlaceScope = "INDOOR" | "OUTDOOR";
 
+type SelectedType =
+  | "FOOD"
+  | "CAFE"
+  | "SIGHTS"
+  | "SHOP"
+  | "MARKET"
+  | "THEME"
+  | "CULTURE"
+  | "PARK";
+
 type TodayPlace = {
   id?: string | number;
   name?: string;
@@ -57,6 +67,11 @@ type MoveTimeOption = {
 
 type PlaceScopeOption = {
   key: PlaceScope;
+  label: string;
+};
+
+type SelectedTypeOption = {
+  key: SelectedType;
   label: string;
 };
 
@@ -105,6 +120,17 @@ const PLACE_SCOPE_OPTIONS: PlaceScopeOption[] = [
   },
 ];
 
+const SELECTED_TYPE_OPTIONS: SelectedTypeOption[] = [
+  { key: "FOOD", label: "맛집/식당" },
+  { key: "CAFE", label: "카페/베이커리" },
+  { key: "SIGHTS", label: "명소/랜드마크" },
+  { key: "SHOP", label: "일반 쇼핑" },
+  { key: "MARKET", label: "전통시장" },
+  { key: "THEME", label: "테마파크" },
+  { key: "CULTURE", label: "문화/예술" },
+  { key: "PARK", label: "자연/공원" },
+];
+
 const TRANSPORT_LABEL_MAP: Record<TransportMode, string> = {
   WALK: "도보",
   TRANSIT: "대중교통",
@@ -127,6 +153,7 @@ export default function AlternativeSettingsScreen({
   const [changeCategory, setChangeCategory] = useState(false);
   const [selectedPlaceScope, setSelectedPlaceScope] =
     useState<PlaceScope>("INDOOR");
+  const [selectedType, setSelectedType] = useState<SelectedType>("CAFE");
 
   const selectedTransportLabel = useMemo(() => {
     return TRANSPORT_LABEL_MAP[selectedTransportMode];
@@ -150,6 +177,7 @@ export default function AlternativeSettingsScreen({
       considerDistance,
       changeCategory,
       placeScope: selectedPlaceScope,
+      selectedType: changeCategory ? selectedType : undefined,
     });
   };
 
@@ -345,28 +373,59 @@ export default function AlternativeSettingsScreen({
             />
           </View>
 
+          <View style={styles.conditionCard}>
+            <Text style={styles.sectionTitle}>실내/실외</Text>
+
+            <View style={styles.scopeRow}>
+              {PLACE_SCOPE_OPTIONS.map((option) => {
+                const selected = selectedPlaceScope === option.key;
+
+                return (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.scopeButton,
+                      selected && styles.scopeButtonActive,
+                    ]}
+                    activeOpacity={0.82}
+                    onPress={() => setSelectedPlaceScope(option.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.scopeButtonText,
+                        selected && styles.scopeButtonTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
           {changeCategory ?
             <View style={styles.conditionCard}>
-              <Text style={styles.sectionTitle}>실내/실외</Text>
+              <Text style={styles.sectionTitle}>장소 유형</Text>
 
-              <View style={styles.scopeRow}>
-                {PLACE_SCOPE_OPTIONS.map((option) => {
-                  const selected = selectedPlaceScope === option.key;
+              <View style={styles.typeGrid}>
+                {SELECTED_TYPE_OPTIONS.map((option) => {
+                  const selected = selectedType === option.key;
 
                   return (
                     <TouchableOpacity
                       key={option.key}
                       style={[
-                        styles.scopeButton,
-                        selected && styles.scopeButtonActive,
+                        styles.typeButton,
+                        selected && styles.typeButtonActive,
                       ]}
                       activeOpacity={0.82}
-                      onPress={() => setSelectedPlaceScope(option.key)}
+                      onPress={() => setSelectedType(option.key)}
                     >
                       <Text
                         style={[
-                          styles.scopeButtonText,
-                          selected && styles.scopeButtonTextActive,
+                          styles.typeButtonText,
+                          selected && styles.typeButtonTextActive,
                         ]}
                       >
                         {option.label}
@@ -587,6 +646,37 @@ const styles = StyleSheet.create({
   },
 
   scopeButtonTextActive: {
+    color: "#FFFFFF",
+  },
+
+  typeGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+  },
+
+  typeButton: {
+    width: "48%",
+    minHeight: 50,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  typeButtonActive: {
+    backgroundColor: "#2158E8",
+  },
+
+  typeButtonText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
+  typeButtonTextActive: {
     color: "#FFFFFF",
   },
 

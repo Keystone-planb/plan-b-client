@@ -64,6 +64,7 @@ type Props = {
       considerDistance?: boolean;
       changeCategory?: boolean;
       placeScope?: PlaceScope;
+      selectedType?: PlaceType;
       targetPlace?: TodayPlace;
       recommendationType?: RecommendationType;
       beforePlanId?: string | number;
@@ -436,7 +437,8 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           }
         }
 
-        const selectedType = normalizePlaceType(category);
+        const selectedType =
+          params.changeCategory ? params.selectedType : normalizePlaceType(category);
         const selectedSpace = getSelectedSpace(params.placeScope);
 
         const rawPayload = {
