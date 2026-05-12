@@ -730,61 +730,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const parseTimeForPicker = (value?: string | null) => {
-    const normalized = String(value ?? "").trim();
-    const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
+    const parsed = parsePickerTimeValue(value ?? "");
 
-    const match = firstTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-
-    if (!match) {
+    if (!parsed) {
       return {
         hour: 12,
         minute: 0,
-        period: "AM" as const,
-      };
-    }
-
-    let rawHour = Number(match[1]);
-    const rawMinute = Number(match[2]);
-    const explicitPeriod = match[3]?.toUpperCase() as "AM" | "PM" | undefined;
-
-    if (explicitPeriod) {
-      return {
-        hour: Math.min(Math.max(rawHour, 1), 12),
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: explicitPeriod,
-      };
-    }
-
-    if (rawHour === 0) {
-      return {
-        hour: 12,
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "AM" as const,
-      };
-    }
-
-    if (rawHour === 12) {
-      return {
-        hour: 12,
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "PM" as const,
-      };
-    }
-
-    if (rawHour > 12) {
-      return {
-        hour: Math.min(Math.max(rawHour - 12, 1), 12),
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "PM" as const,
       };
     }
 
     return {
-      hour: Math.min(Math.max(rawHour, 1), 12),
-      minute: Math.min(Math.max(rawMinute, 0), 55),
-      period: "AM" as const,
+      hour: Math.min(Math.max(parsed.hour, 0), 23),
+      minute: Math.min(Math.max(parsed.minute, 0), 59),
     };
   };
+
 
   const getTimeValueForTarget = (
     place: PlaceItem,
@@ -954,7 +914,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 onPress={() => openTimePicker(place, "visitTime")}
               >
                 <Ionicons name="time-outline" size={14} color="#64748B" />
-                <Text style={styles.simpleTimeActionText}>시간변경</Text>{" "}
+                <Text style={styles.simpleTimeActionText}>시간변경</Text>
               </TouchableOpacity>
             </View>
 
@@ -1353,7 +1313,57 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </Text>
             </View>
 
-            <View style={styles.timePickerControls}></View>
+            <View style={styles.timePickerControls}>
+              <View style={styles.timePickerColumn}>
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={() => setTimePickerHour((prev) => (prev <= 0 ? 23 : prev - 1))}
+                >
+                  <Ionicons name="chevron-up" size={22} color="#64748B" />
+                </TouchableOpacity>
+
+                <View style={styles.timePickerValueBox}>
+                  <Text style={styles.timePickerValueText}>
+                    {padTimeUnit(timePickerHour)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={() => setTimePickerHour((prev) => (prev >= 23 ? 0 : prev + 1))}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+
+              <Text style={styles.timePickerColon}>:</Text>
+
+              <View style={styles.timePickerColumn}>
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={() => setTimePickerMinute((prev) => (prev <= 0 ? 55 : prev - 5))}
+                >
+                  <Ionicons name="chevron-up" size={22} color="#64748B" />
+                </TouchableOpacity>
+
+                <View style={styles.timePickerValueBox}>
+                  <Text style={styles.timePickerValueText}>
+                    {padTimeUnit(timePickerMinute)}
+                  </Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.timePickerArrow}
+                  activeOpacity={0.75}
+                  onPress={() => setTimePickerMinute((prev) => (prev >= 55 ? 0 : prev + 5))}
+                >
+                  <Ionicons name="chevron-down" size={22} color="#64748B" />
+                </TouchableOpacity>
+              </View>
+            </View>
 
             <View style={styles.timeModalButtonRow}>
               <TouchableOpacity
@@ -1878,7 +1888,7 @@ const styles = StyleSheet.create({
   },
   timeTargetTabTextActive: { color: "#FFFFFF" },
   timePickerPreview: {
-    height: 52,
+    minHeight: 68,
     borderRadius: 12,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
