@@ -11,17 +11,13 @@ import type { RecommendedPlace } from "../../src/types/recommendation";
 
 export const getTripGaps = async (
   tripId: number | string,
-  mode?: string,
 ): Promise<TripScheduleGap[]> => {
   try {
     const response = await apiClient.get<TripScheduleGap[]>(
       `/api/trips/${tripId}/gaps`,
-      {
-        params: mode ? { mode } : undefined,
-      },
     );
 
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     console.log("[trip gaps] request failed:", error);
     return [];
@@ -30,29 +26,24 @@ export const getTripGaps = async (
 
 const getErrorMessageFromResponse = async (response: Response) => {
   try {
-    const contentType = response.headers.get("content-type") ?? "";
-    const responseText = await response.text();
+    const text = await response.text();
 
-    if (!responseText.trim()) {
-      return `빈 시간 추천 요청에 실패했습니다. (${response.status})`;
+    if (!text.trim()) {
+      return `갭 추천 요청에 실패했습니다. (${response.status})`;
     }
 
-    if (contentType.includes("application/json")) {
-      const parsed = JSON.parse(responseText) as {
+    try {
+      const parsed = JSON.parse(text) as {
         error?: string;
         message?: string;
       };
 
-      return (
-        parsed.error ??
-        parsed.message ??
-        `빈 시간 추천 요청에 실패했습니다. (${response.status})`
-      );
+      return parsed.error ?? parsed.message ?? text;
+    } catch {
+      return text;
     }
-
-    return responseText;
   } catch {
-    return `빈 시간 추천 요청에 실패했습니다. (${response.status})`;
+    return `갭 추천 요청에 실패했습니다. (${response.status})`;
   }
 };
 
@@ -86,8 +77,7 @@ const parseSseChunk = (chunk: string) => {
       if (eventName === "progress") {
         events.push({
           type: "progress",
-          message:
-            parsed.message ?? "빈 시간에 들를 수 있는 장소를 분석 중입니다...",
+          message: parsed.message ?? "갭 추천 장소를 분석 중입니다...",
           total: parsed.total,
         });
       }
@@ -114,19 +104,10 @@ export const streamGapRecommendations = async (
   try {
     const accessToken = await AsyncStorage.getItem("access_token");
 
-    console.log("[gap recommendations/stream] request:", {
-      tripId,
-      payload,
-      hasAccessToken: Boolean(accessToken),
-      platform: typeof window !== "undefined" ? "web" : "native",
-    });
-
     if (!accessToken) {
-      const error = new Error(
-        "로그인 토큰이 없어 빈 시간 추천을 불러올 수 없습니다.",
+      handlers.onError?.(
+        new Error("로그인 토큰이 없어 갭 추천을 불러올 수 없습니다."),
       );
-      console.log("[gap recommendations/stream] no token");
-      handlers.onError?.(error);
       return;
     }
 
@@ -137,25 +118,18 @@ export const streamGapRecommendations = async (
         headers: {
           Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
-          Accept: "text/event-stream;charset=UTF-8",
+          Accept: "text/event-stream",
         },
         body: JSON.stringify(payload),
       },
     );
 
-    console.log("[gap recommendations/stream] response:", {
-      status: response.status,
-      ok: response.ok,
-      hasBody: Boolean(response.body),
-    });
-
     if (!response.ok) {
-      const errorMessage = await getErrorMessageFromResponse(response);
-      throw new Error(errorMessage);
+      throw new Error(await getErrorMessageFromResponse(response));
     }
 
     if (!response.body) {
-      throw new Error("빈 시간 추천 스트림 응답이 비어 있습니다.");
+      throw new Error("갭 추천 스트림 응답이 비어 있습니다.");
     }
 
     const reader = response.body.getReader();

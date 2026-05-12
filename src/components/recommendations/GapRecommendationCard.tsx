@@ -27,19 +27,8 @@ const EMPTY_ALLOWED_PLAN_PAIRS: AllowedGapPlanPair[] = [];
 
 type Props = {
   tripId?: number | string | null;
-
-  /**
-   * 현재 화면에 실제로 보이는 인접 장소 pair만 전달한다.
-   * 서버 /gaps 결과는 이 pair와 일치하는 것만 표시한다.
-   */
   allowedPlanPairs?: AllowedGapPlanPair[];
-
-  /**
-   * 남겨두되 카드 표시에는 사용하지 않는다.
-   * 서버에 없는 gap을 프론트가 임의로 만들면 추천 API 기준과 어긋날 수 있어 표시하지 않는다.
-   */
   fallbackGaps?: TripScheduleGap[];
-
   onSelectPlace?: (place: RecommendedPlace) => void;
 };
 
@@ -48,7 +37,7 @@ type Status = "idle" | "loading" | "done" | "error";
 const isValidGap = (gap: TripScheduleGap) => {
   return (
     gap.availableMinutes > 0 &&
-    gap.gapMinutes >= 30 &&
+    gap.gapMinutes >= 60 &&
     gap.gapMinutes > gap.estimatedTravelMinutes
   );
 };
@@ -115,10 +104,6 @@ export default function GapRecommendationCard({
         return;
       }
 
-      /**
-       * 현재 화면의 인접 장소 pair가 없으면 서버의 전체 gap을 보여주지 않는다.
-       * 이 조건이 없으면 다른 Day/다른 장소 pair, 예: 위즈파크 gap이 노출될 수 있다.
-       */
       if (allowedPairKeys.size === 0) {
         console.log("[GapRecommendationCard] no allowed current screen pairs");
         applyGaps([]);
@@ -126,6 +111,28 @@ export default function GapRecommendationCard({
       }
 
       const serverGaps = await getTripGaps(tripId);
+
+      console.log("[GapRecommendationCard] raw server gaps:", {
+        tripId,
+        allowedPairKeys: Array.from(allowedPairKeys),
+        serverGaps: serverGaps.map((gap) => ({
+          beforePlanId: gap.beforePlanId,
+          afterPlanId: gap.afterPlanId,
+          beforePlanTitle: gap.beforePlanTitle,
+          afterPlanTitle: gap.afterPlanTitle,
+          beforePlanEndTime: gap.beforePlanEndTime,
+          afterPlanStartTime: gap.afterPlanStartTime,
+          gapMinutes: gap.gapMinutes,
+          estimatedTravelMinutes: gap.estimatedTravelMinutes,
+          availableMinutes: gap.availableMinutes,
+          transportMode: gap.transportMode,
+          pairKey: `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
+          pairAllowed: allowedPairKeys.has(
+            `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
+          ),
+          valid: isValidGap(gap),
+        })),
+      });
 
       const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
@@ -248,7 +255,7 @@ export default function GapRecommendationCard({
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
             <Text style={styles.subTitle}>
-              일정 사이 30분 이상 남는 시간 기준
+              일정 사이 60분 이상 남는 시간 기준
             </Text>
           </View>
         </View>
@@ -321,54 +328,29 @@ export default function GapRecommendationCard({
               String(selectedPlaceId) === String(place.placeId);
 
             return (
-              <View
+              <TouchableOpacity
                 key={String(place.placeId)}
                 style={[
-                  styles.placeCard,
-                  isSelectedPlace && styles.selectedPlaceCard,
+                  styles.placeButton,
+                  isSelectedPlace && styles.selectedPlaceButton,
                 ]}
+                activeOpacity={0.85}
+                onPress={() => handleSelectPlace(place)}
               >
-                <View style={styles.placeHeader}>
-                  <Text style={styles.placeName}>{place.name}</Text>
+                <View style={styles.placeTextBox}>
+                  <Text style={styles.placeName} numberOfLines={1}>
+                    {place.name}
+                  </Text>
 
-                  {place.rating ?
-                    <View style={styles.ratingBadge}>
-                      <Ionicons name="star" size={12} color="#F59E0B" />
-                      <Text style={styles.ratingText}>{place.rating}</Text>
-                    </View>
-                  : null}
+                  <Text style={styles.placeMeta} numberOfLines={1}>
+                    {place.category || place.address || "추천 장소"}
+                  </Text>
                 </View>
 
-                {place.category ?
-                  <Text style={styles.category}>{place.category}</Text>
-                : null}
-
-                {place.address ?
-                  <Text style={styles.address}>{place.address}</Text>
-                : null}
-
-                {place.reason ?
-                  <Text style={styles.reason}>{place.reason}</Text>
-                : null}
-
-                <TouchableOpacity
-                  style={[
-                    styles.selectButton,
-                    isSelectedPlace && styles.selectedSelectButton,
-                  ]}
-                  activeOpacity={0.85}
-                  onPress={() => handleSelectPlace(place)}
-                >
-                  <Text
-                    style={[
-                      styles.selectButtonText,
-                      isSelectedPlace && styles.selectedSelectButtonText,
-                    ]}
-                  >
-                    {isSelectedPlace ? "Plan.A에 추가됨" : "Plan.A에 추가하기"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
+                <Text style={styles.placeActionText}>
+                  {isSelectedPlace ? "선택됨" : "이 장소 선택"}
+                </Text>
+              </TouchableOpacity>
             );
           })}
         </View>
@@ -379,228 +361,144 @@ export default function GapRecommendationCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: "#FFFFFF",
-    borderRadius: 24,
+    marginTop: 22,
+    marginHorizontal: 24,
     padding: 18,
-    marginBottom: 18,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DBEAFE",
-    shadowColor: "#2563EB",
-    shadowOffset: {
-      width: 0,
-      height: 8,
-    },
-    shadowOpacity: 0.1,
-    shadowRadius: 16,
-    elevation: 4,
+    borderColor: "#DCEBFF",
   },
-
   headerRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-
   titleBox: {
     flexDirection: "row",
     alignItems: "center",
+    gap: 12,
     flex: 1,
   },
-
   iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 12,
   },
-
   title: {
-    fontSize: 16,
+    color: "#1C2534",
+    fontSize: 18,
     fontWeight: "900",
-    color: "#1E293B",
   },
-
   subTitle: {
-    marginTop: 2,
-    fontSize: 12,
-    fontWeight: "600",
+    marginTop: 3,
     color: "#64748B",
-  },
-
-  message: {
-    marginTop: 14,
     fontSize: 13,
-    fontWeight: "600",
-    color: "#64748B",
-    lineHeight: 20,
+    fontWeight: "700",
   },
-
+  message: {
+    marginTop: 18,
+    color: "#64748B",
+    fontSize: 15,
+    fontWeight: "700",
+    lineHeight: 23,
+  },
   gapList: {
-    marginTop: 14,
+    marginTop: 16,
     gap: 10,
   },
-
   gapButton: {
-    minHeight: 68,
-    borderRadius: 16,
+    minHeight: 82,
+    borderRadius: 18,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#DCE5F2",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  selectedGap: {
+    backgroundColor: "#2563EB",
+    borderColor: "#2563EB",
+  },
+  gapTextBox: {
+    flex: 1,
+  },
+  gapTitle: {
+    color: "#1C2534",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 20,
+  },
+  selectedGapText: {
+    color: "#FFFFFF",
+  },
+  gapMeta: {
+    marginTop: 5,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  selectedGapSubText: {
+    color: "#DBEAFE",
+  },
+  gapActionBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  gapActionText: {
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  selectedGapActionText: {
+    color: "#FFFFFF",
+  },
+  placeList: {
+    marginTop: 16,
+    gap: 10,
+  },
+  placeButton: {
+    minHeight: 72,
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#DCE5F2",
     paddingHorizontal: 16,
     paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-
-  selectedGap: {
-    backgroundColor: "#2563EB",
-    borderColor: "#2563EB",
-  },
-
-  gapActionBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-  },
-
-  gapActionText: {
-    fontSize: 12,
-    fontWeight: "900",
-    color: "#1D4ED8",
-  },
-
-  selectedGapActionText: {
-    color: "#1D4ED8",
-  },
-
-  gapTextBox: {
-    flex: 1,
-    marginRight: 8,
-  },
-
-  gapTitle: {
-    fontSize: 13,
-    fontWeight: "900",
-    color: "#1E293B",
-  },
-
-  gapMeta: {
-    marginTop: 4,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#64748B",
-  },
-
-  selectedGapText: {
-    color: "#FFFFFF",
-  },
-
-  selectedGapSubText: {
-    color: "#DBEAFE",
-  },
-
-  placeList: {
-    marginTop: 16,
     gap: 12,
   },
-
-  placeCard: {
-    backgroundColor: "#F8FAFC",
-    borderRadius: 18,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  selectedPlaceCard: {
-    borderColor: "#2563EB",
+  selectedPlaceButton: {
     backgroundColor: "#EFF6FF",
+    borderColor: "#2563EB",
   },
-
-  placeHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    gap: 10,
-  },
-
-  placeName: {
+  placeTextBox: {
     flex: 1,
+  },
+  placeName: {
+    color: "#1C2534",
     fontSize: 15,
     fontWeight: "900",
-    color: "#1E293B",
-    lineHeight: 20,
   },
-
-  ratingBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#FFFBEB",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 999,
-    gap: 3,
-  },
-
-  ratingText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#B45309",
-  },
-
-  category: {
-    marginTop: 6,
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#2563EB",
-  },
-
-  address: {
-    marginTop: 5,
-    fontSize: 12,
-    fontWeight: "500",
+  placeMeta: {
+    marginTop: 4,
     color: "#64748B",
-    lineHeight: 18,
-  },
-
-  reason: {
-    marginTop: 8,
-    fontSize: 13,
-    fontWeight: "600",
-    color: "#334155",
-    lineHeight: 19,
-  },
-
-  selectButton: {
-    marginTop: 12,
-    alignSelf: "flex-start",
-    backgroundColor: "#E9F3FF",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-
-  selectedSelectButton: {
-    backgroundColor: "#2563EB",
-  },
-
-  selectButtonText: {
     fontSize: 12,
-    fontWeight: "900",
-    color: "#2563EB",
+    fontWeight: "700",
   },
-
-  selectedSelectButtonText: {
-    color: "#FFFFFF",
+  placeActionText: {
+    color: "#2563EB",
+    fontSize: 13,
+    fontWeight: "900",
   },
 });

@@ -621,15 +621,16 @@ export default function MainScreen({ navigation }: Props) {
           return;
         }
 
-        console.log("[Main] 서버 일정 없음 - 로컬 fallback 조회");
+        console.log("[Main] 서버 일정 없음 - 빈 화면 표시");
+        setSchedules([]);
+        await loadNotifications([]);
+        return;
       } catch (serverError) {
-        console.log("[Main] 서버 일정 조회 실패 - 로컬 fallback 사용:", serverError);
+        console.log("[Main] 서버 일정 조회 실패 - 빈 화면 표시:", serverError);
+        setSchedules([]);
+        await loadNotifications([]);
+        return;
       }
-
-      const localSchedules = await loadLocalSchedules();
-
-      setSchedules(localSchedules);
-      await loadNotifications(localSchedules);
     } catch (error) {
       console.log("[Main] 일정 불러오기 실패:", error);
       setSchedules([]);

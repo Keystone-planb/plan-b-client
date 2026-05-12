@@ -499,9 +499,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         {place.name || "이름 없는 장소"}
                       </Text>
 
-                      <Text style={styles.placeAddress} numberOfLines={1}>
-                        {place.address || location}
-                      </Text>
 
                       <View style={styles.timeRow}>
                         <Ionicons
@@ -549,6 +546,21 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
                   {index === 0 && places.length >= 2 ?
                     <View style={styles.gapRecommendationSection}>
+                      {(() => {
+                        console.log("[OngoingSchedule] gap card props:", {
+                          resolvedTripId,
+                          currentDayGapPlanPairs,
+                          currentDayFallbackGaps: currentDayFallbackGaps.map((gap) => ({
+                            beforePlanId: gap.beforePlanId,
+                            afterPlanId: gap.afterPlanId,
+                            beforePlanTitle: gap.beforePlanTitle,
+                            afterPlanTitle: gap.afterPlanTitle,
+                            gapMinutes: gap.gapMinutes,
+                            availableMinutes: gap.availableMinutes,
+                          })),
+                        });
+                        return null;
+                      })()}
                       {resolvedTripId ?
                         <GapRecommendationCard
                           allowedPlanPairs={currentDayGapPlanPairs}
