@@ -571,8 +571,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     if (!firstSelectedDay) return;
 
-    const currentTripDay = getCurrentTripDay(startDate, endDate);
-    setSelectedDay(currentTripDay);
+    setSelectedDay(
+      Math.min(Math.max(Number(firstSelectedDay), 1), maxDay),
+    );
   }, [selectedPlace?.day, selectedPlaces]);
 
   useEffect(() => {
