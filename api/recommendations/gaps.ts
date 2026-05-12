@@ -15,6 +15,9 @@ export const getTripGaps = async (
   try {
     const response = await apiClient.get<TripScheduleGap[]>(
       `/api/trips/${tripId}/gaps`,
+      {
+        timeout: 90000,
+      },
     );
 
     return Array.isArray(response.data) ? response.data : [];
