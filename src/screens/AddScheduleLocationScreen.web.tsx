@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -485,8 +486,8 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getPlaceDetail(
-        place.googlePlaceId ?? String(place.placeId),
+      const detail = await getAnalyzedPlaceDetail(
+        String(place.placeId),
       );
 
       const nextPlace: SelectedPlace = {

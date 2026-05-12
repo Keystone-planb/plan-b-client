@@ -20,7 +20,10 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
-import { getPlaceDetail, getPlaceSummary } from "../../api/places/place";
+import {
+  getAnalyzedPlaceDetail,
+  getPlaceSummary,
+} from "../../api/places/place";
 import {
   loadPlanASchedule,
   savePlanASchedule,
@@ -330,7 +333,7 @@ export default function RecommendationResultScreen({
 
     try {
       const [detailResponse, summaryResponse] = await Promise.allSettled([
-        getPlaceDetail(googlePlaceId),
+        getAnalyzedPlaceDetail(googlePlaceId),
         getPlaceSummary(googlePlaceId),
       ]);
 
@@ -818,7 +821,7 @@ export default function RecommendationResultScreen({
                               color="#8EA0B7"
                             />
                             <Text style={styles.infoText}>
-                              {place.openingHours || "10:00 - 20:00"}
+                              {place.openingHours || "영업시간 정보가 없습니다."}
                             </Text>
                           </View>
                         </>

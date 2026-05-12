@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
@@ -521,7 +522,7 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(placeId);
 
-      const detail = await getPlaceDetail(googlePlaceId);
+      const detail = await getAnalyzedPlaceDetail(googlePlaceId);
 
       const nextPlace: SelectedPlace = {
         placeId,
@@ -937,7 +938,7 @@ export default function AddScheduleLocationScreen({
         id: "googleReview",
         platform: "Google",
         icon: "G",
-        text: googleAiReviewText || googleRawReviewText || "분석 데이터 없음",
+        text: googleAiReviewText || googleRawReviewText || "아직 분석 데이터가 없습니다.",
       },
       {
         id: "naverReview",
@@ -949,7 +950,7 @@ export default function AddScheduleLocationScreen({
             "data.naverReview",
             "result.naverReview",
             "payload.naverReview",
-          ]) || "분석 데이터 없음",
+          ]) || "아직 분석 데이터가 없습니다.",
       },
       {
         id: "instaReview",
@@ -965,7 +966,7 @@ export default function AddScheduleLocationScreen({
             "result.instagramReview",
             "payload.instaReview",
             "payload.instagramReview",
-          ]) || "분석 데이터 없음",
+          ]) || "아직 분석 데이터가 없습니다.",
       },
     ];
   }, [detailModalDetail, detailModalRawGoogleReviews, detailModalSummary]);
@@ -980,7 +981,7 @@ export default function AddScheduleLocationScreen({
   ]);
 
   const detailModalAiSummary =
-    rawAiSummary.trim() || rawDetailReviewSummary.trim() || "분석 데이터 없음";
+    rawAiSummary.trim() || rawDetailReviewSummary.trim() || "아직 분석 데이터가 없습니다.";
 
   const detailModalKeywords = useMemo(() => {
     return [];

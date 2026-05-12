@@ -235,3 +235,51 @@ export const getPlaceTagGroups = (detail?: PlaceDetailResponse | null) => {
   };
 };
 
+
+export type PlaceAnalysisStatus = "PENDING" | "COMPLETE";
+
+export const getPlaceAnalysisStatus = async (
+  placeId: string,
+): Promise<PlaceAnalysisStatus> => {
+  const response = await apiClient.get<{ status: PlaceAnalysisStatus }>(
+    `/api/places/${placeId}/analysis-status`,
+  );
+
+  return response.data.status;
+};
+
+export const waitForPlaceAnalysisComplete = async (
+  placeId: string,
+  options: {
+    intervalMs?: number;
+    timeoutMs?: number;
+  } = {},
+): Promise<boolean> => {
+  const intervalMs = options.intervalMs ?? 3000;
+  const timeoutMs = options.timeoutMs ?? 60000;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const status = await getPlaceAnalysisStatus(placeId);
+
+    if (status === "COMPLETE") {
+      return true;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  return false;
+};
+
+export const getAnalyzedPlaceDetail = async (placeId: string) => {
+  await getPlaceDetail(placeId);
+
+  const completed = await waitForPlaceAnalysisComplete(placeId);
+
+  if (!completed) {
+    throw new Error("리뷰 분석 준비 중입니다. 잠시 후 다시 시도해 주세요.");
+  }
+
+  return getPlaceDetail(placeId);
+};

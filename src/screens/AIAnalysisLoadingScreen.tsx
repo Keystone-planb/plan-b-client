@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { getPlaceDetail } from "../../api/places/place";
+import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import { streamRecommendations } from "../../api/recommendations/stream";
 import type {
   PlaceSpace,
@@ -268,7 +268,7 @@ const fetchPlaceDetailForRecommendation = async (
   if (!googlePlaceId) return null;
 
   try {
-    const placeDetail = await getPlaceDetail(googlePlaceId);
+    const placeDetail = await getAnalyzedPlaceDetail(String(googlePlaceId));
 
     console.log("[AIAnalysisLoading] place detail response:", {
       ok: true,
