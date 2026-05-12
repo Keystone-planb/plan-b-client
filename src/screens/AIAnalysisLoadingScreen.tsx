@@ -448,6 +448,9 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           currentLng,
           radiusMinute: Math.max(getRadiusMinute(params.moveTime), 30),
           transportMode: params.transportMode ?? "WALK",
+          category: selectedType,
+          type: selectedType,
+          space: selectedSpace,
           keepOriginalCategory: !params.changeCategory,
           considerNextPlan: false,
         };
@@ -468,6 +471,9 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           tripId: payload.tripId,
           currentPlanId: payload.currentPlanId,
           transportMode: payload.transportMode,
+          category: (payload as any).category,
+          type: (payload as any).type,
+          space: (payload as any).space,
           radiusMinute: payload.radiusMinute,
           hasCurrentLat:
             payload.currentLat !== undefined && payload.currentLat !== null,
@@ -494,6 +500,9 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           tripId: payload.tripId,
           currentPlanId: payload.currentPlanId,
           transportMode: payload.transportMode,
+          category: (payload as any).category,
+          type: (payload as any).type,
+          space: (payload as any).space,
           radiusMinute: payload.radiusMinute,
           hasCurrentLat:
             payload.currentLat !== undefined && payload.currentLat !== null,

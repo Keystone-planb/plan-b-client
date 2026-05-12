@@ -270,18 +270,16 @@ const getReviewArrayByPath = (source: unknown, path: string): ReviewItem[] => {
 
       const ratingRaw = itemObject.rating;
       const parsedRating =
-        typeof ratingRaw === "number"
-          ? ratingRaw
-          : typeof ratingRaw === "string"
-            ? Number(ratingRaw)
-            : undefined;
+        typeof ratingRaw === "number" ? ratingRaw
+        : typeof ratingRaw === "string" ? Number(ratingRaw)
+        : undefined;
 
       return {
         text,
         rating:
-          typeof parsedRating === "number" && Number.isFinite(parsedRating)
-            ? parsedRating
-            : undefined,
+          typeof parsedRating === "number" && Number.isFinite(parsedRating) ?
+            parsedRating
+          : undefined,
         relativeTimeDescription: normalizeTextValue(
           itemObject.relativeTimeDescription ??
             itemObject.relativeTime ??
@@ -613,17 +611,17 @@ export default function AddScheduleLocationScreen({
 
       console.log("[AddScheduleLocation] review response keys:", {
         detailKeys:
-          detail && typeof detail === "object"
-            ? Object.keys(detail as object)
-            : [],
+          detail && typeof detail === "object" ?
+            Object.keys(detail as object)
+          : [],
         summaryKeys:
-          summary && typeof summary === "object"
-            ? Object.keys(summary as object)
-            : [],
+          summary && typeof summary === "object" ?
+            Object.keys(summary as object)
+          : [],
         freshnessKeys:
-          freshness && typeof freshness === "object"
-            ? Object.keys(freshness as object)
-            : [],
+          freshness && typeof freshness === "object" ?
+            Object.keys(freshness as object)
+          : [],
       });
 
       setPlaceReviewMap((prev) => ({
@@ -771,6 +769,7 @@ export default function AddScheduleLocationScreen({
               {
                 place_id: place.googlePlaceId ?? place.placeId,
                 name: place.name,
+                category: place.category,
                 visitTime: null,
                 endTime: null,
                 memo: null,
@@ -818,9 +817,9 @@ export default function AddScheduleLocationScreen({
       console.log("일정 저장 실패:", error);
 
       const message =
-        error instanceof Error
-          ? error.message
-          : "여행 일정을 저장하지 못했습니다.";
+        error instanceof Error ?
+          error.message
+        : "여행 일정을 저장하지 못했습니다.";
 
       Alert.alert("일정 저장 실패", message);
     } finally {
@@ -830,29 +829,27 @@ export default function AddScheduleLocationScreen({
   };
 
   const placesToRender =
-    searchResults.length > 0
-      ? searchResults
-      : [
-          {
-            placeId: "empty-preview-1",
-            name: "장소를 검색해주세요",
-            address: "검색어를 입력하면 장소 후보가 표시됩니다.",
-            rating: undefined,
-            category: "preview",
-          } as PlaceSearchResult,
-        ];
+    searchResults.length > 0 ?
+      searchResults
+    : [
+        {
+          placeId: "empty-preview-1",
+          name: "장소를 검색해주세요",
+          address: "검색어를 입력하면 장소 후보가 표시됩니다.",
+          rating: undefined,
+          category: "preview",
+        } as PlaceSearchResult,
+      ];
 
   const detailModalPlace = searchResults.find((place) => {
     return getReviewPlaceKey(place) === expandedPlaceId;
   });
 
-  const detailModalPlaceId = detailModalPlace
-    ? getReviewPlaceKey(detailModalPlace)
-    : "";
+  const detailModalPlaceId =
+    detailModalPlace ? getReviewPlaceKey(detailModalPlace) : "";
 
-  const detailModalReviewInfo = detailModalPlaceId
-    ? placeReviewMap[detailModalPlaceId]
-    : undefined;
+  const detailModalReviewInfo =
+    detailModalPlaceId ? placeReviewMap[detailModalPlaceId] : undefined;
 
   const rawDetailModalDetail = detailModalReviewInfo?.detail as unknown;
   const rawDetailModalSummary = detailModalReviewInfo?.summary as unknown;
@@ -920,12 +917,13 @@ export default function AddScheduleLocationScreen({
     const googleRawReviewText = detailModalRawGoogleReviews
       .map((review) => {
         const ratingText =
-          typeof review.rating === "number"
-            ? `평점 ${review.rating.toFixed(1)}`
-            : "리뷰";
+          typeof review.rating === "number" ?
+            `평점 ${review.rating.toFixed(1)}`
+          : "리뷰";
 
-        const timeText = review.relativeTimeDescription
-          ? ` · ${review.relativeTimeDescription}`
+        const timeText =
+          review.relativeTimeDescription ?
+            ` · ${review.relativeTimeDescription}`
           : "";
 
         return `${ratingText}${timeText}\n${review.text}`;
@@ -938,7 +936,10 @@ export default function AddScheduleLocationScreen({
         id: "googleReview",
         platform: "Google",
         icon: "G",
-        text: googleAiReviewText || googleRawReviewText || "아직 분석 데이터가 없습니다.",
+        text:
+          googleAiReviewText ||
+          googleRawReviewText ||
+          "아직 분석 데이터가 없습니다.",
       },
       {
         id: "naverReview",
@@ -981,7 +982,9 @@ export default function AddScheduleLocationScreen({
   ]);
 
   const detailModalAiSummary =
-    rawAiSummary.trim() || rawDetailReviewSummary.trim() || "아직 분석 데이터가 없습니다.";
+    rawAiSummary.trim() ||
+    rawDetailReviewSummary.trim() ||
+    "아직 분석 데이터가 없습니다.";
 
   const detailModalKeywords = useMemo(() => {
     return [];
@@ -1083,13 +1086,16 @@ export default function AddScheduleLocationScreen({
     ]) ?? detailModalPlace?.rating;
 
   const formattedOpeningHours =
-    detailModalOpeningHours && detailModalOpeningHours !== "운영 시간 정보 없음"
-      ? detailModalOpeningHours
-          .split(" / ")
-          .map((item) => item.trim())
-          .filter(Boolean)
-          .join("\n")
-      : "";
+    (
+      detailModalOpeningHours &&
+      detailModalOpeningHours !== "운영 시간 정보 없음"
+    ) ?
+      detailModalOpeningHours
+        .split(" / ")
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .join("\n")
+    : "";
 
   console.log("[AddScheduleLocation] extracted AI review fields:", {
     placeId: detailModalPlaceId,
@@ -1167,11 +1173,9 @@ export default function AddScheduleLocationScreen({
               onPress={handleSearch}
               disabled={searchLoading || submitLoading}
             >
-              {searchLoading ? (
+              {searchLoading ?
                 <ActivityIndicator size="small" color="#5D6E86" />
-              ) : (
-                <Ionicons name="search" size={25} color="#5D6E86" />
-              )}
+              : <Ionicons name="search" size={25} color="#5D6E86" />}
             </TouchableOpacity>
           </View>
         </SafeAreaView>
@@ -1185,7 +1189,7 @@ export default function AddScheduleLocationScreen({
           contentContainerStyle={styles.resultContent}
           showsVerticalScrollIndicator={false}
         >
-          {selectedPlaces.length > 0 ? (
+          {selectedPlaces.length > 0 ?
             <View style={styles.selectedSummaryBox}>
               <Text style={styles.selectedSummaryTitle}>
                 선택한 장소 {selectedPlaces.length}개
@@ -1195,7 +1199,7 @@ export default function AddScheduleLocationScreen({
                 {selectedPlaces.map((place) => place.name).join(" · ")}
               </Text>
             </View>
-          ) : null}
+          : null}
 
           {placesToRender.map((place) => {
             const placeId = String(place.placeId);
@@ -1241,19 +1245,18 @@ export default function AddScheduleLocationScreen({
                   }
                   onPress={() => handleTogglePlaceReview(place)}
                 >
-                  {isReviewLoading ? (
+                  {isReviewLoading ?
                     <ActivityIndicator size="small" color="#6F7F95" />
-                  ) : (
-                    <>
+                  : <>
                       <Text style={styles.detailButtonText}>
                         상세 정보 보기
                       </Text>
                       <Ionicons name="eye-outline" size={15} color="#6F7F95" />
                     </>
-                  )}
+                  }
                 </TouchableOpacity>
 
-                {!isPreview ? (
+                {!isPreview ?
                   <TouchableOpacity
                     style={[
                       styles.selectPlaceButton,
@@ -1278,13 +1281,12 @@ export default function AddScheduleLocationScreen({
                       ])
                     }
                   >
-                    {isDetailLoading ? (
+                    {isDetailLoading ?
                       <ActivityIndicator
                         size="small"
                         color={isSelected ? "#FFFFFF" : "#2158E8"}
                       />
-                    ) : (
-                      <Text
+                    : <Text
                         style={[
                           styles.selectPlaceButtonText,
                           isSelected && styles.selectPlaceButtonTextActive,
@@ -1292,11 +1294,11 @@ export default function AddScheduleLocationScreen({
                       >
                         {isSelected ? "선택 완료" : "이 장소 선택"}
                       </Text>
-                    )}
+                    }
                   </TouchableOpacity>
-                ) : null}
+                : null}
 
-                {isReviewLoading ? (
+                {isReviewLoading ?
                   <View style={styles.reviewLoadingPanel}>
                     <ActivityIndicator size="large" color="#2158E8" />
 
@@ -1308,7 +1310,7 @@ export default function AddScheduleLocationScreen({
                       <View style={styles.reviewProgressFill} />
                     </View>
                   </View>
-                ) : null}
+                : null}
               </View>
             );
           })}
@@ -1343,9 +1345,9 @@ export default function AddScheduleLocationScreen({
                     <Ionicons name="star" size={14} color="#FFD600" />
 
                     <Text style={styles.detailMetaText}>
-                      {typeof modalRating === "number"
-                        ? modalRating.toFixed(1)
-                        : "평점 정보 없음"}
+                      {typeof modalRating === "number" ?
+                        modalRating.toFixed(1)
+                      : "평점 정보 없음"}
                     </Text>
 
                     <Text style={styles.detailMetaDot}>·</Text>
@@ -1353,24 +1355,23 @@ export default function AddScheduleLocationScreen({
                     <Ionicons name="time-outline" size={15} color="#8DC7FF" />
 
                     <Text style={styles.detailMetaText}>
-                      {formattedOpeningHours
-                        ? "영업시간 보기"
-                        : "운영 시간 정보 없음"}
+                      {formattedOpeningHours ?
+                        "영업시간 보기"
+                      : "운영 시간 정보 없음"}
                     </Text>
                   </View>
                 </View>
               </View>
 
-              {reviewLoadingPlaceId === detailModalPlaceId ? (
+              {reviewLoadingPlaceId === detailModalPlaceId ?
                 <View style={styles.detailLoadingBox}>
                   <ActivityIndicator size="large" color="#2158E8" />
                   <Text style={styles.detailLoadingText}>
                     리뷰 불러오는 중...
                   </Text>
                 </View>
-              ) : (
-                <>
-                  {formattedOpeningHours ? (
+              : <>
+                  {formattedOpeningHours ?
                     <View style={styles.businessHoursCard}>
                       <TouchableOpacity
                         style={styles.businessHoursHeader}
@@ -1393,9 +1394,9 @@ export default function AddScheduleLocationScreen({
 
                         <Ionicons
                           name={
-                            businessHoursExpanded
-                              ? "chevron-up"
-                              : "chevron-down"
+                            businessHoursExpanded ? "chevron-up" : (
+                              "chevron-down"
+                            )
                           }
                           size={18}
                           color="#64748B"
@@ -1409,15 +1410,15 @@ export default function AddScheduleLocationScreen({
                         {formattedOpeningHours}
                       </Text>
 
-                      {!businessHoursExpanded ? (
+                      {!businessHoursExpanded ?
                         <Text style={styles.businessHoursHint}>
                           눌러서 전체 영업시간 보기
                         </Text>
-                      ) : null}
+                      : null}
                     </View>
-                  ) : null}
+                  : null}
 
-                  {detailModalAiSummary ? (
+                  {detailModalAiSummary ?
                     <View style={styles.aiSummaryCard}>
                       <Text style={styles.aiSummaryText}>
                         📊 {detailModalAiSummary}
@@ -1427,11 +1428,11 @@ export default function AddScheduleLocationScreen({
                         <Text style={styles.aiCircleText}>AI</Text>
                       </View>
                     </View>
-                  ) : null}
+                  : null}
 
                   {null}
 
-                  {detailModalReviews.length > 0 ? (
+                  {detailModalReviews.length > 0 ?
                     <View style={styles.reviewSection}>
                       <View style={styles.reviewSectionHeader}>
                         <Text style={styles.reviewSectionTitle}>
@@ -1466,9 +1467,9 @@ export default function AddScheduleLocationScreen({
                         ))}
                       </View>
                     </View>
-                  ) : null}
+                  : null}
 
-                  {!hasAnyRealDetailContent ? (
+                  {!hasAnyRealDetailContent ?
                     <View style={styles.emptyDetailBox}>
                       <Ionicons
                         name="information-circle-outline"
@@ -1479,9 +1480,9 @@ export default function AddScheduleLocationScreen({
                         표시할 상세 정보가 없습니다.
                       </Text>
                     </View>
-                  ) : null}
+                  : null}
                 </>
-              )}
+              }
 
               <TouchableOpacity
                 style={styles.compactButton}

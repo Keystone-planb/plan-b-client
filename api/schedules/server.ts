@@ -82,6 +82,7 @@ export interface AddTripLocationRequest {
    */
   place_id: string;
   name: string;
+  category?: string;
   visitTime?: string | null;
   endTime?: string | null;
   memo?: string | null;
