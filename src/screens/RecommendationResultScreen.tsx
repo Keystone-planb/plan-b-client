@@ -282,9 +282,10 @@ export default function RecommendationResultScreen({
   }, [places]);
 
   const targetPlace = params.targetPlace;
-  const currentPlaceName = targetPlace?.name || "강릉역";
+  const currentPlaceName =
+    targetPlace?.name || params.title || "영향받는 일정";
   const currentPlaceAddress =
-    targetPlace?.address || params.location || "강원도 강릉시";
+    targetPlace?.address || params.location || "";
   const currentPlaceTime =
     targetPlace?.time || formatDateRange(params.startDate, params.endDate);
 

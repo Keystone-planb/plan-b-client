@@ -531,8 +531,10 @@ export default function MainScreen({ navigation }: Props) {
     } catch (error) {
       if (__DEV__) {
         console.log("[Main] 날씨 알림 조회 실패:", error);
-        setNotifications([]);
       }
+      setNotifications([]);
+    } finally {
+      setNotificationsLoading(false);
     }
   };
 
@@ -702,6 +704,29 @@ export default function MainScreen({ navigation }: Props) {
 
     if (!tripId) {
       Alert.alert("대안 추천 불가", "여행 ID를 찾을 수 없습니다.");
+      return;
+    }
+
+    const alternatives =
+      rawNotification.recommendedPlaces ?? rawNotification.alternatives ?? [];
+
+    if (alternatives.length > 0) {
+      navigation.navigate("RecommendationResult", {
+        source: "weather-notification",
+        fromWeatherNotification: true,
+        notificationId,
+        placesJson: JSON.stringify(alternatives),
+        currentPlanId: Number(currentPlanId),
+        tripPlaceId: Number(currentPlanId),
+        serverTripPlaceId: Number(currentPlanId),
+        tripId: Number(tripId),
+        serverTripId: Number(tripId),
+        scheduleId: getScheduleId(baseSchedule ?? {}),
+        tripName: getScheduleTitle(baseSchedule ?? {}),
+        startDate: baseSchedule?.startDate,
+        endDate: baseSchedule?.endDate,
+        location: baseSchedule?.location,
+      });
       return;
     }
 
