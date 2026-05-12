@@ -268,7 +268,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     const resolveMapPlaces = async () => {
       const nextPlaces = await Promise.all(
         mapPlaces.map(async (place) => {
-          if (place.latitude !== undefined && place.longitude !== undefined) {
+          const hasValidCoordinate =
+            typeof place.latitude === "number" &&
+            Number.isFinite(place.latitude) &&
+            typeof place.longitude === "number" &&
+            Number.isFinite(place.longitude);
+
+          if (hasValidCoordinate) {
             return place;
           }
 

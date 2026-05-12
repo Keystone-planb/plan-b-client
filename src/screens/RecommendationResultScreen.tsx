@@ -2,6 +2,7 @@ import React, { useMemo, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Image,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -9,6 +10,9 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
+import GoogleReviewIcon from "../assets/google-review.svg";
+import NaverIcon from "../assets/naver.png";
+import InstagramIcon from "../assets/instagram.png";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -16,10 +20,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
-import {
-  getPlaceDetail,
-  getPlaceSummary,
-} from "../../api/places/place";
+import { getPlaceDetail, getPlaceSummary } from "../../api/places/place";
 import {
   loadPlanASchedule,
   savePlanASchedule,
@@ -145,7 +146,6 @@ const pickText = (source: any, keys: string[]) => {
 const unwrapData = (value: any) => {
   return value?.data ?? value?.result ?? value?.payload ?? value;
 };
-
 
 const formatDateRange = (startDate?: string, endDate?: string) => {
   const start = startDate?.replace(/-/g, ".");
@@ -345,15 +345,37 @@ export default function RecommendationResultScreen({
         : null;
 
       const aiSummary =
-        pickText(summary, ["aiSummary", "ai_summary", "summary", "reviewSummary"]) ||
-        pickText(detail, ["aiSummary", "ai_summary", "summary", "reviewSummary"]);
+        pickText(summary, [
+          "aiSummary",
+          "ai_summary",
+          "summary",
+          "reviewSummary",
+        ]) ||
+        pickText(detail, [
+          "aiSummary",
+          "ai_summary",
+          "summary",
+          "reviewSummary",
+        ]);
 
       const googleReview =
-        pickText(summary, ["googleReview", "googleReviewSummary", "google_review"]) ||
-        pickText(detail, ["googleReview", "googleReviewSummary", "google_review"]);
+        pickText(summary, [
+          "googleReview",
+          "googleReviewSummary",
+          "google_review",
+        ]) ||
+        pickText(detail, [
+          "googleReview",
+          "googleReviewSummary",
+          "google_review",
+        ]);
 
       const naverReview =
-        pickText(summary, ["naverReview", "naverReviewSummary", "naver_review"]) ||
+        pickText(summary, [
+          "naverReview",
+          "naverReviewSummary",
+          "naver_review",
+        ]) ||
         pickText(detail, ["naverReview", "naverReviewSummary", "naver_review"]);
 
       const instagramReview =
@@ -829,14 +851,19 @@ export default function RecommendationResultScreen({
                       <View style={styles.sourceList}>
                         <View style={styles.sourceCard}>
                           <View style={[styles.sourceIconBox, styles.naverBox]}>
-                            <Text style={styles.naverIconText}>N</Text>
+                            <Image
+                              source={NaverIcon}
+                              style={styles.platformLogo}
+                              resizeMode="contain"
+                            />
                           </View>
 
                           <Text style={styles.sourceText}>
                             {extraDetail?.loading ?
                               "네이버 리뷰 요약을 불러오는 중이에요."
                             : displayNaverReview ||
-                              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다."}
+                              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다."
+                            }
                           </Text>
                         </View>
 
@@ -844,14 +871,19 @@ export default function RecommendationResultScreen({
                           <View
                             style={[styles.sourceIconBox, styles.instagramBox]}
                           >
-                            <Text style={styles.instagramIconText}>◎</Text>
+                            <Image
+                              source={InstagramIcon}
+                              style={styles.platformLogo}
+                              resizeMode="contain"
+                            />
                           </View>
 
                           <Text style={styles.sourceText}>
                             {extraDetail?.loading ?
                               "인스타그램 리뷰 요약을 불러오는 중이에요."
                             : displayInstagramReview ||
-                              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다."}
+                              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다."
+                            }
                           </Text>
                         </View>
 
@@ -859,14 +891,15 @@ export default function RecommendationResultScreen({
                           <View
                             style={[styles.sourceIconBox, styles.googleBox]}
                           >
-                            <Text style={styles.googleIconText}>G</Text>
+                            <GoogleReviewIcon width={18} height={18} />
                           </View>
 
                           <Text style={styles.sourceText}>
                             {extraDetail?.loading ?
                               "구글 리뷰 요약을 불러오는 중이에요."
                             : displayGoogleReview ||
-                              "서버에서 구글 리뷰 요약을 제공하지 않았습니다."}
+                              "서버에서 구글 리뷰 요약을 제공하지 않았습니다."
+                            }
                           </Text>
                         </View>
                       </View>
@@ -1284,24 +1317,31 @@ const styles = StyleSheet.create({
   },
 
   sourceIconBox: {
-    width: 26,
-    height: 26,
-    borderRadius: 6,
+    width: 30,
+    height: 30,
+    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 10,
+    marginRight: 12,
+    overflow: "hidden",
+    backgroundColor: "#FFFFFF",
   },
 
   naverBox: {
-    backgroundColor: "#03C75A",
+    backgroundColor: "#FFFFFF",
   },
 
   instagramBox: {
-    backgroundColor: "#F35A9C",
+    backgroundColor: "#FFFFFF",
   },
 
   googleBox: {
     backgroundColor: "#FFFFFF",
+  },
+
+  platformLogo: {
+    width: 30,
+    height: 30,
   },
 
   naverIconText: {
