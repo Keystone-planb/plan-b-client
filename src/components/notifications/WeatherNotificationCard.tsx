@@ -215,7 +215,11 @@ export default function WeatherNotificationCard({
           <Text style={styles.alternativeCountText}>
             대안 장소 {alternatives.length}개 준비됨
           </Text>
-        ) : null}
+        ) : (
+          <Text style={styles.alternativeCountText}>
+            주변에 적합한 실내 장소를 찾지 못했습니다.
+          </Text>
+        )}
       </View>
 
       <TouchableOpacity

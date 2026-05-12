@@ -22,6 +22,15 @@ const normalizeNotifications = (data: unknown): WeatherNotification[] => {
     return (data as { data: WeatherNotification[] }).data;
   }
 
+  if (
+    data &&
+    typeof data === "object" &&
+    "id" in data &&
+    "planId" in data
+  ) {
+    return [data as WeatherNotification];
+  }
+
   return [];
 };
 

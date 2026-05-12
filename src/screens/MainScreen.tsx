@@ -486,6 +486,7 @@ const enrichDaysWithServerTripPlaceIds = async (
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
   const [notifications, setNotifications] = useState<WeatherNotification[]>([]);
+  const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const loadNotifications = async (
@@ -498,6 +499,8 @@ export default function MainScreen({ navigation }: Props) {
         setNotifications([]);
         return;
       }
+
+      setNotificationsLoading(true);
 
       const serverNotifications = await getWeatherNotifications(storedUserId);
 
@@ -670,8 +673,7 @@ export default function MainScreen({ navigation }: Props) {
   ) => {
     const rawNotification = notification as any;
 
-    const notificationId =
-      rawNotification.notificationId ?? rawNotification.id;
+    const notificationId = rawNotification.notificationId ?? rawNotification.id;
 
     const currentPlanId =
       rawNotification.currentPlanId ??
@@ -703,23 +705,30 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
+    const affectedPlace = baseSchedule?.days
+      ?.flatMap((day: any) => day.places ?? [])
+      .find((place: any) =>
+        [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
+          (id) => String(id) === String(currentPlanId),
+        ),
+      );
+
     const currentLat =
       rawNotification.currentLat ??
       rawNotification.latitude ??
       rawNotification.lat ??
-      rawNotification.placeLatitude;
+      rawNotification.placeLatitude ??
+      affectedPlace?.latitude;
 
     const currentLng =
       rawNotification.currentLng ??
       rawNotification.longitude ??
       rawNotification.lng ??
-      rawNotification.placeLongitude;
+      rawNotification.placeLongitude ??
+      affectedPlace?.longitude;
 
     if (currentLat == null || currentLng == null) {
-      Alert.alert(
-        "대안 추천 불가",
-        "현재 장소의 위도/경도 정보가 없습니다.",
-      );
+      Alert.alert("대안 추천 불가", "현재 장소의 위도/경도 정보가 없습니다.");
       return;
     }
 
@@ -757,7 +766,7 @@ export default function MainScreen({ navigation }: Props) {
         id: currentPlanId,
         tripPlaceId: currentPlanId,
         serverTripPlaceId: currentPlanId,
-        name: rawNotification.placeName,
+        name: rawNotification.placeName ?? affectedPlace?.name,
         latitude: Number(currentLat),
         longitude: Number(currentLng),
       },
@@ -929,7 +938,16 @@ export default function MainScreen({ navigation }: Props) {
         contentContainerStyle={styles.homeContent}
         showsVerticalScrollIndicator={false}
       >
-        {notifications.length > 0 ?
+        {notificationsLoading ?
+          <View style={styles.notificationSection}>
+            <View style={styles.notificationLoadingBox}>
+              <ActivityIndicator size="small" color="#2563EB" />
+              <Text style={styles.notificationLoadingText}>
+                날씨 알림을 확인하는 중이에요...
+              </Text>
+            </View>
+          </View>
+        : notifications.length > 0 ?
           <View style={styles.notificationSection}>
             {notifications.map((notification) => (
               <WeatherNotificationCard
@@ -1205,6 +1223,23 @@ const styles = StyleSheet.create({
     width: 1,
     height: 16,
     backgroundColor: "#E2E8F0",
+  },
+
+  notificationLoadingBox: {
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  notificationLoadingText: {
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#64748B",
   },
 
   notificationSection: {

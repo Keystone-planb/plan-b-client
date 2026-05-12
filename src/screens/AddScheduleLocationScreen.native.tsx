@@ -58,8 +58,8 @@ type SelectedPlace = {
   address?: string;
   rating?: number;
   category?: string;
-  latitude: number;
-  longitude: number;
+  latitude?: number;
+  longitude?: number;
 };
 
 type PlaceReviewInfo = {
@@ -448,8 +448,8 @@ export default function AddScheduleLocationScreen({
   const moveMapToPlace = (place: SelectedPlace) => {
     mapRef.current?.animateToRegion(
       {
-        latitude: place.latitude,
-        longitude: place.longitude,
+        latitude: place.latitude ?? INITIAL_REGION.latitude,
+        longitude: place.longitude ?? INITIAL_REGION.longitude,
         latitudeDelta: 0.014,
         longitudeDelta: 0.014,
       },
@@ -529,8 +529,8 @@ export default function AddScheduleLocationScreen({
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: detail.lat ?? place.latitude ?? INITIAL_REGION.latitude,
-        longitude: detail.lng ?? place.longitude ?? INITIAL_REGION.longitude,
+        latitude: detail.lat ?? place.latitude,
+        longitude: detail.lng ?? place.longitude,
       };
 
       toggleSelectedPlace(nextPlace);
@@ -562,8 +562,8 @@ export default function AddScheduleLocationScreen({
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: place.latitude ?? INITIAL_REGION.latitude,
-        longitude: place.longitude ?? INITIAL_REGION.longitude,
+        latitude: place.latitude,
+        longitude: place.longitude,
       };
 
       toggleSelectedPlace(fallbackPlace);
@@ -1134,8 +1134,8 @@ export default function AddScheduleLocationScreen({
             <Marker
               key={`marker-${place.placeId}`}
               coordinate={{
-                latitude: place.latitude,
-                longitude: place.longitude,
+                latitude: place.latitude ?? INITIAL_REGION.latitude,
+                longitude: place.longitude ?? INITIAL_REGION.longitude,
               }}
               title={place.name}
               description={place.address}
