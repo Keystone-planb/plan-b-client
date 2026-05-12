@@ -22,7 +22,24 @@ export type WeatherNotification = {
   body?: string;
   type?: string;
   alternatives?: NotificationAlternativePlace[];
+  originalPlace?: NotificationOriginalPlace;
   precipitationProb?: number;
+};
+
+
+export type NotificationOriginalPlace = {
+  placeId?: number | string;
+  tripPlaceId?: number | string;
+  serverTripPlaceId?: number | string;
+  googlePlaceId?: string;
+  name?: string;
+  address?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+  visitTime?: string | null;
+  endTime?: string | null;
+  time?: string;
 };
 
 export type NotificationAlternativePlace = {

@@ -477,7 +477,7 @@ export default function RecommendationResultScreen({
           },
         );
 
-        await replaceNotificationPlace(notificationId, place.placeId ?? newGooglePlaceId);
+        await replaceNotificationPlace(notificationId, place.placeId);
 
         setSelectedPlaceId(placeId);
 

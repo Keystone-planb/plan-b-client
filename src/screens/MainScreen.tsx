@@ -710,15 +710,32 @@ export default function MainScreen({ navigation }: Props) {
     const alternatives =
       rawNotification.recommendedPlaces ?? rawNotification.alternatives ?? [];
 
+    const originalPlace = rawNotification.originalPlace;
+
     if (alternatives.length > 0) {
       navigation.navigate("RecommendationResult", {
         source: "weather-notification",
         fromWeatherNotification: true,
         notificationId,
         placesJson: JSON.stringify(alternatives),
-        currentPlanId: Number(currentPlanId),
-        tripPlaceId: Number(currentPlanId),
-        serverTripPlaceId: Number(currentPlanId),
+        currentPlanId: Number(
+          originalPlace?.tripPlaceId ??
+            originalPlace?.serverTripPlaceId ??
+            originalPlace?.placeId ??
+            currentPlanId,
+        ),
+        tripPlaceId: Number(
+          originalPlace?.tripPlaceId ??
+            originalPlace?.serverTripPlaceId ??
+            originalPlace?.placeId ??
+            currentPlanId,
+        ),
+        serverTripPlaceId: Number(
+          originalPlace?.tripPlaceId ??
+            originalPlace?.serverTripPlaceId ??
+            originalPlace?.placeId ??
+            currentPlanId,
+        ),
         tripId: Number(tripId),
         serverTripId: Number(tripId),
         scheduleId: getScheduleId(baseSchedule ?? {}),
@@ -726,6 +743,37 @@ export default function MainScreen({ navigation }: Props) {
         startDate: baseSchedule?.startDate,
         endDate: baseSchedule?.endDate,
         location: baseSchedule?.location,
+        targetPlace: originalPlace
+          ? {
+              id:
+                originalPlace.tripPlaceId ??
+                originalPlace.serverTripPlaceId ??
+                originalPlace.placeId ??
+                currentPlanId,
+              tripPlaceId:
+                originalPlace.tripPlaceId ??
+                originalPlace.serverTripPlaceId ??
+                originalPlace.placeId ??
+                currentPlanId,
+              serverTripPlaceId:
+                originalPlace.tripPlaceId ??
+                originalPlace.serverTripPlaceId ??
+                originalPlace.placeId ??
+                currentPlanId,
+              placeId: originalPlace.googlePlaceId,
+              googlePlaceId: originalPlace.googlePlaceId,
+              name: originalPlace.name,
+              address: originalPlace.address,
+              category: originalPlace.category,
+              latitude: originalPlace.latitude,
+              longitude: originalPlace.longitude,
+              time:
+                originalPlace.time ??
+                [originalPlace.visitTime, originalPlace.endTime]
+                  .filter(Boolean)
+                  .join(" - "),
+            }
+          : undefined,
       });
       return;
     }
