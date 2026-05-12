@@ -186,7 +186,9 @@ export default function LoginScreen({ navigation }: any) {
       console.log("[OAuth] redirect url received:", { isSuccess, isFailure });
       console.log("[OAuth] is success:", isSuccess);
       console.log("[OAuth] is failure:", isFailure);
-      console.log("[OAuth] failure message:", getOAuthFailureMessage(url));
+      if (isFailure) {
+        console.log("[OAuth] failure message:", getOAuthFailureMessage(url));
+      }
     }
 
     if (!isSuccess && !isFailure) {
