@@ -438,22 +438,51 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
+    const matchedResolvedPlace = resolvedMapPlaces.find((item) => {
+      const candidates = [
+        item.serverTripPlaceId,
+        item.tripPlaceId,
+        item.id,
+        item.placeId,
+        item.googlePlaceId,
+      ].map((value) => String(value ?? ""));
+
+      return [
+        place.serverTripPlaceId,
+        place.tripPlaceId,
+        place.id,
+        place.placeId,
+        place.googlePlaceId,
+      ]
+        .map((value) => String(value ?? ""))
+        .some((value) => value && candidates.includes(value));
+    });
+
+    const targetPlaceForAlternative = {
+      ...place,
+      ...matchedResolvedPlace,
+      latitude: matchedResolvedPlace?.latitude ?? place.latitude,
+      longitude: matchedResolvedPlace?.longitude ?? place.longitude,
+    };
+
     const serverPlanId =
-      place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
+      targetPlaceForAlternative.serverTripPlaceId ??
+      targetPlaceForAlternative.tripPlaceId ??
+      targetPlaceForAlternative.id;
 
     console.log("[OngoingSchedule] 대안찾기 클릭:", {
       scheduleId,
       tripId,
       serverTripId,
       resolvedTripId,
-      place,
+      place: targetPlaceForAlternative,
       serverPlanId,
     });
 
     if (!isValidServerPlanId(serverPlanId)) {
       console.log("[OngoingSchedule] 잘못된 serverPlanId 차단:", {
         serverPlanId,
-        place,
+        place: targetPlaceForAlternative,
       });
 
       Alert.alert(
@@ -477,23 +506,28 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       tripPlaceId: serverPlanId,
       serverTripPlaceId: serverPlanId,
       targetPlace: {
-        id: place.id,
+        id: targetPlaceForAlternative.id,
 
         // 서버 장소 ID
         tripPlaceId: serverPlanId,
         serverTripPlaceId: serverPlanId,
 
         // Google Place ID
-        placeId: place.placeId ?? place.googlePlaceId ?? String(place.id ?? ""),
+        placeId:
+          targetPlaceForAlternative.placeId ??
+          targetPlaceForAlternative.googlePlaceId ??
+          String(targetPlaceForAlternative.id ?? ""),
         googlePlaceId:
-          place.googlePlaceId ?? place.placeId ?? String(place.id ?? ""),
+          targetPlaceForAlternative.googlePlaceId ??
+          targetPlaceForAlternative.placeId ??
+          String(targetPlaceForAlternative.id ?? ""),
 
-        name: place.name,
-        address: place.address,
-        time: place.time,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        category: place.category,
+        name: targetPlaceForAlternative.name,
+        address: targetPlaceForAlternative.address,
+        time: targetPlaceForAlternative.time,
+        latitude: targetPlaceForAlternative.latitude,
+        longitude: targetPlaceForAlternative.longitude,
+        category: targetPlaceForAlternative.category,
       },
     });
   };
