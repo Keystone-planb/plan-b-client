@@ -435,7 +435,6 @@ export default function RecommendationResultScreen({
           array.findIndex((item) => String(item) === String(value)) === index
         );
       });
-
     const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
     const newPlaceName = place.name;
 
