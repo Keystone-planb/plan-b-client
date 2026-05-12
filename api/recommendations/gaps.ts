@@ -104,48 +104,63 @@ export const streamGapRecommendations = async (
   payload: GapRecommendationRequest,
   handlers: GapRecommendationStreamHandlers,
 ) => {
-  try {
-    const accessToken = await AsyncStorage.getItem("access_token");
+  const accessToken = await AsyncStorage.getItem("access_token");
 
-    if (!accessToken) {
-      handlers.onError?.(
-        new Error("로그인 토큰이 없어 갭 추천을 불러올 수 없습니다."),
-      );
-      return;
-    }
-
-    const response = await fetch(
-      `${API_CONFIG.BASE_URL}/api/trips/${tripId}/gaps/recommend/stream`,
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-          Accept: "text/event-stream",
-        },
-        body: JSON.stringify(payload),
-      },
+  if (!accessToken) {
+    handlers.onError?.(
+      new Error("로그인 토큰이 없어 갭 추천을 불러올 수 없습니다."),
     );
+    return;
+  }
 
-    if (!response.ok) {
-      throw new Error(await getErrorMessageFromResponse(response));
-    }
+  const url = `${API_CONFIG.BASE_URL}/api/trips/${tripId}/gaps/recommend/stream`;
 
-    if (!response.body) {
-      throw new Error("갭 추천 스트림 응답이 비어 있습니다.");
-    }
+  console.log("[gap recommendations/stream] xhr request:", {
+    tripId,
+    payload,
+    url,
+    hasAccessToken: Boolean(accessToken),
+  });
 
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder("utf-8");
+  let receivedLength = 0;
+  let buffer = "";
+  let doneCalled = false;
 
-    let buffer = "";
+  const callDoneOnce = () => {
+    if (doneCalled) return;
+    doneCalled = true;
+    handlers.onDone?.();
+  };
 
-    while (true) {
-      const { value, done } = await reader.read();
+  try {
+    const xhr = new XMLHttpRequest();
 
-      if (done) break;
+    xhr.open("POST", url);
+    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.setRequestHeader("Accept", "text/event-stream");
+    xhr.timeout = 90000;
 
-      buffer += decoder.decode(value, { stream: true });
+    xhr.onreadystatechange = () => {
+      if (
+        xhr.readyState !== XMLHttpRequest.LOADING &&
+        xhr.readyState !== XMLHttpRequest.DONE
+      ) {
+        return;
+      }
+
+      const responseText = xhr.responseText ?? "";
+      const chunk = responseText.slice(receivedLength);
+      receivedLength = responseText.length;
+
+      if (!chunk) return;
+
+      console.log("[gap recommendations/stream] xhr chunk:", {
+        chunk,
+        status: xhr.status,
+      });
+
+      buffer += chunk;
 
       const events = parseSseChunk(buffer);
 
@@ -164,15 +179,55 @@ export const streamGapRecommendations = async (
         }
 
         if (event.type === "done") {
-          handlers.onDone?.();
+          callDoneOnce();
+          xhr.abort();
           return;
         }
       }
-    }
+    };
 
-    handlers.onDone?.();
-  } catch (error) {
-    console.log("[gap recommendations/stream] request failed:", error);
+    xhr.onload = () => {
+      console.log("[gap recommendations/stream] xhr done:", {
+        status: xhr.status,
+        receivedLength,
+      });
+
+      if (xhr.status >= 200 && xhr.status < 300) {
+        callDoneOnce();
+        return;
+      }
+
+      handlers.onError?.(
+        new Error(`갭 추천 요청에 실패했습니다. (${xhr.status})`),
+      );
+    };
+
+    xhr.onerror = () => {
+      console.log("[gap recommendations/stream] xhr error:", {
+        status: xhr.status,
+        responseText: xhr.responseText,
+      });
+
+      handlers.onError?.(new Error("갭 추천 네트워크 요청에 실패했습니다."));
+    };
+
+    xhr.ontimeout = () => {
+      console.log("[gap recommendations/stream] xhr timeout:", {
+        timeout: xhr.timeout,
+      });
+
+      handlers.onError?.(new Error("갭 추천 응답 시간이 초과되었습니다."));
+    };
+
+    xhr.send(JSON.stringify(payload));
+  } catch (error: any) {
+    console.log("[gap recommendations/stream] xhr request failed:", {
+      tripId,
+      payload,
+      name: error?.name,
+      message: error?.message,
+    });
+
     handlers.onError?.(error);
   }
 };
