@@ -17,6 +17,7 @@ import {
   addLocationToTripDay,
   createTrip,
   deleteTrip,
+  deletePlanPlace,
   updateTrip,
   updatePlanSchedule,
   getTripDetail,
@@ -77,6 +78,56 @@ const NEW_SCHEDULE_ROUTE_KEY = "__new_plan_a_schedule__";
 const DRAFT_SCHEDULE_CACHE: Record<string, TravelSchedule> = {};
 
 const createNow = () => new Date().toISOString();
+
+const getTripDayCount = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return 1;
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 1;
+  }
+
+  const diffDays = Math.floor(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return Math.max(diffDays + 1, 1);
+};
+
+const trimScheduleDaysByTripRange = (schedule: TravelSchedule) => {
+  const maxDay = getTripDayCount(schedule.startDate, schedule.endDate);
+
+  return {
+    ...schedule,
+    days: schedule.days.filter((day) => Number(day.day) <= maxDay),
+  };
+};
+
+
+const fillMissingScheduleDaysByTripRange = (schedule: TravelSchedule) => {
+  const maxDay = getTripDayCount(schedule.startDate, schedule.endDate);
+  const existingDays = new Map(
+    schedule.days.map((day) => [Number(day.day), day]),
+  );
+
+  return {
+    ...schedule,
+    days: Array.from({ length: maxDay }, (_, index) => {
+      const dayNumber = index + 1;
+      const existingDay = existingDays.get(dayNumber);
+
+      return (
+        existingDay ?? {
+          day: dayNumber,
+          places: [],
+        }
+      );
+    }),
+  };
+};
+
 
 const createId = (prefix: string) => {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -1052,13 +1103,13 @@ export function usePlanAPlaces({
   };
 
   const handleSaveSchedule = async (): Promise<TravelSchedule> => {
-    const scheduleBase: TravelSchedule = {
+    const scheduleBase: TravelSchedule = fillMissingScheduleDaysByTripRange(trimScheduleDaysByTripRange({
       ...scheduleRef.current,
       serverTripId:
         scheduleRef.current.serverTripId ??
         (serverTripId ? Number(serverTripId) : undefined),
       updatedAt: createNow(),
-    };
+    }));
 
     scheduleRef.current = scheduleBase;
     cacheDraftSchedule(scheduleBase);
@@ -1156,7 +1207,27 @@ export function usePlanAPlaces({
         placeName?: string;
       }> = [];
 
-      const locationRequests = toAddLocationRequests(scheduleBase).filter(
+      const maxServerDay = getTripDayCount(
+        scheduleBase.startDate,
+        scheduleBase.endDate,
+      );
+
+      const locationRequests = toAddLocationRequests(scheduleBase)
+        .filter((item) => {
+          if (Number(item.day) > maxServerDay) {
+            console.log("[PlanA 서버 장소 추가 차단 - 여행 기간 초과 Day]", {
+              day: item.day,
+              maxServerDay,
+              placeName: item.payload.name,
+              placeId: item.payload.place_id,
+            });
+
+            return false;
+          }
+
+          return true;
+        })
+        .filter(
         (item) => {
           const existingPlace = scheduleBase.days
             .find((day) => Number(day.day) === Number(item.day))
@@ -1375,7 +1446,37 @@ export function usePlanAPlaces({
     handleCancelEditPlace();
   };
 
-  const handleDeletePlace = (placeId: string) => {
+  const handleDeletePlace = async (placeId: string) => {
+    const targetPlace = currentPlaces.find((place) => place.id === placeId);
+    const planId = targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+
+    if (planId) {
+      try {
+        console.log("[PlanA 장소 삭제 서버 요청]", {
+          placeId,
+          planId,
+          placeName: targetPlace?.name,
+        });
+
+        await deletePlanPlace(planId);
+
+        console.log("[PlanA 장소 삭제 서버 완료]", {
+          placeId,
+          planId,
+          placeName: targetPlace?.name,
+        });
+      } catch (error) {
+        console.log("[PlanA 장소 삭제 서버 실패]", {
+          placeId,
+          planId,
+          placeName: targetPlace?.name,
+          error,
+        });
+
+        return;
+      }
+    }
+
     updatePlacesForDay(selectedDay, (places) =>
       places.filter((place) => place.id !== placeId),
     );

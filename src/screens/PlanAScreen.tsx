@@ -64,6 +64,8 @@ type Props = {
         longitude?: number;
       };
       refreshPlanAAt?: number;
+  day?: number;
+  selectedDay?: number;
     };
   };
 };
@@ -149,35 +151,46 @@ const sortPlacesByTime = <
   });
 };
 
-const getTripDayCount = (startDate?: string, endDate?: string) => {
-  if (!startDate || !endDate) return DEFAULT_DAY_OPTIONS.length;
+const parseTripDate = (value?: string) => {
+  if (!value) return null;
 
-  const start = new Date(startDate.replace(/\./g, "-"));
-  const end = new Date(endDate.replace(/\./g, "-"));
+  const normalized = value.trim().replace(/[./]/g, "-");
+  const matched = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
 
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return DEFAULT_DAY_OPTIONS.length;
-  }
+  if (!matched) return null;
 
-  const diffMs = end.getTime() - start.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  const year = Number(matched[1]);
+  const month = Number(matched[2]);
+  const day = Number(matched[3]);
 
-  return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
+  if (!year || !month || !day) return null;
+
+  return new Date(year, month - 1, day);
 };
+
+const getTripDayCount = (startDate?: string, endDate?: string) => {
+  const start = parseTripDate(startDate);
+  const end = parseTripDate(endDate);
+
+  if (!start || !end) return 1;
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.floor(
+    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  return Math.max(diffDays + 1, 1);
+};
+
 
 const getCurrentTripDay = (startDate?: string, endDate?: string) => {
   const dayCount = getTripDayCount(startDate, endDate);
-
-  if (!startDate || !endDate) {
-    return 1;
-  }
-
-  const start = new Date(startDate.replace(/\./g, "-"));
+  const start = parseTripDate(startDate);
   const today = new Date();
 
-  if (Number.isNaN(start.getTime())) {
-    return 1;
-  }
+  if (!start) return 1;
 
   start.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
@@ -186,13 +199,8 @@ const getCurrentTripDay = (startDate?: string, endDate?: string) => {
     (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays < 0) {
-    return 1;
-  }
-
-  if (diffDays >= dayCount) {
-    return dayCount;
-  }
+  if (diffDays < 0) return 1;
+  if (diffDays >= dayCount) return dayCount;
 
   return diffDays + 1;
 };
@@ -328,7 +336,7 @@ const getBottomTabIconName = (
 export default function PlanAScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
-  const [selectedDay, setSelectedDay] = useState(1);
+  const initialSelectedDay = Number(route?.params?.selectedDay ?? route?.params?.day ?? 1);
   const [isEditMode, setIsEditMode] = useState(false);
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
     null,
@@ -345,6 +353,13 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "2026.04.23";
   const location = route?.params?.location ?? "";
+
+  const dayOptions = makeDayOptions(startDate, endDate);
+  const maxDay = dayOptions.length;
+
+  const [selectedDay, setSelectedDay] = useState(
+    Math.min(Math.max(initialSelectedDay, 1), maxDay),
+  );
 
   const resolvedTripId = tripId ?? serverTripId;
   const routeTransportMode = route?.params?.transportMode ?? "WALK";
@@ -403,7 +418,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
       }
     : undefined;
 
-  const dayOptions = makeDayOptions(startDate, endDate);
 
   const {
     schedule,
@@ -730,18 +744,28 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const parseTimeForPicker = (value?: string | null) => {
-    const parsed = parsePickerTimeValue(value ?? "");
-
-    if (!parsed) {
+    if (!value) {
       return {
         hour: 12,
         minute: 0,
       };
     }
 
+    const matched = String(value).match(/(\d{1,2}):(\d{2})/);
+
+    if (!matched) {
+      return {
+        hour: 12,
+        minute: 0,
+      };
+    }
+
+    const hour = Number(matched[1]);
+    const minute = Number(matched[2]);
+
     return {
-      hour: Math.min(Math.max(parsed.hour, 0), 23),
-      minute: Math.min(Math.max(parsed.minute, 0), 59),
+      hour: Number.isNaN(hour) ? 12 : Math.min(Math.max(hour, 0), 23),
+      minute: Number.isNaN(minute) ? 0 : Math.min(Math.max(minute, 0), 59),
     };
   };
 

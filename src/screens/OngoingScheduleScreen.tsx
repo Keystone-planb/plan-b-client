@@ -339,6 +339,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       location,
       transportMode,
       transportLabel,
+      day: selectedDayIndex + 1,
+      selectedDay: selectedDayIndex + 1,
     });
   };
 
@@ -426,12 +428,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.dayTabs}>
-            {DAY_TABS.map((day, index) => {
+            {days.map((day, index) => {
               const selected = selectedDayIndex === index;
 
               return (
                 <TouchableOpacity
-                  key={day}
+                  key={`day-${day.day}`}
                   style={[styles.dayTab, selected && styles.dayTabActive]}
                   activeOpacity={0.85}
                   onPress={() => setSelectedDayIndex(index)}
@@ -442,7 +444,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       selected && styles.dayTabTextActive,
                     ]}
                   >
-                    {day}
+                    Day {day.day}
                   </Text>
                 </TouchableOpacity>
               );
