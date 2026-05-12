@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -18,15 +18,44 @@ import type {
 } from "../../types/gapRecommendation";
 import type { RecommendedPlace } from "../../types/recommendation";
 
+type AllowedGapPlanPair = {
+  beforePlanId?: number | string | null;
+  afterPlanId?: number | string | null;
+};
+
+const EMPTY_ALLOWED_PLAN_PAIRS: AllowedGapPlanPair[] = [];
+
 type Props = {
   tripId?: number | string | null;
+
+  /**
+   * 현재 화면에 실제로 보이는 인접 장소 pair만 전달한다.
+   * 서버 /gaps 결과는 이 pair와 일치하는 것만 표시한다.
+   */
+  allowedPlanPairs?: AllowedGapPlanPair[];
+
+  /**
+   * 남겨두되 카드 표시에는 사용하지 않는다.
+   * 서버에 없는 gap을 프론트가 임의로 만들면 추천 API 기준과 어긋날 수 있어 표시하지 않는다.
+   */
+  fallbackGaps?: TripScheduleGap[];
+
   onSelectPlace?: (place: RecommendedPlace) => void;
 };
 
 type Status = "idle" | "loading" | "done" | "error";
 
+const isValidGap = (gap: TripScheduleGap) => {
+  return (
+    gap.availableMinutes > 0 &&
+    gap.gapMinutes >= 30 &&
+    gap.gapMinutes > gap.estimatedTravelMinutes
+  );
+};
+
 export default function GapRecommendationCard({
   tripId,
+  allowedPlanPairs = EMPTY_ALLOWED_PLAN_PAIRS,
   onSelectPlace,
 }: Props) {
   const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
@@ -36,44 +65,98 @@ export default function GapRecommendationCard({
     number | string | null
   >(null);
   const [status, setStatus] = useState<Status>("idle");
+  const [hasLoadedGaps, setHasLoadedGaps] = useState(false);
   const [message, setMessage] = useState(
     "일정 사이에 비는 시간을 활용할 장소를 추천받아보세요.",
   );
 
   const isLoading = status === "loading";
 
+  const allowedPairKeys = useMemo(() => {
+    return new Set(
+      allowedPlanPairs
+        .filter((pair) => pair.beforePlanId && pair.afterPlanId)
+        .map(
+          (pair) => `${String(pair.beforePlanId)}-${String(pair.afterPlanId)}`,
+        ),
+    );
+  }, [allowedPlanPairs]);
+
+  const allowedPlanPairKey = useMemo(() => {
+    return Array.from(allowedPairKeys).join("|");
+  }, [allowedPairKeys]);
+
   useEffect(() => {
-    const loadGaps = async () => {
-      if (!tripId || String(tripId) === "mock-trip") {
-        setGaps([]);
-        setMessage(
-          "서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.",
-        );
+    let mounted = true;
+
+    const applyGaps = (nextGaps: TripScheduleGap[]) => {
+      if (!mounted) return;
+
+      setGaps(nextGaps);
+      setHasLoadedGaps(true);
+      setSelectedGap(null);
+      setPlaces([]);
+      setSelectedPlaceId(null);
+      setStatus("idle");
+
+      if (nextGaps.length === 0) {
+        setMessage("현재 추천 가능한 빈 시간이 없습니다.");
         return;
       }
 
-      const nextGaps = await getTripGaps(tripId);
+      setMessage(
+        "비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.",
+      );
+    };
 
-      const filteredGaps = nextGaps.filter((gap) => {
-        return (
-          gap.availableMinutes > 0 &&
-          gap.gapMinutes > gap.estimatedTravelMinutes
-        );
+    const loadGaps = async () => {
+      if (!tripId) {
+        applyGaps([]);
+        return;
+      }
+
+      /**
+       * 현재 화면의 인접 장소 pair가 없으면 서버의 전체 gap을 보여주지 않는다.
+       * 이 조건이 없으면 다른 Day/다른 장소 pair, 예: 위즈파크 gap이 노출될 수 있다.
+       */
+      if (allowedPairKeys.size === 0) {
+        console.log("[GapRecommendationCard] no allowed current screen pairs");
+        applyGaps([]);
+        return;
+      }
+
+      const serverGaps = await getTripGaps(tripId);
+
+      const currentScreenGaps = serverGaps.filter((gap) => {
+        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+
+        return allowedPairKeys.has(gapKey) && isValidGap(gap);
       });
 
-      setGaps(filteredGaps);
+      console.log("[GapRecommendationCard] filtered server gaps:", {
+        tripId,
+        allowedPairKeys: Array.from(allowedPairKeys),
+        serverGapCount: serverGaps.length,
+        currentScreenGapCount: currentScreenGaps.length,
+        currentScreenGaps: currentScreenGaps.map((gap) => ({
+          beforePlanId: gap.beforePlanId,
+          afterPlanId: gap.afterPlanId,
+          beforePlanTitle: gap.beforePlanTitle,
+          afterPlanTitle: gap.afterPlanTitle,
+          gapMinutes: gap.gapMinutes,
+          availableMinutes: gap.availableMinutes,
+        })),
+      });
 
-      if (filteredGaps.length === 0) {
-        setMessage("현재 추천 가능한 빈 시간이 없습니다.");
-      } else {
-        setMessage(
-          "비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.",
-        );
-      }
+      applyGaps(currentScreenGaps);
     };
 
     loadGaps();
-  }, [tripId]);
+
+    return () => {
+      mounted = false;
+    };
+  }, [tripId, allowedPlanPairKey]);
 
   const handleRecommend = async (gap: TripScheduleGap) => {
     if (isLoading) return;
@@ -90,7 +173,8 @@ export default function GapRecommendationCard({
       radiusMinute: gap.availableMinutes,
     };
 
-    if (!tripId || String(tripId) === "mock-trip") {
+    if (!tripId) {
+      setStatus("error");
       setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
       return;
     }
@@ -118,9 +202,9 @@ export default function GapRecommendationCard({
       },
       onError: (error) => {
         const errorMessage =
-          error instanceof Error
-            ? error.message
-            : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
+          error instanceof Error ?
+            error.message
+          : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
 
         setStatus("error");
         setMessage(errorMessage);
@@ -142,6 +226,17 @@ export default function GapRecommendationCard({
     onSelectPlace?.(place);
   };
 
+  const shouldHideCard =
+    hasLoadedGaps &&
+    gaps.length === 0 &&
+    places.length === 0 &&
+    status !== "loading" &&
+    status !== "error";
+
+  if (shouldHideCard) {
+    return null;
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
@@ -153,17 +248,19 @@ export default function GapRecommendationCard({
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
             <Text style={styles.subTitle}>
-              일정 사이 60분 이상 남는 시간 기준
+              일정 사이 30분 이상 남는 시간 기준
             </Text>
           </View>
         </View>
 
-        {isLoading ? <ActivityIndicator color="#2563EB" /> : null}
+        {isLoading ?
+          <ActivityIndicator color="#2563EB" />
+        : null}
       </View>
 
       <Text style={styles.message}>{message}</Text>
 
-      {gaps.length > 0 ? (
+      {gaps.length > 0 ?
         <View style={styles.gapList}>
           {gaps.map((gap) => {
             const gapKey = `${gap.beforePlanId}-${gap.afterPlanId}`;
@@ -188,13 +285,15 @@ export default function GapRecommendationCard({
                   >
                     {gap.beforePlanTitle} → {gap.afterPlanTitle}
                   </Text>
+
                   <Text
                     style={[
                       styles.gapMeta,
                       isSelected && styles.selectedGapSubText,
                     ]}
                   >
-                    사용 가능 {gap.availableMinutes}분 · {gap.transportMode}
+                    사용 가능 {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
+                    {gap.transportMode}
                   </Text>
                 </View>
 
@@ -213,9 +312,9 @@ export default function GapRecommendationCard({
             );
           })}
         </View>
-      ) : null}
+      : null}
 
-      {places.length > 0 ? (
+      {places.length > 0 ?
         <View style={styles.placeList}>
           {places.map((place) => {
             const isSelectedPlace =
@@ -232,25 +331,25 @@ export default function GapRecommendationCard({
                 <View style={styles.placeHeader}>
                   <Text style={styles.placeName}>{place.name}</Text>
 
-                  {place.rating ? (
+                  {place.rating ?
                     <View style={styles.ratingBadge}>
                       <Ionicons name="star" size={12} color="#F59E0B" />
                       <Text style={styles.ratingText}>{place.rating}</Text>
                     </View>
-                  ) : null}
+                  : null}
                 </View>
 
-                {place.category ? (
+                {place.category ?
                   <Text style={styles.category}>{place.category}</Text>
-                ) : null}
+                : null}
 
-                {place.address ? (
+                {place.address ?
                   <Text style={styles.address}>{place.address}</Text>
-                ) : null}
+                : null}
 
-                {place.reason ? (
+                {place.reason ?
                   <Text style={styles.reason}>{place.reason}</Text>
-                ) : null}
+                : null}
 
                 <TouchableOpacity
                   style={[
@@ -273,7 +372,7 @@ export default function GapRecommendationCard({
             );
           })}
         </View>
-      ) : null}
+      : null}
     </View>
   );
 }

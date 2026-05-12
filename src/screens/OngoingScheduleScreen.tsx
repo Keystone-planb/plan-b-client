@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -12,7 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
-import { getPlaceDetail } from "../../api/places/place";
+import type { TripScheduleGap } from "../types/gapRecommendation";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -23,35 +23,22 @@ type ScheduleMemo = {
   updatedAt?: string;
 };
 
-const toCoordinateNumber = (value: unknown) => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-  return null;
-};
-
-const pickCoordinate = (source: Record<string, any>, keys: string[]) => {
-  for (const key of keys) {
-    const value = key
-      .split(".")
-      .reduce<any>((acc, part) => acc?.[part], source);
-    const parsed = toCoordinateNumber(value);
-    if (parsed !== null) return parsed;
-  }
-  return null;
-};
-
 type TodayPlace = {
   id?: string | number;
+
+  // 서버에서 생성된 여행 장소 ID
   tripPlaceId?: number | string;
   serverTripPlaceId?: number | string;
+
+  // 외부 장소 ID
   placeId?: string;
   googlePlaceId?: string;
+
   name?: string;
   address?: string;
   time?: string;
+  visitTime?: string;
+  endTime?: string;
   latitude?: number;
   longitude?: number;
   category?: string;
@@ -83,8 +70,30 @@ type Props = {
   };
 };
 
-const MIN_DAY_TAB_COUNT = 3;
-const VISIBLE_DAY_TAB_COUNT = 3;
+const toNumberOrNull = (value: unknown) => {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const getNestedValue = (source: Record<string, any>, path: string) => {
+  return path.split(".").reduce<any>((acc, key) => acc?.[key], source);
+};
+
+const pickNumberByPaths = (source: Record<string, any>, paths: string[]) => {
+  for (const path of paths) {
+    const parsed = toNumberOrNull(getNestedValue(source, path));
+
+    if (parsed !== null) return parsed;
+  }
+
+  return null;
+};
 
 const getSortTimeValue = (time?: string | null) => {
   if (!time) return Number.MAX_SAFE_INTEGER;
@@ -104,6 +113,29 @@ const getSortTimeValue = (time?: string | null) => {
   return hour * 60 + minute;
 };
 
+const getTimeRangeEndText = (time?: string | null) => {
+  const normalized = time?.trim();
+
+  if (!normalized) return null;
+
+  const [, end] = normalized.split(/\s*-\s*/);
+
+  return end?.trim() || null;
+};
+
+const getPlaceStartTimeValueForGap = (place: TodayPlace) => {
+  return getSortTimeValue(place.visitTime ?? place.time);
+};
+
+const getPlaceEndTimeValueForGap = (place: TodayPlace) => {
+  return getSortTimeValue(
+    place.endTime ??
+      getTimeRangeEndText(place.time) ??
+      place.visitTime ??
+      place.time,
+  );
+};
+
 const sortPlacesByTime = <
   T extends { time?: string | null; visitTime?: string | null; order?: number },
 >(
@@ -119,22 +151,7 @@ const sortPlacesByTime = <
   });
 };
 
-const getTripDayCount = (startDate?: string, endDate?: string) => {
-  if (!startDate || !endDate) return 0;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return 0;
-  }
-
-  const diffDays = Math.floor(
-    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-  );
-
-  return Math.max(diffDays + 1, 0);
-};
+const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
 
 const isValidServerPlanId = (value?: string | number) => {
   if (value === undefined || value === null) return false;
@@ -142,6 +159,8 @@ const isValidServerPlanId = (value?: string | number) => {
   const text = String(value).trim();
 
   if (!text) return false;
+
+  // Google Place ID는 서버 planId가 아니므로 차단
   if (text.startsWith("ChIJ")) return false;
 
   return Number.isFinite(Number(text));
@@ -166,59 +185,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const resolvedTripId =
     tripId ??
     serverTripId ??
-    (scheduleId && Number.isFinite(Number(scheduleId))
-      ? scheduleId
-      : undefined);
+    (scheduleId && Number.isFinite(Number(scheduleId)) ?
+      scheduleId
+    : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
-
-  const totalDayCount = useMemo(() => {
-    const maxDayFromData =
-      days.length > 0 ? Math.max(...days.map((day) => day.day)) : 0;
-
-    return Math.max(
-      MIN_DAY_TAB_COUNT,
-      maxDayFromData,
-      getTripDayCount(startDate, endDate),
-    );
-  }, [days, startDate, endDate]);
-
-  const dayTabs = useMemo(() => {
-    return Array.from(
-      { length: totalDayCount },
-      (_, index) => `Day ${index + 1}`,
-    );
-  }, [totalDayCount]);
-
-  const dayPageIndex = Math.floor(selectedDayIndex / VISIBLE_DAY_TAB_COUNT);
-
-  const maxDayPageIndex = Math.max(
-    0,
-    Math.ceil(dayTabs.length / VISIBLE_DAY_TAB_COUNT) - 1,
-  );
-
-  const visibleDayTabs = useMemo(() => {
-    const startIndex = dayPageIndex * VISIBLE_DAY_TAB_COUNT;
-
-    return dayTabs.slice(startIndex, startIndex + VISIBLE_DAY_TAB_COUNT);
-  }, [dayTabs, dayPageIndex]);
-
-  const canGoPreviousDayPage = dayPageIndex > 0;
-  const canGoNextDayPage = dayPageIndex < maxDayPageIndex;
-
-  const handlePreviousDayPage = () => {
-    if (!canGoPreviousDayPage) return;
-
-    setSelectedDayIndex((dayPageIndex - 1) * VISIBLE_DAY_TAB_COUNT);
-  };
-
-  const handleNextDayPage = () => {
-    if (!canGoNextDayPage) return;
-
-    setSelectedDayIndex(
-      Math.min((dayPageIndex + 1) * VISIBLE_DAY_TAB_COUNT, dayTabs.length - 1),
-    );
-  };
 
   const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
@@ -226,37 +197,49 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [days, selectedDayIndex]);
 
   const places = useMemo(() => {
-    const sourcePlaces = currentDay?.places?.length
-      ? currentDay.places
-      : params.places && params.places.length > 0
-        ? params.places
-        : [];
+    if (currentDay?.places?.length) {
+      return sortPlacesByTime(currentDay.places);
+    }
 
-    return sortPlacesByTime(sourcePlaces).map((place) => {
+    if (params.places && params.places.length > 0) {
+      return sortPlacesByTime(params.places);
+    }
+
+    return [];
+  }, [currentDay?.places, params.places]);
+
+  const mapPlaces = useMemo(() => {
+    return places.map((place) => {
       const rawPlace = place as TodayPlace & Record<string, any>;
 
       const latitude =
-        rawPlace.latitude ??
-        rawPlace.lat ??
-        rawPlace.y ??
-        rawPlace.mapY ??
-        rawPlace.coordinate?.latitude ??
-        rawPlace.coordinate?.lat ??
-        rawPlace.location?.latitude ??
-        rawPlace.location?.lat;
+        pickNumberByPaths(rawPlace, [
+          "latitude",
+          "lat",
+          "y",
+          "mapY",
+          "location.latitude",
+          "location.lat",
+          "coordinate.latitude",
+          "coordinate.lat",
+          "geometry.location.lat",
+        ]) ?? place.latitude;
 
       const longitude =
-        rawPlace.longitude ??
-        rawPlace.lng ??
-        rawPlace.lon ??
-        rawPlace.x ??
-        rawPlace.mapX ??
-        rawPlace.coordinate?.longitude ??
-        rawPlace.coordinate?.lng ??
-        rawPlace.coordinate?.lon ??
-        rawPlace.location?.longitude ??
-        rawPlace.location?.lng ??
-        rawPlace.location?.lon;
+        pickNumberByPaths(rawPlace, [
+          "longitude",
+          "lng",
+          "lon",
+          "x",
+          "mapX",
+          "location.longitude",
+          "location.lng",
+          "location.lon",
+          "coordinate.longitude",
+          "coordinate.lng",
+          "coordinate.lon",
+          "geometry.location.lng",
+        ]) ?? place.longitude;
 
       return {
         ...place,
@@ -264,95 +247,82 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         longitude,
       };
     });
-  }, [currentDay?.places, params.places]);
+  }, [places]);
 
-  if (__DEV__) {
-    console.log(
-      "[OngoingScheduleScreen] map places:",
-      places.map((place) => ({
-        name: place.name,
-        latitude: place.latitude,
-        longitude: place.longitude,
-        placeId: place.placeId,
-        googlePlaceId: place.googlePlaceId,
-      })),
-    );
-  }
+  const currentDayGapPlanPairs = useMemo(() => {
+    return places
+      .slice(0, -1)
+      .map((place, index) => {
+        const nextPlace = places[index + 1];
 
-  const [resolvedPlaces, setResolvedPlaces] = useState(places);
+        return {
+          beforePlanId:
+            place.serverTripPlaceId ?? place.tripPlaceId ?? place.id,
+          afterPlanId:
+            nextPlace?.serverTripPlaceId ??
+            nextPlace?.tripPlaceId ??
+            nextPlace?.id,
+        };
+      })
+      .filter((pair) => {
+        return (
+          isValidServerPlanId(pair.beforePlanId) &&
+          isValidServerPlanId(pair.afterPlanId)
+        );
+      });
+  }, [places]);
+
+  const currentDayFallbackGaps = useMemo<TripScheduleGap[]>(() => {
+    return places
+      .slice(0, -1)
+      .map((place, index) => {
+        const nextPlace = places[index + 1];
+
+        const beforePlanId =
+          place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
+        const afterPlanId =
+          nextPlace?.serverTripPlaceId ??
+          nextPlace?.tripPlaceId ??
+          nextPlace?.id;
+
+        if (
+          !isValidServerPlanId(beforePlanId) ||
+          !isValidServerPlanId(afterPlanId)
+        ) {
+          return null;
+        }
+
+        const currentEnd = getPlaceEndTimeValueForGap(place);
+        const nextStart = getPlaceStartTimeValueForGap(nextPlace);
+
+        if (
+          currentEnd === Number.MAX_SAFE_INTEGER ||
+          nextStart === Number.MAX_SAFE_INTEGER
+        ) {
+          return null;
+        }
+
+        const gapMinutes = nextStart - currentEnd;
+
+        if (gapMinutes < 60) {
+          return null;
+        }
+
+        return {
+          beforePlanId,
+          afterPlanId,
+          beforePlanTitle: place.name ?? "이전 장소",
+          afterPlanTitle: nextPlace?.name ?? "다음 장소",
+          gapMinutes,
+          availableMinutes: gapMinutes,
+          estimatedTravelMinutes: 0,
+          transportMode,
+        };
+      })
+      .filter(Boolean) as TripScheduleGap[];
+  }, [places, transportMode]);
 
   const hasPlaces = places.length > 0;
-
-  useEffect(() => {
-    let mounted = true;
-
-    const resolveCoordinates = async () => {
-      const nextPlaces = await Promise.all(
-        places.map(async (place) => {
-          if (place.latitude && place.longitude) {
-            return place;
-          }
-
-          const placeId = place.googlePlaceId ?? place.placeId;
-
-          if (!placeId) {
-            return place;
-          }
-
-          try {
-            const detail = await getPlaceDetail(placeId);
-
-            return {
-              ...place,
-              latitude:
-                pickCoordinate(detail as Record<string, any>, [
-                  "latitude",
-                  "lat",
-                  "y",
-                  "mapY",
-                  "location.latitude",
-                  "location.lat",
-                  "geometry.location.lat",
-                  "coordinate.latitude",
-                  "coordinate.lat",
-                ]) ?? place.latitude,
-              longitude:
-                pickCoordinate(detail as Record<string, any>, [
-                  "longitude",
-                  "lng",
-                  "lon",
-                  "x",
-                  "mapX",
-                  "location.longitude",
-                  "location.lng",
-                  "geometry.location.lng",
-                  "coordinate.longitude",
-                  "coordinate.lng",
-                ]) ?? place.longitude,
-            };
-          } catch (error) {
-            console.log(
-              "[OngoingScheduleScreen] place detail coordinate resolve failed:",
-              placeId,
-              error,
-            );
-
-            return place;
-          }
-        }),
-      );
-
-      if (!mounted) return;
-
-      setResolvedPlaces(nextPlaces);
-    };
-
-    resolveCoordinates();
-
-    return () => {
-      mounted = false;
-    };
-  }, [places]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -376,7 +346,21 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     const serverPlanId =
       place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
 
+    console.log("[OngoingSchedule] 대안찾기 클릭:", {
+      scheduleId,
+      tripId,
+      serverTripId,
+      resolvedTripId,
+      place,
+      serverPlanId,
+    });
+
     if (!isValidServerPlanId(serverPlanId)) {
+      console.log("[OngoingSchedule] 잘못된 serverPlanId 차단:", {
+        serverPlanId,
+        place,
+      });
+
       Alert.alert(
         "AI 대안 추천 불가",
         "이 일정은 서버 장소 ID가 없는 이전 로컬 일정입니다. 새 일정으로 장소를 다시 추가한 뒤 AI 추천을 시도해주세요.",
@@ -399,11 +383,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       serverTripPlaceId: serverPlanId,
       targetPlace: {
         id: place.id,
+
+        // 서버 장소 ID
         tripPlaceId: serverPlanId,
         serverTripPlaceId: serverPlanId,
+
+        // Google Place ID
         placeId: place.placeId ?? place.googlePlaceId ?? String(place.id ?? ""),
         googlePlaceId:
           place.googlePlaceId ?? place.placeId ?? String(place.id ?? ""),
+
         name: place.name,
         address: place.address,
         time: place.time,
@@ -436,86 +425,54 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.dayPagerRow}>
-            <TouchableOpacity
-              style={[
-                styles.dayPageButton,
-                !canGoPreviousDayPage && styles.dayPageButtonDisabled,
-              ]}
-              activeOpacity={0.75}
-              disabled={!canGoPreviousDayPage}
-              onPress={handlePreviousDayPage}
-            >
-              <Ionicons name="chevron-back" size={16} color="#94A3B8" />
-            </TouchableOpacity>
+          <View style={styles.dayTabs}>
+            {DAY_TABS.map((day, index) => {
+              const selected = selectedDayIndex === index;
 
-            <View style={styles.dayTabs}>
-              {visibleDayTabs.map((day, offset) => {
-                const index = dayPageIndex * VISIBLE_DAY_TAB_COUNT + offset;
-                const selected = selectedDayIndex === index;
-
-                return (
-                  <TouchableOpacity
-                    key={day}
-                    style={[styles.dayTab, selected && styles.dayTabActive]}
-                    activeOpacity={0.85}
-                    onPress={() => setSelectedDayIndex(index)}
+              return (
+                <TouchableOpacity
+                  key={day}
+                  style={[styles.dayTab, selected && styles.dayTabActive]}
+                  activeOpacity={0.85}
+                  onPress={() => setSelectedDayIndex(index)}
+                >
+                  <Text
+                    style={[
+                      styles.dayTabText,
+                      selected && styles.dayTabTextActive,
+                    ]}
                   >
-                    <Text
-                      style={[
-                        styles.dayTabText,
-                        selected && styles.dayTabTextActive,
-                      ]}
-                      numberOfLines={1}
-                    >
-                      {day}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <TouchableOpacity
-              style={[
-                styles.dayPageButton,
-                !canGoNextDayPage && styles.dayPageButtonDisabled,
-              ]}
-              activeOpacity={0.75}
-              disabled={!canGoNextDayPage}
-              onPress={handleNextDayPage}
-            >
-              <Ionicons name="chevron-forward" size={16} color="#94A3B8" />
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={styles.fullEditButton}
-              activeOpacity={0.82}
-              onPress={handleEdit}
-            >
-              <Text style={styles.fullEditButtonText}>전체 편집</Text>
-            </TouchableOpacity>
+                    {day}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
 
           <View style={styles.mapSection}>
-            <PlanAMapPreview places={resolvedPlaces} height={220} />
+            <PlanAMapPreview places={mapPlaces} />
           </View>
 
           <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>오늘 일정</Text>
+
+            <TouchableOpacity activeOpacity={0.75} onPress={handleEdit}>
+              <Text style={styles.editText}>수정</Text>
+            </TouchableOpacity>
           </View>
 
           <View style={styles.timelineList}>
-            {!hasPlaces ? (
+            {!hasPlaces ?
               <View style={styles.emptyDayCard}>
                 <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
                 <Text style={styles.emptyDayTitle}>
                   이 Day에는 저장된 장소가 없어요
                 </Text>
                 <Text style={styles.emptyDayDescription}>
-                  전체 편집 버튼을 눌러 장소를 추가해보세요.
+                  수정 버튼을 눌러 장소를 추가해보세요.
                 </Text>
               </View>
-            ) : null}
+            : null}
 
             {places.map((place, index) => {
               const focused = index === 0;
@@ -575,7 +532,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </TouchableOpacity>
                   </View>
 
-                  {place.memos?.length ? (
+                  {place.memos?.length ?
                     <View style={styles.memoList}>
                       {place.memos.map((memo) => (
                         <View key={memo.id} style={styles.memoCard}>
@@ -588,44 +545,58 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         </View>
                       ))}
                     </View>
-                  ) : null}
+                  : null}
 
-                  {index === 0 && places.length >= 2 ? (
+                  {index === 0 && places.length >= 2 ?
                     <View style={styles.gapRecommendationSection}>
-                      <GapRecommendationCard
-                        tripId={resolvedTripId}
-                        onSelectPlace={(place) => {
-                          navigation.navigate("PlanA", {
-                            scheduleId,
-                            tripId: resolvedTripId,
-                            serverTripId: resolvedTripId,
-                            tripName,
-                            startDate,
-                            endDate,
-                            location,
-                            transportMode,
-                            transportLabel,
-                            gapSelectedPlace: {
-                              id: String(place.placeId),
-                              placeId: String(place.placeId),
-                              googlePlaceId: String(
-                                place.googlePlaceId ?? place.placeId,
-                              ),
-                              tripPlaceId: undefined,
-                              serverTripPlaceId: undefined,
-                              name: place.name,
-                              address: place.address,
-                              category: place.category,
-                              latitude: place.latitude,
-                              longitude: place.longitude,
-                              time: "",
-                              day: selectedDayIndex + 1,
-                            },
-                          });
-                        }}
-                      />
+                      {resolvedTripId ?
+                        <GapRecommendationCard
+                          allowedPlanPairs={currentDayGapPlanPairs}
+                          fallbackGaps={currentDayFallbackGaps}
+                          onSelectPlace={(place) => {
+                            console.log(
+                              "[OngoingSchedule] gap place selected:",
+                              place,
+                            );
+
+                            navigation.navigate("PlanA", {
+                              scheduleId,
+                              tripId: resolvedTripId,
+                              serverTripId: resolvedTripId,
+                              tripName,
+                              startDate,
+                              endDate,
+                              location,
+                              transportMode,
+                              transportLabel,
+
+                              gapSelectedPlace: {
+                                id: String(place.placeId),
+                                placeId: String(place.placeId),
+                                googlePlaceId: String(
+                                  place.googlePlaceId ?? place.placeId,
+                                ),
+
+                                tripPlaceId: undefined,
+                                serverTripPlaceId: undefined,
+
+                                name: place.name,
+                                address: place.address,
+                                category: place.category,
+
+                                latitude: place.latitude,
+                                longitude: place.longitude,
+
+                                time: "",
+                                day: selectedDayIndex + 1,
+                              },
+                            });
+                          }}
+                          tripId={resolvedTripId}
+                        />
+                      : null}
                     </View>
-                  ) : null}
+                  : null}
                 </React.Fragment>
               );
             })}
@@ -683,42 +654,22 @@ const styles = StyleSheet.create({
     paddingBottom: 36,
   },
 
-  dayPagerRow: {
+  dayTabs: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 14,
-    gap: 6,
+    paddingHorizontal: 24,
+    gap: 12,
     marginBottom: 18,
   },
 
-  dayPageButton: {
-    width: 20,
-    height: 40,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  dayPageButtonDisabled: {
-    opacity: 0.35,
-  },
-
-  dayTabs: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 7,
-  },
-
   dayTab: {
-    flex: 1,
-    minWidth: 0,
-    height: 40,
-    borderRadius: 20,
+    height: 48,
+    minWidth: 82,
+    borderRadius: 24,
     backgroundColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 6,
+    paddingHorizontal: 18,
   },
 
   dayTabActive: {
@@ -735,29 +686,12 @@ const styles = StyleSheet.create({
 
   dayTabText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "900",
   },
 
   dayTabTextActive: {
     color: "#FFFFFF",
-  },
-
-  fullEditButton: {
-    width: 72,
-    height: 34,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  fullEditButtonText: {
-    color: "#2158E8",
-    fontSize: 11,
-    fontWeight: "900",
   },
 
   mapSection: {
@@ -889,6 +823,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
   },
 
   todayTitle: {
@@ -896,6 +831,12 @@ const styles = StyleSheet.create({
     fontSize: 25,
     fontWeight: "900",
     letterSpacing: -0.6,
+  },
+
+  editText: {
+    color: "#2158E8",
+    fontSize: 17,
+    fontWeight: "800",
   },
 
   timelineList: {
