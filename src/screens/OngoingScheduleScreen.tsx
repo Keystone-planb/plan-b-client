@@ -478,6 +478,31 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
             {places.map((place, index) => {
               const focused = index === 0;
+              const nextPlaceForGap = places[index + 1];
+              const gapBeforePlanId =
+                place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
+              const gapAfterPlanId =
+                nextPlaceForGap?.serverTripPlaceId ??
+                nextPlaceForGap?.tripPlaceId ??
+                nextPlaceForGap?.id;
+
+              const currentGapPlanPairs =
+                nextPlaceForGap &&
+                isValidServerPlanId(gapBeforePlanId) &&
+                isValidServerPlanId(gapAfterPlanId)
+                  ? [
+                      {
+                        beforePlanId: gapBeforePlanId,
+                        afterPlanId: gapAfterPlanId,
+                      },
+                    ]
+                  : [];
+
+              const currentPairFallbackGaps = currentDayFallbackGaps.filter(
+                (gap) =>
+                  String(gap.beforePlanId) === String(gapBeforePlanId) &&
+                  String(gap.afterPlanId) === String(gapAfterPlanId),
+              );
               const hasServerPlanId = Boolean(
                 place.serverTripPlaceId ?? place.tripPlaceId,
               );
@@ -546,7 +571,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </View>
                   : null}
 
-                  {index === 0 && places.length >= 2 ?
+                  {currentGapPlanPairs.length > 0 ?
                     <View style={styles.gapRecommendationSection}>
                       {(() => {
                         console.log("[OngoingSchedule] gap card props:", {
@@ -565,8 +590,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       })()}
                       {resolvedTripId ?
                         <GapRecommendationCard
-                          allowedPlanPairs={currentDayGapPlanPairs}
-                          fallbackGaps={currentDayFallbackGaps}
+                          allowedPlanPairs={currentGapPlanPairs}
+                          fallbackGaps={currentPairFallbackGaps}
                           onSelectPlace={(place) => {
                             console.log(
                               "[OngoingSchedule] gap place selected:",
