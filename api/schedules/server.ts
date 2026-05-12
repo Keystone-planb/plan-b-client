@@ -253,6 +253,17 @@ export const updatePlanSchedule = async (
 };
 
 /**
+ * 일정 장소 삭제
+ * DELETE /api/plans/{tripPlaceId}
+ */
+export const deletePlanPlace = async (
+  tripPlaceId: number | string,
+): Promise<void> => {
+  await apiClient.delete(`/api/plans/${tripPlaceId}`);
+};
+
+
+/**
  * 일정 장소 PLAN B 대체
  * POST /api/plans/{tripPlaceId}/replace
  */
@@ -316,6 +327,13 @@ export const addLocationToTripDay = async ({
   day: number;
   payload: AddTripLocationRequest;
 }): Promise<AddTripLocationResponse> => {
+  console.log("[addLocationToTripDay] request:", {
+    tripId,
+    day,
+    url: `/api/trips/${tripId}/days/${day}/locations`,
+    payload,
+  });
+
   const response = await apiClient.post<unknown>(
     `/api/trips/${tripId}/days/${day}/locations`,
     payload,
