@@ -13,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
-import { API_CONFIG } from "../../api/config";
+import { getPlaceDetail } from "../../api/places/place";
 import { streamRecommendations } from "../../api/recommendations/stream";
 import type {
   PlaceSpace,
@@ -62,7 +62,6 @@ type Props = {
       transportLabel?: string;
       moveTime?: MoveTime;
       considerDistance?: boolean;
-      considerCrowd?: boolean;
       changeCategory?: boolean;
       placeScope?: PlaceScope;
       targetPlace?: TodayPlace;
@@ -169,9 +168,6 @@ const removeUndefined = <T extends Record<string, unknown>>(value: T) => {
   ) as Partial<T>;
 };
 
-const normalizeBaseUrl = (baseUrl: string) => {
-  return baseUrl.replace(/\/+$/, "");
-};
 
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
@@ -271,38 +267,14 @@ const fetchPlaceDetailForRecommendation = async (
   if (!googlePlaceId) return null;
 
   try {
-    const accessToken = await AsyncStorage.getItem("access_token");
-
-    const url = `${normalizeBaseUrl(API_CONFIG.BASE_URL)}/api/places/${encodeURIComponent(
-      googlePlaceId,
-    )}`;
-
-    const response = await fetch(url, {
-      method: "GET",
-      headers: removeUndefined({
-        Authorization: accessToken ? `Bearer ${accessToken}` : undefined,
-        Accept: "application/json",
-      }) as Record<string, string>,
-    });
+    const placeDetail = await getPlaceDetail(googlePlaceId);
 
     console.log("[AIAnalysisLoading] place detail response:", {
-      status: response.status,
-      ok: response.ok,
-      url,
+      ok: true,
+      googlePlaceId,
     });
 
-    if (!response.ok) {
-      const errorText = await response.text().catch(() => "");
-
-      console.log("[AIAnalysisLoading] place detail failed:", {
-        status: response.status,
-        errorText,
-      });
-
-      return null;
-    }
-
-    return (await response.json()) as PlaceDetailForRecommendation;
+    return placeDetail as PlaceDetailForRecommendation;
   } catch (error) {
     console.log("[AIAnalysisLoading] place detail request failed:", error);
     return null;
@@ -454,11 +426,11 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           if (placeDetail) {
             currentLat =
               hasInvalidCoordinate ?
-                placeDetail.latitude ?? placeDetail.lat ?? currentLat
+                (placeDetail.latitude ?? placeDetail.lat ?? currentLat)
               : currentLat;
             currentLng =
               hasInvalidCoordinate ?
-                placeDetail.longitude ?? placeDetail.lng ?? currentLng
+                (placeDetail.longitude ?? placeDetail.lng ?? currentLng)
               : currentLng;
             category = category ?? placeDetail.category;
           }
@@ -495,8 +467,10 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           currentPlanId: payload.currentPlanId,
           transportMode: payload.transportMode,
           radiusMinute: payload.radiusMinute,
-          hasCurrentLat: payload.currentLat !== undefined && payload.currentLat !== null,
-          hasCurrentLng: payload.currentLng !== undefined && payload.currentLng !== null,
+          hasCurrentLat:
+            payload.currentLat !== undefined && payload.currentLat !== null,
+          hasCurrentLng:
+            payload.currentLng !== undefined && payload.currentLng !== null,
         });
 
         if (!payload.currentPlanId) {
@@ -519,8 +493,10 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           currentPlanId: payload.currentPlanId,
           transportMode: payload.transportMode,
           radiusMinute: payload.radiusMinute,
-          hasCurrentLat: payload.currentLat !== undefined && payload.currentLat !== null,
-          hasCurrentLng: payload.currentLng !== undefined && payload.currentLng !== null,
+          hasCurrentLat:
+            payload.currentLat !== undefined && payload.currentLat !== null,
+          hasCurrentLng:
+            payload.currentLng !== undefined && payload.currentLng !== null,
         });
 
         await streamRecommendations(payload, {
@@ -577,10 +553,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
               setErrorMessage(
                 "현재 추천 서버가 불안정합니다. 잠시 후 다시 시도해주세요.",
               );
-            } else if (
-              message.includes("좌표") ||
-              message.includes("장소")
-            ) {
+            } else if (message.includes("좌표") || message.includes("장소")) {
               setErrorMessage(
                 "장소 정보를 불러오지 못했습니다. 장소를 다시 선택한 뒤 시도해주세요.",
               );
@@ -617,10 +590,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           setErrorMessage(
             "현재 추천 서버가 불안정합니다. 잠시 후 다시 시도해주세요.",
           );
-        } else if (
-          message.includes("좌표") ||
-          message.includes("장소")
-        ) {
+        } else if (message.includes("좌표") || message.includes("장소")) {
           setErrorMessage(
             "장소 정보를 불러오지 못했습니다. 장소를 다시 선택한 뒤 시도해주세요.",
           );

@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Alert,
   ScrollView,
@@ -13,6 +13,7 @@ import { Ionicons } from "@expo/vector-icons";
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import type { TripScheduleGap } from "../types/gapRecommendation";
+import { getPlaceDetail } from "../../api/places/place";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -259,6 +260,88 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
   }, [places]);
 
+  const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const resolveMapPlaces = async () => {
+      const nextPlaces = await Promise.all(
+        mapPlaces.map(async (place) => {
+          if (place.latitude !== undefined && place.longitude !== undefined) {
+            return place;
+          }
+
+          const googlePlaceId = place.googlePlaceId ?? place.placeId ?? place.id;
+
+          if (!googlePlaceId) {
+            return place;
+          }
+
+          try {
+            const detail = (await getPlaceDetail(
+              String(googlePlaceId),
+            )) as {
+              latitude?: number;
+              lat?: number;
+              longitude?: number;
+              lng?: number;
+              location?: {
+                latitude?: number;
+                lat?: number;
+                longitude?: number;
+                lng?: number;
+              };
+            };
+
+            const latitude =
+              detail.latitude ??
+              detail.lat ??
+              detail.location?.latitude ??
+              detail.location?.lat;
+
+            const longitude =
+              detail.longitude ??
+              detail.lng ??
+              detail.location?.longitude ??
+              detail.location?.lng;
+
+            console.log("[MapDebug] place detail coordinate resolved:", {
+              name: place.name,
+              googlePlaceId,
+              latitude,
+              longitude,
+            });
+
+            return {
+              ...place,
+              latitude,
+              longitude,
+            };
+          } catch (error) {
+            console.log("[MapDebug] place detail coordinate failed:", {
+              name: place.name,
+              googlePlaceId,
+              error,
+            });
+
+            return place;
+          }
+        }),
+      );
+
+      if (!cancelled) {
+        setResolvedMapPlaces(nextPlaces);
+      }
+    };
+
+    resolveMapPlaces();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mapPlaces]);
+
   const currentDayGapPlanPairs = useMemo(() => {
     return places
       .slice(0, -1)
@@ -466,7 +549,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               console.log("[MapDebug] final mapPlaces:", mapPlaces);
               return null;
             })()}
-            <PlanAMapPreview places={mapPlaces} />
+            <PlanAMapPreview places={resolvedMapPlaces} />
           </View>
 
           <View style={styles.todayHeader}>
