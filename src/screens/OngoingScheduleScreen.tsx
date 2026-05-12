@@ -209,6 +209,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [currentDay?.places, params.places]);
 
   const mapPlaces = useMemo(() => {
+    console.log(
+      "[MapDebug] places before coordinate resolve:",
+      JSON.stringify(places, null, 2),
+    );
     return places.map((place) => {
       const rawPlace = place as TodayPlace & Record<string, any>;
 
@@ -240,6 +244,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           "coordinate.lon",
           "geometry.location.lng",
         ]) ?? place.longitude;
+
+      console.log("[MapDebug] coordinate resolved:", {
+        name: place.name,
+        latitude,
+        longitude,
+      });
 
       return {
         ...place,
@@ -452,6 +462,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.mapSection}>
+            {(() => {
+              console.log("[MapDebug] final mapPlaces:", mapPlaces);
+              return null;
+            })()}
             <PlanAMapPreview places={mapPlaces} />
           </View>
 
@@ -464,6 +478,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.timelineList}>
+            <View style={styles.timelineLine} />
             {!hasPlaces ?
               <View style={styles.emptyDayCard}>
                 <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
@@ -487,16 +502,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 nextPlaceForGap?.id;
 
               const currentGapPlanPairs =
-                nextPlaceForGap &&
-                isValidServerPlanId(gapBeforePlanId) &&
-                isValidServerPlanId(gapAfterPlanId)
-                  ? [
-                      {
-                        beforePlanId: gapBeforePlanId,
-                        afterPlanId: gapAfterPlanId,
-                      },
-                    ]
-                  : [];
+                (
+                  nextPlaceForGap &&
+                  isValidServerPlanId(gapBeforePlanId) &&
+                  isValidServerPlanId(gapAfterPlanId)
+                ) ?
+                  [
+                    {
+                      beforePlanId: gapBeforePlanId,
+                      afterPlanId: gapAfterPlanId,
+                    },
+                  ]
+                : [];
 
               const currentPairFallbackGaps = currentDayFallbackGaps.filter(
                 (gap) =>
@@ -525,7 +542,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       <Text style={styles.placeName} numberOfLines={1}>
                         {place.name || "이름 없는 장소"}
                       </Text>
-
 
                       <View style={styles.timeRow}>
                         <Ionicons
@@ -577,14 +593,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         console.log("[OngoingSchedule] gap card props:", {
                           resolvedTripId,
                           currentDayGapPlanPairs,
-                          currentDayFallbackGaps: currentDayFallbackGaps.map((gap) => ({
-                            beforePlanId: gap.beforePlanId,
-                            afterPlanId: gap.afterPlanId,
-                            beforePlanTitle: gap.beforePlanTitle,
-                            afterPlanTitle: gap.afterPlanTitle,
-                            gapMinutes: gap.gapMinutes,
-                            availableMinutes: gap.availableMinutes,
-                          })),
+                          currentDayFallbackGaps: currentDayFallbackGaps.map(
+                            (gap) => ({
+                              beforePlanId: gap.beforePlanId,
+                              afterPlanId: gap.afterPlanId,
+                              beforePlanTitle: gap.beforePlanTitle,
+                              afterPlanTitle: gap.afterPlanTitle,
+                              gapMinutes: gap.gapMinutes,
+                              availableMinutes: gap.availableMinutes,
+                            }),
+                          ),
                         });
                         return null;
                       })()}
@@ -881,6 +899,16 @@ const styles = StyleSheet.create({
   timelineList: {
     paddingHorizontal: 24,
     gap: 14,
+  },
+
+  timelineLine: {
+    position: "absolute",
+    left: 42,
+    top: 0,
+    bottom: 0,
+    width: 3,
+    backgroundColor: "#2158E8",
+    borderRadius: 999,
   },
 
   todayCard: {
