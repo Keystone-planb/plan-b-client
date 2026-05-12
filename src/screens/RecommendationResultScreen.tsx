@@ -115,26 +115,6 @@ type DisplayPlace = RecommendedPlace & {
   };
 };
 
-const MOCK_RECOMMENDATIONS: DisplayPlace[] = Array.from({ length: 5 }).map(
-  (_, index) => ({
-    placeId: `mock-everland-${index + 1}`,
-    name: "에버랜드",
-    category: "아웃도어",
-    rating: 4.58,
-    reviewCount: 2239,
-    address: "경기도 용인시 처인구 포곡읍 에버랜드로 199",
-    phone: "053-123-1234",
-    website: "www.planb.com",
-    openingHours: "10:00 - 20:00",
-    reason: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
-    sourceSummary: {
-      naver: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
-      instagram: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
-      google: "아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요",
-    },
-  }),
-);
-
 const formatDateRange = (startDate?: string, endDate?: string) => {
   const start = startDate?.replace(/-/g, ".");
   const end = endDate?.replace(/-/g, ".");
@@ -256,8 +236,7 @@ export default function RecommendationResultScreen({
     }
   }, [params.placesJson]);
 
-  const places = parsedPlaces.length > 0 ? parsedPlaces : MOCK_RECOMMENDATIONS;
-
+  const places = parsedPlaces;
   const shownPlaceIds = useMemo(() => {
     return places
       .map((place, index) => place.placeId ?? `place-${index}`)

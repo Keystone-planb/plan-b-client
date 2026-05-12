@@ -21,7 +21,9 @@ export default function RecommendationStreamCard() {
     "날씨나 일정 상황에 맞는 대안 장소를 추천받아보세요.",
   );
   const [places, setPlaces] = useState<RecommendedPlace[]>([]);
-  const [replacedPlaceId, setReplacedPlaceId] = useState<number | string | null>(null);
+  const [replacedPlaceId, setReplacedPlaceId] = useState<
+    number | string | null
+  >(null);
   const [replacingPlaceId, setReplacingPlaceId] = useState<string | null>(null);
   const [selectedPlaceId, setSelectedPlaceId] = useState<string | null>(null);
 
@@ -64,7 +66,7 @@ export default function RecommendationStreamCard() {
         },
         onError: () => {
           setStatus("error");
-          setMessage("서버 연결이 불안정해 mock 추천 결과를 표시합니다.");
+          setMessage("서버 연결이 불안정해 추천 결과를 불러오지 못했습니다.");
         },
       },
     );
@@ -130,7 +132,9 @@ export default function RecommendationStreamCard() {
           </View>
         </View>
 
-        {isLoading ? <ActivityIndicator color="#2563EB" /> : null}
+        {isLoading ?
+          <ActivityIndicator color="#2563EB" />
+        : null}
       </View>
 
       <Text style={styles.message}>{message}</Text>
@@ -151,7 +155,7 @@ export default function RecommendationStreamCard() {
         </Text>
       </TouchableOpacity>
 
-      {places.length > 0 ? (
+      {places.length > 0 ?
         <View style={styles.placeList}>
           {places.map((place) => {
             const placeId = String(place.placeId);
@@ -166,51 +170,49 @@ export default function RecommendationStreamCard() {
                 <View style={styles.placeHeader}>
                   <Text style={styles.placeName}>{place.name}</Text>
 
-                  {place.rating ? (
+                  {place.rating ?
                     <View style={styles.ratingBadge}>
                       <Ionicons name="star" size={12} color="#F59E0B" />
                       <Text style={styles.ratingText}>{place.rating}</Text>
                     </View>
-                  ) : null}
+                  : null}
                 </View>
 
-                {place.category ? (
+                {place.category ?
                   <Text style={styles.category}>{place.category}</Text>
-                ) : null}
+                : null}
 
-                {place.address ? (
+                {place.address ?
                   <Text style={styles.address}>{place.address}</Text>
-                ) : null}
+                : null}
 
-                {place.reason ? (
+                {place.reason ?
                   <Text style={styles.reason}>{place.reason}</Text>
-                ) : null}
+                : null}
 
-                {isSelected ? (
+                {isSelected ?
                   <View style={styles.replacedBadge}>
                     <Text style={styles.replacedBadgeText}>✓ 대체 완료</Text>
                   </View>
-                ) : (
-                  <TouchableOpacity
+                : <TouchableOpacity
                     style={styles.selectButton}
                     activeOpacity={0.85}
                     onPress={() => handleReplacePlace(place)}
                     disabled={isReplacing}
                   >
-                    {isReplacing ? (
+                    {isReplacing ?
                       <ActivityIndicator size="small" color="#2563EB" />
-                    ) : (
-                      <Text style={styles.selectButtonText}>
+                    : <Text style={styles.selectButtonText}>
                         이 장소로 대체
                       </Text>
-                    )}
+                    }
                   </TouchableOpacity>
-                )}
+                }
               </View>
             );
           })}
         </View>
-      ) : null}
+      : null}
     </View>
   );
 }
