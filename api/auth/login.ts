@@ -12,9 +12,13 @@ export interface LoginResponse {
   message?: string;
   access_token: string;
   refresh_token: string;
+  accessToken?: string;
+  refreshToken?: string;
   token_type?: "Bearer" | string;
   expires_in?: number;
   user_id?: number;
+  userId?: number;
+  email?: string;
   nickname?: string;
 }
 
@@ -67,14 +71,23 @@ const isLoginResponse = (data: unknown): data is LoginResponse => {
   if (!data || typeof data !== "object") return false;
 
   const obj = data as Record<string, unknown>;
+  const accessToken = obj.access_token ?? obj.accessToken;
+  const refreshToken = obj.refresh_token ?? obj.refreshToken;
 
   return (
-    typeof obj.access_token === "string" &&
-    obj.access_token.length > 0 &&
-    typeof obj.refresh_token === "string" &&
-    obj.refresh_token.length > 0
+    typeof accessToken === "string" &&
+    accessToken.length > 0 &&
+    typeof refreshToken === "string" &&
+    refreshToken.length > 0
   );
 };
+
+const normalizeLoginResponse = (data: LoginResponse): LoginResponse => ({
+  ...data,
+  access_token: data.access_token ?? data.accessToken ?? "",
+  refresh_token: data.refresh_token ?? data.refreshToken ?? "",
+  user_id: data.user_id ?? data.userId,
+});
 
 const isHtmlResponse = (data: unknown) => {
   if (typeof data !== "string") return false;
@@ -112,7 +125,7 @@ export const requestLogin = async ({
       throw new LoginError("토큰이 없습니다. 로그인 응답을 확인해주세요.");
     }
 
-    return data;
+    return normalizeLoginResponse(data);
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       const status = error.response?.status;

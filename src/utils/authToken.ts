@@ -5,6 +5,7 @@ export type OAuthSuccessPayload = {
   refreshToken: string;
   userId?: string;
   nickname?: string;
+  email?: string;
 };
 
 const ACCESS_TOKEN_KEY = "access_token";
@@ -75,6 +76,7 @@ export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
     undefined;
 
   const nickname = getOAuthParam(parsedUrl, "nickname") || undefined;
+  const email = getOAuthParam(parsedUrl, "email") || undefined;
 
   if (!accessToken || !refreshToken) {
     throw new Error("토큰이 없습니다. 소셜 로그인 응답을 확인해주세요.");
@@ -85,7 +87,40 @@ export const parseOAuthSuccessUrl = (url: string): OAuthSuccessPayload => {
     refreshToken,
     userId,
     nickname,
+    email,
   };
+};
+
+const setStorageValue = async (key: string, value: string) => {
+  await AsyncStorage.setItem(key, value);
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    window.localStorage.setItem(key, value);
+  }
+};
+
+const removeStorageValue = async (key: string) => {
+  await AsyncStorage.removeItem(key);
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    window.localStorage.removeItem(key);
+  }
+};
+
+const syncOptionalStorageValue = async (
+  key: string,
+  value: string | number | null | undefined,
+) => {
+  if (value === undefined) {
+    return;
+  }
+
+  if (value !== null && String(value).trim().length > 0) {
+    await setStorageValue(key, String(value));
+    return;
+  }
+
+  await removeStorageValue(key);
 };
 
 export const saveOAuthTokens = async ({
@@ -93,47 +128,23 @@ export const saveOAuthTokens = async ({
   refreshToken,
   userId,
   nickname,
+  email,
 }: {
   accessToken?: string | null;
   refreshToken?: string | null;
   userId?: string | number | null;
   nickname?: string | null;
+  email?: string | null;
 }) => {
   if (!accessToken || !refreshToken) {
     throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
   }
 
-  await AsyncStorage.setItem("access_token", String(accessToken));
-  await AsyncStorage.setItem("refresh_token", String(refreshToken));
-
-  if (userId !== undefined && userId !== null && String(userId).length > 0) {
-    await AsyncStorage.setItem("user_id", String(userId));
-  } else {
-    await AsyncStorage.removeItem("user_id");
-  }
-
-  if (nickname !== undefined && nickname !== null && String(nickname).length > 0) {
-    await AsyncStorage.setItem("nickname", String(nickname));
-  } else {
-    await AsyncStorage.removeItem("nickname");
-  }
-
-  if (typeof window !== "undefined" && window.localStorage) {
-    window.localStorage.setItem("access_token", String(accessToken));
-    window.localStorage.setItem("refresh_token", String(refreshToken));
-
-    if (userId !== undefined && userId !== null && String(userId).length > 0) {
-      window.localStorage.setItem("user_id", String(userId));
-    } else {
-      window.localStorage.removeItem("user_id");
-    }
-
-    if (nickname !== undefined && nickname !== null && String(nickname).length > 0) {
-      window.localStorage.setItem("nickname", String(nickname));
-    } else {
-      window.localStorage.removeItem("nickname");
-    }
-  }
+  await setStorageValue("access_token", String(accessToken));
+  await setStorageValue("refresh_token", String(refreshToken));
+  await syncOptionalStorageValue("user_id", userId);
+  await syncOptionalStorageValue("nickname", nickname);
+  await syncOptionalStorageValue("email", email);
 };
 
 export const handleOAuthSuccessUrl = async (url: string) => {
