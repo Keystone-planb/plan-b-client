@@ -256,6 +256,11 @@ export const streamGapRecommendations = async (
         responseText: xhr.responseText,
       });
 
+      if (xhr.status >= 200 && xhr.status < 300 && receivedLength > 0) {
+        callDoneOnce();
+        return;
+      }
+
       handlers.onError?.(new Error("갭 추천 네트워크 요청에 실패했습니다."));
     };
 
