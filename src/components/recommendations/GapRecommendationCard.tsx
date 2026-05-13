@@ -37,7 +37,7 @@ type Status = "idle" | "loading" | "done" | "error";
 const isValidGap = (gap: TripScheduleGap) => {
   return (
     gap.availableMinutes > 0 &&
-    gap.gapMinutes >= 60 &&
+    gap.gapMinutes >= 30 &&
     gap.gapMinutes > gap.estimatedTravelMinutes
   );
 };
@@ -45,6 +45,7 @@ const isValidGap = (gap: TripScheduleGap) => {
 export default function GapRecommendationCard({
   tripId,
   allowedPlanPairs = EMPTY_ALLOWED_PLAN_PAIRS,
+  fallbackGaps = [],
   onSelectPlace,
 }: Props) {
   const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
@@ -139,12 +140,18 @@ export default function GapRecommendationCard({
 
         return allowedPairKeys.has(gapKey) && isValidGap(gap);
       });
+      const currentFallbackGaps = fallbackGaps.filter((gap) => {
+        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+
+        return allowedPairKeys.has(gapKey) && isValidGap(gap);
+      });
 
       console.log("[GapRecommendationCard] filtered server gaps:", {
         tripId,
         allowedPairKeys: Array.from(allowedPairKeys),
         serverGapCount: serverGaps.length,
         currentScreenGapCount: currentScreenGaps.length,
+        fallbackGapCount: currentFallbackGaps.length,
         currentScreenGaps: currentScreenGaps.map((gap) => ({
           beforePlanId: gap.beforePlanId,
           afterPlanId: gap.afterPlanId,
@@ -155,15 +162,27 @@ export default function GapRecommendationCard({
         })),
       });
 
-      applyGaps(currentScreenGaps);
+      applyGaps(
+        currentScreenGaps.length > 0 ? currentScreenGaps : currentFallbackGaps,
+      );
     };
 
-    loadGaps();
+    loadGaps().catch((error) => {
+      console.log("[GapRecommendationCard] gap load failed:", error);
+
+      const currentFallbackGaps = fallbackGaps.filter((gap) => {
+        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+
+        return allowedPairKeys.has(gapKey) && isValidGap(gap);
+      });
+
+      applyGaps(currentFallbackGaps);
+    });
 
     return () => {
       mounted = false;
     };
-  }, [tripId, allowedPlanPairKey]);
+  }, [tripId, allowedPlanPairKey, fallbackGaps]);
 
   const handleRecommend = async (gap: TripScheduleGap) => {
     if (isLoading) return;
@@ -255,7 +274,7 @@ export default function GapRecommendationCard({
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
             <Text style={styles.subTitle}>
-              일정 사이 60분 이상 남는 시간 기준
+              일정 사이 30분 이상 남는 시간 기준
             </Text>
           </View>
         </View>
