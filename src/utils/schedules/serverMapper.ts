@@ -32,11 +32,15 @@ const getPlaceGoogleId = (place: PlaceItem) => {
     googlePlaceId?: string | number;
   };
 
-  return String(
-    maybePlace.googlePlaceId ??
-      maybePlace.placeId ??
-      place.id,
-  );
+  const candidates = [
+    maybePlace.googlePlaceId,
+    maybePlace.placeId,
+    place.id,
+  ]
+    .filter((value) => value !== undefined && value !== null)
+    .map(String);
+
+  return candidates.find((value) => value.startsWith("ChIJ")) ?? "";
 };
 
 const getFirstMemo = (place: PlaceItem) => {
@@ -58,11 +62,24 @@ export const toAddLocationRequests = (
   schedule: TravelSchedule,
 ): AddLocationRequestForServer[] => {
   return schedule.days.flatMap((daySchedule) => {
-    return daySchedule.places.map((place) => {
+    return daySchedule.places.flatMap((place) => {
+      const placeId = getPlaceGoogleId(place);
+
+      if (!placeId) {
+        console.log("[serverMapper] 장소 추가 요청 제외 - Google Place ID 없음", {
+          id: place.id,
+          placeId: place.placeId,
+          googlePlaceId: place.googlePlaceId,
+          name: place.name,
+        });
+
+        return [];
+      }
+
       return {
         day: daySchedule.day,
         payload: {
-          place_id: getPlaceGoogleId(place),
+          place_id: placeId,
           name: place.name,
           visitTime: toVisitTime(place.visitTime),
           endTime: toVisitTime(place.endTime),
