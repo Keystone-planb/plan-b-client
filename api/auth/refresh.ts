@@ -15,9 +15,13 @@ export interface RefreshResponse {
   success?: boolean;
   message?: string;
   access_token: string;
+  accessToken?: string;
+  refresh_token?: string;
+  refreshToken?: string;
   token_type?: "Bearer" | string;
   expires_in?: number;
   user_id?: number;
+  userId?: number;
   nickname?: string;
 }
 
@@ -53,9 +57,17 @@ const isRefreshResponse = (data: unknown): data is RefreshResponse => {
   if (!data || typeof data !== "object") return false;
 
   const obj = data as Record<string, unknown>;
+  const accessToken = obj.access_token ?? obj.accessToken;
 
-  return typeof obj.access_token === "string" && obj.access_token.length > 0;
+  return typeof accessToken === "string" && accessToken.length > 0;
 };
+
+const normalizeRefreshResponse = (data: RefreshResponse): RefreshResponse => ({
+  ...data,
+  access_token: data.access_token ?? data.accessToken ?? "",
+  refresh_token: data.refresh_token ?? data.refreshToken,
+  user_id: data.user_id ?? data.userId,
+});
 
 const isHtmlResponse = (data: unknown) => {
   if (typeof data !== "string") return false;
@@ -69,8 +81,8 @@ const isHtmlResponse = (data: unknown) => {
  * 토큰 재발급 API
  * POST /api/auth/refresh
  *
- * 최신 API 명세 기준:
- * Request body는 { refresh_token: string }
+ * 최신 API 명세와 기존 명세가 혼재되어 있어 body와 Authorization 헤더
+ * 방식을 모두 시도한다.
  *
  * 프론트 저장 키:
  * AsyncStorage에는 기존대로 refresh_token 저장
@@ -87,18 +99,44 @@ export const requestRefresh = async ({
   }
 
   try {
-    const response = await axios.post<unknown>(
-      `${BASE_URL}/api/auth/refresh`,
-      {
-        refresh_token,
-      },
-      {
-        timeout: 5000,
-        headers: {
-          "Content-Type": "application/json",
+    const requestRefreshWithBody = () =>
+      axios.post<unknown>(
+        `${BASE_URL}/api/auth/refresh`,
+        {
+          refresh_token,
         },
-      },
-    );
+        {
+          timeout: 5000,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+    const requestRefreshWithHeader = () =>
+      axios.post<unknown>(
+        `${BASE_URL}/api/auth/refresh`,
+        null,
+        {
+          timeout: 5000,
+          headers: {
+            Authorization: `Bearer ${refresh_token}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+
+    let response;
+
+    try {
+      response = await requestRefreshWithBody();
+    } catch (bodyError) {
+      if (!axios.isAxiosError(bodyError)) {
+        throw bodyError;
+      }
+
+      response = await requestRefreshWithHeader();
+    }
 
     const data = response.data;
 
@@ -114,7 +152,7 @@ export const requestRefresh = async ({
       );
     }
 
-    return data;
+    return normalizeRefreshResponse(data);
   } catch (error: unknown) {
     if (axios.isAxiosError(error)) {
       const errorData = error.response?.data as

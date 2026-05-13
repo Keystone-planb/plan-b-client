@@ -5,6 +5,7 @@ import axios, {
 } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG } from "./config";
+import { requestRefresh } from "./auth/refresh";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -114,20 +115,9 @@ apiClient.interceptors.response.use(
           throw new Error("refresh_token이 없습니다.");
         }
 
-        const refreshResponse = await axios.post<RefreshResponse>(
-          `${API_CONFIG.BASE_URL}/api/auth/refresh`,
-          {
-            refresh_token: refreshToken,
-          },
-          {
-            timeout: 30000,
-            headers: {
-              "Content-Type": "application/json",
-            },
-          },
-        );
-
-        const data = refreshResponse.data;
+        const data = await requestRefresh({
+          refresh_token: refreshToken,
+        });
 
         if (isHtmlResponse(data)) {
           throw new Error(
@@ -148,6 +138,14 @@ apiClient.interceptors.response.use(
           await setStoredValue("refresh_token", newRefreshToken);
         }
 
+        if (data.user_id) {
+          await setStoredValue("user_id", String(data.user_id));
+        }
+
+        if (data.nickname) {
+          await setStoredValue("nickname", data.nickname);
+        }
+
         const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
         headers.Authorization = `Bearer ${newAccessToken}`;
         originalRequest.headers = headers;
@@ -155,6 +153,7 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         console.log("[apiClient] token refresh failed:", refreshError);
+        await removeStoredValues(TOKEN_KEYS);
 
         return Promise.reject(refreshError);
       }
