@@ -167,6 +167,7 @@ export const getTrips = async (
     params: {
       status,
     },
+    timeout: 5000,
   });
 
   assertNotHtmlResponse(response.data, "여행 목록 조회");
