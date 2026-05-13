@@ -1,4 +1,5 @@
 import apiClient from "../client";
+import { API_CONFIG } from "../config";
 import {
   PlaceDetail,
   PlaceFreshnessResponse,
@@ -410,5 +411,46 @@ export const getPlaceFreshness = async (
       error,
       apiName: "장소 정보 최신성",
     });
+  }
+};
+
+
+export type PlaceAnalysisStatusResponse = {
+  status?: string;
+  analysisStatus?: string;
+  ready?: boolean;
+  completed?: boolean;
+  isCompleted?: boolean;
+  isAnalyzed?: boolean;
+  [key: string]: unknown;
+};
+
+export const getPlaceAnalysisStatus = async (
+  placeId: string,
+): Promise<PlaceAnalysisStatusResponse> => {
+  const encodedPlaceId = encodeURIComponent(placeId);
+  const path = `/api/places/${encodedPlaceId}/analysis-status`;
+  const requestUrl = `${API_CONFIG.BASE_URL}${path}`;
+
+  console.log("[places/analysis-status] request url:", requestUrl);
+
+  try {
+    const response = await apiClient.get<PlaceAnalysisStatusResponse>(path);
+
+    console.log("[places/analysis-status] response:", {
+      placeId,
+      data: response.data,
+    });
+
+    return response.data;
+  } catch (error: any) {
+    console.log("[places/analysis-status] failed:", {
+      placeId,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      message: error?.message,
+    });
+
+    return {};
   }
 };
