@@ -99,46 +99,19 @@ export const requestRefresh = async ({
   }
 
   try {
-    const requestRefreshWithBody = () =>
-      axios.post<unknown>(
-        `${BASE_URL}/api/auth/refresh`,
-        {
-          refresh_token,
+    const response = await axios.post<unknown>(
+      `${BASE_URL}/api/auth/refresh`,
+      {
+        refresh_token,
+        refreshToken: refresh_token,
+      },
+      {
+        timeout: 5000,
+        headers: {
+          "Content-Type": "application/json",
         },
-        {
-          timeout: 5000,
-          headers: {
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-    const requestRefreshWithHeader = () =>
-      axios.post<unknown>(
-        `${BASE_URL}/api/auth/refresh`,
-        {
-          refresh_token,
-        },
-        {
-          timeout: 5000,
-          headers: {
-            Authorization: `Bearer ${refresh_token}`,
-            "Content-Type": "application/json",
-          },
-        },
-      );
-
-    let response;
-
-    try {
-      response = await requestRefreshWithBody();
-    } catch (bodyError) {
-      if (!axios.isAxiosError(bodyError)) {
-        throw bodyError;
-      }
-
-      response = await requestRefreshWithHeader();
-    }
+      },
+    );
 
     const data = response.data;
 
