@@ -1293,11 +1293,33 @@ export default function AddScheduleLocationScreen({
     : "";
 
   const detailRaw = detailModalDetail as any;
+  const summaryRaw = detailModalSummary as any;
 
   const detailTags = [
-    getSpaceLabel(detailRaw?.tags?.space ?? detailRaw?.space),
-    getPlaceTypeLabel(detailRaw?.tags?.type ?? detailRaw?.type),
-    getMoodLabel(detailRaw?.tags?.mood ?? detailRaw?.mood),
+    getSpaceLabel(
+      detailRaw?.tags?.space ??
+        detailRaw?.data?.tags?.space ??
+        detailRaw?.space ??
+        summaryRaw?.tags?.space ??
+        summaryRaw?.data?.tags?.space ??
+        summaryRaw?.space,
+    ),
+    getPlaceTypeLabel(
+      detailRaw?.tags?.type ??
+        detailRaw?.data?.tags?.type ??
+        detailRaw?.type ??
+        summaryRaw?.tags?.type ??
+        summaryRaw?.data?.tags?.type ??
+        summaryRaw?.type,
+    ),
+    getMoodLabel(
+      detailRaw?.tags?.mood ??
+        detailRaw?.data?.tags?.mood ??
+        detailRaw?.mood ??
+        summaryRaw?.tags?.mood ??
+        summaryRaw?.data?.tags?.mood ??
+        summaryRaw?.mood,
+    ),
   ].filter(Boolean);
 
   console.log("[AddScheduleLocation] extracted AI review fields:", {
