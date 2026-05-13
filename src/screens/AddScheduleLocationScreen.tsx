@@ -371,7 +371,9 @@ export default function AddScheduleLocationScreen({
     handleSearch();
   };
 
-  const handlePlaceDetail = async (place: PlaceSearchResult) => {
+  const handlePlaceDetail = async (
+    place: PlaceSearchResult,
+  ): Promise<SelectedPlace | null> => {
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
@@ -396,7 +398,7 @@ export default function AddScheduleLocationScreen({
 
       if (!storedUserId) {
         console.warn("[preference feedback] user_id 없음. feedback 호출 생략");
-        return;
+        return nextPlace;
       }
 
       const feedbackPlaceId = String(place.googlePlaceId ?? place.placeId);
@@ -409,6 +411,8 @@ export default function AddScheduleLocationScreen({
       }).catch((error) => {
         console.log("[preference feedback] ignored:", error);
       });
+
+      return nextPlace;
     } catch {
       const fallbackPlace: SelectedPlace = {
         placeId: String(place.placeId),
@@ -422,9 +426,26 @@ export default function AddScheduleLocationScreen({
 
       toggleSelectedPlace(fallbackPlace);
       setKeyword(place.name);
+
+      return fallbackPlace;
     } finally {
       setDetailLoadingPlaceId(null);
     }
+  };
+
+  const handleSelectExpandedPlace = async (place: PlaceSearchResult) => {
+    if (submitLoading || detailLoadingPlaceId) {
+      return;
+    }
+
+    const selectedPlaceDetail = await handlePlaceDetail(place);
+
+    if (!selectedPlaceDetail) {
+      Alert.alert("장소 선택 실패", "장소 정보를 불러오지 못했습니다.");
+      return;
+    }
+
+    await handleNext([selectedPlaceDetail]);
   };
 
   const handleTogglePlaceReview = async (placeId: string) => {
@@ -853,19 +874,7 @@ export default function AddScheduleLocationScreen({
                     style={styles.expandedSelectButton}
                     activeOpacity={0.8}
                     disabled={isDetailLoading || submitLoading}
-                    onPress={() =>
-                      handleNext([
-                        {
-                          ...place,
-                          placeId: String(place.placeId),
-                          googlePlaceId: String(
-                            place.googlePlaceId ?? place.placeId,
-                          ),
-                          latitude: place.latitude ?? INITIAL_REGION.latitude,
-                          longitude: place.longitude ?? INITIAL_REGION.longitude,
-                        },
-                      ])
-                    }
+                    onPress={() => handleSelectExpandedPlace(place)}
                   >
                     {isDetailLoading ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
