@@ -25,6 +25,32 @@ type AllowedGapPlanPair = {
 
 const EMPTY_ALLOWED_PLAN_PAIRS: AllowedGapPlanPair[] = [];
 
+const tripGapsCache = new Map<string, TripScheduleGap[]>();
+const tripGapsPromiseCache = new Map<string, Promise<TripScheduleGap[]>>();
+
+const getCachedTripGaps = async (tripId: number | string) => {
+  const cacheKey = String(tripId);
+
+  const cached = tripGapsCache.get(cacheKey);
+  if (cached) return cached;
+
+  const pending = tripGapsPromiseCache.get(cacheKey);
+  if (pending) return pending;
+
+  const promise = getTripGaps(tripId)
+    .then((gaps) => {
+      tripGapsCache.set(cacheKey, gaps);
+      return gaps;
+    })
+    .finally(() => {
+      tripGapsPromiseCache.delete(cacheKey);
+    });
+
+  tripGapsPromiseCache.set(cacheKey, promise);
+
+  return promise;
+};
+
 type Props = {
   tripId?: number | string | null;
   allowedPlanPairs?: AllowedGapPlanPair[];
@@ -76,6 +102,15 @@ export default function GapRecommendationCard({
     return Array.from(allowedPairKeys).join("|");
   }, [allowedPairKeys]);
 
+  const fallbackGapKey = useMemo(() => {
+    return fallbackGaps
+      .map(
+        (gap) =>
+          `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}-${String(gap.day ?? "")}`,
+      )
+      .join("|");
+  }, [fallbackGaps]);
+
   useEffect(() => {
     let mounted = true;
 
@@ -111,32 +146,26 @@ export default function GapRecommendationCard({
         return;
       }
 
-      const serverGaps = await getTripGaps(tripId);
+      const serverGaps = await getCachedTripGaps(tripId);
 
-      console.log("[GapRecommendationCard] raw server gaps:", {
-        tripId,
-        allowedPairKeys: Array.from(allowedPairKeys),
-        serverGaps: serverGaps.map((gap) => ({
-          beforePlanId: gap.beforePlanId,
-          afterPlanId: gap.afterPlanId,
-          day: gap.day,
-          beforePlanTitle: gap.beforePlanTitle,
-          afterPlanTitle: gap.afterPlanTitle,
-          beforePlanEndTime: gap.beforePlanEndTime,
-          afterPlanStartTime: gap.afterPlanStartTime,
-          gapMinutes: gap.gapMinutes,
-          estimatedTravelMinutes: gap.estimatedTravelMinutes,
-          availableMinutes: gap.availableMinutes,
-          transportMode: gap.transportMode,
-          pairKey: `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
-          pairAllowed: allowedPairKeys.has(
-            `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
-          ),
-          valid: isValidGap(gap),
-        })),
+      const fallbackGapByPairKey = new Map(
+        fallbackGaps.map((gap) => [
+          `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
+          gap,
+        ]),
+      );
+
+      const normalizedServerGaps = serverGaps.map((gap) => {
+        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+        const fallbackGap = fallbackGapByPairKey.get(gapKey);
+
+        return {
+          ...gap,
+          day: gap.day ?? fallbackGap?.day,
+        };
       });
 
-      const currentScreenGaps = serverGaps.filter((gap) => {
+      const currentScreenGaps = normalizedServerGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
 
         return allowedPairKeys.has(gapKey) && isValidGap(gap);
@@ -145,23 +174,6 @@ export default function GapRecommendationCard({
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
 
         return allowedPairKeys.has(gapKey) && isValidGap(gap);
-      });
-
-      console.log("[GapRecommendationCard] filtered server gaps:", {
-        tripId,
-        allowedPairKeys: Array.from(allowedPairKeys),
-        serverGapCount: serverGaps.length,
-        currentScreenGapCount: currentScreenGaps.length,
-        fallbackGapCount: currentFallbackGaps.length,
-        currentScreenGaps: currentScreenGaps.map((gap) => ({
-          beforePlanId: gap.beforePlanId,
-          afterPlanId: gap.afterPlanId,
-          day: gap.day,
-          beforePlanTitle: gap.beforePlanTitle,
-          afterPlanTitle: gap.afterPlanTitle,
-          gapMinutes: gap.gapMinutes,
-          availableMinutes: gap.availableMinutes,
-        })),
       });
 
       applyGaps(
@@ -184,7 +196,7 @@ export default function GapRecommendationCard({
     return () => {
       mounted = false;
     };
-  }, [tripId, allowedPlanPairKey, fallbackGaps]);
+  }, [tripId, allowedPlanPairKey, fallbackGapKey]);
 
   const handleRecommend = async (gap: TripScheduleGap) => {
     if (isLoading) return;
@@ -329,7 +341,8 @@ export default function GapRecommendationCard({
                       isSelected && styles.selectedGapSubText,
                     ]}
                   >
-                    총 공백 {gap.gapMinutes}분 · 추천 가능 {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
+                    총 공백 {gap.gapMinutes}분 · 추천 가능{" "}
+                    {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
                     {gap.transportMode}
                   </Text>
                 </View>

@@ -1,4 +1,12 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+// src/screens/OngoingScheduleScreen.tsx
+
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useCallback,
+} from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
@@ -177,8 +185,6 @@ const sortPlacesByTime = <
   });
 };
 
-const DAY_TABS = ["Day 1", "Day 2", "Day 3"];
-
 const isValidServerPlanId = (value?: string | number) => {
   if (value === undefined || value === null) return false;
 
@@ -217,8 +223,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
-  const hasLoadedTripDetailRef = useRef(false);
-useFocusEffect(
+  useFocusEffect(
     useCallback(() => {
       const loadTripDetail = async () => {
         if (!resolvedTripId) return;
@@ -226,31 +231,19 @@ useFocusEffect(
         try {
           const detail = await getTripDetail(resolvedTripId);
 
-          console.log(
-            "[OngoingSchedule] trip detail reload success:",
-            detail,
-          );
-
           const itineraries =
-            Array.isArray(detail?.itineraries) ?
-              detail.itineraries
-            : [];
+            Array.isArray(detail?.itineraries) ? detail.itineraries : [];
 
           const mappedDays: ScheduleDay[] = itineraries.map(
             (itinerary: any, index: number) => ({
               day: itinerary.day ?? index + 1,
-              places: Array.isArray(itinerary.places) ?
-                itinerary.places
-              : [],
+              places: Array.isArray(itinerary.places) ? itinerary.places : [],
             }),
           );
 
           setServerDays(mappedDays);
         } catch (error) {
-          console.log(
-            "[OngoingSchedule] trip detail reload failed:",
-            error,
-          );
+          // 상세 재조회 실패 시 기존 route params 기반 화면을 유지한다.
         }
       };
 
@@ -258,7 +251,7 @@ useFocusEffect(
     }, [resolvedTripId]),
   );
 
-const currentDay = useMemo(() => {
+  const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
     const serverDay = serverDays.find((day) => day.day === dayNumber);
     const localDay = days.find((day) => day.day === dayNumber);
@@ -321,10 +314,6 @@ const currentDay = useMemo(() => {
   }, [currentDay?.places, params.places]);
 
   const mapPlaces = useMemo(() => {
-    console.log(
-      "[MapDebug] places before coordinate resolve:",
-      JSON.stringify(places, null, 2),
-    );
     return places.map((place) => {
       const rawPlace = place as TodayPlace & Record<string, any>;
 
@@ -357,12 +346,6 @@ const currentDay = useMemo(() => {
           "geometry.location.lng",
         ]) ?? place.longitude;
 
-      console.log("[MapDebug] coordinate resolved:", {
-        name: place.name,
-        latitude,
-        longitude,
-      });
-
       return {
         ...place,
         latitude,
@@ -389,16 +372,15 @@ const currentDay = useMemo(() => {
             return place;
           }
 
-          const googlePlaceId = place.googlePlaceId ?? place.placeId ?? place.id;
+          const googlePlaceId =
+            place.googlePlaceId ?? place.placeId ?? place.id;
 
           if (!googlePlaceId) {
             return place;
           }
 
           try {
-            const detail = (await getPlaceDetail(
-              String(googlePlaceId),
-            )) as {
+            const detail = (await getPlaceDetail(String(googlePlaceId))) as {
               latitude?: number;
               lat?: number;
               longitude?: number;
@@ -423,25 +405,12 @@ const currentDay = useMemo(() => {
               detail.location?.longitude ??
               detail.location?.lng;
 
-            console.log("[MapDebug] place detail coordinate resolved:", {
-              name: place.name,
-              googlePlaceId,
-              latitude,
-              longitude,
-            });
-
             return {
               ...place,
               latitude,
               longitude,
             };
           } catch (error) {
-            console.log("[MapDebug] place detail coordinate failed:", {
-              name: place.name,
-              googlePlaceId,
-              error,
-            });
-
             return place;
           }
         }),
@@ -458,29 +427,6 @@ const currentDay = useMemo(() => {
       cancelled = true;
     };
   }, [mapPlaces]);
-
-  const currentDayGapPlanPairs = useMemo(() => {
-    return places
-      .slice(0, -1)
-      .map((place, index) => {
-        const nextPlace = places[index + 1];
-
-        return {
-          beforePlanId:
-            place.serverTripPlaceId ?? place.tripPlaceId ?? place.id,
-          afterPlanId:
-            nextPlace?.serverTripPlaceId ??
-            nextPlace?.tripPlaceId ??
-            nextPlace?.id,
-        };
-      })
-      .filter((pair) => {
-        return (
-          isValidServerPlanId(pair.beforePlanId) &&
-          isValidServerPlanId(pair.afterPlanId)
-        );
-      });
-  }, [places]);
 
   const currentDayFallbackGaps = useMemo<TripScheduleGap[]>(() => {
     return places
@@ -588,21 +534,7 @@ const currentDay = useMemo(() => {
       targetPlaceForAlternative.tripPlaceId ??
       targetPlaceForAlternative.id;
 
-    console.log("[OngoingSchedule] 대안찾기 클릭:", {
-      scheduleId,
-      tripId,
-      serverTripId,
-      resolvedTripId,
-      place: targetPlaceForAlternative,
-      serverPlanId,
-    });
-
     if (!isValidServerPlanId(serverPlanId)) {
-      console.log("[OngoingSchedule] 잘못된 serverPlanId 차단:", {
-        serverPlanId,
-        place: targetPlaceForAlternative,
-      });
-
       Alert.alert(
         "AI 대안 추천 불가",
         "이 일정은 서버 장소 ID가 없는 이전 로컬 일정입니다. 새 일정으로 장소를 다시 추가한 뒤 AI 추천을 시도해주세요.",
@@ -650,6 +582,8 @@ const currentDay = useMemo(() => {
     });
   };
 
+  const displayDays = serverDays.length > 0 ? serverDays : days;
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
@@ -673,7 +607,7 @@ const currentDay = useMemo(() => {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.dayTabs}>
-            {days.map((day, index) => {
+            {displayDays.map((day, index) => {
               const selected = selectedDayIndex === index;
 
               return (
@@ -697,10 +631,6 @@ const currentDay = useMemo(() => {
           </View>
 
           <View style={styles.mapSection}>
-            {(() => {
-              console.log("[MapDebug] final resolvedMapPlaces:", resolvedMapPlaces);
-              return null;
-            })()}
             <PlanAMapPreview places={resolvedMapPlaces} />
           </View>
 
@@ -755,8 +685,8 @@ const currentDay = useMemo(() => {
                   String(gap.beforePlanId) === String(gapBeforePlanId) &&
                   String(gap.afterPlanId) === String(gapAfterPlanId),
               );
-              const hasServerPlanId = Boolean(
-                place.serverTripPlaceId ?? place.tripPlaceId,
+              const hasServerPlanId = isValidServerPlanId(
+                place.serverTripPlaceId ?? place.tripPlaceId ?? place.id,
               );
 
               return (
@@ -824,23 +754,6 @@ const currentDay = useMemo(() => {
 
                   {currentGapPlanPairs.length > 0 ?
                     <View style={styles.gapRecommendationSection}>
-                      {(() => {
-                        console.log("[OngoingSchedule] gap card props:", {
-                          resolvedTripId,
-                          currentDayGapPlanPairs,
-                          currentDayFallbackGaps: currentDayFallbackGaps.map(
-                            (gap) => ({
-                              beforePlanId: gap.beforePlanId,
-                              afterPlanId: gap.afterPlanId,
-                              beforePlanTitle: gap.beforePlanTitle,
-                              afterPlanTitle: gap.afterPlanTitle,
-                              gapMinutes: gap.gapMinutes,
-                              availableMinutes: gap.availableMinutes,
-                            }),
-                          ),
-                        });
-                        return null;
-                      })()}
                       {resolvedTripId ?
                         <GapRecommendationCard
                           allowedPlanPairs={currentGapPlanPairs}
@@ -848,8 +761,7 @@ const currentDay = useMemo(() => {
                           onSelectPlace={(place, gap) => {
                             const recommendedPlaceId = String(place.placeId);
                             const recommendedGooglePlaceId =
-                              place.googlePlaceId ?
-                                String(place.googlePlaceId)
+                              place.googlePlaceId ? String(place.googlePlaceId)
                               : recommendedPlaceId.startsWith("ChIJ") ?
                                 recommendedPlaceId
                               : undefined;
@@ -863,17 +775,6 @@ const currentDay = useMemo(() => {
 
                               return;
                             }
-
-                            console.log(
-                              "[OngoingSchedule] gap place selected:",
-                              {
-                                ...place,
-                                recommendedPlaceId,
-                                recommendedGooglePlaceId,
-                                gapDay: gap.day,
-                                targetDay,
-                              },
-                            );
 
                             navigation.navigate("PlanA", {
                               scheduleId,
