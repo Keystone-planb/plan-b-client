@@ -21,7 +21,7 @@ type AddLocationRequestForServer = {
   payload: AddLocationPayload;
 };
 
-const toVisitTime = (time?: string) => {
+const toVisitTime = (time?: string | null) => {
   if (!time) return null;
   return time;
 };
