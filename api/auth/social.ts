@@ -1,5 +1,4 @@
 import { Platform } from "react-native";
-import * as Linking from "expo-linking";
 import { API_CONFIG } from "../config";
 import apiClient from "../client";
 
@@ -86,9 +85,7 @@ export const getSocialRedirectUri = () => {
     return `${window.location.origin}/oauth/success`;
   }
 
-  return Linking.createURL("oauth/success", {
-    scheme: "planb",
-  });
+  return "planb://oauth/success";
 };
 
 export const createSocialAuthUrl = (
