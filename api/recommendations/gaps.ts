@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_CONFIG } from "../config";
 import apiClient from "../client";
+import { requestRefresh } from "../auth/refresh";
 import type {
   GapRecommendationRequest,
   GapRecommendationStreamHandlers,
@@ -132,11 +133,39 @@ export const streamGapRecommendations = async (
     handlers.onDone?.();
   };
 
-  try {
+  const refreshAccessToken = async () => {
+    const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+    if (!refreshToken) {
+      throw new Error("refresh_token이 없습니다.");
+    }
+
+    const refreshed = await requestRefresh({
+      refresh_token: refreshToken,
+    });
+
+    await AsyncStorage.setItem("access_token", refreshed.access_token);
+
+    if (refreshed.refresh_token) {
+      await AsyncStorage.setItem("refresh_token", refreshed.refresh_token);
+    }
+
+    if (refreshed.user_id) {
+      await AsyncStorage.setItem("user_id", String(refreshed.user_id));
+    }
+
+    if (refreshed.nickname) {
+      await AsyncStorage.setItem("nickname", refreshed.nickname);
+    }
+
+    return refreshed.access_token;
+  };
+
+  const sendRequest = (nextAccessToken: string, hasRetried = false) => {
     const xhr = new XMLHttpRequest();
 
     xhr.open("POST", url);
-    xhr.setRequestHeader("Authorization", `Bearer ${accessToken}`);
+    xhr.setRequestHeader("Authorization", `Bearer ${nextAccessToken}`);
     xhr.setRequestHeader("Content-Type", "application/json");
     xhr.setRequestHeader("Accept", "text/event-stream");
     xhr.timeout = 90000;
@@ -186,7 +215,7 @@ export const streamGapRecommendations = async (
       }
     };
 
-    xhr.onload = () => {
+    xhr.onload = async () => {
       console.log("[gap recommendations/stream] xhr done:", {
         status: xhr.status,
         receivedLength,
@@ -195,6 +224,25 @@ export const streamGapRecommendations = async (
       if (xhr.status >= 200 && xhr.status < 300) {
         callDoneOnce();
         return;
+      }
+
+      if ((xhr.status === 401 || xhr.status === 403) && !hasRetried) {
+        try {
+          console.log("[gap recommendations/stream] auth retry:", {
+            status: xhr.status,
+          });
+
+          receivedLength = 0;
+          buffer = "";
+          const refreshedAccessToken = await refreshAccessToken();
+          sendRequest(refreshedAccessToken, true);
+          return;
+        } catch (refreshError) {
+          console.log(
+            "[gap recommendations/stream] auth retry failed:",
+            refreshError,
+          );
+        }
       }
 
       handlers.onError?.(
@@ -220,6 +268,10 @@ export const streamGapRecommendations = async (
     };
 
     xhr.send(JSON.stringify(payload));
+  };
+
+  try {
+    sendRequest(accessToken);
   } catch (error: any) {
     console.log("[gap recommendations/stream] xhr request failed:", {
       tripId,

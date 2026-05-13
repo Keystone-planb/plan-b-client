@@ -1,6 +1,7 @@
 import type { RecommendedPlace, TransportMode } from "./recommendation";
 
 export type TripScheduleGap = {
+  day?: number;
   beforePlanId: number;
   beforePlanTitle: string;
   beforePlanEndTime: string;

@@ -7,6 +7,9 @@ export const getTripTransportMode = async (
   try {
     const response = await apiClient.get<TransportMode | null>(
       `/api/trips/${tripId}/transport-mode`,
+      {
+        timeout: 5000,
+      },
     );
 
     console.log(
