@@ -239,11 +239,53 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
 const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
-    const sourceDays =
-      serverDays.length > 0 ? serverDays : days;
+    const serverDay = serverDays.find((day) => day.day === dayNumber);
+    const localDay = days.find((day) => day.day === dayNumber);
 
-    return sourceDays.find((day) => day.day === dayNumber);
-  }, [days, selectedDayIndex]);
+    if (!serverDay) {
+      return localDay;
+    }
+
+    const mergedPlaces = [...(serverDay.places ?? [])];
+
+    (localDay?.places ?? []).forEach((localPlace) => {
+      const exists = mergedPlaces.some((serverPlace) => {
+        const sameTripPlaceId =
+          Boolean(localPlace.tripPlaceId) &&
+          String(localPlace.tripPlaceId) === String(serverPlace.tripPlaceId);
+
+        const sameServerTripPlaceId =
+          Boolean(localPlace.serverTripPlaceId) &&
+          String(localPlace.serverTripPlaceId) ===
+            String(serverPlace.serverTripPlaceId ?? serverPlace.tripPlaceId);
+
+        const sameGooglePlaceId =
+          Boolean(localPlace.placeId) &&
+          (String(localPlace.placeId) === String(serverPlace.placeId) ||
+            String(localPlace.placeId) === String(serverPlace.googlePlaceId));
+
+        const sameName =
+          Boolean(localPlace.name) &&
+          String(localPlace.name) === String(serverPlace.name);
+
+        return (
+          sameTripPlaceId ||
+          sameServerTripPlaceId ||
+          sameGooglePlaceId ||
+          sameName
+        );
+      });
+
+      if (!exists) {
+        mergedPlaces.push(localPlace);
+      }
+    });
+
+    return {
+      ...serverDay,
+      places: mergedPlaces,
+    };
+  }, [days, serverDays, selectedDayIndex]);
 
   const places = useMemo(() => {
     if (currentDay?.places?.length) {
@@ -634,7 +676,7 @@ const currentDay = useMemo(() => {
 
           <View style={styles.mapSection}>
             {(() => {
-              console.log("[MapDebug] final mapPlaces:", mapPlaces);
+              console.log("[MapDebug] final resolvedMapPlaces:", resolvedMapPlaces);
               return null;
             })()}
             <PlanAMapPreview places={resolvedMapPlaces} />

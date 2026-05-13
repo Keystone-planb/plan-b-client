@@ -805,20 +805,29 @@ export function usePlanAPlaces({
       const cachedDraft = reloadKey ? null : getCachedDraftSchedule(scheduleId);
 
       if (cachedDraft) {
-        console.log("[PlanA hook draft cache 사용]", {
-          scheduleId: cachedDraft.id,
-          placeCount: cachedDraft.days.reduce(
-            (sum, day) => sum + day.places.length,
-            0,
-          ),
-        });
+        const cachedPlaceCount = cachedDraft.days.reduce(
+          (sum, day) => sum + day.places.length,
+          0,
+        );
 
-        scheduleRef.current = cachedDraft;
-        setSchedule(cachedDraft);
-        setLoadedSavedSchedule(true);
-        setHasLoadedSavedSchedule(true);
-        loadedRouteKeyRef.current = routeKey;
-        return;
+        if (cachedPlaceCount > 0) {
+          console.log("[PlanA hook draft cache 사용]", {
+            scheduleId: cachedDraft.id,
+            placeCount: cachedPlaceCount,
+          });
+
+          scheduleRef.current = cachedDraft;
+          setSchedule(cachedDraft);
+          setLoadedSavedSchedule(true);
+          setHasLoadedSavedSchedule(true);
+          loadedRouteKeyRef.current = routeKey;
+          return;
+        }
+
+        console.log("[PlanA hook 빈 draft cache 무시]", {
+          scheduleId: cachedDraft.id,
+          placeCount: cachedPlaceCount,
+        });
       }
 
       try {
@@ -1079,6 +1088,14 @@ export function usePlanAPlaces({
       endTime: nextEndTime,
       time: nextDisplayTime,
     });
+
+    const latestSchedule = scheduleRef.current;
+
+    if (latestSchedule) {
+      savePlanASchedule(latestSchedule).catch((error) => {
+        console.log("[PlanA 시간 변경 로컬 저장 실패]", error);
+      });
+    }
   };
 
   const resetEditingState = () => {

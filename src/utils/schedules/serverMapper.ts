@@ -64,8 +64,8 @@ export const toAddLocationRequests = (
         payload: {
           place_id: getPlaceGoogleId(place),
           name: place.name,
-          visitTime: toVisitTime(place.time),
-          endTime: null,
+          visitTime: toVisitTime(place.visitTime),
+          endTime: toVisitTime(place.endTime),
           memo: getFirstMemo(place),
         },
       };
