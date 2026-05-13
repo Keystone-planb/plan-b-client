@@ -23,6 +23,20 @@ type RefreshResponse = {
 
 const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
 
+let refreshPromise: Promise<RefreshResponse> | null = null;
+
+const runRefreshOnce = async (refreshToken: string) => {
+  if (!refreshPromise) {
+    refreshPromise = requestRefresh({
+      refresh_token: refreshToken,
+    }).finally(() => {
+      refreshPromise = null;
+    });
+  }
+
+  return refreshPromise;
+};
+
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
   timeout: 30000,
@@ -62,6 +76,10 @@ const setStoredValue = async (key: string, value: string) => {
 };
 
 const removeStoredValues = async (keys: readonly string[]) => {
+  console.log("[TOKEN_STORE] removeStoredValues called:", {
+    keys,
+  });
+
   await AsyncStorage.multiRemove([...keys]);
 
   if (isBrowserLocalStorageAvailable()) {
@@ -89,6 +107,12 @@ apiClient.interceptors.request.use(
       config.headers = headers;
     }
 
+    console.log("[apiClient] request:", {
+      method: config.method,
+      url: config.url,
+      hasAccessToken: Boolean(accessToken),
+    });
+
     return config;
   },
   (error) => Promise.reject(error),
@@ -101,8 +125,15 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
+    console.log("[apiClient] response error:", {
+      status: error.response?.status,
+      url: originalRequest?.url,
+      method: originalRequest?.method,
+      message: error.message,
+    });
+
     const shouldTryRefresh =
-      (error.response?.status === 401 || error.response?.status === 403) &&
+      error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry;
 
@@ -129,9 +160,7 @@ apiClient.interceptors.response.use(
           throw new Error("로그인이 만료되었습니다. 다시 로그인해주세요.");
         }
 
-        const data = await requestRefresh({
-          refresh_token: refreshToken,
-        });
+        const data = await runRefreshOnce(refreshToken);
 
         if (isHtmlResponse(data)) {
           throw new Error(
@@ -168,8 +197,17 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         console.log("[apiClient] token refresh failed:", refreshError);
 
-        console.log("[apiClient] clearing tokens after refresh failure");
+        console.log("[apiClient] token refresh failed:", {
+          refreshError,
+          originalUrl: originalRequest?.url,
+          originalMethod: originalRequest?.method,
+          responseStatus: error.response?.status,
+        });
 
+        console.log("[apiClient] clearing tokens after refresh failure:", {
+          reason: "refresh_failed",
+          originalUrl: originalRequest?.url,
+        });
         await removeStoredValues(TOKEN_KEYS);
 
         return Promise.reject(refreshError);

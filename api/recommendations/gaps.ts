@@ -51,6 +51,20 @@ const getErrorMessageFromResponse = async (response: Response) => {
   }
 };
 
+let gapRefreshPromise: Promise<any> | null = null;
+
+const runGapRefreshOnce = async (refreshToken: string) => {
+  if (!gapRefreshPromise) {
+    gapRefreshPromise = requestRefresh({
+      refresh_token: refreshToken,
+    }).finally(() => {
+      gapRefreshPromise = null;
+    });
+  }
+
+  return gapRefreshPromise;
+};
+
 const parseSseChunk = (chunk: string) => {
   const events: Array<
     | { type: "progress"; message: string; total?: number }
@@ -140,9 +154,7 @@ export const streamGapRecommendations = async (
       throw new Error("refresh_token이 없습니다.");
     }
 
-    const refreshed = await requestRefresh({
-      refresh_token: refreshToken,
-    });
+    const refreshed = await runGapRefreshOnce(refreshToken);
 
     await AsyncStorage.setItem("access_token", refreshed.access_token);
 
@@ -184,10 +196,6 @@ export const streamGapRecommendations = async (
 
       if (!chunk) return;
 
-      console.log("[gap recommendations/stream] xhr chunk:", {
-        chunk,
-        status: xhr.status,
-      });
 
       buffer += chunk;
 
