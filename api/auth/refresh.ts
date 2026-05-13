@@ -116,7 +116,9 @@ export const requestRefresh = async ({
     const requestRefreshWithHeader = () =>
       axios.post<unknown>(
         `${BASE_URL}/api/auth/refresh`,
-        null,
+        {
+          refresh_token,
+        },
         {
           timeout: 5000,
           headers: {
