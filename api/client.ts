@@ -155,6 +155,8 @@ apiClient.interceptors.response.use(
       } catch (refreshError) {
         console.log("[apiClient] token refresh failed:", refreshError);
 
+        await removeStoredValues(TOKEN_KEYS);
+
         return Promise.reject(refreshError);
       }
     }

@@ -4,10 +4,6 @@ import { API_CONFIG } from "../config";
 const BASE_URL = API_CONFIG.BASE_URL;
 
 export interface RefreshRequest {
-  /**
-   * AsyncStorage에 저장된 키 이름은 refresh_token 그대로 사용.
-   * 서버 요청 body도 최신 명세 기준으로 refresh_token 그대로 보낸다.
-   */
   refresh_token: string;
 }
 
@@ -29,29 +25,6 @@ interface RefreshErrorResponse {
   message?: string;
   error?: string;
 }
-
-const mockRequestRefresh = async ({
-  refresh_token,
-}: RefreshRequest): Promise<RefreshResponse> => {
-  return new Promise((resolve, reject) => {
-    setTimeout(() => {
-      if (!refresh_token) {
-        reject(new Error("리프레시 토큰이 없습니다."));
-        return;
-      }
-
-      resolve({
-        success: true,
-        message: "mock Access Token이 재발급되었습니다.",
-        access_token: "mock_new_access_token_999999",
-        token_type: "Bearer",
-        expires_in: 3600,
-        user_id: 101,
-        nickname: "test",
-      });
-    }, 700);
-  });
-};
 
 const isRefreshResponse = (data: unknown): data is RefreshResponse => {
   if (!data || typeof data !== "object") return false;
@@ -77,33 +50,25 @@ const isHtmlResponse = (data: unknown) => {
   return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
-/**
- * 토큰 재발급 API
- * POST /api/auth/refresh
- *
- * 최신 API 명세와 기존 명세가 혼재되어 있어 body와 Authorization 헤더
- * 방식을 모두 시도한다.
- *
- * 프론트 저장 키:
- * AsyncStorage에는 기존대로 refresh_token 저장
- */
 export const requestRefresh = async ({
   refresh_token,
 }: RefreshRequest): Promise<RefreshResponse> => {
-  if (API_CONFIG.USE_MOCK) {
-    return mockRequestRefresh({ refresh_token });
-  }
-
   if (!refresh_token || refresh_token.trim().length === 0) {
     throw new Error("리프레시 토큰이 없습니다.");
   }
 
   try {
+    console.log("[requestRefresh] POST", `${BASE_URL}/api/auth/refresh`);
+    console.log("[requestRefresh] body", {
+      hasRefreshToken: Boolean(refresh_token),
+      refreshTokenLength: refresh_token.length,
+      preview: `${refresh_token.slice(0, 12)}...`,
+    });
+
     const response = await axios.post<unknown>(
       `${BASE_URL}/api/auth/refresh`,
       {
         refresh_token,
-        refreshToken: refresh_token,
       },
       {
         timeout: 5000,
@@ -140,6 +105,16 @@ export const requestRefresh = async ({
           "백엔드 서버에 연결할 수 없습니다. 서버 상태와 BASE_URL을 확인해주세요.",
         );
       }
+
+      console.log("[requestRefresh] failed:", {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        requestedUrl: `${BASE_URL}/api/auth/refresh`,
+        method: error.config?.method,
+        contentType: error.response?.headers?.["content-type"],
+        server: error.response?.headers?.server,
+        data: errorData,
+      });
 
       if (isHtmlResponse(errorData)) {
         throw new Error(
