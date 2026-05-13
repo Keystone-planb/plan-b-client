@@ -576,6 +576,17 @@ export default function MainScreen({ navigation }: Props) {
       setLoading(true);
       setScheduleLoadError("");
 
+      const accessToken = await AsyncStorage.getItem("access_token");
+      const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+      if (!accessToken && !refreshToken) {
+        console.log("[Main] 토큰 없음. 서버 일정 조회 생략");
+        setSchedules([]);
+        setScheduleLoadError("");
+        await loadNotifications([]);
+        return;
+      }
+
       try {
         const serverTrips = await getTrips("ALL");
 
@@ -747,8 +758,9 @@ export default function MainScreen({ navigation }: Props) {
         startDate: baseSchedule?.startDate,
         endDate: baseSchedule?.endDate,
         location: baseSchedule?.location,
-        targetPlace: originalPlace
-          ? {
+        targetPlace:
+          originalPlace ?
+            {
               id:
                 originalPlace.tripPlaceId ??
                 originalPlace.serverTripPlaceId ??

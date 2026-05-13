@@ -107,13 +107,26 @@ apiClient.interceptors.response.use(
       !originalRequest._retry;
 
     if (shouldTryRefresh) {
+      console.log("[apiClient] refresh required:", {
+        status: error.response?.status,
+        url: originalRequest?.url,
+        method: originalRequest?.method,
+        hasOriginalRequest: Boolean(originalRequest),
+      });
+
       originalRequest._retry = true;
 
       try {
         const refreshToken = await getStoredValue("refresh_token");
 
+        console.log("[apiClient] stored token state before refresh:", {
+          hasRefreshToken: Boolean(refreshToken),
+          refreshTokenLength: refreshToken?.length ?? 0,
+        });
+
         if (!refreshToken || refreshToken.trim().length === 0) {
-          throw new Error("refresh_token이 없습니다.");
+          await removeStoredValues(TOKEN_KEYS);
+          throw new Error("로그인이 만료되었습니다. 다시 로그인해주세요.");
         }
 
         const data = await requestRefresh({
@@ -154,6 +167,8 @@ apiClient.interceptors.response.use(
         return apiClient(originalRequest);
       } catch (refreshError) {
         console.log("[apiClient] token refresh failed:", refreshError);
+
+        console.log("[apiClient] clearing tokens after refresh failure");
 
         await removeStoredValues(TOKEN_KEYS);
 

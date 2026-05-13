@@ -47,7 +47,6 @@ WebBrowser.maybeCompleteAuthSession();
 const DEV_AUTH_EMAIL = "";
 const DEV_AUTH_PASSWORD = "";
 
-
 type LoginResult = {
   success?: boolean;
   message?: string;
@@ -98,11 +97,20 @@ export default function LoginScreen({ navigation }: any) {
       accessToken,
       refreshToken,
       userId:
-        result.user_id ?? result.userId ?
+        (result.user_id ?? result.userId) ?
           String(result.user_id ?? result.userId)
         : undefined,
       nickname: result.nickname,
       email: result.email,
+    });
+    const savedAccess = await AsyncStorage.getItem("access_token");
+    const savedRefresh = await AsyncStorage.getItem("refresh_token");
+
+    console.log("[LOGIN_DEBUG] saved token state:", {
+      hasAccessToken: Boolean(savedAccess),
+      accessLength: savedAccess?.length ?? 0,
+      hasRefreshToken: Boolean(savedRefresh),
+      refreshLength: savedRefresh?.length ?? 0,
     });
   };
 
@@ -160,7 +168,6 @@ export default function LoginScreen({ navigation }: any) {
 
     return true;
   };
-
 
   const handleLogin = async () => {
     if (isBusy) return;

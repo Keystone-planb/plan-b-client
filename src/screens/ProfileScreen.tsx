@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -370,6 +371,24 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     marginLeft: 16,
+  },
+
+  debugTokenButton: {
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 14,
+    marginBottom: 10,
+  },
+
+  debugTokenText: {
+    color: "#DC2626",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   logoutButton: {
