@@ -10,9 +10,13 @@ export type SocialLoginResponse = {
   message?: string;
   access_token: string;
   refresh_token: string;
+  accessToken?: string;
+  refreshToken?: string;
   expires_in?: number;
   token_type?: "Bearer" | string;
   user_id?: number;
+  userId?: number;
+  email?: string;
   nickname?: string;
   is_new_user?: boolean;
 };

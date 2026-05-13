@@ -48,9 +48,13 @@ type LoginResult = {
   message?: string;
   access_token: string;
   refresh_token: string;
+  accessToken?: string;
+  refreshToken?: string;
   token_type?: "Bearer" | string;
   expires_in?: number;
   user_id?: number;
+  userId?: number;
+  email?: string;
   nickname?: string;
   is_new_user?: boolean;
 };
@@ -78,8 +82,8 @@ export default function LoginScreen({ navigation }: any) {
   };
 
   const saveTokens = async (result: Partial<LoginResult>) => {
-    const accessToken = result.access_token;
-    const refreshToken = result.refresh_token;
+    const accessToken = result.access_token ?? result.accessToken;
+    const refreshToken = result.refresh_token ?? result.refreshToken;
 
     if (!accessToken || !refreshToken) {
       throw new Error("토큰이 없습니다. 로그인 응답을 확인해주세요.");
@@ -88,8 +92,12 @@ export default function LoginScreen({ navigation }: any) {
     await saveOAuthTokens({
       accessToken,
       refreshToken,
-      userId: result.user_id ? String(result.user_id) : undefined,
+      userId:
+        result.user_id ?? result.userId ?
+          String(result.user_id ?? result.userId)
+        : undefined,
       nickname: result.nickname,
+      email: result.email,
     });
   };
 

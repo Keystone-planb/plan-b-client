@@ -80,10 +80,14 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
     const result = await requestSocialTokenLogin(provider, oauthToken);
 
     await saveOAuthTokens({
-      accessToken: result.access_token,
-      refreshToken: result.refresh_token,
-      userId: result.user_id ? String(result.user_id) : undefined,
+      accessToken: result.access_token ?? result.accessToken,
+      refreshToken: result.refresh_token ?? result.refreshToken,
+      userId:
+        result.user_id ?? result.userId ?
+          String(result.user_id ?? result.userId)
+        : undefined,
       nickname: result.nickname,
+      email: result.email,
     });
 
     return true;
