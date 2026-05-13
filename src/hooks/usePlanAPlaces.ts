@@ -1302,12 +1302,6 @@ export function usePlanAPlaces({
           const shouldCreate = !hasValidServerPlaceId(existingTripPlaceId);
 
           if (!shouldCreate) {
-            console.log("[PlanA 서버 장소 추가 생략 - 기존 tripPlaceId 존재]", {
-              day: item.day,
-              placeName: existingPlace?.name,
-              placeId: item.payload.place_id,
-              tripPlaceId: existingTripPlaceId,
-            });
 
             if (existingTripPlaceId) {
               existingScheduleUpdateRequests.push({
@@ -1335,22 +1329,12 @@ export function usePlanAPlaces({
           };
 
           try {
-            console.log("[PlanA 기존 서버 장소 시간/메모 PATCH 요청]", {
-              tripPlaceId: item.tripPlaceId,
-              placeName: item.placeName,
-              payload: updatePayload,
-            });
 
             const updateResponse = await updatePlanSchedule(
               item.tripPlaceId,
               updatePayload,
             );
 
-            console.log("[PlanA 기존 서버 장소 시간/메모 수정 완료]", {
-              tripPlaceId: item.tripPlaceId,
-              placeName: item.placeName,
-              response: updateResponse,
-            });
           } catch (error) {
             console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {
               tripPlaceId: item.tripPlaceId,
