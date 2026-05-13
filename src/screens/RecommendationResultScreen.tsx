@@ -48,7 +48,13 @@ type TodayPlace = {
 };
 
 type RootStackParamList = {
-  Main: undefined;
+  Main:
+    | {
+        refreshMainAt?: number;
+        replacedTripId?: string | number;
+        replacedTripPlaceId?: string | number;
+      }
+    | undefined;
   PlanA: {
     scheduleId?: string;
     tripId?: string | number;
@@ -109,12 +115,23 @@ type DisplayPlace = RecommendedPlace & {
   placeId?: string | number;
   name: string;
   category?: string;
+  type?: string;
+  mood?: string;
+  space?: string;
   rating?: number;
   reviewCount?: number;
+  userRatingsTotal?: number;
   address?: string;
+  reviewSummary?: string;
+  googleReview?: string;
+  naverReview?: string;
+  instaReview?: string;
   phone?: string;
+  phoneNumber?: string;
   website?: string;
-  openingHours?: string;
+  openingHours?: string | null;
+  reviewData?: string | null;
+  priceLevel?: number;
   reason?: string;
   sourceSummary?: {
     naver?: string;
@@ -146,8 +163,127 @@ const pickText = (source: any, keys: string[]) => {
   return "";
 };
 
+const safeParseJson = (value: unknown) => {
+  if (!value || typeof value !== "string") return null;
+
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+};
+
+const formatOpeningHoursText = (value: unknown) => {
+  const parsed = safeParseJson(value);
+  const weekdayText = parsed?.weekday_text;
+
+  if (Array.isArray(weekdayText) && weekdayText.length > 0) {
+    return weekdayText.join("\n");
+  }
+
+  if (typeof parsed?.open_now === "boolean") {
+    return parsed.open_now ? "현재 영업 중" : "현재 영업 종료";
+  }
+
+  return (
+      typeof value === "string" && value.trim() && !value.trim().startsWith("{")
+    ) ?
+      value
+    : "";
+};
+
+const formatReviewDataText = (value: unknown) => {
+  const parsed = safeParseJson(value);
+
+  if (!parsed) return "";
+
+  if (
+    typeof parsed === "object" &&
+    !Array.isArray(parsed) &&
+    typeof parsed.totalSummary === "string"
+  ) {
+    return parsed.totalSummary.trim();
+  }
+
+  if (!Array.isArray(parsed) || parsed.length === 0) {
+    return "";
+  }
+
+  return parsed
+    .slice(0, 3)
+    .map((review) => {
+      const author = review?.author_name ? `${review.author_name}: ` : "";
+      const rating =
+        typeof review?.rating === "number" ? `★${review.rating} ` : "";
+      const body = typeof review?.text === "string" ? review.text.trim() : "";
+
+      return `${author}${rating}${body}`.trim();
+    })
+    .filter(Boolean)
+    .join("\n\n");
+};
+
+const getPlatformReviewSummary = (
+  value: unknown,
+  platform: "Naver" | "Google" | "Instagram",
+) => {
+  const parsed = safeParseJson(value);
+  const summary = parsed?.platformSummaries?.[platform];
+
+  return typeof summary === "string" ? summary.trim() : "";
+};
+
+const formatPriceLevel = (value: unknown) => {
+  if (typeof value !== "number") return "";
+
+  if (value <= 0) return "무료";
+  return "₩".repeat(Math.min(value, 4));
+};
+
 const unwrapData = (value: any) => {
   return value?.data ?? value?.result ?? value?.payload ?? value;
+};
+
+const getSpaceLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+  if (key === "INDOOR") return "실내";
+  if (key === "OUTDOOR") return "야외";
+  if (key === "MIX") return "복합";
+  return "";
+};
+
+const getTypeLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+  const labels: Record<string, string> = {
+    FOOD: "음식점",
+    CAFE: "카페",
+    SIGHTS: "관광명소",
+    SHOP: "쇼핑",
+    MARKET: "시장",
+    THEME: "테마시설",
+    CULTURE: "문화시설",
+    PARK: "공원",
+  };
+  return labels[key] ?? value ?? "";
+};
+
+const getMoodLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+  const labels: Record<string, string> = {
+    HEALING: "힐링",
+    ADVENTURE: "모험",
+    ROMANTIC: "로맨틱",
+    FAMILY: "가족",
+    CULTURE: "문화",
+    FOOD: "음식",
+    NATURE: "자연",
+    URBAN: "도시",
+    CLASSIC: "클래식",
+    TRENDY: "트렌디",
+    LOCAL: "현지",
+    ACTIVE: "액티브",
+  };
+  return labels[key] ?? value ?? "";
 };
 
 const formatDateRange = (startDate?: string, endDate?: string) => {
@@ -267,6 +403,8 @@ export default function RecommendationResultScreen({
 
       const parsed = JSON.parse(params.placesJson);
 
+      console.log("[RecommendationResult] parsed alternatives:", parsed);
+
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
       console.log("[RecommendationResult] places parse failed:", error);
@@ -282,10 +420,8 @@ export default function RecommendationResultScreen({
   }, [places]);
 
   const targetPlace = params.targetPlace;
-  const currentPlaceName =
-    targetPlace?.name || params.title || "영향받는 일정";
-  const currentPlaceAddress =
-    targetPlace?.address || params.location || "";
+  const currentPlaceName = targetPlace?.name || params.title || "영향받는 일정";
+  const currentPlaceAddress = targetPlace?.address || params.location || "";
   const currentPlaceTime =
     targetPlace?.time || formatDateRange(params.startDate, params.endDate);
 
@@ -311,13 +447,41 @@ export default function RecommendationResultScreen({
       return;
     }
 
-    const googlePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
+    const googlePlaceId =
+      (
+        typeof place.googlePlaceId === "string" &&
+        place.googlePlaceId.trim().length > 0
+      ) ?
+        place.googlePlaceId
+      : "";
 
     if (!googlePlaceId) {
+      const reviewText = formatReviewDataText(place.reviewData);
+
       setPlaceExtraDetails((prev) => ({
         ...prev,
         [placeKey]: {
-          error: "장소 ID가 없어 상세 정보를 불러올 수 없습니다.",
+          loading: false,
+          aiSummary:
+            place.reviewSummary ||
+            place.reason ||
+            reviewText ||
+            "현재 추천 데이터에는 AI 리뷰 요약 정보가 없습니다.",
+          googleReview:
+            place.googleReview ||
+            place.sourceSummary?.google ||
+            getPlatformReviewSummary(place.reviewData, "Google") ||
+            "구글 리뷰 요약 정보가 없습니다.",
+          naverReview:
+            place.naverReview ||
+            place.sourceSummary?.naver ||
+            getPlatformReviewSummary(place.reviewData, "Naver") ||
+            "네이버 리뷰 요약 정보가 없습니다.",
+          instagramReview:
+            place.instaReview ||
+            place.sourceSummary?.instagram ||
+            getPlatformReviewSummary(place.reviewData, "Instagram") ||
+            "인스타그램 리뷰 요약 정보가 없습니다.",
         },
       }));
       return;
@@ -477,7 +641,20 @@ export default function RecommendationResultScreen({
           },
         );
 
-        await replaceNotificationPlace(notificationId, place.placeId);
+        const updatedTripPlace = await replaceNotificationPlace(
+          notificationId,
+          place.placeId,
+        );
+
+        if (!updatedTripPlace) {
+          throw new Error("날씨 알림 대안 장소 교체에 실패했습니다.");
+        }
+
+        console.log("[RecommendationResult] weather notification replace success:", {
+          notificationId,
+          selectedPlaceId: place.placeId,
+          updatedTripPlace,
+        });
 
         setSelectedPlaceId(placeId);
 
@@ -488,16 +665,14 @@ export default function RecommendationResultScreen({
             {
               text: "확인",
               onPress: () => {
-                navigation.navigate("OngoingSchedule", {
-                  scheduleId: params.scheduleId,
-                  tripId: params.tripId ?? params.serverTripId,
-                  serverTripId: params.serverTripId ?? params.tripId,
-                  tripName: params.tripName,
-                  startDate: params.startDate,
-                  endDate: params.endDate,
-                  location: params.location,
-                  transportMode: params.transportMode,
-                  transportLabel: params.transportLabel,
+                navigation.replace("Main", {
+                  refreshMainAt: Date.now(),
+                  replacedTripId: params.tripId ?? params.serverTripId,
+                  replacedTripPlaceId:
+                    updatedTripPlace?.tripPlaceId ??
+                    updatedTripPlace?.id ??
+                    params.currentPlanId ??
+                    params.tripPlaceId,
                 });
               },
             },
@@ -719,6 +894,10 @@ export default function RecommendationResultScreen({
 
           <View style={styles.resultList}>
             {places.map((place, index) => {
+              console.log(
+                "[RecommendationResult] place detail raw:",
+                JSON.stringify(place, null, 2),
+              );
               const placeId = place.placeId ?? `place-${index}`;
               const isExpanded = String(expandedPlaceId) === String(placeId);
               const isSelected = String(selectedPlaceId) === String(placeId);
@@ -727,20 +906,32 @@ export default function RecommendationResultScreen({
               const placeKey = String(placeId);
               const extraDetail = placeExtraDetails[placeKey];
               const displayAiSummary =
-                extraDetail?.aiSummary || place.reason || "";
+                extraDetail?.aiSummary ||
+                place.reviewSummary ||
+                place.reason ||
+                "";
               const displayNaverReview =
-                extraDetail?.naverReview || place.sourceSummary?.naver || "";
+                extraDetail?.naverReview ||
+                place.naverReview ||
+                place.sourceSummary?.naver ||
+                "";
               const displayInstagramReview =
                 extraDetail?.instagramReview ||
+                place.instaReview ||
                 place.sourceSummary?.instagram ||
                 "";
               const displayGoogleReview =
-                extraDetail?.googleReview || place.sourceSummary?.google || "";
+                extraDetail?.googleReview ||
+                place.googleReview ||
+                place.sourceSummary?.google ||
+                "";
 
               const reviewCount =
-                typeof place.reviewCount === "number" ?
+                typeof place.userRatingsTotal === "number" ?
+                  place.userRatingsTotal.toLocaleString()
+                : typeof place.reviewCount === "number" ?
                   place.reviewCount.toLocaleString()
-                : "2,239";
+                : "0";
 
               return (
                 <View
@@ -761,12 +952,6 @@ export default function RecommendationResultScreen({
                         <Text style={styles.placeName} numberOfLines={1}>
                           {place.name || "에버랜드"}
                         </Text>
-
-                        <View style={styles.categoryPill}>
-                          <Text style={styles.categoryText}>
-                            {place.category || "아웃도어"}
-                          </Text>
-                        </View>
                       </View>
 
                       <View style={styles.ratingRow}>
@@ -800,7 +985,9 @@ export default function RecommendationResultScreen({
                               color="#8EA0B7"
                             />
                             <Text style={styles.infoText}>
-                              {place.phone || "053-123-1234"}
+                              {place.phoneNumber ||
+                                place.phone ||
+                                "전화번호 정보가 없습니다."}
                             </Text>
                           </View>
 
@@ -822,12 +1009,28 @@ export default function RecommendationResultScreen({
                               color="#8EA0B7"
                             />
                             <Text style={styles.infoText}>
-                              {place.openingHours || "영업시간 정보가 없습니다."}
+                              {formatOpeningHoursText(place.openingHours) ||
+                                "영업시간 정보가 없습니다."}
                             </Text>
                           </View>
                         </>
                       : null}
                     </View>
+                  </View>
+
+                  <View style={styles.tagRow}>
+                    {[
+                      getSpaceLabel(place.space),
+                      getTypeLabel(place.type ?? place.category),
+                      getMoodLabel(place.mood),
+                    ]
+                      .filter(Boolean)
+                      .slice(0, 3)
+                      .map((tag) => (
+                        <View key={tag} style={styles.categoryPill}>
+                          <Text style={styles.categoryText}>{tag}</Text>
+                        </View>
+                      ))}
                   </View>
 
                   <View
@@ -1160,6 +1363,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginRight: 8,
     maxWidth: 150,
+  },
+
+  tagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginTop: 10,
+    marginBottom: 12,
+    marginLeft: 70,
+    alignItems: "center",
   },
 
   categoryPill: {

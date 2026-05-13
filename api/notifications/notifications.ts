@@ -63,15 +63,16 @@ export const dismissNotification = async (
 export const replaceNotificationPlace = async (
   notificationId: number | string,
   newPlaceId: number | string,
-): Promise<boolean> => {
+): Promise<any | null> => {
   try {
-    await apiClient.post(
+    const response = await apiClient.post(
       `/api/notifications/${notificationId}/replace/${newPlaceId}`,
     );
-    return true;
+
+    return response.data ?? true;
   } catch (error) {
     console.log("[notifications/replace] request failed:", error);
-    return false;
+    return null;
   }
 };
 

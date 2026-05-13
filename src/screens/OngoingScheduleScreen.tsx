@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
+import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
   ScrollView,
@@ -14,6 +15,7 @@ import GapRecommendationCard from "../components/recommendations/GapRecommendati
 import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import type { TripScheduleGap } from "../types/gapRecommendation";
 import { getPlaceDetail } from "../../api/places/place";
+import { getTripDetail } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -191,10 +193,56 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     : undefined);
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
 
-  const currentDay = useMemo(() => {
+
+  
+  useFocusEffect(
+    useCallback(() => {
+      const loadTripDetail = async () => {
+        if (!resolvedTripId) return;
+
+        try {
+          const detail = await getTripDetail(resolvedTripId);
+
+          console.log(
+            "[OngoingSchedule] trip detail reload success:",
+            detail,
+          );
+
+          const itineraries =
+            Array.isArray(detail?.itineraries) ?
+              detail.itineraries
+            : [];
+
+          const mappedDays: ScheduleDay[] = itineraries.map(
+            (itinerary: any, index: number) => ({
+              day: itinerary.day ?? index + 1,
+              places: Array.isArray(itinerary.places) ?
+                itinerary.places
+              : [],
+            }),
+          );
+
+          setServerDays(mappedDays);
+        } catch (error) {
+          console.log(
+            "[OngoingSchedule] trip detail reload failed:",
+            error,
+          );
+        }
+      };
+
+      loadTripDetail();
+    }, [resolvedTripId]),
+  );
+
+const currentDay = useMemo(() => {
     const dayNumber = selectedDayIndex + 1;
-    return days.find((day) => day.day === dayNumber);
+    const sourceDays =
+      serverDays.length > 0 ? serverDays : days;
+
+    return sourceDays.find((day) => day.day === dayNumber);
   }, [days, selectedDayIndex]);
 
   const places = useMemo(() => {

@@ -40,6 +40,14 @@ export type NotificationOriginalPlace = {
   visitTime?: string | null;
   endTime?: string | null;
   time?: string;
+  space?: "INDOOR" | "OUTDOOR" | "MIX" | string;
+  userRatingsTotal?: number;
+  phoneNumber?: string;
+  phone?: string;
+  website?: string;
+  priceLevel?: number;
+  openingHours?: string | null;
+  reviewData?: string | null;
 };
 
 export type NotificationAlternativePlace = {
@@ -52,4 +60,12 @@ export type NotificationAlternativePlace = {
   latitude?: number;
   longitude?: number;
   photoUrl?: string;
+  space?: "INDOOR" | "OUTDOOR" | "MIX" | string;
+  userRatingsTotal?: number;
+  phoneNumber?: string;
+  phone?: string;
+  website?: string;
+  priceLevel?: number;
+  openingHours?: string | null;
+  reviewData?: string | null;
 };
