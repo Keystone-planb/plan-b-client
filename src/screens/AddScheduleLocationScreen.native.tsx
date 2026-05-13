@@ -744,32 +744,29 @@ export default function AddScheduleLocationScreen({
       let summary: any = null;
       let freshness: any = null;
 
-      for (let attempt = 0; attempt < 5; attempt += 1) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
         const [
           detailResult,
           summaryResult,
-          freshnessResult,
-          analysisStatusResult,
         ] = await Promise.allSettled([
           getPlaceDetail(placeKey),
           getPlaceSummary(placeKey),
-          getPlaceFreshness(placeKey),
-          getPlaceAnalysisStatus(placeKey),
         ]);
+
+        const freshnessResult: PromiseSettledResult<any> = {
+          status: "rejected",
+          reason: null,
+        };
+        const analysisStatusResult: PromiseSettledResult<any> = {
+          status: "rejected",
+          reason: null,
+        };
 
         detail =
           detailResult.status === "fulfilled" ? detailResult.value : detail;
         summary =
           summaryResult.status === "fulfilled" ? summaryResult.value : summary;
-        freshness =
-          freshnessResult.status === "fulfilled" ?
-            freshnessResult.value
-          : freshness;
-
-        const analysisStatus =
-          analysisStatusResult.status === "fulfilled" ?
-            analysisStatusResult.value
-          : null;
+        const analysisStatus = null;
 
         const hasUsefulReview =
           hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
@@ -785,8 +782,8 @@ export default function AddScheduleLocationScreen({
           break;
         }
 
-        if (attempt < 4) {
-          await wait(5000);
+        if (attempt < 1) {
+          await wait(2000);
         }
       }
 

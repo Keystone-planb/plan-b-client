@@ -1327,41 +1327,39 @@ export function usePlanAPlaces({
       );
 
       if (existingScheduleUpdateRequests.length > 0) {
-        await Promise.all(
-          existingScheduleUpdateRequests.map(async (item) => {
-            const updatePayload = {
-              visitTime: toServerTimeText(item.visitTime),
-              endTime: toServerTimeText(item.endTime),
-              memo: item.memo ?? null,
-            };
+        for (const item of existingScheduleUpdateRequests) {
+          const updatePayload = {
+            visitTime: toServerTimeText(item.visitTime),
+            endTime: toServerTimeText(item.endTime),
+            memo: item.memo ?? null,
+          };
 
-            try {
-              console.log("[PlanA 기존 서버 장소 시간/메모 PATCH 요청]", {
-                tripPlaceId: item.tripPlaceId,
-                placeName: item.placeName,
-                payload: updatePayload,
-              });
+          try {
+            console.log("[PlanA 기존 서버 장소 시간/메모 PATCH 요청]", {
+              tripPlaceId: item.tripPlaceId,
+              placeName: item.placeName,
+              payload: updatePayload,
+            });
 
-              const updateResponse = await updatePlanSchedule(
-                item.tripPlaceId,
-                updatePayload,
-              );
+            const updateResponse = await updatePlanSchedule(
+              item.tripPlaceId,
+              updatePayload,
+            );
 
-              console.log("[PlanA 기존 서버 장소 시간/메모 수정 완료]", {
-                tripPlaceId: item.tripPlaceId,
-                placeName: item.placeName,
-                response: updateResponse,
-              });
-            } catch (error) {
-              console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {
-                tripPlaceId: item.tripPlaceId,
-                placeName: item.placeName,
-                payload: updatePayload,
-                error,
-              });
-            }
-          }),
-        );
+            console.log("[PlanA 기존 서버 장소 시간/메모 수정 완료]", {
+              tripPlaceId: item.tripPlaceId,
+              placeName: item.placeName,
+              response: updateResponse,
+            });
+          } catch (error) {
+            console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {
+              tripPlaceId: item.tripPlaceId,
+              placeName: item.placeName,
+              payload: updatePayload,
+              error,
+            });
+          }
+        }
       }
 
       const createdLocations: CreatedLocationWithDay[] = [];

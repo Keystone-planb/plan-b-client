@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState, useCallback } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
@@ -217,10 +217,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
-
-
-  
-  useFocusEffect(
+  const hasLoadedTripDetailRef = useRef(false);
+useFocusEffect(
     useCallback(() => {
       const loadTripDetail = async () => {
         if (!resolvedTripId) return;
