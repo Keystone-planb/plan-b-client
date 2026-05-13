@@ -101,11 +101,12 @@ apiClient.interceptors.response.use(
   async (error: AxiosError) => {
     const originalRequest = error.config as RetryableRequestConfig | undefined;
 
-    if (
-      error.response?.status === 401 &&
+    const shouldTryRefresh =
+      (error.response?.status === 401 || error.response?.status === 403) &&
       originalRequest &&
-      !originalRequest._retry
-    ) {
+      !originalRequest._retry;
+
+    if (shouldTryRefresh) {
       originalRequest._retry = true;
 
       try {
