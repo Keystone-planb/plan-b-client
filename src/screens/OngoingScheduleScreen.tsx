@@ -102,7 +102,7 @@ const getSortTimeValue = (time?: string | null) => {
   if (!time) return Number.MAX_SAFE_INTEGER;
 
   const normalized = time.trim();
-  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+  const match = normalized.match(/(?:T|\b)(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
 
   if (!match) return Number.MAX_SAFE_INTEGER;
 
@@ -116,6 +116,18 @@ const getSortTimeValue = (time?: string | null) => {
   return hour * 60 + minute;
 };
 
+const normalizeDisplayTime = (time?: string | null) => {
+  const normalized = time?.trim();
+
+  if (!normalized) return "";
+
+  const match = normalized.match(/(?:T|\b)(\d{1,2}):(\d{2})/);
+
+  if (!match) return normalized;
+
+  return `${match[1].padStart(2, "0")}:${match[2]}`;
+};
+
 const getTimeRangeEndText = (time?: string | null) => {
   const normalized = time?.trim();
 
@@ -124,6 +136,17 @@ const getTimeRangeEndText = (time?: string | null) => {
   const [, end] = normalized.split(/\s*-\s*/);
 
   return end?.trim() || null;
+};
+
+const getPlaceDisplayTime = (place: TodayPlace) => {
+  const visitTime = normalizeDisplayTime(place.visitTime);
+  const endTime = normalizeDisplayTime(place.endTime);
+
+  if (visitTime && endTime) return `${visitTime} - ${endTime}`;
+  if (visitTime) return visitTime;
+  if (endTime) return endTime;
+
+  return normalizeDisplayTime(place.time) || "시간 미정";
 };
 
 const getPlaceStartTimeValueForGap = (place: TodayPlace) => {
@@ -763,7 +786,7 @@ const currentDay = useMemo(() => {
                           color="#94A3B8"
                         />
                         <Text style={styles.timeText}>
-                          {place.time || "시간 미정"}
+                          {getPlaceDisplayTime(place)}
                         </Text>
                       </View>
                     </View>

@@ -928,35 +928,38 @@ export function usePlanAPlaces({
     dayNumber: number,
     updater: (places: PlaceItem[]) => PlaceItem[],
   ) => {
-    setScheduleSafely((prev) => {
-      const hasTargetDay = prev.days.some((day) => day.day === dayNumber);
+    const prev = scheduleRef.current;
+    const hasTargetDay = prev.days.some((day) => day.day === dayNumber);
 
-      const nextDays = hasTargetDay
-        ? prev.days.map((day) =>
-            day.day === dayNumber
-              ? {
-                  ...day,
-                  places: reorderPlaces(updater(day.places)),
-                }
-              : day,
-          )
-        : [
-            ...prev.days,
-            {
-              day: dayNumber,
-              places: reorderPlaces(updater([])),
-            },
-          ];
+    const nextDays = hasTargetDay
+      ? prev.days.map((day) =>
+          day.day === dayNumber
+            ? {
+                ...day,
+                places: reorderPlaces(updater(day.places)),
+              }
+            : day,
+        )
+      : [
+          ...prev.days,
+          {
+            day: dayNumber,
+            places: reorderPlaces(updater([])),
+          },
+        ];
 
-      return {
-        ...prev,
-        days: nextDays.sort((a, b) => a.day - b.day),
-        updatedAt: createNow(),
-      };
-    });
+    const nextSchedule = {
+      ...prev,
+      days: nextDays.sort((a, b) => a.day - b.day),
+      updatedAt: createNow(),
+    };
+
+    setScheduleSafely(nextSchedule);
 
     setSaveSuccessMessage("");
     setSaveError("");
+
+    return nextSchedule;
   };
 
   useEffect(() => {
@@ -1067,7 +1070,7 @@ export function usePlanAPlaces({
     const nextEndTime = normalizeNullableTime(endTime);
     const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
 
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId
           ? {
@@ -1081,6 +1084,10 @@ export function usePlanAPlaces({
       ),
     );
 
+    const updatedPlace = nextSchedule.days
+      .find((day) => day.day === selectedDay)
+      ?.places.find((place) => place.id === placeId);
+
     console.log("[PlanA 장소 시간 변경 완료]", {
       day: selectedDay,
       placeId,
@@ -1089,11 +1096,27 @@ export function usePlanAPlaces({
       time: nextDisplayTime,
     });
 
-    const latestSchedule = scheduleRef.current;
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 시간 변경 로컬 저장 실패]", error);
+    });
 
-    if (latestSchedule) {
-      savePlanASchedule(latestSchedule).catch((error) => {
-        console.log("[PlanA 시간 변경 로컬 저장 실패]", error);
+    const planId =
+      updatedPlace?.serverTripPlaceId ?? updatedPlace?.tripPlaceId;
+
+    if (planId) {
+      updatePlanSchedule(planId, {
+        visitTime: toServerTimeText(nextVisitTime),
+        endTime: toServerTimeText(nextEndTime),
+      }).catch((error) => {
+        console.log("[PlanA 시간 변경 서버 반영 실패]", {
+          placeId,
+          planId,
+          visitTime: nextVisitTime,
+          endTime: nextEndTime,
+          error,
+        });
+
+        setSaveError("시간 변경을 서버에 반영하지 못했습니다.");
       });
     }
   };
@@ -1455,7 +1478,7 @@ export function usePlanAPlaces({
 
     if (!editingPlaceId || !trimmedName) return;
 
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === editingPlaceId
           ? {
@@ -1469,6 +1492,34 @@ export function usePlanAPlaces({
           : place,
       ),
     );
+
+    const updatedPlace = nextSchedule.days
+      .find((day) => day.day === selectedDay)
+      ?.places.find((place) => place.id === editingPlaceId);
+
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 장소 편집 로컬 저장 실패]", error);
+    });
+
+    const planId =
+      updatedPlace?.serverTripPlaceId ?? updatedPlace?.tripPlaceId;
+
+    if (planId) {
+      updatePlanSchedule(planId, {
+        visitTime: toServerTimeText(nextVisitTime),
+        endTime: toServerTimeText(nextEndTime),
+      }).catch((error) => {
+        console.log("[PlanA 장소 편집 서버 시간 반영 실패]", {
+          editingPlaceId,
+          planId,
+          visitTime: nextVisitTime,
+          endTime: nextEndTime,
+          error,
+        });
+
+        setSaveError("시간 변경을 서버에 반영하지 못했습니다.");
+      });
+    }
 
     handleCancelEditPlace();
   };
