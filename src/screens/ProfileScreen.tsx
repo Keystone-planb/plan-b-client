@@ -112,6 +112,42 @@ export default function ProfileScreen({ navigation }: Props) {
     }
   };
 
+
+  // DEV_AUTH_DEBUG_START
+  const handleDevCheckTokens = async () => {
+    const accessToken = await AsyncStorage.getItem("access_token");
+    const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+    console.log("[DEV_AUTH_DEBUG] token state:", {
+      hasAccessToken: Boolean(accessToken),
+      hasRefreshToken: Boolean(refreshToken),
+    });
+
+    alert(
+      `access_token: ${accessToken ? "있음" : "없음"}\nrefresh_token: ${
+        refreshToken ? "있음" : "없음"
+      }`,
+    );
+  };
+
+  const handleDevResetAuth = async () => {
+    await AsyncStorage.multiRemove([
+      "access_token",
+      "refresh_token",
+      "user_id",
+      "nickname",
+      "email",
+    ]);
+
+    console.log("[DEV_AUTH_DEBUG] auth reset complete");
+
+    navigation.reset({
+      index: 0,
+      routes: [{ name: "Login" }],
+    });
+  };
+  // DEV_AUTH_DEBUG_END
+
   const nickname = me?.nickname || storedNickname || "사용자";
   const email = me?.email || storedEmail || "이메일 정보를 불러오는 중";
 
@@ -183,6 +219,32 @@ export default function ProfileScreen({ navigation }: Props) {
             <Ionicons name="chevron-forward" size={22} color="#B8C4D5" />
           </TouchableOpacity>
         </View>
+
+        {__DEV__ ? (
+          <View style={styles.devAuthBox}>
+            <Text style={styles.devAuthTitle}>DEV_AUTH_DEBUG</Text>
+
+            <View style={styles.devAuthRow}>
+              <TouchableOpacity
+                style={styles.devAuthButton}
+                activeOpacity={0.82}
+                onPress={handleDevCheckTokens}
+              >
+                <Text style={styles.devAuthButtonText}>토큰 확인</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.devAuthButton}
+                activeOpacity={0.82}
+                onPress={handleDevResetAuth}
+              >
+                <Text style={styles.devAuthButtonText}>
+                  토큰 초기화
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         <TouchableOpacity
           style={[styles.logoutButton, logoutLoading && styles.disabledButton]}
@@ -389,5 +451,42 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: "800",
     marginLeft: 8,
+  },
+
+
+  devAuthBox: {
+    marginTop: 18,
+    padding: 14,
+    borderRadius: 14,
+    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#FDBA74",
+  },
+
+  devAuthTitle: {
+    color: "#9A3412",
+    fontSize: 12,
+    fontWeight: "900",
+    marginBottom: 10,
+  },
+
+  devAuthRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+
+  devAuthButton: {
+    flex: 1,
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: "#FFEDD5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  devAuthButtonText: {
+    color: "#9A3412",
+    fontSize: 13,
+    fontWeight: "800",
   },
 });

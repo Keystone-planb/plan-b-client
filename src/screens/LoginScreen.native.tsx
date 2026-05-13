@@ -23,6 +23,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import GoogleIcon from "../assets/google.svg";
 import KakaoIcon from "../assets/kakao.svg";
@@ -42,6 +43,10 @@ import {
 } from "../utils/authToken";
 
 WebBrowser.maybeCompleteAuthSession();
+
+const DEV_AUTH_EMAIL = "";
+const DEV_AUTH_PASSWORD = "";
+
 
 type LoginResult = {
   success?: boolean;
@@ -155,6 +160,73 @@ export default function LoginScreen({ navigation }: any) {
 
     return true;
   };
+
+  // DEV_AUTH_DEBUG_START
+  const handleDevCheckTokens = async () => {
+    const accessToken = await AsyncStorage.getItem("access_token");
+    const refreshToken = await AsyncStorage.getItem("refresh_token");
+
+    Alert.alert(
+      "DEV 토큰 상태",
+      `access_token: ${accessToken ? "있음" : "없음"}\nrefresh_token: ${
+        refreshToken ? "있음" : "없음"
+      }`,
+    );
+
+    console.log("[DEV_AUTH_DEBUG] token state:", {
+      hasAccessToken: Boolean(accessToken),
+      hasRefreshToken: Boolean(refreshToken),
+    });
+  };
+
+  const handleDevClearTokens = async () => {
+    await AsyncStorage.multiRemove([
+      "access_token",
+      "refresh_token",
+      "user_id",
+      "nickname",
+      "email",
+    ]);
+
+    console.log("[DEV_AUTH_DEBUG] tokens cleared");
+
+    Alert.alert(
+      "DEV 토큰 초기화 완료",
+      "토큰을 삭제했습니다. 다시 로그인해주세요.",
+    );
+  };
+
+  const handleDevQuickLogin = async () => {
+    if (isBusy) return;
+
+    if (!DEV_AUTH_EMAIL || !DEV_AUTH_PASSWORD) {
+      Alert.alert(
+        "DEV 빠른 로그인 불가",
+        ".env에 EXPO_PUBLIC_DEV_EMAIL / EXPO_PUBLIC_DEV_PASSWORD를 설정해주세요.",
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const result = await requestLogin({
+        email: DEV_AUTH_EMAIL,
+        password: DEV_AUTH_PASSWORD,
+      });
+
+      console.log("[DEV_AUTH_DEBUG] quick login success:", {
+        email: DEV_AUTH_EMAIL,
+      });
+
+      await handleLoginSuccess(result);
+    } catch (error) {
+      handleLoginError("DEV 빠른 로그인 실패", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  // DEV_AUTH_DEBUG_END
 
   const handleLogin = async () => {
     if (isBusy) return;
