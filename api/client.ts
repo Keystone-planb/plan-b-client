@@ -23,6 +23,33 @@ type RefreshResponse = {
 
 const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
 
+// ===============================
+// MVP Trip Cache Layer (safe)
+// ===============================
+const tripCache = new Map<string, { data: any; time: number }>();
+
+const getCachedTrip = async <T>(
+  key: string,
+  fetcher: () => Promise<T>,
+  ttlMs: number = 10000,
+): Promise<T> => {
+  const now = Date.now();
+  const cached = tripCache.get(key);
+
+  if (cached && now - cached.time < ttlMs) {
+    return cached.data;
+  }
+
+  const data = await fetcher();
+
+  tripCache.set(key, {
+    data,
+    time: now,
+  });
+
+  return data;
+};
+
 let refreshPromise: Promise<RefreshResponse> | null = null;
 
 const runRefreshOnce = async (refreshToken: string) => {

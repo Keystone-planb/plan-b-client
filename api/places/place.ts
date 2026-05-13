@@ -151,6 +151,8 @@ const normalizePlaceId = (placeId: string | number) => {
   return encodeURIComponent(normalized);
 };
 
+const placeDetailCache = new Map<string, PlaceDetailResponse>();
+
 const unwrapPlaceData = <T>(data: unknown): T => {
   if (
     data &&
@@ -169,11 +171,20 @@ export const getPlaceDetail = async (
 ): Promise<PlaceDetailResponse> => {
   const encodedPlaceId = normalizePlaceId(placeId);
 
-  const response = await apiClient.get<PlaceDetailResponse | { data: PlaceDetailResponse }>(
-    `/api/places/${encodedPlaceId}`,
-  );
+  const cacheKey = String(encodedPlaceId);
 
-  return unwrapPlaceData<PlaceDetailResponse>(response.data);
+  const cached = placeDetailCache.get(cacheKey);
+  if (cached) return cached;
+
+  const response = await apiClient.get<
+    PlaceDetailResponse | { data: PlaceDetailResponse }
+  >(`/api/places/${encodedPlaceId}`);
+
+  const result = unwrapPlaceData<PlaceDetailResponse>(response.data);
+
+  placeDetailCache.set(cacheKey, result);
+
+  return result;
 };
 
 export const getPlaceReviewSummary = async (
