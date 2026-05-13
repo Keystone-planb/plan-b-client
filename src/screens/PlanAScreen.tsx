@@ -345,6 +345,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     useState<TimePickerTarget>("visitTime");
   const [timePickerHour, setTimePickerHour] = useState(12);
   const [timePickerMinute, setTimePickerMinute] = useState(0);
+  const [timePickerErrorMessage, setTimePickerErrorMessage] = useState("");
 
   const scheduleId = route?.params?.scheduleId;
   const tripId = route?.params?.tripId ?? route?.params?.serverTripId;
@@ -881,6 +882,16 @@ export default function PlanAScreen({ navigation, route }: Props) {
       : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
       : currentEndTime;
 
+    if (
+      nextVisitTime &&
+      nextEndTime &&
+      nextVisitTime >= nextEndTime
+    ) {
+      setTimePickerErrorMessage("종료 시간이 시작 시간보다 빨라요!");
+
+      return;
+    }
+
     handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
   };
@@ -1328,14 +1339,40 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.timePickerPreview}>
-              <Text style={styles.timePickerPreviewLabel}>
-                {timePickerTarget === "visitTime" ? "시작" : "종료"}
-              </Text>
+            <View style={styles.timeRangePreviewRow}>
+              <View
+                style={[
+                  styles.timeRangePreviewBox,
+                  timePickerTarget === "visitTime" &&
+                    styles.timeRangePreviewBoxActive,
+                ]}
+              >
+                <Text style={styles.timeRangePreviewLabel}>시작 시간</Text>
+                <Text style={styles.timeRangePreviewText}>
+                  {timePickerTarget === "visitTime" ?
+                    timePickerPreviewText
+                  : timePickerPlace ?
+                    getPlaceVisitTime(timePickerPlace) || "--:--"
+                  : "--:--"}
+                </Text>
+              </View>
 
-              <Text style={styles.timePickerPreviewText}>
-                {timePickerPreviewText}
-              </Text>
+              <View
+                style={[
+                  styles.timeRangePreviewBox,
+                  timePickerTarget === "endTime" &&
+                    styles.timeRangePreviewBoxActive,
+                ]}
+              >
+                <Text style={styles.timeRangePreviewLabel}>종료 시간</Text>
+                <Text style={styles.timeRangePreviewText}>
+                  {timePickerTarget === "endTime" ?
+                    timePickerPreviewText
+                  : timePickerPlace ?
+                    getPlaceEndTime(timePickerPlace) || "--:--"
+                  : "--:--"}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.timePickerControls}>
@@ -1389,6 +1426,12 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
+
+            {timePickerErrorMessage ?
+              <Text style={styles.timePickerErrorText}>
+                {timePickerErrorMessage}
+              </Text>
+            : null}
 
             <View style={styles.timeModalButtonRow}>
               <TouchableOpacity
@@ -1912,6 +1955,44 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   timeTargetTabTextActive: { color: "#FFFFFF" },
+  timeRangePreviewRow: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 18,
+    marginBottom: 14,
+  },
+
+  timeRangePreviewBox: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    alignItems: "center",
+  },
+
+  timeRangePreviewBoxActive: {
+    borderColor: "#2158E8",
+    backgroundColor: "#EEF5FF",
+  },
+
+  timeRangePreviewLabel: {
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
+    color: "#64748B",
+    marginBottom: 6,
+  },
+
+  timeRangePreviewText: {
+    fontSize: 20,
+    lineHeight: 26,
+    fontWeight: "900",
+    color: "#111827",
+  },
+
   timePickerPreview: {
     minHeight: 68,
     borderRadius: 12,
@@ -1928,6 +2009,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 2,
   },
+  timePickerErrorText: {
+    marginTop: 14,
+    marginBottom: -2,
+    fontSize: 13,
+    lineHeight: 18,
+    fontWeight: "800",
+    color: "#EF4444",
+    textAlign: "center",
+  },
+
   timePickerPreviewText: {
     color: "#111827",
     fontSize: 20,
