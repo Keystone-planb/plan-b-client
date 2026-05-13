@@ -8,6 +8,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  Image,
   TextInput,
   TouchableOpacity,
   View,
@@ -15,14 +16,16 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
+import GoogleLogo from "../assets/google.svg";
 import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
-  getPlaceDetail,
+getPlaceDetail,
   getPlaceFreshness,
   getPlaceSummary,
   searchPlaces,
+  getPlaceAnalysisStatus,
 } from "../../api/places/searchPlaces";
 import {
   PlaceFreshnessResponse,
@@ -31,6 +34,28 @@ import {
 } from "../../api/places/place";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { addTripLocation, createTrip } from "../../api/schedules/server";
+
+const NAVER_LOGO = require("../assets/naver.png");
+const INSTAGRAM_LOGO = require("../assets/instagram.png");
+
+const ReviewPlatformLogo = ({ logoType }: { logoType?: string }) => {
+  if (logoType === "google") {
+    return <GoogleLogo width={22} height={22} />;
+  }
+
+  if (logoType === "naver") {
+    return <Image source={NAVER_LOGO} style={styles.reviewPlatformLogoImage} />;
+  }
+
+  if (logoType === "instagram") {
+    return (
+      <Image source={INSTAGRAM_LOGO} style={styles.reviewPlatformLogoImage} />
+    );
+  }
+
+  return null;
+};
+
 
 type Props = {
   navigation: any;
@@ -346,6 +371,60 @@ const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
   return "";
 };
 
+
+const getSpaceLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+
+  if (key === "INDOOR") return "실내";
+  if (key === "OUTDOOR") return "야외";
+  if (key === "MIX") return "복합";
+
+  return "";
+};
+
+const getPlaceTypeLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+
+  const labels: Record<string, string> = {
+    FOOD: "음식점",
+    CAFE: "카페",
+    SIGHTS: "관광명소",
+    SHOP: "쇼핑",
+    MARKET: "시장",
+    THEME: "테마시설",
+    CULTURE: "문화시설",
+    PARK: "공원",
+  };
+
+  return labels[key] ?? "";
+};
+
+const getMoodLabel = (value?: string) => {
+  const key = String(value ?? "").toUpperCase();
+
+  const labels: Record<string, string> = {
+    HEALING: "힐링",
+    ADVENTURE: "모험",
+    ROMANTIC: "로맨틱",
+    FAMILY: "가족",
+    CULTURE: "문화",
+    FOOD: "음식",
+    NATURE: "자연",
+    URBAN: "도시",
+    CLASSIC: "클래식",
+    TRENDY: "트렌디",
+    LOCAL: "현지",
+    ACTIVE: "액티브",
+  };
+
+  return labels[key] ?? "";
+};
+
+const wait = (ms: number) =>
+  new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
 const formatConfidenceScore = (score?: number) => {
   if (typeof score !== "number" || !Number.isFinite(score)) {
     return "";
@@ -356,6 +435,69 @@ const formatConfidenceScore = (score?: number) => {
   }
 
   return `${Math.round(score)}%`;
+};
+
+
+const isUsefulReviewText = (value: unknown) => {
+  if (typeof value !== "string") return false;
+
+  const normalized = value.trim();
+
+  if (!normalized) return false;
+  if (normalized.includes("데이터 부족")) return false;
+    if (normalized.includes("아직 분석 데이터가 없습니다")) return false;
+
+  return true;
+};
+
+const hasUsefulReviewPayload = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") return false;
+
+  const target = payload as Record<string, any>;
+
+  return [
+    target.reviewSummary,
+    target.aiSummary,
+    target.summary,
+    target.googleReview,
+    target.naverReview,
+    target.instaReview,
+    target.instagramReview,
+    target.data?.reviewSummary,
+    target.data?.aiSummary,
+    target.data?.googleReview,
+    target.data?.naverReview,
+    target.data?.instaReview,
+    target.result?.reviewSummary,
+    target.result?.aiSummary,
+    target.result?.googleReview,
+    target.result?.naverReview,
+    target.result?.instaReview,
+  ].some(isUsefulReviewText);
+};
+
+const isAnalysisStatusCompleted = (payload: unknown) => {
+  if (!payload || typeof payload !== "object") return false;
+
+  const statusObject = payload as Record<string, any>;
+  const status = String(
+    statusObject.status ??
+      statusObject.analysisStatus ??
+      statusObject.data?.status ??
+      statusObject.result?.status ??
+      "",
+  ).toUpperCase();
+
+  return (
+    status === "COMPLETED" ||
+    status === "DONE" ||
+    status === "SUCCESS" ||
+    status === "READY" ||
+    statusObject.ready === true ||
+    statusObject.completed === true ||
+    statusObject.isCompleted === true ||
+    statusObject.isAnalyzed === true
+  );
 };
 
 const getFreshnessLabel = (status: string) => {
@@ -593,14 +735,60 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
+    const detailLoadingStartedAt = Date.now();
+
     try {
       setReviewLoadingPlaceId(placeKey);
 
-      const [detail, summary, freshness] = await Promise.all([
-        getPlaceDetail(placeKey),
-        getPlaceSummary(placeKey),
-        getPlaceFreshness(placeKey),
-      ]);
+      let detail: any = null;
+      let summary: any = null;
+      let freshness: any = null;
+
+      for (let attempt = 0; attempt < 5; attempt += 1) {
+        const [
+          detailResult,
+          summaryResult,
+          freshnessResult,
+          analysisStatusResult,
+        ] = await Promise.allSettled([
+          getPlaceDetail(placeKey),
+          getPlaceSummary(placeKey),
+          getPlaceFreshness(placeKey),
+          getPlaceAnalysisStatus(placeKey),
+        ]);
+
+        detail =
+          detailResult.status === "fulfilled" ? detailResult.value : detail;
+        summary =
+          summaryResult.status === "fulfilled" ? summaryResult.value : summary;
+        freshness =
+          freshnessResult.status === "fulfilled" ?
+            freshnessResult.value
+          : freshness;
+
+        const analysisStatus =
+          analysisStatusResult.status === "fulfilled" ?
+            analysisStatusResult.value
+          : null;
+
+        const hasUsefulReview =
+          hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
+
+        console.log("[AddScheduleLocation] analysis polling:", {
+          placeKey,
+          attempt: attempt + 1,
+          hasUsefulReview,
+          analysisStatus,
+        });
+
+        if (hasUsefulReview || isAnalysisStatusCompleted(analysisStatus)) {
+          break;
+        }
+
+        if (attempt < 4) {
+          await wait(5000);
+        }
+      }
 
       console.log("[AddScheduleLocation] review response:", {
         placeKey,
@@ -633,6 +821,11 @@ export default function AddScheduleLocationScreen({
         },
       }));
 
+      const elapsed = Date.now() - detailLoadingStartedAt;
+      if (elapsed < 1000) {
+        await wait(1000 - elapsed);
+      }
+
       setExpandedPlaceId(placeKey);
     } catch (error) {
       console.log("장소 상세 정보 조회 실패:", error);
@@ -641,6 +834,11 @@ export default function AddScheduleLocationScreen({
         ...prev,
         [placeKey]: {},
       }));
+
+      const elapsed = Date.now() - detailLoadingStartedAt;
+      if (elapsed < 1000) {
+        await wait(1000 - elapsed);
+      }
 
       setExpandedPlaceId(placeKey);
     } finally {
@@ -935,7 +1133,7 @@ export default function AddScheduleLocationScreen({
       {
         id: "googleReview",
         platform: "Google",
-        icon: "G",
+        logoType: "google",
         text:
           googleAiReviewText ||
           googleRawReviewText ||
@@ -944,7 +1142,7 @@ export default function AddScheduleLocationScreen({
       {
         id: "naverReview",
         platform: "Naver",
-        icon: "N",
+        logoType: "naver",
         text:
           getPlatformReviewText([
             "naverReview",
@@ -956,7 +1154,7 @@ export default function AddScheduleLocationScreen({
       {
         id: "instaReview",
         platform: "Instagram",
-        icon: "I",
+        logoType: "instagram",
         text:
           getPlatformReviewText([
             "instaReview",
@@ -1096,6 +1294,14 @@ export default function AddScheduleLocationScreen({
         .filter(Boolean)
         .join("\n")
     : "";
+
+  const detailRaw = detailModalDetail as any;
+
+  const detailTags = [
+    getSpaceLabel(detailRaw?.tags?.space ?? detailRaw?.space),
+    getPlaceTypeLabel(detailRaw?.tags?.type ?? detailRaw?.type),
+    getMoodLabel(detailRaw?.tags?.mood ?? detailRaw?.mood),
+  ].filter(Boolean);
 
   console.log("[AddScheduleLocation] extracted AI review fields:", {
     placeId: detailModalPlaceId,
@@ -1249,7 +1455,15 @@ export default function AddScheduleLocationScreen({
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        상세 정보 보기
+                        {reviewLoadingPlaceId === [
+                      place.name,
+                      place.address,
+                      place.category,
+                    ]
+                      .filter(Boolean)
+                      .join("-") ?
+                      "불러오는 중..."
+                    : "상세 정보 보기"}
                       </Text>
                       <Ionicons name="eye-outline" size={15} color="#6F7F95" />
                     </>
@@ -1360,6 +1574,16 @@ export default function AddScheduleLocationScreen({
                       : "운영 시간 정보 없음"}
                     </Text>
                   </View>
+
+                  {detailTags.length > 0 ?
+                    <View style={styles.detailTagRow}>
+                      {detailTags.map((tag) => (
+                        <View key={tag} style={styles.detailTagPill}>
+                          <Text style={styles.detailTagText}>{tag}</Text>
+                        </View>
+                      ))}
+                    </View>
+                  : null}
                 </View>
               </View>
 
@@ -1447,9 +1671,7 @@ export default function AddScheduleLocationScreen({
                         {detailModalReviews.map((review, index) => (
                           <View key={review.id} style={styles.reviewCard}>
                             <View style={styles.reviewIconCircle}>
-                              <Text style={styles.googleIcon}>
-                                {review.icon}
-                              </Text>
+                              <ReviewPlatformLogo logoType={review.logoType} />
                             </View>
 
                             <View style={styles.platformTextBox}>
@@ -1665,6 +1887,29 @@ const styles = StyleSheet.create({
   ratingText: {
     marginLeft: 5,
     color: "#111827",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
+  detailTagRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 12,
+    marginBottom: 18,
+  },
+
+  detailTagPill: {
+    paddingHorizontal: 12,
+    height: 32,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  detailTagText: {
+    color: "#64748B",
     fontSize: 13,
     fontWeight: "800",
   },
@@ -2102,6 +2347,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 19,
+  },
+
+  reviewPlatformLogoImage: {
+    width: 22,
+    height: 22,
+    resizeMode: "contain",
   },
 
   googleIcon: {
