@@ -29,7 +29,7 @@ type Props = {
   tripId?: number | string | null;
   allowedPlanPairs?: AllowedGapPlanPair[];
   fallbackGaps?: TripScheduleGap[];
-  onSelectPlace?: (place: RecommendedPlace) => void;
+  onSelectPlace?: (place: RecommendedPlace, gap: TripScheduleGap) => void;
 };
 
 type Status = "idle" | "loading" | "done" | "error";
@@ -119,6 +119,7 @@ export default function GapRecommendationCard({
         serverGaps: serverGaps.map((gap) => ({
           beforePlanId: gap.beforePlanId,
           afterPlanId: gap.afterPlanId,
+          day: gap.day,
           beforePlanTitle: gap.beforePlanTitle,
           afterPlanTitle: gap.afterPlanTitle,
           beforePlanEndTime: gap.beforePlanEndTime,
@@ -155,6 +156,7 @@ export default function GapRecommendationCard({
         currentScreenGaps: currentScreenGaps.map((gap) => ({
           beforePlanId: gap.beforePlanId,
           afterPlanId: gap.afterPlanId,
+          day: gap.day,
           beforePlanTitle: gap.beforePlanTitle,
           afterPlanTitle: gap.afterPlanTitle,
           gapMinutes: gap.gapMinutes,
@@ -239,17 +241,26 @@ export default function GapRecommendationCard({
   };
 
   const handleSelectPlace = (place: RecommendedPlace) => {
+    if (!selectedGap) {
+      setStatus("error");
+      setMessage("빈 시간을 먼저 선택해주세요.");
+      return;
+    }
+
     setSelectedPlaceId(place.placeId);
 
     console.log("[GapRecommendation] selected place:", {
       placeId: place?.placeId,
       googlePlaceId: place?.googlePlaceId,
       name: place?.name,
+      gapDay: selectedGap.day,
+      beforePlanId: selectedGap.beforePlanId,
+      afterPlanId: selectedGap.afterPlanId,
     });
 
     setMessage(`${place.name}을(를) 일정에 추가하는 중입니다.`);
 
-    onSelectPlace?.(place);
+    onSelectPlace?.(place, selectedGap);
   };
 
   const shouldHideCard =
