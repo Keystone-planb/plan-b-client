@@ -521,6 +521,7 @@ const currentDay = useMemo(() => {
         }
 
         return {
+          day: selectedDayIndex + 1,
           beforePlanId,
           afterPlanId,
           beforePlanTitle: place.name ?? "이전 장소",
@@ -846,10 +847,34 @@ const currentDay = useMemo(() => {
                         <GapRecommendationCard
                           allowedPlanPairs={currentGapPlanPairs}
                           fallbackGaps={currentPairFallbackGaps}
-                          onSelectPlace={(place) => {
+                          onSelectPlace={(place, gap) => {
+                            const recommendedPlaceId = String(place.placeId);
+                            const recommendedGooglePlaceId =
+                              place.googlePlaceId ?
+                                String(place.googlePlaceId)
+                              : recommendedPlaceId.startsWith("ChIJ") ?
+                                recommendedPlaceId
+                              : undefined;
+                            const targetDay = gap.day ?? selectedDayIndex + 1;
+
+                            if (!recommendedGooglePlaceId) {
+                              Alert.alert(
+                                "장소 추가 실패",
+                                "추천 장소의 Google Place ID가 없어 일정에 추가할 수 없습니다.",
+                              );
+
+                              return;
+                            }
+
                             console.log(
                               "[OngoingSchedule] gap place selected:",
-                              place,
+                              {
+                                ...place,
+                                recommendedPlaceId,
+                                recommendedGooglePlaceId,
+                                gapDay: gap.day,
+                                targetDay,
+                              },
                             );
 
                             navigation.navigate("PlanA", {
@@ -864,11 +889,11 @@ const currentDay = useMemo(() => {
                               transportLabel,
 
                               gapSelectedPlace: {
-                                id: String(place.placeId),
-                                placeId: String(place.placeId),
-                                googlePlaceId: String(
-                                  place.googlePlaceId ?? place.placeId,
-                                ),
+                                id:
+                                  recommendedGooglePlaceId ??
+                                  `recommended-place-${recommendedPlaceId}`,
+                                placeId: recommendedGooglePlaceId,
+                                googlePlaceId: recommendedGooglePlaceId,
 
                                 tripPlaceId: undefined,
                                 serverTripPlaceId: undefined,
@@ -881,7 +906,7 @@ const currentDay = useMemo(() => {
                                 longitude: place.longitude,
 
                                 time: "",
-                                day: selectedDayIndex + 1,
+                                day: targetDay,
                               },
                             });
                           }}
