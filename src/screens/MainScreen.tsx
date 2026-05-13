@@ -488,6 +488,7 @@ export default function MainScreen({ navigation }: Props) {
   const [notifications, setNotifications] = useState<WeatherNotification[]>([]);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [scheduleLoadError, setScheduleLoadError] = useState("");
 
   const loadNotifications = async (
     baseSchedules: StoredSchedule[] = schedules,
@@ -573,6 +574,7 @@ export default function MainScreen({ navigation }: Props) {
   const loadSchedules = async () => {
     try {
       setLoading(true);
+      setScheduleLoadError("");
 
       try {
         const serverTrips = await getTrips("ALL");
@@ -622,14 +624,16 @@ export default function MainScreen({ navigation }: Props) {
         await loadNotifications([]);
         return;
       } catch (serverError) {
-        console.log("[Main] 서버 일정 조회 실패 - 빈 화면 표시:", serverError);
+        console.log("[Main] 서버 일정 조회 실패:", serverError);
         setSchedules([]);
         await loadNotifications([]);
+        setScheduleLoadError("일정 조회에 실패했습니다.");
         return;
       }
     } catch (error) {
       console.log("[Main] 일정 불러오기 실패:", error);
       setSchedules([]);
+      setScheduleLoadError("일정 조회에 실패했습니다.");
     } finally {
       setLoading(false);
     }
@@ -989,6 +993,36 @@ export default function MainScreen({ navigation }: Props) {
     );
   };
 
+  const renderScheduleLoadErrorState = () => {
+    return (
+      <View style={styles.emptyContainer}>
+        <View style={styles.radialLayer} pointerEvents="none">
+          <RadialBackground />
+        </View>
+
+        <View style={styles.foregroundContent}>
+          <View style={styles.emptyIconCircle}>
+            <Ionicons name="warning-outline" size={42} color="#2158E8" />
+          </View>
+
+          <Text style={styles.emptyTitle}>{scheduleLoadError}</Text>
+
+          <Text style={styles.emptyDescription}>
+            로그인 상태 또는 네트워크를 확인한 뒤 다시 시도해주세요.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.addButton}
+            activeOpacity={0.85}
+            onPress={loadSchedules}
+          >
+            <Text style={styles.addButtonText}>다시 조회하기</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
+
   const renderHomeContent = () => {
     const activeSchedules = schedules
       .filter((schedule) => !isPastSchedule(schedule))
@@ -1182,6 +1216,8 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color="#2158E8" />
           </View>
+        : scheduleLoadError ?
+          renderScheduleLoadErrorState()
         : schedules.length === 0 ?
           renderEmptyState()
         : renderHomeContent()}

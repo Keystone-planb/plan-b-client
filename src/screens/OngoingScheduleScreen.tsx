@@ -493,7 +493,7 @@ const currentDay = useMemo(() => {
 
         const gapMinutes = nextStart - currentEnd;
 
-        if (gapMinutes < 60) {
+        if (gapMinutes < 30) {
           return null;
         }
 

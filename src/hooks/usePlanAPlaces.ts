@@ -1187,6 +1187,16 @@ export function usePlanAPlaces({
         createdTripRecord.id ??
         scheduleBase.serverTripId;
 
+      if (!refreshedTripId) {
+        throw new Error("서버 여행 ID를 확인하지 못했습니다.");
+      }
+
+      const refreshedTripIdNumber = Number(refreshedTripId);
+
+      if (!Number.isFinite(refreshedTripIdNumber)) {
+        throw new Error("서버 여행 ID 형식이 올바르지 않습니다.");
+      }
+
       if (refreshedTripId) {
         try {
           const refreshedDetail = await getTripDetail(refreshedTripId);
@@ -1333,14 +1343,14 @@ export function usePlanAPlaces({
 
       for (const item of locationRequests) {
         console.log("[QA_DUPLICATE] PlanA before addLocationToTripDay:", {
-          tripId: createdTrip.tripId,
+          tripId: refreshedTripId,
           day: item.day,
           placeId: item.payload.place_id,
           name: item.payload.name,
         });
 
         const createdLocation = await addLocationToTripDay({
-          tripId: createdTrip.tripId,
+          tripId: refreshedTripId,
           day: item.day,
           payload: item.payload,
         });
@@ -1360,10 +1370,10 @@ export function usePlanAPlaces({
 
       const scheduleToSave: TravelSchedule = {
         ...scheduleWithServerPlaces,
-        serverTripId: createdTrip.tripId,
-        tripName: createdTrip.title,
-        startDate: createdTrip.startDate,
-        endDate: createdTrip.endDate,
+        serverTripId: refreshedTripIdNumber,
+        tripName: createdTrip.title ?? scheduleBase.tripName,
+        startDate: createdTrip.startDate ?? scheduleBase.startDate,
+        endDate: createdTrip.endDate ?? scheduleBase.endDate,
         updatedAt: createNow(),
       };
 
