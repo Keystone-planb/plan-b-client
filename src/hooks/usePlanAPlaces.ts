@@ -1001,7 +1001,9 @@ export function usePlanAPlaces({
 
     validPlacesToAdd.forEach((placeToAdd) => {
       const targetDay = placeToAdd.day ?? selectedDay ?? 1;
-      const selectedPlaceKey = getSelectedPlaceKey(targetDay, placeToAdd);
+      const selectedPlaceKey = `${
+        scheduleId ?? serverTripId ?? scheduleRef.current.id
+      }:${getSelectedPlaceKey(targetDay, placeToAdd)}`;
 
       if (savedSelectedPlaceKeyRef.current.has(selectedPlaceKey)) {
         return;
