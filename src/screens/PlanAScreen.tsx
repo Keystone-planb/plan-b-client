@@ -55,6 +55,7 @@ type Props = {
       selectedPlaces?: SelectedPlacesParam;
       gapSelectedPlace?: {
         id?: string;
+        day?: number;
         placeId?: string;
         googlePlaceId?: string;
         name?: string;
@@ -401,6 +402,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     gapSelectedPlace?.id && gapSelectedPlace?.name ?
       {
         id: String(gapSelectedPlace.id),
+        day: gapSelectedPlace.day ?? selectedDay,
         placeId:
           gapSelectedPlace.placeId ?
             String(gapSelectedPlace.placeId)
@@ -415,7 +417,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
         latitude: gapSelectedPlace.latitude,
         longitude: gapSelectedPlace.longitude,
         time: "",
-        day: selectedDay,
       }
     : undefined;
 

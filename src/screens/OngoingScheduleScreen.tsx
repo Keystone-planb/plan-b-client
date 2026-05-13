@@ -889,6 +889,7 @@ const currentDay = useMemo(() => {
                               transportLabel,
 
                               gapSelectedPlace: {
+                                day: targetDay,
                                 id:
                                   recommendedGooglePlaceId ??
                                   `recommended-place-${recommendedPlaceId}`,
@@ -906,7 +907,6 @@ const currentDay = useMemo(() => {
                                 longitude: place.longitude,
 
                                 time: "",
-                                day: targetDay,
                               },
                             });
                           }}
