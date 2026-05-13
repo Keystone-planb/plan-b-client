@@ -13,21 +13,9 @@ export const markSessionActive = async () => {
 };
 
 export const isSessionExpiredByIdleTime = async () => {
-  const lastActiveAt = await AsyncStorage.getItem(LAST_ACTIVE_AT_KEY);
+  await markSessionActive();
 
-  if (!lastActiveAt) {
-    await markSessionActive();
-    return false;
-  }
-
-  const parsedLastActiveAt = Number(lastActiveAt);
-
-  if (!Number.isFinite(parsedLastActiveAt)) {
-    await markSessionActive();
-    return false;
-  }
-
-  return Date.now() - parsedLastActiveAt > SESSION_IDLE_TIMEOUT_MS;
+  return false;
 };
 
 export const clearLoginSession = async () => {
