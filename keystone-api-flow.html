@@ -1,0 +1,523 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Keystone API Flow Diagram</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 40px;
+        font-family:
+          -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI",
+          sans-serif;
+        background: #f6f8fb;
+        color: #172033;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 28px;
+        font-weight: 800;
+      }
+
+      .subtitle {
+        margin-bottom: 32px;
+        color: #64748b;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .section {
+        margin-bottom: 36px;
+        padding: 24px;
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 20px;
+        box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+      }
+
+      .section-title {
+        margin: 0 0 20px;
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      .flow {
+        display: flex;
+        align-items: stretch;
+        gap: 12px;
+        overflow-x: auto;
+        padding-bottom: 8px;
+      }
+
+      .node {
+        min-width: 190px;
+        padding: 16px;
+        border-radius: 16px;
+        border: 1px solid #dbeafe;
+        background: #eff6ff;
+      }
+
+      .node.front {
+        background: #ecfeff;
+        border-color: #a5f3fc;
+      }
+
+      .node.api {
+        background: #eef2ff;
+        border-color: #c7d2fe;
+      }
+
+      .node.server {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+
+      .node.warn {
+        background: #fff7ed;
+        border-color: #fed7aa;
+      }
+
+      .node.error {
+        background: #fef2f2;
+        border-color: #fecaca;
+      }
+
+      .node-title {
+        margin-bottom: 8px;
+        font-size: 15px;
+        font-weight: 800;
+        color: #111827;
+      }
+
+      .node-desc {
+        font-size: 12px;
+        line-height: 1.55;
+        color: #475569;
+        white-space: pre-line;
+      }
+
+      .arrow {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 34px;
+        font-size: 24px;
+        color: #94a3b8;
+        font-weight: 900;
+      }
+
+      .endpoint {
+        margin-top: 8px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        background: rgba(15, 23, 42, 0.06);
+        font-family:
+          ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        color: #334155;
+        word-break: break-all;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .card {
+        padding: 16px;
+        border-radius: 16px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+      }
+
+      .card-title {
+        margin-bottom: 10px;
+        font-weight: 800;
+        color: #0f172a;
+      }
+
+      ul {
+        margin: 0;
+        padding-left: 18px;
+        color: #475569;
+        font-size: 13px;
+        line-height: 1.8;
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 12px;
+      }
+
+      .badge {
+        padding: 6px 10px;
+        border-radius: 999px;
+        background: #e0f2fe;
+        color: #0369a1;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      @media (max-width: 900px) {
+        body {
+          padding: 20px;
+        }
+
+        .grid {
+          grid-template-columns: 1fr;
+        }
+
+        .node {
+          min-width: 170px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Keystone API Flow Diagram</h1>
+    <div class="subtitle">
+      프론트엔드 기준 API 흐름 도식화 · 로그인 / 일정 / 장소 / 틈새 추천 / 날씨
+      알림
+    </div>
+
+    <!-- 1. Auth -->
+    <section class="section">
+      <h2 class="section-title">1. 로그인 / 토큰 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">LoginScreen</div>
+          <div class="node-desc">
+            이메일/비밀번호 입력 또는 소셜 로그인 시작
+          </div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Login API</div>
+          <div class="node-desc">access_token / refresh_token 수신</div>
+          <div class="endpoint">POST /api/auth/login</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node server">
+          <div class="node-title">AsyncStorage 저장</div>
+          <div class="node-desc">
+            access_token refresh_token user_id nickname
+          </div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node front">
+          <div class="node-title">App Bootstrap</div>
+          <div class="node-desc">
+            토큰 있으면 Main 진입 없으면 Login/Onboarding
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Token Refresh -->
+    <section class="section">
+      <h2 class="section-title">2. API Client / 토큰 재발급 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">apiClient</div>
+          <div class="node-desc">모든 API 요청에 Authorization Bearer 추가</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node warn">
+          <div class="node-title">401 / 403 발생</div>
+          <div class="node-desc">access_token 만료 가능성</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Refresh API</div>
+          <div class="node-desc">refresh_token body 포함</div>
+          <div class="endpoint">POST /api/auth/refresh</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node server">
+          <div class="node-title">토큰 갱신</div>
+          <div class="node-desc">새 access_token 저장 기존 요청 재시도</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node error">
+          <div class="node-title">실패 시</div>
+          <div class="node-desc">
+            토큰 삭제하지 않음 로그인 상태 유지 서버 장애 fallback
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 3. Main / Trips -->
+    <section class="section">
+      <h2 class="section-title">3. 메인 일정 조회 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">MainScreen</div>
+          <div class="node-desc">앱 진입 / focus 시 서버 일정 목록 조회</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Trip List</div>
+          <div class="node-desc">
+            timeout 5초 권장 로컬 fallback 사용 여부 정책 필요
+          </div>
+          <div class="endpoint">GET /api/trips?status=ALL</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Trip Detail Hydrate</div>
+          <div class="node-desc">메인 카드 상세 보강 요청 수 제한 필요</div>
+          <div class="endpoint">GET /api/trips/{tripId}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node front">
+          <div class="node-title">Main Card</div>
+          <div class="node-desc">
+            진행중/예정 일정 카드 표시 첫 장소명 / 날짜 / 지역 표시
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 4. PlanA Save -->
+    <section class="section">
+      <h2 class="section-title">4. Plan.A 저장 / 장소 시간 반영 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">PlanAScreen</div>
+          <div class="node-desc">장소 추가 시간 수정 메모 수정</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node server">
+          <div class="node-title">Local Save</div>
+          <div class="node-desc">PlanAStorage 저장 draft cache 보존</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Trip Update</div>
+          <div class="endpoint">PUT /api/trips/{tripId}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Existing Place PATCH</div>
+          <div class="node-desc">
+            기존 장소 시간/메모 수정 병렬 대신 순차 처리 권장
+          </div>
+          <div class="endpoint">PATCH /api/plans/{tripPlaceId}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">New Place Add</div>
+          <div class="node-desc">신규 장소 서버 추가</div>
+          <div class="endpoint">
+            POST /api/trips/{tripId}/days/{day}/locations
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 5. Place Search / Detail -->
+    <section class="section">
+      <h2 class="section-title">5. 장소 검색 / 상세 분석 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">AddScheduleLocation</div>
+          <div class="node-desc">키워드 검색 장소 선택 상세 보기</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Place Search</div>
+          <div class="endpoint">GET /api/places/search?query={keyword}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Place Detail</div>
+          <div class="endpoint">GET /api/places/{googlePlaceId}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">AI Summary</div>
+          <div class="endpoint">GET /api/places/{googlePlaceId}/summary</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node warn">
+          <div class="node-title">Polling 주의</div>
+          <div class="node-desc">
+            기존 최대 20요청 가능 MVP에서는 2회 이하 권장
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 6. Gap Recommendation -->
+    <section class="section">
+      <h2 class="section-title">6. 틈새 추천 / SSE 흐름</h2>
+
+      <div class="flow">
+        <div class="node front">
+          <div class="node-title">OngoingSchedule</div>
+          <div class="node-desc">현재 Day의 장소 간 빈 시간 계산</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Gap List</div>
+          <div class="endpoint">GET /api/trips/{tripId}/gaps</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Gap Recommend Stream</div>
+          <div class="node-desc">progress / place / done 이벤트 수신</div>
+          <div class="endpoint">
+            POST /api/trips/{tripId}/gaps/recommend/stream
+          </div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node front">
+          <div class="node-title">GapRecommendationCard</div>
+          <div class="node-desc">추천 장소 5개 표시 선택 시 Plan.A 이동</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node server">
+          <div class="node-title">Plan.A 반영</div>
+          <div class="node-desc">
+            선택한 trip/day에만 추가 gapSelectedPlace.day 필수
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 7. Weather Notification -->
+    <section class="section">
+      <h2 class="section-title">7. 날씨 알림 흐름</h2>
+
+      <div class="flow">
+        <div class="node server">
+          <div class="node-title">Weather Scheduler</div>
+          <div class="node-desc">
+            서버에서 악천후 조건 감지 테스트 트리거와 분리 필요
+          </div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Notification List</div>
+          <div class="endpoint">GET /api/notifications/{userId}</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node front">
+          <div class="node-title">MainScreen</div>
+          <div class="node-desc">날씨 알림 카드 표시 대안 추천 진입</div>
+        </div>
+
+        <div class="arrow">→</div>
+
+        <div class="node api">
+          <div class="node-title">Replace / Dismiss</div>
+          <div class="endpoint">
+            POST /api/notifications/{id}/replace/{newPlaceId}
+          </div>
+          <div class="endpoint">POST /api/notifications/{id}/dismiss</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Risk -->
+    <section class="section">
+      <h2 class="section-title">8. 현재 장애 의심 지점</h2>
+
+      <div class="grid">
+        <div class="card">
+          <div class="card-title">프론트 요청 과다 가능 지점</div>
+          <ul>
+            <li>Main 진입 시 getTrips + getTripDetail 연쇄 호출</li>
+            <li>Ongoing focus마다 getTripDetail 재조회</li>
+            <li>장소 상세 polling에서 API 다중 호출</li>
+            <li>Plan.A 저장 시 PATCH / ADD 요청 다수 발생</li>
+            <li>SSE 스트림 중복 실행 가능성</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="card-title">백엔드 확인 필요 지점</div>
+          <ul>
+            <li>DB connection pool exhaustion</li>
+            <li>slow query / lock wait</li>
+            <li>SSE 처리 중 DB connection 장시간 점유</li>
+            <li>/api/auth/refresh 403 HTML 응답</li>
+            <li>Bearer 토큰 포함 요청에서만 500/502 발생</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="badge-row">
+        <span class="badge">MVP 안정화</span>
+        <span class="badge">요청 수 축소</span>
+        <span class="badge">timeout 단축</span>
+        <span class="badge">fallback 정책 분리</span>
+        <span class="badge">SSE 중복 방지</span>
+      </div>
+    </section>
+  </body>
+</html>
