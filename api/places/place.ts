@@ -110,7 +110,6 @@ export type PlaceDetailTagGroup = {
   mood?: string[];
 };
 
-
 /**
  * 장소 리뷰 요약
  * GET /api/places/{place_id}/summary
@@ -166,15 +165,42 @@ const unwrapPlaceData = <T>(data: unknown): T => {
   return data as T;
 };
 
+const hasAnalyzedTags = (detail?: PlaceDetailResponse | null) => {
+  if (!detail) return false;
+
+  const tags = (detail as any)?.tags;
+  if (tags && typeof tags === "object" && !Array.isArray(tags)) {
+    if (
+      (Array.isArray(tags.space) && tags.space.length > 0) ||
+      (Array.isArray(tags.type) && tags.type.length > 0) ||
+      (Array.isArray(tags.mood) && tags.mood.length > 0)
+    ) {
+      return true;
+    }
+  }
+
+  return Boolean(
+    (detail as any)?.spaceTags?.length ||
+    (detail as any)?.typeTags?.length ||
+    (detail as any)?.moodTags?.length ||
+    (detail as any)?.space ||
+    (detail as any)?.type ||
+    (detail as any)?.mood,
+  );
+};
+
 export const getPlaceDetail = async (
   placeId: string | number,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<PlaceDetailResponse> => {
   const encodedPlaceId = normalizePlaceId(placeId);
 
   const cacheKey = String(encodedPlaceId);
 
-  const cached = placeDetailCache.get(cacheKey);
-  if (cached) return cached;
+  if (!options.forceRefresh) {
+    const cached = placeDetailCache.get(cacheKey);
+    if (cached) return cached;
+  }
 
   const response = await apiClient.get<
     PlaceDetailResponse | { data: PlaceDetailResponse }
@@ -182,9 +208,17 @@ export const getPlaceDetail = async (
 
   const result = unwrapPlaceData<PlaceDetailResponse>(response.data);
 
-  placeDetailCache.set(cacheKey, result);
+  // AI 분석이 끝난 결과만 캐시 (분석 전 데이터가 캐시돼서 갱신이 안 되는 문제 방지)
+  if (hasAnalyzedTags(result)) {
+    placeDetailCache.set(cacheKey, result);
+  }
 
   return result;
+};
+
+export const invalidatePlaceDetailCache = (placeId: string | number) => {
+  const encodedPlaceId = normalizePlaceId(placeId);
+  placeDetailCache.delete(String(encodedPlaceId));
 };
 
 export const getPlaceReviewSummary = async (
@@ -219,7 +253,6 @@ export const getPrimaryReviewSummaryText = (
   );
 };
 
-
 type PlaceDetailTagCarrier = {
   tags?: PlaceDetailTagGroup | string[];
   spaceTags?: string[];
@@ -228,7 +261,10 @@ type PlaceDetailTagCarrier = {
 };
 
 export const getPlaceTagGroups = (detail?: PlaceDetailResponse | null) => {
-  const tagDetail = detail as (PlaceDetailResponse & PlaceDetailTagCarrier) | null | undefined;
+  const tagDetail = detail as
+    | (PlaceDetailResponse & PlaceDetailTagCarrier)
+    | null
+    | undefined;
   const tags = tagDetail?.tags;
 
   if (tags && !Array.isArray(tags)) {
@@ -245,7 +281,6 @@ export const getPlaceTagGroups = (detail?: PlaceDetailResponse | null) => {
     mood: tagDetail?.moodTags ?? [],
   };
 };
-
 
 export type PlaceAnalysisStatus = "PENDING" | "COMPLETE";
 

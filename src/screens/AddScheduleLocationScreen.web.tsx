@@ -23,6 +23,7 @@ import {
   getPlaceFreshness,
   getPlaceSummary,
   searchPlaces,
+  getPlaceAnalysisStatus,
 } from "../../api/places/searchPlaces";
 import {
   PlaceFreshnessResponse,
@@ -283,7 +284,7 @@ const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
 const isMockLikeSummary = (summary: string) => {
   const MOCK_LIKE_SUMMARY_PATTERNS = [
     "분위기 있는 인테리어",
-    
+
     "커피 퀄리티가 높고",
     "디저트도 맛있습니다",
     "힐링 분위기와 잘 맞는 조용한 카페",
@@ -300,7 +301,6 @@ const isMockLikeSummary = (summary: string) => {
     normalized.includes(pattern),
   );
 };
-
 
 const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
   places: T[],
@@ -486,9 +486,7 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getAnalyzedPlaceDetail(
-        String(place.placeId),
-      );
+      const detail = await getAnalyzedPlaceDetail(String(place.placeId));
 
       const nextPlace: SelectedPlace = {
         placeId: String(place.placeId),
@@ -550,21 +548,154 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    const hasAnalyzedTagsInDetail = (detail: unknown) => {
+      if (!detail || typeof detail !== "object") return false;
+      const target = detail as Record<string, any>;
+      const tags = target.tags;
+
+      if (tags && typeof tags === "object" && !Array.isArray(tags)) {
+        if (
+          (Array.isArray(tags.space) && tags.space.length > 0) ||
+          (Array.isArray(tags.type) && tags.type.length > 0) ||
+          (Array.isArray(tags.mood) && tags.mood.length > 0)
+        ) {
+          return true;
+        }
+      }
+
+      return Boolean(
+        target.spaceTags?.length ||
+        target.typeTags?.length ||
+        target.moodTags?.length ||
+        target.space ||
+        target.type ||
+        target.mood,
+      );
+    };
+
+    const hasUsefulSummary = (payload: unknown) => {
+      if (!payload || typeof payload !== "object") return false;
+      const target = payload as Record<string, any>;
+      const candidates = [
+        target.aiSummary,
+        target.summary,
+        target.reviewSummary,
+        target.googleReview,
+        target.naverReview,
+        target.instaReview,
+        target.data?.aiSummary,
+        target.data?.summary,
+        target.result?.aiSummary,
+        target.result?.summary,
+      ];
+
+      return candidates.some(
+        (value) => typeof value === "string" && value.trim().length > 0,
+      );
+    };
+
+    const isAnalysisStatusCompleted = (payload: unknown) => {
+      if (!payload || typeof payload !== "object") return false;
+      const statusObject = payload as Record<string, any>;
+      const status = String(
+        statusObject.status ??
+          statusObject.analysisStatus ??
+          statusObject.data?.status ??
+          statusObject.result?.status ??
+          "",
+      ).toUpperCase();
+
+      return (
+        status === "COMPLETED" ||
+        status === "COMPLETE" ||
+        status === "DONE" ||
+        status === "SUCCESS" ||
+        status === "READY" ||
+        statusObject.ready === true ||
+        statusObject.completed === true ||
+        statusObject.isCompleted === true ||
+        statusObject.isAnalyzed === true
+      );
+    };
+
+    const MAX_POLL_ATTEMPTS = 20;
+    const POLL_INTERVAL_MS = 2000;
+    const detailLoadingStartedAt = Date.now();
+
     try {
       setReviewLoadingPlaceId(placeId);
 
-      const [detail, summary, freshness] = await Promise.all([
-        getPlaceDetail(placeId),
-        getPlaceSummary(placeId),
-        getPlaceFreshness(placeId),
-      ]);
+      let detail: any = null;
+      let summary: any = null;
+      let freshness: any = null;
+      let analysisCompleted = false;
+
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+        const [detailResult, summaryResult, freshnessResult, statusResult] =
+          await Promise.allSettled([
+            getPlaceDetail(placeId),
+            getPlaceSummary(placeId),
+            getPlaceFreshness(placeId),
+            getPlaceAnalysisStatus(placeId),
+          ]);
+
+        detail =
+          detailResult.status === "fulfilled" ? detailResult.value : detail;
+        summary =
+          summaryResult.status === "fulfilled" ? summaryResult.value : summary;
+        freshness =
+          freshnessResult.status === "fulfilled" ?
+            freshnessResult.value
+          : freshness;
+        const analysisStatus =
+          statusResult.status === "fulfilled" ? statusResult.value : null;
+
+        const hasUseful = hasUsefulSummary(summary) || hasUsefulSummary(detail);
+        const hasTags = hasAnalyzedTagsInDetail(detail);
+        const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
+
+        console.log("[AddScheduleLocation.web] analysis polling:", {
+          placeId,
+          attempt: attempt + 1,
+          hasUseful,
+          hasTags,
+          statusCompleted,
+          analysisStatus,
+        });
+
+        if (statusCompleted || (hasTags && hasUseful)) {
+          analysisCompleted = true;
+          break;
+        }
+
+        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+          await wait(POLL_INTERVAL_MS);
+        }
+      }
 
       console.log("[AddScheduleLocation.web] place detail/summary/freshness:", {
         placeId,
+        analysisCompleted,
         detail,
         summary,
         freshness,
       });
+
+      if (!analysisCompleted) {
+        const elapsed = Date.now() - detailLoadingStartedAt;
+        if (elapsed < 1000) {
+          await wait(1000 - elapsed);
+        }
+
+        Alert.alert(
+          "분석 진행 중",
+          "리뷰 분석이 아직 완료되지 않았습니다. 잠시 후 다시 시도해주세요.",
+        );
+        return;
+      }
 
       setPlaceReviewMap((prev) => ({
         ...prev,
@@ -579,25 +710,16 @@ export default function AddScheduleLocationScreen({
     } catch (error) {
       console.log("장소 요약 정보 조회 실패:", error);
 
-      setPlaceReviewMap((prev) => ({
-        ...prev,
-        [placeId]: {
-          summary: {
-            placeId,
-            aiSummary: "아직 요약 정보가 없습니다.",
-          },
-        },
-      }));
-
-      setExpandedPlaceId(placeId);
+      Alert.alert(
+        "상세 정보 조회 실패",
+        "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setReviewLoadingPlaceId(null);
     }
   };
 
-  const handleNext = async (
-    overridePlaces?: SelectedPlace[],
-  ) => {
+  const handleNext = async (overridePlaces?: SelectedPlace[]) => {
     if (submitLoading || submitLockRef.current) {
       console.log("[AddScheduleLocation] 중복 저장 실행 차단:", {
         submitLoading,
@@ -636,7 +758,8 @@ export default function AddScheduleLocationScreen({
       primaryPlace?.name || primaryPlace?.address || "선택한 장소";
 
     let serverTripId: number | string | undefined = resolvedExistingTripId;
-    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> = {};
+    const serverPlaceMap: Record<string, { tripPlaceId?: number | string }> =
+      {};
 
     try {
       setSubmitLoading(true);
@@ -655,8 +778,6 @@ export default function AddScheduleLocationScreen({
 
         if (serverTripId) {
           for (const place of placesToSubmit) {
-
-
             console.log("[addTripLocation request]", {
               tripId: serverTripId,
               day: selectedDay,
@@ -706,9 +827,7 @@ export default function AddScheduleLocationScreen({
         refreshPlanAAt: Date.now(),
         initialSchedule: route.params?.initialSchedule,
         existingPlaces:
-          route.params?.existingPlaces ??
-          route.params?.places ??
-          [],
+          route.params?.existingPlaces ?? route.params?.places ?? [],
         tripName,
         startDate,
         endDate,
@@ -730,7 +849,8 @@ export default function AddScheduleLocationScreen({
           longitude: place.longitude,
           time: "",
           day: selectedDay,
-        })),      });
+        })),
+      });
     } catch (error) {
       console.log("일정 생성 실패:", error);
 
@@ -905,7 +1025,7 @@ export default function AddScheduleLocationScreen({
               ]).trim(),
             ].filter(Boolean);
 
-             const freshnessStatus = getFirstText(unwrappedFreshness, [
+            const freshnessStatus = getFirstText(unwrappedFreshness, [
               "status",
               "freshnessStatus",
               "data.status",
@@ -962,7 +1082,9 @@ export default function AddScheduleLocationScreen({
                     isExpanded && styles.compactButton,
                   ]}
                   activeOpacity={0.8}
-                  disabled={isPreview || isReviewLoading || submitLockRef.current}
+                  disabled={
+                    isPreview || isReviewLoading || submitLockRef.current
+                  }
                   onPress={() =>
                     handleTogglePlaceReview(
                       place.googlePlaceId ?? String(place.placeId),
@@ -1058,7 +1180,8 @@ export default function AddScheduleLocationScreen({
                         ))
                       : <View style={styles.keywordChip}>
                           <Text style={styles.keywordText}>태그 정보 없음</Text>
-                        </View>}
+                        </View>
+                      }
                     </View>
                   </View>
                 : null}
@@ -1067,7 +1190,9 @@ export default function AddScheduleLocationScreen({
                   <TouchableOpacity
                     style={styles.expandedSelectButton}
                     activeOpacity={0.8}
-                    disabled={isDetailLoading || submitLoading || submitLockRef.current}
+                    disabled={
+                      isDetailLoading || submitLoading || submitLockRef.current
+                    }
                     onPress={() =>
                       handleNext([
                         {
@@ -1077,7 +1202,8 @@ export default function AddScheduleLocationScreen({
                             place.googlePlaceId ?? place.placeId,
                           ),
                           latitude: place.latitude ?? INITIAL_REGION.latitude,
-                          longitude: place.longitude ?? INITIAL_REGION.longitude,
+                          longitude:
+                            place.longitude ?? INITIAL_REGION.longitude,
                         },
                       ])
                     }
@@ -1441,7 +1567,6 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: "#DDE5EF",
   },
-
 
   reviewSummaryCard: {
     marginTop: 14,

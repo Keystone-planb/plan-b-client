@@ -21,7 +21,7 @@ import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
-getPlaceDetail,
+  getPlaceDetail,
   getPlaceFreshness,
   getPlaceSummary,
   searchPlaces,
@@ -55,7 +55,6 @@ const ReviewPlatformLogo = ({ logoType }: { logoType?: string }) => {
 
   return null;
 };
-
 
 type Props = {
   navigation: any;
@@ -371,7 +370,6 @@ const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
   return "";
 };
 
-
 const getSpaceLabel = (value?: string) => {
   const key = String(value ?? "").toUpperCase();
 
@@ -445,7 +443,6 @@ const formatConfidenceScore = (score?: number) => {
   return `${Math.round(score)}%`;
 };
 
-
 const isUsefulReviewText = (value: unknown) => {
   if (typeof value !== "string") return false;
 
@@ -453,7 +450,7 @@ const isUsefulReviewText = (value: unknown) => {
 
   if (!normalized) return false;
   if (normalized.includes("데이터 부족")) return false;
-    if (normalized.includes("아직 분석 데이터가 없습니다")) return false;
+  if (normalized.includes("아직 분석 데이터가 없습니다")) return false;
 
   return true;
 };
@@ -724,6 +721,31 @@ export default function AddScheduleLocationScreen({
     }
   };
 
+  const hasAnalyzedTagsInDetail = (detail: unknown) => {
+    if (!detail || typeof detail !== "object") return false;
+    const target = detail as Record<string, any>;
+    const tags = target.tags;
+
+    if (tags && typeof tags === "object" && !Array.isArray(tags)) {
+      if (
+        (Array.isArray(tags.space) && tags.space.length > 0) ||
+        (Array.isArray(tags.type) && tags.type.length > 0) ||
+        (Array.isArray(tags.mood) && tags.mood.length > 0)
+      ) {
+        return true;
+      }
+    }
+
+    return Boolean(
+      target.spaceTags?.length ||
+      target.typeTags?.length ||
+      target.moodTags?.length ||
+      target.space ||
+      target.type ||
+      target.mood,
+    );
+  };
+
   const handleTogglePlaceReview = async (place: PlaceSearchResult) => {
     const placeKey = getReviewPlaceKey(place);
 
@@ -745,58 +767,64 @@ export default function AddScheduleLocationScreen({
 
     const detailLoadingStartedAt = Date.now();
 
+    // 폴링 설정: 백엔드 OpenAI 분석은 보통 5~30초 걸림
+    const MAX_POLL_ATTEMPTS = 20;
+    const POLL_INTERVAL_MS = 2000;
+
     try {
       setReviewLoadingPlaceId(placeKey);
 
       let detail: any = null;
       let summary: any = null;
       let freshness: any = null;
+      let analysisCompleted = false;
 
-      for (let attempt = 0; attempt < 2; attempt += 1) {
-        const [
-          detailResult,
-          summaryResult,
-        ] = await Promise.allSettled([
-          getPlaceDetail(placeKey),
-          getPlaceSummary(placeKey),
-        ]);
-
-        const freshnessResult: PromiseSettledResult<any> = {
-          status: "rejected",
-          reason: null,
-        };
-        const analysisStatusResult: PromiseSettledResult<any> = {
-          status: "rejected",
-          reason: null,
-        };
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+        const [detailResult, summaryResult, analysisStatusResult] =
+          await Promise.allSettled([
+            getPlaceDetail(placeKey),
+            getPlaceSummary(placeKey),
+            getPlaceAnalysisStatus(placeKey),
+          ]);
 
         detail =
           detailResult.status === "fulfilled" ? detailResult.value : detail;
         summary =
           summaryResult.status === "fulfilled" ? summaryResult.value : summary;
-        const analysisStatus = null;
+        const analysisStatus =
+          analysisStatusResult.status === "fulfilled" ?
+            analysisStatusResult.value
+          : null;
 
         const hasUsefulReview =
           hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
+        const hasTags = hasAnalyzedTagsInDetail(detail);
+        const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
 
         console.log("[AddScheduleLocation] analysis polling:", {
           placeKey,
           attempt: attempt + 1,
           hasUsefulReview,
+          hasTags,
+          statusCompleted,
           analysisStatus,
         });
 
-        if (hasUsefulReview || isAnalysisStatusCompleted(analysisStatus)) {
+        // AI 분석 완료 판정: 백엔드 status가 COMPLETED 이거나,
+        // detail에 space/type/mood 태그가 들어있고 AI summary 같은 리뷰 텍스트가 채워졌을 때.
+        if (statusCompleted || (hasTags && hasUsefulReview)) {
+          analysisCompleted = true;
           break;
         }
 
-        if (attempt < 1) {
-          await wait(2000);
+        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+          await wait(POLL_INTERVAL_MS);
         }
       }
 
       console.log("[AddScheduleLocation] review response:", {
         placeKey,
+        analysisCompleted,
         detail,
         summary,
         freshness,
@@ -816,6 +844,20 @@ export default function AddScheduleLocationScreen({
             Object.keys(freshness as object)
           : [],
       });
+
+      // 분석이 끝나지 않았으면 모달을 띄우지 않는다.
+      if (!analysisCompleted) {
+        const elapsed = Date.now() - detailLoadingStartedAt;
+        if (elapsed < 1000) {
+          await wait(1000 - elapsed);
+        }
+
+        Alert.alert(
+          "분석 진행 중",
+          "리뷰 분석이 아직 완료되지 않았습니다. 잠시 후 다시 시도해주세요.",
+        );
+        return;
+      }
 
       setPlaceReviewMap((prev) => ({
         ...prev,
@@ -1500,15 +1542,14 @@ export default function AddScheduleLocationScreen({
                     <ActivityIndicator size="small" color="#6F7F95" />
                   : <>
                       <Text style={styles.detailButtonText}>
-                        {reviewLoadingPlaceId === [
-                      place.name,
-                      place.address,
-                      place.category,
-                    ]
-                      .filter(Boolean)
-                      .join("-") ?
-                      "불러오는 중..."
-                    : "상세 정보 보기"}
+                        {(
+                          reviewLoadingPlaceId ===
+                          [place.name, place.address, place.category]
+                            .filter(Boolean)
+                            .join("-")
+                        ) ?
+                          "불러오는 중..."
+                        : "상세 정보 보기"}
                       </Text>
                       <Ionicons name="eye-outline" size={15} color="#6F7F95" />
                     </>

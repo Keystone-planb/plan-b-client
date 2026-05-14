@@ -19,9 +19,11 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 
 import {
+  getPlaceDetail,
   getPlaceFreshness,
   getPlaceSummary,
   searchPlaces,
+  getPlaceAnalysisStatus,
 } from "../../api/places/searchPlaces";
 import {
   PlaceFreshnessResponse,
@@ -49,6 +51,7 @@ type SelectedPlace = {
 };
 
 type PlaceReviewInfo = {
+  detail?: any;
   summary?: PlaceSummaryResponse;
   freshness?: PlaceFreshnessResponse;
 };
@@ -116,7 +119,6 @@ function MapFocus({ selectedPlace }: { selectedPlace: SelectedPlace | null }) {
   return null;
 }
 
-
 type ReviewSummaryLike = {
   reviewSummary?: string;
   ReviewSummary?: string;
@@ -133,11 +135,13 @@ type PlaceDetailLike = {
   space?: string | string[];
   type?: string | string[];
   mood?: string | string[];
-  tags?: {
-    space?: string | string[];
-    type?: string | string[];
-    mood?: string | string[];
-  } | string[];
+  tags?:
+    | {
+        space?: string | string[];
+        type?: string | string[];
+        mood?: string | string[];
+      }
+    | string[];
   spaceTags?: string[];
   typeTags?: string[];
   moodTags?: string[];
@@ -185,7 +189,8 @@ const getFullReviewSummaryText = (summary?: ReviewSummaryLike | null) => {
 };
 
 const getThreePlaceTags = (detail?: PlaceDetailLike | null) => {
-  const tags = detail?.tags && !Array.isArray(detail.tags) ? detail.tags : undefined;
+  const tags =
+    detail?.tags && !Array.isArray(detail.tags) ? detail.tags : undefined;
 
   const space =
     toFirstTagText(tags?.space) ||
@@ -242,7 +247,6 @@ const getOpeningHoursText = (detail?: PlaceDetailLike | null) => {
   );
 };
 
-
 export default function AddScheduleLocationScreen({
   navigation,
   route,
@@ -280,7 +284,9 @@ export default function AddScheduleLocationScreen({
     });
   };
 
-  console.log("[AddScheduleLocation] route params:", { hasParams: Boolean(route?.params) });
+  console.log("[AddScheduleLocation] route params:", {
+    hasParams: Boolean(route?.params),
+  });
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -377,9 +383,7 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail = await getAnalyzedPlaceDetail(
-        String(place.placeId),
-      );
+      const detail = await getAnalyzedPlaceDetail(String(place.placeId));
 
       const nextPlace: SelectedPlace = {
         placeId: String(place.placeId),
@@ -458,23 +462,161 @@ export default function AddScheduleLocationScreen({
       return;
     }
 
+    const wait = (ms: number) =>
+      new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+    const hasAnalyzedTagsInDetail = (detail: unknown) => {
+      if (!detail || typeof detail !== "object") return false;
+      const target = detail as Record<string, any>;
+      const tags = target.tags;
+
+      if (tags && typeof tags === "object" && !Array.isArray(tags)) {
+        if (
+          (Array.isArray(tags.space) && tags.space.length > 0) ||
+          (Array.isArray(tags.type) && tags.type.length > 0) ||
+          (Array.isArray(tags.mood) && tags.mood.length > 0)
+        ) {
+          return true;
+        }
+      }
+
+      return Boolean(
+        target.spaceTags?.length ||
+        target.typeTags?.length ||
+        target.moodTags?.length ||
+        target.space ||
+        target.type ||
+        target.mood,
+      );
+    };
+
+    const hasUsefulSummary = (payload: unknown) => {
+      if (!payload || typeof payload !== "object") return false;
+      const target = payload as Record<string, any>;
+      const candidates = [
+        target.aiSummary,
+        target.summary,
+        target.reviewSummary,
+        target.googleReview,
+        target.naverReview,
+        target.instaReview,
+        target.data?.aiSummary,
+        target.data?.summary,
+        target.result?.aiSummary,
+        target.result?.summary,
+      ];
+
+      return candidates.some(
+        (value) => typeof value === "string" && value.trim().length > 0,
+      );
+    };
+
+    const isAnalysisStatusCompleted = (payload: unknown) => {
+      if (!payload || typeof payload !== "object") return false;
+      const statusObject = payload as Record<string, any>;
+      const status = String(
+        statusObject.status ??
+          statusObject.analysisStatus ??
+          statusObject.data?.status ??
+          statusObject.result?.status ??
+          "",
+      ).toUpperCase();
+
+      return (
+        status === "COMPLETED" ||
+        status === "COMPLETE" ||
+        status === "DONE" ||
+        status === "SUCCESS" ||
+        status === "READY" ||
+        statusObject.ready === true ||
+        statusObject.completed === true ||
+        statusObject.isCompleted === true ||
+        statusObject.isAnalyzed === true
+      );
+    };
+
+    const MAX_POLL_ATTEMPTS = 20;
+    const POLL_INTERVAL_MS = 2000;
+    const detailLoadingStartedAt = Date.now();
+
     try {
       setReviewLoadingPlaceId(placeId);
 
-      const [summary, freshness] = await Promise.all([
-        getPlaceSummary(placeId),
-        getPlaceFreshness(placeId),
-      ]);
+      let detail: any = null;
+      let summary: any = null;
+      let freshness: any = null;
+      let analysisCompleted = false;
 
-      console.log("[AddScheduleLocation] place summary response:", {
+      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+        const [detailResult, summaryResult, freshnessResult, statusResult] =
+          await Promise.allSettled([
+            getPlaceDetail(placeId),
+            getPlaceSummary(placeId),
+            getPlaceFreshness(placeId),
+            getPlaceAnalysisStatus(placeId),
+          ]);
+
+        detail =
+          detailResult.status === "fulfilled" ? detailResult.value : detail;
+        summary =
+          summaryResult.status === "fulfilled" ? summaryResult.value : summary;
+        freshness =
+          freshnessResult.status === "fulfilled" ?
+            freshnessResult.value
+          : freshness;
+        const analysisStatus =
+          statusResult.status === "fulfilled" ? statusResult.value : null;
+
+        const hasUseful = hasUsefulSummary(summary) || hasUsefulSummary(detail);
+        const hasTags = hasAnalyzedTagsInDetail(detail);
+        const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
+
+        console.log("[AddScheduleLocation] analysis polling:", {
+          file: "AddScheduleLocationScreen.tsx",
+          placeId,
+          attempt: attempt + 1,
+          hasUseful,
+          hasTags,
+          statusCompleted,
+          analysisStatus,
+        });
+
+        if (statusCompleted || (hasTags && hasUseful)) {
+          analysisCompleted = true;
+          break;
+        }
+
+        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+          await wait(POLL_INTERVAL_MS);
+        }
+      }
+
+      console.log("[AddScheduleLocation] place review response:", {
         file: "AddScheduleLocationScreen.tsx",
         placeId,
+        analysisCompleted,
+        detail,
         summary,
+        freshness,
       });
+
+      if (!analysisCompleted) {
+        const elapsed = Date.now() - detailLoadingStartedAt;
+        if (elapsed < 1000) {
+          await wait(1000 - elapsed);
+        }
+
+        Alert.alert(
+          "분석 진행 중",
+          "리뷰 분석이 아직 완료되지 않았습니다. 잠시 후 다시 시도해주세요.",
+        );
+        return;
+      }
 
       setPlaceReviewMap((prev) => ({
         ...prev,
         [placeId]: {
+          detail,
           summary,
           freshness,
         },
@@ -484,17 +626,10 @@ export default function AddScheduleLocationScreen({
     } catch (error) {
       console.log("장소 요약 정보 조회 실패:", error);
 
-      setPlaceReviewMap((prev) => ({
-        ...prev,
-        [placeId]: {
-          summary: {
-            placeId,
-            aiSummary: "아직 요약 정보가 없습니다.",
-          },
-        },
-      }));
-
-      setExpandedPlaceId(placeId);
+      Alert.alert(
+        "상세 정보 조회 실패",
+        "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setReviewLoadingPlaceId(null);
     }
