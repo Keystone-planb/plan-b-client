@@ -769,7 +769,7 @@ export default function AddScheduleLocationScreen({
 
     // 폴링 설정: 백엔드 OpenAI 분석은 보통 5~30초 걸림
     const MAX_POLL_ATTEMPTS = 20;
-    const POLL_INTERVAL_MS = 2000;
+    const POLL_INTERVAL_MS = 5000;
 
     try {
       setReviewLoadingPlaceId(placeKey);
