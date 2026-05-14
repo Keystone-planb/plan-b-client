@@ -1302,17 +1302,64 @@ export function usePlanAPlaces({
           const shouldCreate = !hasValidServerPlaceId(existingTripPlaceId);
 
           if (!shouldCreate) {
-
             if (existingTripPlaceId) {
-              existingScheduleUpdateRequests.push({
-                tripPlaceId: existingTripPlaceId,
-                visitTime:
-                  existingPlace?.visitTime ?? item.payload.visitTime ?? null,
-                endTime: existingPlace?.endTime ?? item.payload.endTime ?? null,
-                memo:
-                  existingPlace?.memos?.[0]?.text ?? item.payload.memo ?? null,
-                placeName: existingPlace?.name,
-              });
+              const nextVisitTime =
+                existingPlace?.visitTime ?? item.payload.visitTime ?? null;
+              const nextEndTime =
+                existingPlace?.endTime ?? item.payload.endTime ?? null;
+              const nextMemo =
+                existingPlace?.memos?.[0]?.text ?? item.payload.memo ?? null;
+
+              const serverScheduleForCompare = scheduleRef.current;
+
+              const serverPlaceForCompare = serverScheduleForCompare?.days
+                ?.find((day) => Number(day.day) === Number(item.day))
+                ?.places?.find((place) => {
+                  const serverTripPlaceId =
+                    place.serverTripPlaceId ?? place.tripPlaceId;
+
+                  const sameTripPlaceId =
+                    String(serverTripPlaceId ?? "") ===
+                    String(existingTripPlaceId);
+
+                  const samePlaceId =
+                    String(place.placeId ?? "") ===
+                      String(item.payload.place_id ?? "") ||
+                    String(place.googlePlaceId ?? "") ===
+                      String(item.payload.place_id ?? "") ||
+                    String(place.id ?? "") ===
+                      String(item.payload.place_id ?? "");
+
+                  return sameTripPlaceId || samePlaceId;
+                });
+
+              const currentVisitTime = serverPlaceForCompare?.visitTime ?? null;
+              const currentEndTime = serverPlaceForCompare?.endTime ?? null;
+              const currentMemo =
+                serverPlaceForCompare?.memos?.[0]?.text ??
+                serverPlaceForCompare?.memo ??
+                null;
+
+              const hasChanged =
+                String(nextVisitTime ?? "") !== String(currentVisitTime ?? "") ||
+                String(nextEndTime ?? "") !== String(currentEndTime ?? "") ||
+                String(nextMemo ?? "") !== String(currentMemo ?? "");
+
+              if (hasChanged) {
+                existingScheduleUpdateRequests.push({
+                  tripPlaceId: existingTripPlaceId,
+                  visitTime: nextVisitTime,
+                  endTime: nextEndTime,
+                  memo: nextMemo,
+                  placeName: existingPlace?.name,
+                });
+              } else {
+                console.log("[PlanA 기존 서버 장소 PATCH 생략 - 변경 없음]", {
+                  day: item.day,
+                  placeName: existingPlace?.name,
+                  tripPlaceId: existingTripPlaceId,
+                });
+              }
             }
           }
 
