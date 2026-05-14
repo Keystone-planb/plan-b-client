@@ -223,10 +223,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [selectedDayIndex, setSelectedDayIndex] = useState(0);
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
+  const loadedTripDetailIdRef = useRef<string | number | null>(null);
   useFocusEffect(
     useCallback(() => {
       const loadTripDetail = async () => {
         if (!resolvedTripId) return;
+
+        if (loadedTripDetailIdRef.current === resolvedTripId) return;
+        loadedTripDetailIdRef.current = resolvedTripId;
 
         try {
           const detail = await getTripDetail(resolvedTripId);

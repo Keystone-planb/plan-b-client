@@ -600,7 +600,7 @@ export default function MainScreen({ navigation }: Props) {
 
         serverSchedules = await Promise.all(
           serverSchedules.map(async (schedule, index) => {
-            if (index > 1) {
+            if (index > 0) {
               return schedule;
             }
 

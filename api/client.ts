@@ -183,7 +183,6 @@ apiClient.interceptors.response.use(
         });
 
         if (!refreshToken || refreshToken.trim().length === 0) {
-          await removeStoredValues(TOKEN_KEYS);
           throw new Error("로그인이 만료되었습니다. 다시 로그인해주세요.");
         }
 
@@ -230,12 +229,6 @@ apiClient.interceptors.response.use(
           originalMethod: originalRequest?.method,
           responseStatus: error.response?.status,
         });
-
-        console.log("[apiClient] clearing tokens after refresh failure:", {
-          reason: "refresh_failed",
-          originalUrl: originalRequest?.url,
-        });
-        await removeStoredValues(TOKEN_KEYS);
 
         return Promise.reject(refreshError);
       }
