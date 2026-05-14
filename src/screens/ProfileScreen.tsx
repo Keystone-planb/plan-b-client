@@ -53,7 +53,14 @@ export default function ProfileScreen({ navigation }: Props) {
 
     const loadPreferenceSummary = async () => {
       try {
-        const summary = await getPreferenceSummary(1);
+        const storedUserId = await AsyncStorage.getItem("user_id");
+
+        if (!storedUserId) {
+          console.log("[Profile] user_id 없음 - 선호도 요약 조회 생략");
+          return;
+        }
+
+        const summary = await getPreferenceSummary(storedUserId);
         setPreferenceSummary(summary);
       } catch (error) {
         console.log("[Profile] 선호 여행 스타일 조회 실패:", error);
