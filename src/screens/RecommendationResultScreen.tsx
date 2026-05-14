@@ -905,10 +905,6 @@ export default function RecommendationResultScreen({
               </View>
             </View>
 
-            <View style={styles.badge}>
-              <Ionicons name="rainy-outline" size={12} color="#FFFFFF" />
-              <Text style={styles.badgeText}>비예보</Text>
-            </View>
           </View>
         </View>
 
