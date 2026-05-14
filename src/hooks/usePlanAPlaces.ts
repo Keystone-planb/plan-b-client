@@ -79,6 +79,40 @@ const DRAFT_SCHEDULE_CACHE: Record<string, TravelSchedule> = {};
 
 const createNow = () => new Date().toISOString();
 
+const getServerErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "response" in error
+  ) {
+    const response = (error as {
+      response?: {
+        data?: {
+          error?: string;
+          message?: string;
+        } | string;
+      };
+    }).response;
+
+    const data = response?.data;
+
+    if (typeof data === "string" && data.trim().length > 0) {
+      return data;
+    }
+
+    if (data?.error && data.error.trim().length > 0) {
+      return data.error;
+    }
+
+    if (data?.message && data.message.trim().length > 0) {
+      return data.message;
+    }
+  }
+
+  return fallback;
+};
+
+
 const getTripDayCount = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) return 1;
 
@@ -1118,7 +1152,12 @@ export function usePlanAPlaces({
           error,
         });
 
-        setSaveError("시간 변경을 서버에 반영하지 못했습니다.");
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "시간 변경을 서버에 반영하지 못했습니다.",
+          ),
+        );
       });
     }
   };
@@ -1549,7 +1588,12 @@ export function usePlanAPlaces({
           error,
         });
 
-        setSaveError("시간 변경을 서버에 반영하지 못했습니다.");
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "시간 변경을 서버에 반영하지 못했습니다.",
+          ),
+        );
       });
     }
 
