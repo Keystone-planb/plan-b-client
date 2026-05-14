@@ -62,13 +62,13 @@ export const requestRefresh = async ({
     console.log("[requestRefresh] body", {
       hasRefreshToken: Boolean(refresh_token),
       refreshTokenLength: refresh_token.length,
-      preview: `${refresh_token.slice(0, 12)}...`,
     });
 
     const response = await axios.post<unknown>(
       `${BASE_URL}/api/auth/refresh`,
       {
         refresh_token,
+        refreshToken: refresh_token,
       },
       {
         timeout: 5000,
