@@ -1337,7 +1337,8 @@ export function usePlanAPlaces({
               const currentEndTime = serverPlaceForCompare?.endTime ?? null;
               const currentMemo =
                 serverPlaceForCompare?.memos?.[0]?.text ??
-                serverPlaceForCompare?.memo ??
+                (serverPlaceForCompare as { memo?: string | null } | undefined)
+                  ?.memo ??
                 null;
 
               const hasChanged =
