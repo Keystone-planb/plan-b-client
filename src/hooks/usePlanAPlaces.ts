@@ -100,12 +100,17 @@ const getServerErrorMessage = (error: unknown, fallback: string) => {
       return data;
     }
 
-    if (data?.error && data.error.trim().length > 0) {
-      return data.error;
-    }
+    if (typeof data === "object" && data !== null) {
+      const errorMessage = data.error;
+      const message = data.message;
 
-    if (data?.message && data.message.trim().length > 0) {
-      return data.message;
+      if (typeof errorMessage === "string" && errorMessage.trim().length > 0) {
+        return errorMessage;
+      }
+
+      if (typeof message === "string" && message.trim().length > 0) {
+        return message;
+      }
     }
   }
 
