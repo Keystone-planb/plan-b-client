@@ -244,14 +244,26 @@ export const updatePlanSchedule = async (
   tripPlaceId: number | string,
   request: UpdatePlanScheduleRequest,
 ): Promise<UpdatePlanScheduleResponse> => {
-  const response = await apiClient.patch<unknown>(
-    `/api/plans/${tripPlaceId}/schedule`,
-    request,
-  );
+  try {
+    const response = await apiClient.patch<unknown>(
+      `/api/plans/${tripPlaceId}/schedule`,
+      request,
+    );
 
-  assertNotHtmlResponse(response.data, "일정 시간/메모 수정");
+    assertNotHtmlResponse(response.data, "일정 시간/메모 수정");
 
-  return response.data as UpdatePlanScheduleResponse;
+    return response.data as UpdatePlanScheduleResponse;
+  } catch (error: any) {
+    console.log("[updatePlanSchedule] failed:", {
+      tripPlaceId,
+      url: `/api/plans/${tripPlaceId}/schedule`,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      request,
+    });
+
+    throw error;
+  }
 };
 
 /**
