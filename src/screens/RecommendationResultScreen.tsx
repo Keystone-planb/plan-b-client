@@ -897,7 +897,6 @@ export default function RecommendationResultScreen({
           <View style={styles.currentScheduleCard}>
             <View style={styles.currentInfoBox}>
               <Text style={styles.currentPlaceName}>{currentPlaceName}</Text>
-              <Text style={styles.currentAddress}>{currentPlaceAddress}</Text>
 
               <View style={styles.currentTimeRow}>
                 <Ionicons name="time-outline" size={14} color="#7C8CA3" />
