@@ -159,8 +159,14 @@ apiClient.interceptors.response.use(
       message: error.message,
     });
 
+    const originalUrl = String(originalRequest?.url ?? "");
+    const isOptionalAuthRequest =
+      originalUrl.includes("/api/notifications/") ||
+      originalUrl.includes("/api/preferences/");
+
     const shouldTryRefresh =
-      error.response?.status === 401 &&
+      !isOptionalAuthRequest &&
+      (error.response?.status === 401 || error.response?.status === 403) &&
       originalRequest &&
       !originalRequest._retry;
 
