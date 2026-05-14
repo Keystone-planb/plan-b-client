@@ -66,6 +66,7 @@ type RootStackParamList = {
     transportMode?: TransportMode;
     transportLabel?: string;
     refreshPlanAAt?: number;
+    selectedDay?: number;
     selectedPlace?: undefined;
     selectedPlaces?: undefined;
   };
@@ -827,6 +828,10 @@ export default function RecommendationResultScreen({
           transportMode: params.transportMode,
           transportLabel: params.transportMode,
           refreshPlanAAt: Date.now(),
+          selectedDay:
+            Number((targetPlace as { day?: number | string } | undefined)?.day) > 0 ?
+              Number((targetPlace as { day?: number | string } | undefined)?.day)
+            : undefined,
           selectedPlace: undefined,
           selectedPlaces: undefined,
         });
