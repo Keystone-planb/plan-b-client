@@ -420,10 +420,33 @@ export default function RecommendationResultScreen({
   }, [places]);
 
   const targetPlace = params.targetPlace;
-  const currentPlaceName = targetPlace?.name || params.title || "영향받는 일정";
-  const currentPlaceAddress = targetPlace?.address || params.location || "";
+
+  const originalSchedulePlace = useMemo(() => {
+    if (!targetPlace) return null;
+
+    const targetPlaceRecord = targetPlace as TodayPlace & {
+      visitTime?: string | null;
+      endTime?: string | null;
+    };
+
+    return {
+      ...targetPlace,
+      name: targetPlace.name || params.title || "영향받는 일정",
+      address: targetPlace.address || params.location || "",
+      time:
+        targetPlace.time ||
+        [targetPlaceRecord.visitTime, targetPlaceRecord.endTime]
+          .filter(Boolean)
+          .join(" - "),
+    };
+  }, [params.location, params.title, targetPlace]);
+
+  const currentPlaceName =
+    originalSchedulePlace?.name || params.title || "영향받는 일정";
+  const currentPlaceAddress =
+    originalSchedulePlace?.address || params.location || "";
   const currentPlaceTime =
-    targetPlace?.time || formatDateRange(params.startDate, params.endDate);
+    originalSchedulePlace?.time || formatDateRange(params.startDate, params.endDate);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {

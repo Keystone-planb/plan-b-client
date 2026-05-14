@@ -560,6 +560,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       tripPlaceId: serverPlanId,
       serverTripPlaceId: serverPlanId,
       targetPlace: {
+        scheduleId,
+        tripId: resolvedTripId,
+        serverTripId: resolvedTripId,
+        day: selectedDayIndex + 1,
         id: targetPlaceForAlternative.id,
 
         // 서버 장소 ID
