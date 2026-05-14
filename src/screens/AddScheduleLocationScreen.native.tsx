@@ -394,6 +394,14 @@ const getPlaceTypeLabel = (value?: string) => {
     THEME: "테마시설",
     CULTURE: "문화시설",
     PARK: "공원",
+    ESTABLISHMENT: "장소",
+    LODGING: "숙소",
+    HOTEL: "호텔",
+    MOVIE_THEATER: "영화관",
+    TOURIST_ATTRACTION: "관광명소",
+    RESTAURANT: "음식점",
+    BAR: "바",
+    GYM: "운동시설",
   };
 
   return labels[key] ?? "";
@@ -1299,26 +1307,46 @@ export default function AddScheduleLocationScreen({
     getSpaceLabel(
       detailRaw?.tags?.space ??
         detailRaw?.data?.tags?.space ??
+        detailRaw?.result?.tags?.space ??
+        detailRaw?.payload?.tags?.space ??
         detailRaw?.space ??
+        detailRaw?.spaceType ??
         summaryRaw?.tags?.space ??
         summaryRaw?.data?.tags?.space ??
-        summaryRaw?.space,
+        summaryRaw?.result?.tags?.space ??
+        summaryRaw?.payload?.tags?.space ??
+        summaryRaw?.space ??
+        summaryRaw?.spaceType,
     ),
     getPlaceTypeLabel(
       detailRaw?.tags?.type ??
         detailRaw?.data?.tags?.type ??
+        detailRaw?.result?.tags?.type ??
+        detailRaw?.payload?.tags?.type ??
         detailRaw?.type ??
+        detailRaw?.placeType ??
+        detailRaw?.category ??
         summaryRaw?.tags?.type ??
         summaryRaw?.data?.tags?.type ??
-        summaryRaw?.type,
+        summaryRaw?.result?.tags?.type ??
+        summaryRaw?.payload?.tags?.type ??
+        summaryRaw?.type ??
+        summaryRaw?.placeType ??
+        summaryRaw?.category,
     ),
     getMoodLabel(
       detailRaw?.tags?.mood ??
         detailRaw?.data?.tags?.mood ??
+        detailRaw?.result?.tags?.mood ??
+        detailRaw?.payload?.tags?.mood ??
         detailRaw?.mood ??
+        detailRaw?.placeMood ??
         summaryRaw?.tags?.mood ??
         summaryRaw?.data?.tags?.mood ??
-        summaryRaw?.mood,
+        summaryRaw?.result?.tags?.mood ??
+        summaryRaw?.payload?.tags?.mood ??
+        summaryRaw?.mood ??
+        summaryRaw?.placeMood,
     ),
   ].filter(Boolean);
 
