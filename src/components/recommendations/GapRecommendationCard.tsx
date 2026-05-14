@@ -206,11 +206,16 @@ export default function GapRecommendationCard({
     setStatus("loading");
     setMessage("빈 시간에 들를 수 있는 장소를 분석 중입니다...");
 
+    const safeTransportMode =
+      gap.transportMode === "CAR" || gap.transportMode === "TRANSIT" ?
+        gap.transportMode
+      : "TRANSIT";
+
     const payload: GapRecommendationRequest = {
       beforePlanId: gap.beforePlanId,
       afterPlanId: gap.afterPlanId,
-      transportMode: gap.transportMode,
-      radiusMinute: gap.availableMinutes,
+      transportMode: safeTransportMode,
+      radiusMinute: Math.max(gap.availableMinutes ?? 0, 30),
     };
 
     if (!tripId) {
