@@ -835,17 +835,15 @@ export default function AddScheduleLocationScreen({
     } catch (error) {
       console.log("장소 상세 정보 조회 실패:", error);
 
-      setPlaceReviewMap((prev) => ({
-        ...prev,
-        [placeKey]: {},
-      }));
-
       const elapsed = Date.now() - detailLoadingStartedAt;
       if (elapsed < 1000) {
         await wait(1000 - elapsed);
       }
 
-      setExpandedPlaceId(placeKey);
+      Alert.alert(
+        "상세 정보 조회 실패",
+        "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+      );
     } finally {
       setReviewLoadingPlaceId(null);
     }
