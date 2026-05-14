@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -85,6 +85,9 @@ export default function GapRecommendationCard({
   const [message, setMessage] = useState(
     "일정 사이에 비는 시간을 활용할 장소를 추천받아보세요.",
   );
+
+  const requestLockRef = useRef(false);
+  const receivedPlaceCountRef = useRef(0);
 
   const isLoading = status === "loading";
 
@@ -199,7 +202,10 @@ export default function GapRecommendationCard({
   }, [tripId, allowedPlanPairKey, fallbackGapKey]);
 
   const handleRecommend = async (gap: TripScheduleGap) => {
-    if (isLoading) return;
+    if (isLoading || requestLockRef.current) return;
+
+    requestLockRef.current = true;
+    receivedPlaceCountRef.current = 0;
 
     setSelectedGap(gap);
     setPlaces([]);
@@ -224,11 +230,14 @@ export default function GapRecommendationCard({
       return;
     }
 
-    await streamGapRecommendations(tripId, payload, {
+    try {
+      await streamGapRecommendations(tripId, payload, {
       onProgress: (nextMessage) => {
         setMessage(nextMessage);
       },
       onPlace: (place) => {
+        receivedPlaceCountRef.current += 1;
+
         setPlaces((prev) => {
           const exists = prev.some(
             (item) => String(item.placeId) === String(place.placeId),
@@ -240,6 +249,14 @@ export default function GapRecommendationCard({
         });
       },
       onDone: () => {
+        if (receivedPlaceCountRef.current === 0) {
+          setStatus("error");
+          setMessage(
+            "추천 가능한 장소를 찾지 못했습니다. 다른 빈 시간으로 다시 시도해주세요.",
+          );
+          return;
+        }
+
         setStatus("done");
         setMessage(
           "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
@@ -251,7 +268,10 @@ export default function GapRecommendationCard({
         setStatus("error");
         setMessage("추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       },
-    });
+      });
+    } finally {
+      requestLockRef.current = false;
+    }
   };
 
   const handleSelectPlace = (place: RecommendedPlace) => {
