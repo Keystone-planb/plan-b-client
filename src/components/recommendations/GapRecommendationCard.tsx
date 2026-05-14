@@ -246,13 +246,10 @@ export default function GapRecommendationCard({
         );
       },
       onError: (error) => {
-        const errorMessage =
-          error instanceof Error ?
-            error.message
-          : "추천 연결이 불안정합니다. 잠시 후 다시 시도해주세요.";
+        console.log("[GapRecommendationCard] stream failed:", error);
 
         setStatus("error");
-        setMessage(errorMessage);
+        setMessage("추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
       },
     });
   };
