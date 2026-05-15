@@ -10,17 +10,19 @@
       "package": "com.anonymous.keystone",
       "config": {
         "googleMaps": {
-          "apiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY}"
+          "apiKey": ""
         }
       }
     },
     "ios": {
       "bundleIdentifier": "com.anonymous.keystone",
       "config": {
-        "googleMapsApiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY}"
+        "googleMapsApiKey": ""
       }
     },
-    "plugins": ["expo-web-browser"],
+    "plugins": [
+      "expo-web-browser"
+    ],
     "extra": {
       "eas": {
         "projectId": "ae4365b2-a5ee-46b6-b12c-e4ef3fd10f7a"

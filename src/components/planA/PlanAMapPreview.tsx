@@ -1,6 +1,6 @@
 import React, { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, Region } from "react-native-maps";
+import { Platform, StyleSheet, Text, View } from "react-native";
+import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 
 type PlaceLike = {
@@ -83,6 +83,7 @@ export default function PlanAMapPreview({ places = [], height = 220 }: Props) {
     <View style={[styles.container, { height }]}>
       <MapView
         key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         style={StyleSheet.absoluteFillObject}
         initialRegion={initialRegion}
         loadingEnabled
