@@ -171,6 +171,35 @@ const getCurrentDayLabel = (startDate?: string, endDate?: string) => {
   return `Day ${currentDay}`;
 };
 
+const getUpcomingDDayLabel = (startDate?: string) => {
+  const start = normalizeDateForCompare(startDate);
+
+  if (!start) {
+    return "일정 없음";
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.ceil(
+    (start.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
+  );
+
+  if (diffDays < 0) {
+    return "일정 없음";
+  }
+
+  if (diffDays > 14) {
+    return "일정 없음";
+  }
+
+  if (diffDays === 0) {
+    return "D-Day";
+  }
+
+  return `D-${diffDays}`;
+};
+
 const getFirstPlaceName = (schedule?: StoredSchedule) => {
   const days = Array.isArray(schedule?.days) ? schedule?.days : [];
 
@@ -1040,12 +1069,13 @@ export default function MainScreen({ navigation }: Props) {
       return renderEmptyState();
     }
 
-    const ongoingSchedule = activeSchedules.find(isOngoingSchedule);
-    const currentSchedule = ongoingSchedule ?? activeSchedules[0];
-    const nextSchedule = activeSchedules.find((schedule) => {
-      return getScheduleId(schedule) !== getScheduleId(currentSchedule);
-    });
-    const currentFirstPlaceName = getFirstPlaceName(currentSchedule);
+    const currentSchedule = activeSchedules.find(isOngoingSchedule) ?? null;
+
+    const nextSchedule =
+      activeSchedules.find((schedule) => !isOngoingSchedule(schedule)) ?? null;
+
+    const currentFirstPlaceName =
+      currentSchedule ? getFirstPlaceName(currentSchedule) : "";
 
     return (
       <ScrollView
@@ -1097,50 +1127,70 @@ export default function MainScreen({ navigation }: Props) {
           <View style={styles.todayInfoItem}>
             <Text style={styles.todayEmoji}>🗺️</Text>
             <Text style={styles.todayInfoText}>
-              {getCurrentDayLabel(
-                currentSchedule.startDate,
-                currentSchedule.endDate,
-              )}
+              {currentSchedule ?
+                getCurrentDayLabel(
+                  currentSchedule.startDate,
+                  currentSchedule.endDate,
+                )
+              : getUpcomingDDayLabel(nextSchedule?.startDate)}{" "}
             </Text>
           </View>
         </View>
         <View style={styles.ongoingSection}>
           <Text style={styles.homeSectionTitle}>진행중인 일정</Text>
 
-          <Swipeable
-            renderRightActions={() => renderDeleteAction(currentSchedule)}
-            overshootRight={false}
-          >
-            <TouchableOpacity
-              style={styles.ongoingCard}
-              activeOpacity={0.86}
-              onPress={() => handleOpenSchedule(currentSchedule)}
+          {currentSchedule ?
+            <Swipeable
+              renderRightActions={() => renderDeleteAction(currentSchedule)}
+              overshootRight={false}
             >
+              <TouchableOpacity
+                style={styles.ongoingCard}
+                activeOpacity={0.86}
+                onPress={() => handleOpenSchedule(currentSchedule)}
+              >
+                <View style={styles.pinIconCircle}>
+                  <Text style={styles.pinEmoji}>📌</Text>
+                </View>
+
+                <View style={styles.ongoingInfo}>
+                  <Text style={styles.ongoingTitle} numberOfLines={1}>
+                    {getScheduleTitle(currentSchedule)}
+                  </Text>
+
+                  <Text style={styles.ongoingLocation} numberOfLines={1}>
+                    {currentFirstPlaceName ||
+                      getScheduleLocation(currentSchedule)}
+                  </Text>
+
+                  <View style={styles.ongoingDateRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={17}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.ongoingDateText}>
+                      {getScheduleDate(currentSchedule)}
+                    </Text>
+                  </View>
+                </View>
+
+                <Ionicons name="chevron-forward" size={26} color="#CBD5E1" />
+              </TouchableOpacity>
+            </Swipeable>
+          : <View style={styles.ongoingCard}>
               <View style={styles.pinIconCircle}>
                 <Text style={styles.pinEmoji}>📌</Text>
               </View>
 
               <View style={styles.ongoingInfo}>
-                <Text style={styles.ongoingTitle} numberOfLines={1}>
-                  {getScheduleTitle(currentSchedule)}
+                <Text style={styles.ongoingTitle}>진행중인 일정 없음</Text>
+                <Text style={styles.ongoingLocation}>
+                  현재 진행 중인 여행이 없어요.
                 </Text>
-
-                <Text style={styles.ongoingLocation} numberOfLines={1}>
-                  {currentFirstPlaceName ||
-                    getScheduleLocation(currentSchedule)}
-                </Text>
-
-                <View style={styles.ongoingDateRow}>
-                  <Ionicons name="calendar-outline" size={17} color="#94A3B8" />
-                  <Text style={styles.ongoingDateText}>
-                    {getScheduleDate(currentSchedule)}
-                  </Text>
-                </View>
               </View>
-
-              <Ionicons name="chevron-forward" size={26} color="#CBD5E1" />
-            </TouchableOpacity>
-          </Swipeable>
+            </View>
+          }
         </View>
 
         <View style={styles.nextTripSection}>
