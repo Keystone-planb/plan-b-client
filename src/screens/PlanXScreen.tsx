@@ -15,8 +15,12 @@ import { useFocusEffect } from "@react-navigation/native";
 
 import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
 import RadialBackground from "../components/RadialBackground";
-import { deleteTrip, getTrips, TripSummary } from "../../api/schedules/server";
-
+import {
+  deleteTrip,
+  getTripDetail,
+  getTrips,
+  TripSummary,
+} from "../../api/schedules/server";
 type Props = {
   navigation: any;
 };
@@ -74,20 +78,74 @@ const isPastTrip = (trip: TripSummary) => {
   return endDate.getTime() < today.getTime();
 };
 
+const getTripPlaceCount = (trip: any) => {
+  if (typeof trip?.placeCount === "number") {
+    return trip.placeCount;
+  }
+
+  if (Array.isArray(trip?.places)) {
+    return trip.places.length;
+  }
+
+  if (Array.isArray(trip?.itineraries)) {
+    return trip.itineraries.reduce(
+      (sum: number, itinerary: any) =>
+        sum + (Array.isArray(itinerary?.places) ? itinerary.places.length : 0),
+      0,
+    );
+  }
+
+  if (Array.isArray(trip?.days)) {
+    return trip.days.reduce(
+      (sum: number, day: any) =>
+        sum + (Array.isArray(day?.places) ? day.places.length : 0),
+      0,
+    );
+  }
+
+  return 0;
+};
+
+const getTripDisplayLocation = (trip: any, fallback = "여행지 미정") => {
+  const directLocation =
+    trip?.location ?? trip?.region ?? trip?.destination ?? trip?.city;
+
+  if (typeof directLocation === "string" && directLocation.trim()) {
+    return directLocation.trim();
+  }
+
+  const itineraries = Array.isArray(trip?.itineraries) ? trip.itineraries : [];
+  const firstItinerary = itineraries[0];
+  const firstPlace =
+    Array.isArray(firstItinerary?.places) ? firstItinerary.places[0] : null;
+
+  const firstPlaceName =
+    firstPlace?.name ??
+    firstPlace?.placeName ??
+    firstPlace?.title ??
+    firstPlace?.address;
+
+  if (typeof firstPlaceName === "string" && firstPlaceName.trim()) {
+    return firstPlaceName.trim();
+  }
+
+  return fallback;
+};
+
 const convertTripToPlanXTrip = (trip: TripSummary): PlanXDisplayTrip => {
+  const rawTrip = trip as any;
+
   return {
     id: String(trip.tripId),
+    source: "server",
     tripId: String(trip.tripId),
     title: trip.title,
     startDate: formatDateForPlanX(trip.startDate),
     endDate: formatDateForPlanX(trip.endDate),
-    location: guessLocationFromTitle(trip.title),
-    placeCount: 0,
-    emoji: "🧳",
-    source: "server",
+    location: getTripDisplayLocation(rawTrip),
+    placeCount: getTripPlaceCount(rawTrip),
   };
 };
-
 export default function PlanXScreen({ navigation }: Props) {
   const [trips, setTrips] = useState<PlanXDisplayTrip[]>([]);
   const [loading, setLoading] = useState(false);
@@ -103,13 +161,40 @@ export default function PlanXScreen({ navigation }: Props) {
         count: serverTrips.length,
       });
 
-      const nextTrips = serverTrips
+      const baseTrips = serverTrips
         .filter((trip) => trip.startDate && trip.endDate)
         .filter(isPastTrip)
         .map(convertTripToPlanXTrip)
-        .sort((a, b) => getDateSortValue(b.startDate) - getDateSortValue(a.startDate));
+        .sort(
+          (a, b) =>
+            getDateSortValue(b.startDate) - getDateSortValue(a.startDate),
+        );
 
-      setTrips(nextTrips);
+      setTrips(baseTrips);
+
+      const tripsWithDetailCount = await Promise.all(
+        baseTrips.map(async (trip) => {
+          try {
+            const detail = await getTripDetail(trip.tripId);
+            const placeCount = getTripPlaceCount(detail);
+
+            return {
+              ...trip,
+              location: getTripDisplayLocation(detail, trip.location),
+              placeCount,
+            };
+          } catch (error) {
+            console.log("[PlanX] 상세 장소 개수 조회 실패:", {
+              tripId: trip.tripId,
+              error,
+            });
+
+            return trip;
+          }
+        }),
+      );
+
+      setTrips(tripsWithDetailCount);
     } catch (error) {
       console.log("Plan.X 여행 목록 조회 실패:", error);
       setTrips([]);
@@ -164,7 +249,7 @@ export default function PlanXScreen({ navigation }: Props) {
 
       await deleteTrip(trip.tripId);
 
-    console.log("[PlanX] sync after delete");
+      console.log("[PlanX] sync after delete");
 
       console.log("[PlanX] deleteTrip 성공:", {
         tripId: trip.tripId,
@@ -250,14 +335,14 @@ export default function PlanXScreen({ navigation }: Props) {
         </View>
 
         <View style={styles.listSection}>
-          {loading ? (
+          {loading ?
             <View style={styles.loadingBox}>
               <ActivityIndicator color="#2158E8" />
               <Text style={styles.loadingText}>여행 목록을 불러오는 중...</Text>
             </View>
-          ) : null}
+          : null}
 
-          {!loading && !hasTrips ? (
+          {!loading && !hasTrips ?
             <View style={styles.emptyBox}>
               <View style={styles.emptyRadialBackground} pointerEvents="none">
                 <RadialBackground />
@@ -275,13 +360,16 @@ export default function PlanXScreen({ navigation }: Props) {
                 </Text>
               </View>
             </View>
-          ) : null}
+          : null}
 
           {trips.map((trip) => {
             const isDeleting = deletingTripId === trip.tripId;
 
             return (
-              <View key={`${trip.source}-${trip.id}`} style={styles.tripCardWrapper}>
+              <View
+                key={`${trip.source}-${trip.id}`}
+                style={styles.tripCardWrapper}
+              >
                 <PlanXTripCard trip={trip} onPress={handlePressTrip} />
 
                 <TouchableOpacity
@@ -300,13 +388,16 @@ export default function PlanXScreen({ navigation }: Props) {
                     handleDeleteTrip(trip);
                   }}
                 >
-                  {isDeleting ? (
+                  {isDeleting ?
                     <ActivityIndicator size="small" color="#EF4444" />
-                  ) : (
-                    <>
-                      <Ionicons name="trash-outline" size={18} color="#EF4444" />
+                  : <>
+                      <Ionicons
+                        name="trash-outline"
+                        size={18}
+                        color="#EF4444"
+                      />
                     </>
-                  )}
+                  }
                 </TouchableOpacity>
               </View>
             );

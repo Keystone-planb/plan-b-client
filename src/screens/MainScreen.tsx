@@ -599,11 +599,7 @@ export default function MainScreen({ navigation }: Props) {
           .sort(sortMainTrips);
 
         serverSchedules = await Promise.all(
-          serverSchedules.map(async (schedule, index) => {
-            if (index > 0) {
-              return schedule;
-            }
-
+          serverSchedules.map(async (schedule) => {
             return hydrateMainScheduleWithDetail(schedule);
           }),
         );
