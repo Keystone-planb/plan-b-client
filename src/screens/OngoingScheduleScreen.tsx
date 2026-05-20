@@ -198,6 +198,26 @@ const isValidServerPlanId = (value?: string | number) => {
   return Number.isFinite(Number(text));
 };
 
+const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) {
+    return false;
+  }
+
+  const start = new Date(startDate);
+  const end = new Date(endDate);
+  const today = new Date();
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return false;
+  }
+
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+
+  return start.getTime() <= today.getTime() && today.getTime() <= end.getTime();
+};
+
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
@@ -484,6 +504,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [places, transportMode]);
 
   const hasPlaces = places.length > 0;
+  const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
 
   const handleBack = () => {
     navigation.goBack();
@@ -643,15 +664,34 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View style={styles.todayHeader}>
-            <Text style={styles.todayTitle}>오늘 일정</Text>
-
-            <TouchableOpacity activeOpacity={0.75} onPress={handleEdit}>
-              <Text style={styles.editText}>수정</Text>
-            </TouchableOpacity>
+            <Text style={styles.todayTitle}>
+              {" "}
+              {isCurrentTripOngoing ? "오늘 일정" : "예정 일정"}
+            </Text>
+            {isCurrentTripOngoing ?
+              <TouchableOpacity onPress={handleEdit}>
+                {" "}
+                <Text style={styles.editText}>수정</Text>
+              </TouchableOpacity>
+            : null}
           </View>
 
-          <View style={styles.timelineList}>
-            <View style={styles.timelineLine} />
+          <View
+            style={[
+              styles.timelineList,
+              !isCurrentTripOngoing && styles.futureTimelineList,
+            ]}
+          >
+            {hasPlaces && places.length > 1 ?
+              <View
+                pointerEvents="none"
+                style={[
+                  styles.timelineLine,
+                  !isCurrentTripOngoing && styles.futureTimelineLine,
+                ]}
+              />
+            : null}
+
             {!hasPlaces ?
               <View style={styles.emptyDayCard}>
                 <Ionicons name="calendar-outline" size={28} color="#94A3B8" />
@@ -663,9 +703,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 </Text>
               </View>
             : null}
-
             {places.map((place, index) => {
-              const focused = index === 0;
+              const focused = isCurrentTripOngoing && index === 0;
               const nextPlaceForGap = places[index + 1];
               const gapBeforePlanId =
                 place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
@@ -704,6 +743,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                   <View
                     style={[
                       styles.todayCard,
+                      !isCurrentTripOngoing && styles.futureTodayCard,
                       focused && styles.todayCardActive,
                     ]}
                   >
@@ -728,21 +768,25 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       </View>
                     </View>
 
-                    <TouchableOpacity
-                      style={[
-                        styles.alternativeButton,
-                        !hasServerPlanId && styles.disabledAlternativeButton,
-                      ]}
-                      activeOpacity={0.85}
-                      onPress={() => handleAlternative(place)}
-                    >
-                      <Text style={styles.alternativeButtonText}>대안찾기</Text>
-                      <Ionicons
-                        name="chevron-forward"
-                        size={14}
-                        color="#FFFFFF"
-                      />
-                    </TouchableOpacity>
+                    {isCurrentTripOngoing ?
+                      <TouchableOpacity
+                        style={[
+                          styles.alternativeButton,
+                          !hasServerPlanId && styles.disabledAlternativeButton,
+                        ]}
+                        activeOpacity={0.85}
+                        onPress={() => handleAlternative(place)}
+                      >
+                        <Text style={styles.alternativeButtonText}>
+                          대안찾기
+                        </Text>
+                        <Ionicons
+                          name="chevron-forward"
+                          size={14}
+                          color="#FFFFFF"
+                        />
+                      </TouchableOpacity>
+                    : null}
                   </View>
 
                   {place.memos?.length ?
@@ -760,7 +804,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     </View>
                   : null}
 
-                  {currentGapPlanPairs.length > 0 ?
+                  {isCurrentTripOngoing && currentGapPlanPairs.length > 0 ?
                     <View style={styles.gapRecommendationSection}>
                       {resolvedTripId ?
                         <GapRecommendationCard
@@ -1065,18 +1109,28 @@ const styles = StyleSheet.create({
   },
 
   timelineList: {
+    position: "relative",
+    paddingBottom: 24,
     paddingHorizontal: 24,
     gap: 14,
   },
 
+  futureTimelineList: {
+    gap: 28,
+  },
+
   timelineLine: {
     position: "absolute",
-    left: 42,
-    top: 0,
-    bottom: 0,
+    left: 61,
+    top: 38,
+    bottom: 68,
     width: 3,
     backgroundColor: "#2158E8",
     borderRadius: 999,
+  },
+
+  futureTimelineLine: {
+    backgroundColor: "#cedcff",
   },
 
   todayCard: {
@@ -1087,6 +1141,13 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
+  },
+
+  futureTodayCard: {
+    minHeight: 82,
+    backgroundColor: "transparent",
+    paddingVertical: 0,
+    paddingHorizontal: 18,
   },
 
   todayCardActive: {
