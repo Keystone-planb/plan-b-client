@@ -85,11 +85,6 @@
 | **`refactor`** | 코드 리팩토링     | **`chore`** | 빌드/패키지 설정 변경     |
 | **`design`**   | UI/UX 디자인 수정 | **`test`**  | 테스트 코드 추가          |
 
-### 3. Pull Request Workflow
-
-- PR 생성 시 본문에 `Closes #이슈번호`를 기재하여 이슈를 자동 종료합니다.
-- 최소 1명 이상의 리뷰어 승인 후 `main` 브랜치에 Merge 합니다.
-
 ## 🚀 Key Features (WIP)
 
 - [ ] 다양한 플랫폼(Google, Naver, SNS) 데이터 통합 파이프라인 구축

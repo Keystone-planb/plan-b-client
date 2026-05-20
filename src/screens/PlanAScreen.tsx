@@ -55,7 +55,6 @@ type Props = {
       selectedPlaces?: SelectedPlacesParam;
       gapSelectedPlace?: {
         id?: string;
-        day?: number;
         placeId?: string;
         googlePlaceId?: string;
         name?: string;
@@ -65,8 +64,6 @@ type Props = {
         longitude?: number;
       };
       refreshPlanAAt?: number;
-  day?: number;
-  selectedDay?: number;
     };
   };
 };
@@ -152,46 +149,35 @@ const sortPlacesByTime = <
   });
 };
 
-const parseTripDate = (value?: string) => {
-  if (!value) return null;
-
-  const normalized = value.trim().replace(/[./]/g, "-");
-  const matched = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
-
-  if (!matched) return null;
-
-  const year = Number(matched[1]);
-  const month = Number(matched[2]);
-  const day = Number(matched[3]);
-
-  if (!year || !month || !day) return null;
-
-  return new Date(year, month - 1, day);
-};
-
 const getTripDayCount = (startDate?: string, endDate?: string) => {
-  const start = parseTripDate(startDate);
-  const end = parseTripDate(endDate);
+  if (!startDate || !endDate) return DEFAULT_DAY_OPTIONS.length;
 
-  if (!start || !end) return 1;
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const end = new Date(endDate.replace(/\./g, "-"));
 
-  start.setHours(0, 0, 0, 0);
-  end.setHours(0, 0, 0, 0);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return DEFAULT_DAY_OPTIONS.length;
+  }
 
-  const diffDays = Math.floor(
-    (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-  );
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
 
-  return Math.max(diffDays + 1, 1);
+  return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
 };
-
 
 const getCurrentTripDay = (startDate?: string, endDate?: string) => {
   const dayCount = getTripDayCount(startDate, endDate);
-  const start = parseTripDate(startDate);
+
+  if (!startDate || !endDate) {
+    return 1;
+  }
+
+  const start = new Date(startDate.replace(/\./g, "-"));
   const today = new Date();
 
-  if (!start) return 1;
+  if (Number.isNaN(start.getTime())) {
+    return 1;
+  }
 
   start.setHours(0, 0, 0, 0);
   today.setHours(0, 0, 0, 0);
@@ -200,8 +186,13 @@ const getCurrentTripDay = (startDate?: string, endDate?: string) => {
     (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
   );
 
-  if (diffDays < 0) return 1;
-  if (diffDays >= dayCount) return dayCount;
+  if (diffDays < 0) {
+    return 1;
+  }
+
+  if (diffDays >= dayCount) {
+    return dayCount;
+  }
 
   return diffDays + 1;
 };
@@ -337,7 +328,7 @@ const getBottomTabIconName = (
 export default function PlanAScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
-  const initialSelectedDay = Number(route?.params?.selectedDay ?? route?.params?.day ?? 1);
+  const [selectedDay, setSelectedDay] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
     null,
@@ -346,7 +337,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
     useState<TimePickerTarget>("visitTime");
   const [timePickerHour, setTimePickerHour] = useState(12);
   const [timePickerMinute, setTimePickerMinute] = useState(0);
-  const [timePickerErrorMessage, setTimePickerErrorMessage] = useState("");
 
   const scheduleId = route?.params?.scheduleId;
   const tripId = route?.params?.tripId ?? route?.params?.serverTripId;
@@ -355,13 +345,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const startDate = route?.params?.startDate ?? "2026.04.21";
   const endDate = route?.params?.endDate ?? "2026.04.23";
   const location = route?.params?.location ?? "";
-
-  const dayOptions = makeDayOptions(startDate, endDate);
-  const maxDay = dayOptions.length;
-
-  const [selectedDay, setSelectedDay] = useState(
-    Math.min(Math.max(initialSelectedDay, 1), maxDay),
-  );
 
   const resolvedTripId = tripId ?? serverTripId;
   const routeTransportMode = route?.params?.transportMode ?? "WALK";
@@ -402,7 +385,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
     gapSelectedPlace?.id && gapSelectedPlace?.name ?
       {
         id: String(gapSelectedPlace.id),
-        day: gapSelectedPlace.day ?? selectedDay,
         placeId:
           gapSelectedPlace.placeId ?
             String(gapSelectedPlace.placeId)
@@ -417,9 +399,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
         latitude: gapSelectedPlace.latitude,
         longitude: gapSelectedPlace.longitude,
         time: "",
+        day: selectedDay,
       }
     : undefined;
 
+  const dayOptions = makeDayOptions(startDate, endDate);
 
   const {
     schedule,
@@ -573,9 +557,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     if (!firstSelectedDay) return;
 
-    setSelectedDay(
-      Math.min(Math.max(Number(firstSelectedDay), 1), maxDay),
-    );
+    const currentTripDay = getCurrentTripDay(startDate, endDate);
+    setSelectedDay(currentTripDay);
   }, [selectedPlace?.day, selectedPlaces]);
 
   useEffect(() => {
@@ -747,31 +730,61 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const parseTimeForPicker = (value?: string | null) => {
-    if (!value) {
+    const normalized = String(value ?? "").trim();
+    const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
+
+    const match = firstTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+
+    if (!match) {
       return {
         hour: 12,
         minute: 0,
+        period: "AM" as const,
       };
     }
 
-    const matched = String(value).match(/(\d{1,2}):(\d{2})/);
+    let rawHour = Number(match[1]);
+    const rawMinute = Number(match[2]);
+    const explicitPeriod = match[3]?.toUpperCase() as "AM" | "PM" | undefined;
 
-    if (!matched) {
+    if (explicitPeriod) {
+      return {
+        hour: Math.min(Math.max(rawHour, 1), 12),
+        minute: Math.min(Math.max(rawMinute, 0), 55),
+        period: explicitPeriod,
+      };
+    }
+
+    if (rawHour === 0) {
       return {
         hour: 12,
-        minute: 0,
+        minute: Math.min(Math.max(rawMinute, 0), 55),
+        period: "AM" as const,
       };
     }
 
-    const hour = Number(matched[1]);
-    const minute = Number(matched[2]);
+    if (rawHour === 12) {
+      return {
+        hour: 12,
+        minute: Math.min(Math.max(rawMinute, 0), 55),
+        period: "PM" as const,
+      };
+    }
+
+    if (rawHour > 12) {
+      return {
+        hour: Math.min(Math.max(rawHour - 12, 1), 12),
+        minute: Math.min(Math.max(rawMinute, 0), 55),
+        period: "PM" as const,
+      };
+    }
 
     return {
-      hour: Number.isNaN(hour) ? 12 : Math.min(Math.max(hour, 0), 23),
-      minute: Number.isNaN(minute) ? 0 : Math.min(Math.max(minute, 0), 59),
+      hour: Math.min(Math.max(rawHour, 1), 12),
+      minute: Math.min(Math.max(rawMinute, 0), 55),
+      period: "AM" as const,
     };
   };
-
 
   const getTimeValueForTarget = (
     place: PlaceItem,
@@ -882,16 +895,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
       : currentEndTime ? currentEndTime
       : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
       : currentEndTime;
-
-    if (
-      nextVisitTime &&
-      nextEndTime &&
-      nextVisitTime >= nextEndTime
-    ) {
-      setTimePickerErrorMessage("종료 시간이 시작 시간보다 빨라요!");
-
-      return;
-    }
 
     handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
@@ -1340,40 +1343,18 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </TouchableOpacity>
             </View>
 
-            <View style={styles.timeRangePreviewRow}>
-              <View
-                style={[
-                  styles.timeRangePreviewBox,
-                  timePickerTarget === "visitTime" &&
-                    styles.timeRangePreviewBoxActive,
-                ]}
-              >
-                <Text style={styles.timeRangePreviewLabel}>시작 시간</Text>
-                <Text style={styles.timeRangePreviewText}>
-                  {timePickerTarget === "visitTime" ?
-                    timePickerPreviewText
-                  : timePickerPlace ?
-                    getPlaceVisitTime(timePickerPlace) || "--:--"
-                  : "--:--"}
-                </Text>
-              </View>
+            <View style={styles.timePickerPreview}>
+              <Text style={styles.timePickerPreviewLabel}>
+                {timePickerTarget === "visitTime" ? "시작" : "종료"}
+              </Text>
 
-              <View
-                style={[
-                  styles.timeRangePreviewBox,
-                  timePickerTarget === "endTime" &&
-                    styles.timeRangePreviewBoxActive,
-                ]}
-              >
-                <Text style={styles.timeRangePreviewLabel}>종료 시간</Text>
-                <Text style={styles.timeRangePreviewText}>
-                  {timePickerTarget === "endTime" ?
-                    timePickerPreviewText
-                  : timePickerPlace ?
-                    getPlaceEndTime(timePickerPlace) || "--:--"
-                  : "--:--"}
-                </Text>
-              </View>
+              <Text style={styles.timePickerPreviewText}>
+                {timePickerPreviewText}
+              </Text>
+
+              <Text style={styles.timePickerPreviewHelpText}>
+                24시간 기준
+              </Text>
             </View>
 
             <View style={styles.timePickerControls}>
@@ -1427,12 +1408,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 </TouchableOpacity>
               </View>
             </View>
-
-            {timePickerErrorMessage ?
-              <Text style={styles.timePickerErrorText}>
-                {timePickerErrorMessage}
-              </Text>
-            : null}
 
             <View style={styles.timeModalButtonRow}>
               <TouchableOpacity
@@ -1956,44 +1931,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
   timeTargetTabTextActive: { color: "#FFFFFF" },
-  timeRangePreviewRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 18,
-    marginBottom: 14,
-  },
-
-  timeRangePreviewBox: {
-    flex: 1,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    paddingVertical: 14,
-    paddingHorizontal: 12,
-    alignItems: "center",
-  },
-
-  timeRangePreviewBoxActive: {
-    borderColor: "#2158E8",
-    backgroundColor: "#EEF5FF",
-  },
-
-  timeRangePreviewLabel: {
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800",
-    color: "#64748B",
-    marginBottom: 6,
-  },
-
-  timeRangePreviewText: {
-    fontSize: 20,
-    lineHeight: 26,
-    fontWeight: "900",
-    color: "#111827",
-  },
-
   timePickerPreview: {
     minHeight: 68,
     borderRadius: 12,
@@ -2010,21 +1947,17 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     marginBottom: 2,
   },
-  timePickerErrorText: {
-    marginTop: 14,
-    marginBottom: -2,
-    fontSize: 13,
-    lineHeight: 18,
-    fontWeight: "800",
-    color: "#EF4444",
-    textAlign: "center",
-  },
-
   timePickerPreviewText: {
     color: "#111827",
     fontSize: 20,
     fontWeight: "900",
     letterSpacing: 0.4,
+  },
+  timePickerPreviewHelpText: {
+    marginTop: 3,
+    color: "#94A3B8",
+    fontSize: 11,
+    fontWeight: "800",
   },
   timePickerControls: {
     flexDirection: "row",
