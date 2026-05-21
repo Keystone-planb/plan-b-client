@@ -585,7 +585,6 @@ export default function AddScheduleLocationScreen({
         target.reviewSummary,
         target.googleReview,
         target.naverReview,
-        target.instaReview,
         target.data?.aiSummary,
         target.data?.summary,
         target.result?.aiSummary,

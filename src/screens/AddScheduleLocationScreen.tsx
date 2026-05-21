@@ -126,8 +126,6 @@ type ReviewSummaryLike = {
   summary?: string;
   googleReview?: string;
   naverReview?: string;
-  instaReview?: string;
-  instagramReview?: string;
   [key: string]: unknown;
 };
 
@@ -180,9 +178,9 @@ const getFullReviewSummaryText = (summary?: ReviewSummaryLike | null) => {
   }
 
   return (
+    toText(summary.aiSummary) ||
     toText(summary.reviewSummary) ||
     toText(summary.ReviewSummary) ||
-    toText(summary.aiSummary) ||
     toText(summary.summary) ||
     "서버에서 AI 리뷰 요약을 제공하지 않았습니다."
   );
@@ -214,30 +212,26 @@ const getThreePlaceTags = (detail?: PlaceDetailLike | null) => {
   ].filter((tag) => tag.label.trim().length > 0);
 };
 
-const getPlatformReviewSummaries = (summary?: ReviewSummaryLike | null) => [
-  {
-    key: "googleReview",
-    title: "Google",
-    content:
-      toText(summary?.googleReview) ||
-      "서버에서 Google 리뷰 요약을 제공하지 않았습니다.",
-  },
-  {
-    key: "naverReview",
-    title: "Naver",
-    content:
-      toText(summary?.naverReview) ||
-      "서버에서 Naver 리뷰 요약을 제공하지 않았습니다.",
-  },
-  {
-    key: "instaReview",
-    title: "Instagram",
-    content:
-      toText(summary?.instaReview) ||
-      toText(summary?.instagramReview) ||
-      "Instagram 리뷰 데이터가 부족합니다.",
-  },
-];
+const getPlatformReviewSummaries = (summary?: ReviewSummaryLike | null) => {
+  return [
+    {
+      key: "googleReview",
+      label: "Google",
+      text:
+        toText(summary?.googleReview) ||
+        toText(summary?.googleReviewSummary) ||
+        "",
+    },
+    {
+      key: "naverReview",
+      label: "Naver",
+      text:
+        toText(summary?.naverReview) ||
+        toText(summary?.naverReviewSummary) ||
+        "",
+    },
+  ].filter((item) => item.text.trim().length > 0);
+};
 
 const getOpeningHoursText = (detail?: PlaceDetailLike | null) => {
   return (
@@ -499,7 +493,6 @@ export default function AddScheduleLocationScreen({
         target.reviewSummary,
         target.googleReview,
         target.naverReview,
-        target.instaReview,
         target.data?.aiSummary,
         target.data?.summary,
         target.result?.aiSummary,

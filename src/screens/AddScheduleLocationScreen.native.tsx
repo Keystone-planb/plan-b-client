@@ -466,18 +466,14 @@ const hasUsefulReviewPayload = (payload: unknown) => {
     target.summary,
     target.googleReview,
     target.naverReview,
-    target.instaReview,
-    target.instagramReview,
     target.data?.reviewSummary,
     target.data?.aiSummary,
     target.data?.googleReview,
     target.data?.naverReview,
-    target.data?.instaReview,
     target.result?.reviewSummary,
     target.result?.aiSummary,
     target.result?.googleReview,
     target.result?.naverReview,
-    target.result?.instaReview,
   ].some(isUsefulReviewText);
 };
 
@@ -1200,22 +1196,7 @@ export default function AddScheduleLocationScreen({
             "payload.naverReview",
           ]) || "아직 분석 데이터가 없습니다.",
       },
-      {
-        id: "instaReview",
-        platform: "Instagram",
-        logoType: "instagram",
-        text:
-          getPlatformReviewText([
-            "instaReview",
-            "instagramReview",
-            "data.instaReview",
-            "data.instagramReview",
-            "result.instaReview",
-            "result.instagramReview",
-            "payload.instaReview",
-            "payload.instagramReview",
-          ]) || "아직 분석 데이터가 없습니다.",
-      },
+
     ];
   }, [detailModalDetail, detailModalRawGoogleReviews, detailModalSummary]);
 
