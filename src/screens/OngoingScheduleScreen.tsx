@@ -665,12 +665,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
           <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>
-              {" "}
               {isCurrentTripOngoing ? "오늘 일정" : "예정 일정"}
             </Text>
+
             {isCurrentTripOngoing ?
               <TouchableOpacity onPress={handleEdit}>
-                {" "}
                 <Text style={styles.editText}>수정</Text>
               </TouchableOpacity>
             : null}
