@@ -20,3 +20,8 @@ pnpm-lock.yaml linguist-generated=true
 *.jpg linguist-generated=true
 *.jpeg linguist-generated=true
 *.webp linguist-generated=true
+
+# Git internals / hook samples should not affect GitHub language stats
+Keystone.git/** linguist-vendored
+*.sample linguist-vendored
+*.pl linguist-vendored
