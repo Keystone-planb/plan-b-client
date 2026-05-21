@@ -663,11 +663,15 @@ export default function AddScheduleLocationScreen({
   const handlePlaceDetail = async (place: PlaceSearchResult) => {
     const placeId = String(place.placeId);
     const googlePlaceId = String(place.googlePlaceId ?? place.placeId);
+    const hasSearchCoordinate =
+      typeof place.latitude === "number" && typeof place.longitude === "number";
 
     try {
       setDetailLoadingPlaceId(placeId);
 
-      const detail = await getAnalyzedPlaceDetail(googlePlaceId);
+      const detail = hasSearchCoordinate
+        ? null
+        : await getAnalyzedPlaceDetail(googlePlaceId);
 
       const nextPlace: SelectedPlace = {
         placeId,
@@ -676,8 +680,8 @@ export default function AddScheduleLocationScreen({
         address: place.address,
         rating: place.rating,
         category: place.category,
-        latitude: detail.lat ?? place.latitude,
-        longitude: detail.lng ?? place.longitude,
+        latitude: detail?.lat ?? place.latitude,
+        longitude: detail?.lng ?? place.longitude,
       };
 
       toggleSelectedPlace(nextPlace);
@@ -1389,19 +1393,6 @@ export default function AddScheduleLocationScreen({
         summaryRaw?.placeMood,
     ),
   ].filter(Boolean);
-
-  console.log("[AddScheduleLocation] extracted AI review fields:", {
-    placeId: detailModalPlaceId,
-    aiSummary: rawAiSummary.trim(),
-    reviewSummary: rawDetailReviewSummary.trim(),
-    googleReview: detailModalReviews.find((item) => item.id === "googleReview")
-      ?.text,
-    naverReview: detailModalReviews.find((item) => item.id === "naverReview")
-      ?.text,
-    instaReview: detailModalReviews.find((item) => item.id === "instaReview")
-      ?.text,
-    rawGoogleReviewCount: detailModalRawGoogleReviews.length,
-  });
 
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||
