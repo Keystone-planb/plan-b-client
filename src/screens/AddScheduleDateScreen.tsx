@@ -74,23 +74,13 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
   };
 
   const handleNext = () => {
-    if (!tripName.trim()) {
-      showAlert("일정 이름 확인", "여행 이름을 먼저 입력해주세요.");
-      return;
-    }
-
     if (!startDate || !endDate) {
-      showAlert("날짜 선택", "출발일과 도착일을 모두 선택해주세요.");
+      Alert.alert("날짜 선택", "여행 시작일과 종료일을 선택해주세요.");
       return;
     }
 
-    if (hasDateError) {
-      showAlert("날짜를 확인해주세요", dateErrorMessage);
-      return;
-    }
-
-    navigation.navigate("AddScheduleTransport", {
-      tripName: tripName.trim(),
+    navigation.navigate("AddScheduleLocation", {
+      tripName,
       startDate,
       endDate,
     });

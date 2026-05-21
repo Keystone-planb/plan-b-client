@@ -1,12 +1,7 @@
 import "react-native-gesture-handler";
 
 import React, { useEffect, useState } from "react";
-import {
-  ActivityIndicator,
-  AppState,
-  Platform,
-  View,
-} from "react-native";
+import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   clearLoginSession,
@@ -28,7 +23,6 @@ import SignUpScreen from "./src/screens/SignUpScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
-import AddScheduleTransportScreen from "./src/screens/AddScheduleTransportScreen";
 import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
@@ -343,35 +337,38 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const subscription = AppState.addEventListener("change", async (nextState) => {
-      if (nextState !== "active") {
-        return;
-      }
-
-      try {
-        const accessToken = await AsyncStorage.getItem("access_token");
-        const refreshToken = await AsyncStorage.getItem("refresh_token");
-
-        if (!refreshToken) {
+    const subscription = AppState.addEventListener(
+      "change",
+      async (nextState) => {
+        if (nextState !== "active") {
           return;
         }
 
-        const expiredByIdleTime = await isSessionExpiredByIdleTime();
+        try {
+          const accessToken = await AsyncStorage.getItem("access_token");
+          const refreshToken = await AsyncStorage.getItem("refresh_token");
 
-        if (expiredByIdleTime) {
-          await clearLoginSession();
-          console.log("[Session] 자동 로그아웃: 미접속 시간 초과");
+          if (!refreshToken) {
+            return;
+          }
 
-          setInitialRoute("OnboardingFirst");
-          setNavigationSessionKey((prev) => prev + 1);
-          return;
+          const expiredByIdleTime = await isSessionExpiredByIdleTime();
+
+          if (expiredByIdleTime) {
+            await clearLoginSession();
+            console.log("[Session] 자동 로그아웃: 미접속 시간 초과");
+
+            setInitialRoute("OnboardingFirst");
+            setNavigationSessionKey((prev) => prev + 1);
+            return;
+          }
+
+          await markSessionActive();
+        } catch (error) {
+          console.log("[Session] AppState 세션 체크 실패:", error);
         }
-
-        await markSessionActive();
-      } catch (error) {
-        console.log("[Session] AppState 세션 체크 실패:", error);
-      }
-    });
+      },
+    );
 
     return () => {
       subscription.remove();
@@ -483,16 +480,6 @@ export default function App() {
           <Stack.Screen
             name="AddScheduleDate"
             component={AddScheduleDateScreen}
-            options={{
-              headerShown: false,
-              animation: "slide_from_right",
-              animationDuration: 260,
-            }}
-          />
-
-          <Stack.Screen
-            name="AddScheduleTransport"
-            component={AddScheduleTransportScreen}
             options={{
               headerShown: false,
               animation: "slide_from_right",
