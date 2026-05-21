@@ -232,42 +232,46 @@ export default function GapRecommendationCard({
 
     try {
       await streamGapRecommendations(tripId, payload, {
-      onProgress: (nextMessage) => {
-        setMessage(nextMessage);
-      },
-      onPlace: (place) => {
-        receivedPlaceCountRef.current += 1;
+        onProgress: (nextMessage) => {
+          setMessage(nextMessage);
+        },
+        onPlace: (place) => {
+          receivedPlaceCountRef.current += 1;
 
-        setPlaces((prev) => {
-          const exists = prev.some(
-            (item) => String(item.placeId) === String(place.placeId),
+          setPlaces((prev) => {
+            const exists = prev.some(
+              (item) => String(item.placeId) === String(place.placeId),
+            );
+
+            if (exists) return prev;
+
+            return [...prev, place];
+          });
+        },
+        onDone: () => {
+          if (receivedPlaceCountRef.current === 0) {
+            setStatus("done");
+            setMessage("조건에 맞는 추천 장소가 없습니다.");
+            return;
+          }
+
+          setStatus("done");
+          setMessage(
+            "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
           );
+        },
+        onWarning: (message: string) => {
+          setStatus("done");
+          setMessage(message || "조건에 맞는 추천 장소가 없습니다.");
+        },
+        onError: (error) => {
+          console.log("[GapRecommendationCard] stream failed:", error);
 
-          if (exists) return prev;
-
-          return [...prev, place];
-        });
-      },
-      onDone: () => {
-        if (receivedPlaceCountRef.current === 0) {
           setStatus("error");
           setMessage(
-            "추천 가능한 장소를 찾지 못했습니다. 다른 빈 시간으로 다시 시도해주세요.",
+            "추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
           );
-          return;
-        }
-
-        setStatus("done");
-        setMessage(
-          "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
-        );
-      },
-      onError: (error) => {
-        console.log("[GapRecommendationCard] stream failed:", error);
-
-        setStatus("error");
-        setMessage("추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.");
-      },
+        },
       });
     } finally {
       requestLockRef.current = false;
@@ -319,7 +323,7 @@ export default function GapRecommendationCard({
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
             <Text style={styles.subTitle}>
-              일정 사이 30분 이상 남는 시간 기준
+              일정 사이 60분 이상 남는 시간 기준
             </Text>
           </View>
         </View>

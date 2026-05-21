@@ -29,5 +29,6 @@ export type GapRecommendationStreamHandlers = {
   onProgress?: (message: string, total?: number) => void;
   onPlace?: (place: RecommendedPlace) => void;
   onDone?: () => void;
+  onWarning?: (message: string) => void;
   onError?: (error: unknown) => void;
 };

@@ -65,27 +65,56 @@ const runGapRefreshOnce = async (refreshToken: string) => {
   return gapRefreshPromise;
 };
 
-const parseSseChunk = (chunk: string) => {
-  const events: Array<
-    | { type: "progress"; message: string; total?: number }
-    | { type: "place"; place: RecommendedPlace }
-    | { type: "done" }
-  > = [];
+type GapSseEvent =
+  | { type: "progress"; message: string; total?: number }
+  | { type: "place"; place: RecommendedPlace }
+  | { type: "warning"; message: string }
+  | { type: "done" };
 
-  const blocks = chunk.split("\n\n").filter(Boolean);
+const parseSseChunk = (chunk: string): {
+  events: GapSseEvent[];
+  remaining: string;
+} => {
+  const events: GapSseEvent[] = [];
+  const normalizedChunk = chunk.replace(/\r\n/g, "\n");
 
-  for (const block of blocks) {
-    const lines = block.split("\n");
+  if (!normalizedChunk.includes("\n\n")) {
+    return {
+      events,
+      remaining: normalizedChunk,
+    };
+  }
+
+  const parts = normalizedChunk.split(/\n\n+/);
+  const remaining = parts.pop() ?? "";
+
+  for (const rawPart of parts) {
+    const part = rawPart.trim();
+
+    if (!part) {
+      continue;
+    }
+
+    const lines = part
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+
     const eventLine = lines.find((line) => line.startsWith("event:"));
-    const dataLine = lines.find((line) => line.startsWith("data:"));
+    const dataLines = lines.filter((line) => line.startsWith("data:"));
 
-    if (!eventLine || !dataLine) continue;
-
-    const eventName = eventLine.replace("event:", "").trim();
-    const dataText = dataLine.replace("data:", "").trim();
+    const eventName = eventLine?.replace(/^event:\s*/, "").trim() ?? "";
+    const dataText = dataLines
+      .map((line) => line.replace(/^data:\s*/, ""))
+      .join("\n")
+      .trim();
 
     if (eventName === "done" || dataText === "[DONE]") {
       events.push({ type: "done" });
+      continue;
+    }
+
+    if (!dataText) {
       continue;
     }
 
@@ -98,6 +127,7 @@ const parseSseChunk = (chunk: string) => {
           message: parsed.message ?? "갭 추천 장소를 분석 중입니다...",
           total: parsed.total,
         });
+        continue;
       }
 
       if (eventName === "place") {
@@ -105,13 +135,31 @@ const parseSseChunk = (chunk: string) => {
           type: "place",
           place: parsed,
         });
+        continue;
       }
-    } catch {
-      // ignore malformed SSE block
+
+      if (eventName === "warning") {
+        events.push({
+          type: "warning",
+          message:
+            typeof parsed === "string"
+              ? parsed
+              : parsed.message ?? "조건에 맞는 추천 장소가 없습니다.",
+        });
+      }
+    } catch (error) {
+      console.log("[gap recommendations/stream] SSE parse failed:", {
+        eventName,
+        dataText,
+        error,
+      });
     }
   }
 
-  return events;
+  return {
+    events,
+    remaining,
+  };
 };
 
 export const streamGapRecommendations = async (
@@ -138,8 +186,10 @@ export const streamGapRecommendations = async (
   });
 
   let receivedLength = 0;
+  let pendingSseBuffer = "";
   let buffer = "";
   let doneCalled = false;
+  let receivedPlaceCount = 0;
 
   const callDoneOnce = () => {
     if (doneCalled) return;
@@ -199,7 +249,19 @@ export const streamGapRecommendations = async (
 
       buffer += chunk;
 
-      const events = parseSseChunk(buffer);
+      console.log("[gap recommendations/stream] xhr chunk:", {
+        readyState: xhr.readyState,
+        status: xhr.status,
+        responseTextLength: xhr.responseText.length,
+        bufferPreview: buffer.slice(-500),
+      });
+
+      pendingSseBuffer += buffer;
+
+      const parsedChunk = parseSseChunk(pendingSseBuffer);
+      pendingSseBuffer = parsedChunk.remaining;
+
+      const events = parsedChunk.events;
 
       if (buffer.includes("\n\n")) {
         const lastSeparator = buffer.lastIndexOf("\n\n");
@@ -212,6 +274,7 @@ export const streamGapRecommendations = async (
         }
 
         if (event.type === "place") {
+          receivedPlaceCount += 1;
           handlers.onPlace?.(event.place);
         }
 
@@ -259,17 +322,40 @@ export const streamGapRecommendations = async (
     };
 
     xhr.onerror = () => {
+      const finalParsedChunk = parseSseChunk(`${pendingSseBuffer}\n\n`);
+      pendingSseBuffer = finalParsedChunk.remaining;
+
+      for (const event of finalParsedChunk.events) {
+        if (event.type === "progress") {
+          handlers.onProgress?.(event.message, event.total);
+        }
+
+        if (event.type === "place") {
+          handlers.onPlace?.(event.place);
+        }
+
+        if (event.type === "warning") {
+          handlers.onWarning?.(event.message);
+        }
+
+        if (event.type === "done") {
+          callDoneOnce();
+        }
+      }
+
       console.log("[gap recommendations/stream] xhr error:", {
         status: xhr.status,
         responseText: xhr.responseText,
+        doneCalled,
       });
 
-      if (xhr.status >= 200 && xhr.status < 300 && receivedLength > 0) {
-        callDoneOnce();
+      if (doneCalled) {
         return;
       }
 
-      handlers.onError?.(new Error("갭 추천 네트워크 요청에 실패했습니다."));
+      handlers.onError?.(
+        new Error("빈 시간 추천 스트림이 완료되기 전에 종료되었습니다."),
+      );
     };
 
     xhr.ontimeout = () => {
