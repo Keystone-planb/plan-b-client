@@ -11,6 +11,7 @@
     "expo-dev-client": "~55.0.33",
     "expo-linear-gradient": "~55.0.13",
     "expo-linking": "~55.0.14",
+    "expo-notifications": "~55.0.23",
     "expo-web-browser": "~55.0.14",
     "leaflet": "^1.9.4",
     "react": "19.2.0",
