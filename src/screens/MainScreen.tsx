@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -28,6 +28,12 @@ import {
   getWeatherNotifications,
 } from "../../api/notifications/notifications";
 import type { WeatherNotification } from "../types/notification";
+import {
+  registerNotificationClickListener,
+  removeNotificationClickListener,
+  requestExpoPushToken,
+} from "../utils/pushNotifications";
+import { registerPushToken } from "../../api/notifications/pushToken";
 
 type Props = {
   navigation: any;
@@ -519,6 +525,40 @@ export default function MainScreen({ navigation }: Props) {
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [scheduleLoadError, setScheduleLoadError] = useState("");
+  const didRegisterPushTokenRef = useRef(false);
+
+  const registerDevicePushToken = async () => {
+    if (didRegisterPushTokenRef.current) {
+      console.log("[push] 이미 push token 등록을 시도했습니다. 생략합니다.");
+      return;
+    }
+
+    didRegisterPushTokenRef.current = true;
+
+    try {
+      const storedUserId = await AsyncStorage.getItem("user_id");
+
+      if (!storedUserId) {
+        console.log("[push] user_id 없음 - push token 등록 생략");
+        return;
+      }
+
+      const tokenResult = await requestExpoPushToken();
+
+      if (!tokenResult.granted || !tokenResult.expoPushToken) {
+        console.log("[push] push token 없음 - 서버 등록 생략:", {
+          reason: tokenResult.reason,
+        });
+        return;
+      }
+
+      await registerPushToken({
+        expoPushToken: tokenResult.expoPushToken,
+      });
+    } catch (error) {
+      console.log("[push] push token 등록 흐름 실패:", error);
+    }
+  };
 
   const loadNotifications = async (
     baseSchedules: StoredSchedule[] = schedules,
@@ -681,7 +721,39 @@ export default function MainScreen({ navigation }: Props) {
   useFocusEffect(
     useCallback(() => {
       loadSchedules();
-    }, []),
+      registerDevicePushToken();
+
+      registerNotificationClickListener((data) => {
+        console.log("[push] MainScreen notification click data:", data);
+
+        const notificationId = data.notificationId;
+        const tripId = data.tripId;
+        const tripPlaceId = data.tripPlaceId;
+
+        if (notificationId || tripId || tripPlaceId) {
+          console.log("[push] weather notification click:", {
+            notificationId,
+            tripId,
+            tripPlaceId,
+          });
+
+          navigation.navigate("Main", {
+            openedFromPush: true,
+            notificationId,
+            tripId,
+            tripPlaceId,
+          });
+
+          return;
+        }
+
+        navigation.navigate("Main");
+      });
+
+      return () => {
+        removeNotificationClickListener();
+      };
+    }, [navigation]),
   );
 
   const handleDismissNotification = async (
@@ -1142,21 +1214,27 @@ export default function MainScreen({ navigation }: Props) {
         scheduleName: getScheduleTitle(baseSchedule ?? {}),
         placeName:
           affectedPlace?.name ??
+          rawNotification.originalPlace?.name ??
           rawNotification.placeName ??
           rawNotification.name,
         address:
           affectedPlace?.address ??
+          rawNotification.originalPlace?.address ??
           rawNotification.address ??
           rawNotification.placeAddress,
         visitTime:
           affectedPlace?.visitTime ??
           affectedPlace?.startTime ??
+          rawNotification.originalPlace?.visitTime ??
+          rawNotification.originalPlace?.time ??
           rawNotification.visitTime,
         endTime:
           affectedPlace?.endTime ??
+          rawNotification.originalPlace?.endTime ??
           rawNotification.endTime,
         day:
           matchedDay?.day ??
+          rawNotification.originalPlace?.day ??
           rawNotification.day,
       } as WeatherNotification;
     };

@@ -175,7 +175,7 @@ export default function WeatherNotificationCard({
   const dayLabel = getDayLabel(notification);
   const safeTotalCount = Math.max(1, totalCount);
   const timeRange = formatTimeRange(notification);
-  const hasTime = timeRange !== "시간 정보 없음";
+  const hasTime = Boolean(timeRange);
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
