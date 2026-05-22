@@ -515,6 +515,7 @@ const enrichDaysWithServerTripPlaceIds = async (
 export default function MainScreen({ navigation }: Props) {
   const [schedules, setSchedules] = useState<StoredSchedule[]>([]);
   const [notifications, setNotifications] = useState<WeatherNotification[]>([]);
+  const [activeNotificationIndex, setActiveNotificationIndex] = useState(0);
   const [notificationsLoading, setNotificationsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [scheduleLoadError, setScheduleLoadError] = useState("");
@@ -527,6 +528,7 @@ export default function MainScreen({ navigation }: Props) {
 
       if (!storedUserId) {
         setNotifications([]);
+      setActiveNotificationIndex(0);
         return;
       }
 
@@ -545,6 +547,7 @@ export default function MainScreen({ navigation }: Props) {
         }
 
         setNotifications(serverNotifications);
+        setActiveNotificationIndex(0);
         return;
       }
 
@@ -1077,6 +1080,87 @@ export default function MainScreen({ navigation }: Props) {
     const currentFirstPlaceName =
       currentSchedule ? getFirstPlaceName(currentSchedule) : "";
 
+    const activeNotification =
+      notifications[
+        Math.min(activeNotificationIndex, Math.max(notifications.length - 1, 0))
+      ];
+
+    const buildDisplayNotification = (
+      notification: WeatherNotification,
+    ): WeatherNotification => {
+      const rawNotification = notification as any;
+
+      const notificationTripId = rawNotification.tripId;
+      const currentPlanId =
+        rawNotification.currentPlanId ??
+        rawNotification.tripPlaceId ??
+        rawNotification.planId;
+
+      const baseSchedule =
+        activeSchedules.find(
+          (schedule) =>
+            String(schedule.tripId ?? schedule.serverTripId) ===
+            String(notificationTripId),
+        ) ??
+        currentSchedule ??
+        activeSchedules[0];
+
+      const matchedDay = Array.isArray(baseSchedule?.days)
+        ? (baseSchedule?.days as any[]).find((day) =>
+            Array.isArray(day?.places) &&
+            day.places.some((place: any) =>
+              [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
+                (id) => String(id) === String(currentPlanId),
+              ),
+            ),
+          )
+        : null;
+
+      const affectedPlace = matchedDay?.places?.find((place: any) =>
+        [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
+          (id: any) => String(id) === String(currentPlanId),
+        ),
+      );
+
+      if (__DEV__) {
+        console.log("[Main] 날씨 알림 표시 데이터:", {
+          notificationId: rawNotification.notificationId ?? rawNotification.id,
+          currentPlanId,
+          scheduleTitle: getScheduleTitle(baseSchedule ?? {}),
+          matchedDay: matchedDay?.day,
+          affectedPlaceName: affectedPlace?.name,
+          visitTime: affectedPlace?.visitTime,
+          endTime: affectedPlace?.endTime,
+          rawVisitTime: rawNotification.visitTime,
+          rawEndTime: rawNotification.endTime,
+        });
+      }
+
+      return {
+        ...notification,
+        tripName: getScheduleTitle(baseSchedule ?? {}),
+        scheduleName: getScheduleTitle(baseSchedule ?? {}),
+        placeName:
+          affectedPlace?.name ??
+          rawNotification.placeName ??
+          rawNotification.name,
+        address:
+          affectedPlace?.address ??
+          rawNotification.address ??
+          rawNotification.placeAddress,
+        visitTime:
+          affectedPlace?.visitTime ??
+          affectedPlace?.startTime ??
+          rawNotification.visitTime,
+        endTime:
+          affectedPlace?.endTime ??
+          rawNotification.endTime,
+        day:
+          matchedDay?.day ??
+          rawNotification.day,
+      } as WeatherNotification;
+    };
+
     return (
       <ScrollView
         style={styles.scheduleList}
@@ -1092,16 +1176,33 @@ export default function MainScreen({ navigation }: Props) {
               </Text>
             </View>
           </View>
-        : notifications.length > 0 ?
+        : notifications.length > 0 && activeNotification ?
           <View style={styles.notificationSection}>
-            {notifications.map((notification) => (
-              <WeatherNotificationCard
-                key={String(notification.notificationId ?? notification.id)}
-                notification={notification}
-                onPressRecommend={handleOpenNotificationRecommendation}
-                onDismiss={handleDismissNotification}
-              />
-            ))}
+            <WeatherNotificationCard
+              key={String(
+                (activeNotification as any).notificationId ??
+                  (activeNotification as any).id,
+              )}
+              notification={buildDisplayNotification(activeNotification)}
+              onPressRecommend={handleOpenNotificationRecommendation}
+              onDismiss={handleDismissNotification}
+              currentIndex={Math.min(
+                activeNotificationIndex,
+                Math.max(notifications.length - 1, 0),
+              )}
+              totalCount={notifications.length}
+              onChangeIndex={setActiveNotificationIndex}
+              onPrev={() =>
+                setActiveNotificationIndex((prev) =>
+                  prev <= 0 ? notifications.length - 1 : prev - 1,
+                )
+              }
+              onNext={() =>
+                setActiveNotificationIndex((prev) =>
+                  prev >= notifications.length - 1 ? 0 : prev + 1,
+                )
+              }
+            />
           </View>
         : null}
 

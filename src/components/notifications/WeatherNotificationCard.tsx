@@ -8,22 +8,20 @@ type Props = {
   notification: WeatherNotification;
   onPressRecommend?: (notification: WeatherNotification) => void;
   onDismiss?: (notification: WeatherNotification) => void;
+  currentIndex?: number;
+  totalCount?: number;
+  onChangeIndex?: (index: number) => void;
+  onPrev?: () => void;
+  onNext?: () => void;
 };
 
-const getTextValue = (
-  source: unknown,
-  keys: string[],
-  fallback = "",
-) => {
-  if (!source || typeof source !== "object") {
-    return fallback;
-  }
+const getTextValue = (source: unknown, keys: string[], fallback = "") => {
+  if (!source || typeof source !== "object") return fallback;
 
   const objectSource = source as Record<string, unknown>;
 
   for (const key of keys) {
     const value = objectSource[key];
-
     if (value !== undefined && value !== null && String(value).trim()) {
       return String(value).trim();
     }
@@ -33,25 +31,18 @@ const getTextValue = (
 };
 
 const getNumberValue = (source: unknown, keys: string[]) => {
-  if (!source || typeof source !== "object") {
-    return undefined;
-  }
+  if (!source || typeof source !== "object") return undefined;
 
   const objectSource = source as Record<string, unknown>;
 
   for (const key of keys) {
     const value = objectSource[key];
 
-    if (typeof value === "number" && Number.isFinite(value)) {
-      return value;
-    }
+    if (typeof value === "number" && Number.isFinite(value)) return value;
 
     if (typeof value === "string" && value.trim()) {
       const parsed = Number(value.replace("%", "").replace("mm", "").trim());
-
-      if (Number.isFinite(parsed)) {
-        return parsed;
-      }
+      if (Number.isFinite(parsed)) return parsed;
     }
   }
 
@@ -61,20 +52,32 @@ const getNumberValue = (source: unknown, keys: string[]) => {
 const getWeatherTypeLabel = (notification: WeatherNotification) => {
   const type = getTextValue(notification, ["weatherType", "type"]).toUpperCase();
 
-  if (type.includes("RAIN")) return "비";
-  if (type.includes("SNOW")) return "눈";
+  if (type.includes("RAIN")) return "비 예보";
+  if (type.includes("SNOW")) return "눈 예보";
   if (type.includes("HEAT")) return "폭염";
   if (type.includes("COLD")) return "한파";
   if (type.includes("WIND")) return "강풍";
+  if (type.includes("STORM")) return "악천후";
 
-  return "기상";
+  return "날씨";
+};
+
+const getWeatherIconName = (notification: WeatherNotification) => {
+  const type = getTextValue(notification, ["weatherType", "type"]).toUpperCase();
+
+  if (type.includes("RAIN")) return "rainy-outline";
+  if (type.includes("SNOW")) return "snow-outline";
+  if (type.includes("HEAT")) return "sunny-outline";
+  if (type.includes("COLD")) return "snow-outline";
+  if (type.includes("WIND")) return "leaf-outline";
+  if (type.includes("STORM")) return "thunderstorm-outline";
+
+  return "cloud-outline";
 };
 
 const getPlaceNameFromBody = (body?: string) => {
   if (!body) return "";
-
   const match = body.match(/^(.+?)\s*방문 시간/);
-
   return match?.[1]?.trim() ?? "";
 };
 
@@ -83,19 +86,32 @@ const formatTimeRange = (notification: WeatherNotification) => {
     "visitTime",
     "startTime",
     "time",
+    "visitStartTime",
+    "plannedStartTime",
+    "scheduleStartTime",
+    "affectedStartTime",
+    "beforePlanEndTime",
+  ]);
+  const endTime = getTextValue(notification, [
+    "endTime",
+    "visitEndTime",
+    "plannedEndTime",
+    "scheduleEndTime",
+    "affectedEndTime",
+    "afterPlanStartTime",
   ]);
 
-  const endTime = getTextValue(notification, ["endTime"]);
+  if (startTime && endTime) return `${startTime} - ${endTime}`;
+  if (startTime) return startTime;
 
-  if (startTime && endTime) {
-    return `${startTime} - ${endTime}`;
-  }
+  return "시간 정보 없음";
+};
 
-  if (startTime) {
-    return startTime;
-  }
-
-  return "방문 시간 기준";
+const getDayLabel = (notification: WeatherNotification) => {
+  const rawDay = getTextValue(notification, ["day", "tripDay", "scheduleDay"]);
+  if (!rawDay) return "";
+  if (rawDay.toLowerCase().startsWith("day")) return rawDay;
+  return `Day${rawDay}`;
 };
 
 const getWeatherSummary = (notification: WeatherNotification) => {
@@ -119,58 +135,52 @@ const getWeatherSummary = (notification: WeatherNotification) => {
   const rainAmountText =
     typeof rainAmount === "number" ? `예상 강수량 ${rainAmount}mm` : "";
 
-  const weatherTypeLabel = getWeatherTypeLabel(notification);
-
-  const detailText = [probabilityText, rainAmountText].filter(Boolean).join(" · ");
-
-  if (detailText) {
-    return `${formatTimeRange(notification)}  ${detailText}`;
-  }
-
-  return `${formatTimeRange(notification)}  ${weatherTypeLabel} 예보가 있습니다.`;
+  return [probabilityText, rainAmountText].filter(Boolean).join(" · ");
 };
 
 export default function WeatherNotificationCard({
   notification,
   onPressRecommend,
   onDismiss,
+  currentIndex = 0,
+  totalCount = 1,
+  onChangeIndex,
+  onPrev,
+  onNext,
 }: Props) {
-  const title = getTextValue(
-    notification,
-    ["title"],
-    "기상 변화가 예상됩니다",
-  );
-
-  const body = getTextValue(
-    notification,
-    ["body", "message"],
-    "기상 변화로 인해 실내 대안 장소를 추천받아보세요.",
-  );
-
+  const body = getTextValue(notification, ["body", "message"]);
   const placeName =
     getTextValue(notification, ["placeName", "name"]) ||
     getPlaceNameFromBody(body) ||
-    "영향받는 일정";
+    "현재 일정";
 
   const address = getTextValue(
     notification,
-    ["address", "placeAddress", "location"],
-    "일정 장소 기준",
+    [
+      "address",
+      "placeAddress",
+      "location",
+      "placeLocation",
+      "originalPlaceAddress",
+    ],
+    "",
   );
 
   const alternatives =
     notification.recommendedPlaces ?? notification.alternatives ?? [];
 
   const weatherTypeLabel = getWeatherTypeLabel(notification);
+  const weatherIconName = getWeatherIconName(notification);
   const weatherSummary = getWeatherSummary(notification);
-
+  const dayLabel = getDayLabel(notification);
+  const safeTotalCount = Math.max(1, totalCount);
+  const timeRange = formatTimeRange(notification);
+  const hasTime = timeRange !== "시간 정보 없음";
   return (
     <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.headerTitleBox}>
-          <View style={styles.iconBadge}>
-            <Ionicons name="rainy-outline" size={15} color="#2563EB" />
-          </View>
+          <Ionicons name="alert-circle-outline" size={14} color="#FF5A5F" />
           <Text style={styles.headerTitle}>날씨 정보</Text>
         </View>
 
@@ -180,46 +190,50 @@ export default function WeatherNotificationCard({
           hitSlop={10}
           style={styles.closeButton}
         >
-          <Ionicons name="close" size={16} color="#A7B0C0" />
+          <Ionicons name="close" size={15} color="#A7B0C0" />
         </TouchableOpacity>
       </View>
 
       <View style={styles.divider} />
 
-      <Text style={styles.alertTitle}>{title}</Text>
-      <Text style={styles.alertBody}>{body}</Text>
-
-      <Text style={styles.sectionLabel}>영향받는 일정</Text>
+      <View style={styles.tripRow}>
+        <Text style={styles.tripLabel}>현재 일정</Text>
+        <Text style={styles.tripName} numberOfLines={1}>
+          {getTextValue(notification, ["tripName", "scheduleName", "tripTitle"], "현재 여행")}
+        </Text>
+        {dayLabel ? <Text style={styles.dayText}>{dayLabel}</Text> : null}
+      </View>
 
       <View style={styles.scheduleBox}>
         <View style={styles.scheduleInfo}>
-          <Text style={styles.placeName}>{placeName}</Text>
-          <Text style={styles.address}>{address}</Text>
+          <Text style={styles.placeName} numberOfLines={1}>
+            {placeName}
+          </Text>
+          {address ? (
+            <Text style={styles.address} numberOfLines={1}>
+              {address}
+            </Text>
+          ) : null}
 
-          <View style={styles.timeRow}>
-            <Ionicons name="time-outline" size={13} color="#94A3B8" />
-            <Text style={styles.timeText}>{formatTimeRange(notification)}</Text>
-          </View>
+          {hasTime ? (
+            <View style={styles.timeRow}>
+              <Ionicons name="time-outline" size={13} color="#94A3B8" />
+              <Text style={styles.timeText}>{timeRange}</Text>
+            </View>
+          ) : null}
         </View>
 
         <View style={styles.weatherBadge}>
-          <Ionicons name="warning-outline" size={11} color="#FFFFFF" />
+          <Ionicons name={weatherIconName as any} size={12} color="#FFFFFF" />
           <Text style={styles.weatherBadgeText}>{weatherTypeLabel}</Text>
         </View>
       </View>
 
       <View style={styles.weatherSummaryBox}>
-        <Text style={styles.weatherSummaryText}>{weatherSummary}</Text>
-
-        {alternatives.length > 0 ? (
-          <Text style={styles.alternativeCountText}>
-            대안 장소 {alternatives.length}개 준비됨
-          </Text>
-        ) : (
-          <Text style={styles.alternativeCountText}>
-            주변에 적합한 실내 장소를 찾지 못했습니다.
-          </Text>
-        )}
+        <Ionicons name="umbrella-outline" size={16} color="#64748B" />
+        <Text style={styles.weatherSummaryText} numberOfLines={1}>
+          {weatherSummary || `${weatherTypeLabel}가 예상돼요`}
+        </Text>
       </View>
 
       <TouchableOpacity
@@ -228,8 +242,25 @@ export default function WeatherNotificationCard({
         onPress={() => onPressRecommend?.(notification)}
       >
         <Text style={styles.recommendButtonText}>대안 추천받기</Text>
-        <Ionicons name="chevron-forward" size={17} color="#FFFFFF" />
+        <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />
       </TouchableOpacity>
+
+      {safeTotalCount > 1 ? (
+        <View style={styles.paginationRow}>
+          {Array.from({ length: safeTotalCount }).map((_, index) => (
+            <TouchableOpacity
+              key={`weather-dot-${index}`}
+              activeOpacity={0.75}
+              onPress={() => onChangeIndex?.(index)}
+              style={[
+                styles.paginationDot,
+                index === currentIndex && styles.activePaginationDot,
+              ]}
+            />
+          ))}
+
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -238,19 +269,16 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "#FFFFFF",
     borderRadius: 18,
-    paddingHorizontal: 18,
-    paddingTop: 15,
-    paddingBottom: 16,
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 14,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: "#E6ECF5",
+    borderColor: "#E2E8F0",
     shadowColor: "#0F172A",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
+    shadowOffset: { width: 0, height: 5 },
     shadowOpacity: 0.08,
-    shadowRadius: 16,
+    shadowRadius: 14,
     elevation: 3,
   },
 
@@ -263,28 +291,19 @@ const styles = StyleSheet.create({
   headerTitleBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-  },
-
-  iconBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: "#EFF6FF",
-    alignItems: "center",
-    justifyContent: "center",
+    gap: 5,
   },
 
   headerTitle: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "900",
     color: "#273449",
   },
 
   closeButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
@@ -292,39 +311,42 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "#E8EDF5",
-    marginTop: 12,
-    marginBottom: 15,
+    marginTop: 10,
+    marginBottom: 9,
   },
 
-  alertTitle: {
-    fontSize: 15,
-    lineHeight: 21,
+  tripRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 10,
+  },
+
+  tripLabel: {
+    fontSize: 11,
     fontWeight: "900",
-    color: "#1E293B",
-  },
-
-  alertBody: {
-    marginTop: 6,
-    marginBottom: 16,
-    fontSize: 13,
-    lineHeight: 20,
-    fontWeight: "700",
     color: "#64748B",
   },
 
-  sectionLabel: {
-    marginBottom: 10,
-    fontSize: 12,
+  tripName: {
+    flex: 1,
+    fontSize: 15,
     fontWeight: "900",
-    color: "#4B5563",
+    color: "#111827",
+  },
+
+  dayText: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: "#111827",
   },
 
   scheduleBox: {
-    minHeight: 82,
-    borderRadius: 15,
-    backgroundColor: "#F6F8FC",
-    paddingHorizontal: 16,
-    paddingVertical: 13,
+    minHeight: 74,
+    borderRadius: 14,
+    backgroundColor: "#F5F7FB",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
     flexDirection: "row",
     alignItems: "flex-start",
     justifyContent: "space-between",
@@ -332,42 +354,41 @@ const styles = StyleSheet.create({
 
   scheduleInfo: {
     flex: 1,
-    paddingRight: 12,
+    paddingRight: 10,
   },
 
   placeName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: "900",
-    color: "#263247",
+    color: "#334155",
   },
 
   address: {
-    marginTop: 3,
-    fontSize: 12,
+    marginTop: 2,
+    fontSize: 11,
     fontWeight: "700",
-    color: "#8A97A8",
-    lineHeight: 17,
+    color: "#94A3B8",
   },
 
   timeRow: {
-    marginTop: 8,
+    marginTop: 7,
     flexDirection: "row",
     alignItems: "center",
-    gap: 5,
+    gap: 4,
   },
 
   timeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
-    color: "#7B8798",
+    color: "#94A3B8",
   },
 
   weatherBadge: {
-    minWidth: 50,
-    height: 24,
+    minWidth: 56,
+    height: 25,
     paddingHorizontal: 8,
     borderRadius: 999,
-    backgroundColor: "#2563EB",
+    backgroundColor: "#4F63F6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -381,35 +402,29 @@ const styles = StyleSheet.create({
   },
 
   weatherSummaryBox: {
-    marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: "#F4F6FA",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    marginTop: 10,
+    minHeight: 38,
+    borderRadius: 13,
+    backgroundColor: "#F5F7FB",
+    paddingHorizontal: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
   },
 
   weatherSummaryText: {
-    fontSize: 13,
-    lineHeight: 19,
-    fontWeight: "900",
-    color: "#2F3B4F",
-    textAlign: "center",
-  },
-
-  alternativeCountText: {
-    marginTop: 5,
     fontSize: 12,
     lineHeight: 17,
-    fontWeight: "800",
-    color: "#64748B",
-    textAlign: "center",
+    fontWeight: "900",
+    color: "#334155",
   },
 
   recommendButton: {
-    marginTop: 12,
-    height: 46,
+    marginTop: 10,
+    height: 43,
     borderRadius: 12,
-    backgroundColor: "#2457F5",
+    backgroundColor: "#4A5CF6",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -418,7 +433,38 @@ const styles = StyleSheet.create({
 
   recommendButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
+  },
+
+  paginationRow: {
+    marginTop: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  pageArrowButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  paginationDot: {
+    width: 9,
+    height: 9,
+    borderRadius: 5,
+    backgroundColor: "#D1D5DB",
+  },
+
+  activePaginationDot: {
+    width: 11,
+    height: 11,
+    borderRadius: 6,
+    backgroundColor: "#111827",
   },
 });

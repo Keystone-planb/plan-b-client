@@ -12,7 +12,6 @@ import {
 } from "react-native";
 import GoogleReviewIcon from "../assets/google-review.svg";
 import NaverIcon from "../assets/naver.png";
-import InstagramIcon from "../assets/instagram.png";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -126,7 +125,6 @@ type DisplayPlace = RecommendedPlace & {
   reviewSummary?: string;
   googleReview?: string;
   naverReview?: string;
-  instaReview?: string;
   phone?: string;
   phoneNumber?: string;
   website?: string;
@@ -136,7 +134,6 @@ type DisplayPlace = RecommendedPlace & {
   reason?: string;
   sourceSummary?: {
     naver?: string;
-    instagram?: string;
     google?: string;
   };
 };
@@ -146,7 +143,6 @@ type PlaceExtraDetail = {
   aiSummary?: string;
   googleReview?: string;
   naverReview?: string;
-  instagramReview?: string;
   error?: string;
 };
 
@@ -226,7 +222,7 @@ const formatReviewDataText = (value: unknown) => {
 
 const getPlatformReviewSummary = (
   value: unknown,
-  platform: "Naver" | "Google" | "Instagram",
+  platform: "Naver" | "Google",
 ) => {
   const parsed = safeParseJson(value);
   const summary = parsed?.platformSummaries?.[platform];
@@ -432,7 +428,7 @@ export default function RecommendationResultScreen({
 
     return {
       ...targetPlace,
-      name: targetPlace.name || params.title || "영향받는 일정",
+      name: targetPlace.name || params.title || "현재 진행 중인 일정",
       address: targetPlace.address || params.location || "",
       time:
         targetPlace.time ||
@@ -443,11 +439,12 @@ export default function RecommendationResultScreen({
   }, [params.location, params.title, targetPlace]);
 
   const currentPlaceName =
-    originalSchedulePlace?.name || params.title || "영향받는 일정";
+    originalSchedulePlace?.name || params.title || "현재 진행 중인 일정";
   const currentPlaceAddress =
     originalSchedulePlace?.address || params.location || "";
   const currentPlaceTime =
-    originalSchedulePlace?.time || formatDateRange(params.startDate, params.endDate);
+    originalSchedulePlace?.time ||
+    formatDateRange(params.startDate, params.endDate);
 
   const handleBack = () => {
     if (navigation.canGoBack()) {
@@ -501,11 +498,6 @@ export default function RecommendationResultScreen({
             place.sourceSummary?.naver ||
             getPlatformReviewSummary(place.reviewData, "Naver") ||
             "네이버 리뷰 요약 정보가 없습니다.",
-          instagramReview:
-            place.instaReview ||
-            place.sourceSummary?.instagram ||
-            getPlatformReviewSummary(place.reviewData, "Instagram") ||
-            "인스타그램 리뷰 요약 정보가 없습니다.",
         },
       }));
       return;
@@ -570,22 +562,6 @@ export default function RecommendationResultScreen({
         ]) ||
         pickText(detail, ["naverReview", "naverReviewSummary", "naver_review"]);
 
-      const instagramReview =
-        pickText(summary, [
-          "instaReview",
-          "instagramReview",
-          "instaReviewSummary",
-          "instagramReviewSummary",
-          "insta_review",
-        ]) ||
-        pickText(detail, [
-          "instaReview",
-          "instagramReview",
-          "instaReviewSummary",
-          "instagramReviewSummary",
-          "insta_review",
-        ]);
-
       setPlaceExtraDetails((prev) => ({
         ...prev,
         [placeKey]: {
@@ -593,7 +569,6 @@ export default function RecommendationResultScreen({
           aiSummary,
           googleReview,
           naverReview,
-          instagramReview,
         },
       }));
     } catch (error) {
@@ -674,11 +649,14 @@ export default function RecommendationResultScreen({
           throw new Error("날씨 알림 대안 장소 교체에 실패했습니다.");
         }
 
-        console.log("[RecommendationResult] weather notification replace success:", {
-          notificationId,
-          selectedPlaceId: place.placeId,
-          updatedTripPlace,
-        });
+        console.log(
+          "[RecommendationResult] weather notification replace success:",
+          {
+            notificationId,
+            selectedPlaceId: place.placeId,
+            updatedTripPlace,
+          },
+        );
 
         setSelectedPlaceId(placeId);
 
@@ -829,8 +807,14 @@ export default function RecommendationResultScreen({
           transportLabel: params.transportMode,
           refreshPlanAAt: Date.now(),
           selectedDay:
-            Number((targetPlace as { day?: number | string } | undefined)?.day) > 0 ?
-              Number((targetPlace as { day?: number | string } | undefined)?.day)
+            (
+              Number(
+                (targetPlace as { day?: number | string } | undefined)?.day,
+              ) > 0
+            ) ?
+              Number(
+                (targetPlace as { day?: number | string } | undefined)?.day,
+              )
             : undefined,
           selectedPlace: undefined,
           selectedPlaces: undefined,
@@ -867,6 +851,13 @@ export default function RecommendationResultScreen({
   };
 
   const title = params.title ?? "AI 대안 추천";
+  const isWeatherRecommendation =
+    params.source === "weather-notification" || params.fromWeatherNotification;
+
+  const subtitle =
+    isWeatherRecommendation ?
+      "날씨에 맞춰 방문하기 좋은 대안을 추천했어요"
+    : "거리와 리뷰를 기반으로 추천된 top5예요";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -891,9 +882,7 @@ export default function RecommendationResultScreen({
       >
         <View style={styles.titleSection}>
           <Text style={styles.screenTitle}>{title}</Text>
-          <Text style={styles.screenSubtitle}>
-            거리와 리뷰를 기반으로 추천된 top5예요
-          </Text>
+          <Text style={styles.screenSubtitle}>{subtitle}</Text>
         </View>
 
         <View style={styles.sectionBlock}>
@@ -908,7 +897,6 @@ export default function RecommendationResultScreen({
                 <Text style={styles.currentTimeText}>{currentPlaceTime}</Text>
               </View>
             </View>
-
           </View>
         </View>
 
@@ -917,10 +905,6 @@ export default function RecommendationResultScreen({
 
           <View style={styles.resultList}>
             {places.map((place, index) => {
-              console.log(
-                "[RecommendationResult] place detail raw:",
-                JSON.stringify(place, null, 2),
-              );
               const placeId = place.placeId ?? `place-${index}`;
               const isExpanded = String(expandedPlaceId) === String(placeId);
               const isSelected = String(selectedPlaceId) === String(placeId);
@@ -937,11 +921,6 @@ export default function RecommendationResultScreen({
                 extraDetail?.naverReview ||
                 place.naverReview ||
                 place.sourceSummary?.naver ||
-                "";
-              const displayInstagramReview =
-                extraDetail?.instagramReview ||
-                place.instaReview ||
-                place.sourceSummary?.instagram ||
                 "";
               const displayGoogleReview =
                 extraDetail?.googleReview ||
@@ -999,44 +978,17 @@ export default function RecommendationResultScreen({
                         </Text>
                       </View>
 
-                      {isExpanded ?
-                        <>
-                          <View style={styles.infoLine}>
-                            <Ionicons
-                              name="call-outline"
-                              size={18}
-                              color="#8EA0B7"
-                            />
-                            <Text style={styles.infoText}>
-                              {place.phoneNumber ||
-                                place.phone ||
-                                "전화번호 정보가 없습니다."}
-                            </Text>
-                          </View>
-
-                          <View style={styles.infoLine}>
-                            <Ionicons
-                              name="globe-outline"
-                              size={18}
-                              color="#8EA0B7"
-                            />
-                            <Text style={styles.infoText}>
-                              {place.website || "www.planb.com"}
-                            </Text>
-                          </View>
-
-                          <View style={styles.infoLine}>
-                            <Ionicons
-                              name="storefront-outline"
-                              size={18}
-                              color="#8EA0B7"
-                            />
-                            <Text style={styles.infoText}>
-                              {formatOpeningHoursText(place.openingHours) ||
-                                "영업시간 정보가 없습니다."}
-                            </Text>
-                          </View>
-                        </>
+                      {isExpanded && formatOpeningHoursText(place.openingHours) ?
+                        <View style={styles.infoLine}>
+                          <Ionicons
+                            name="time-outline"
+                            size={16}
+                            color="#8EA0B7"
+                          />
+                          <Text style={styles.infoText} numberOfLines={2}>
+                            {formatOpeningHoursText(place.openingHours)}
+                          </Text>
+                        </View>
                       : null}
                     </View>
                   </View>
@@ -1073,6 +1025,32 @@ export default function RecommendationResultScreen({
                     </Text>
                   </View>
 
+                  <TouchableOpacity
+                    style={[
+                      styles.selectButton,
+                      isSelected && styles.selectedButton,
+                    ]}
+                    activeOpacity={0.85}
+                    disabled={isSubmitting || isSelected}
+                    onPress={() => handleSelectPlace(place)}
+                  >
+                    {isSubmitting ?
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Text
+                        style={[
+                          styles.selectButtonText,
+                          isSelected && styles.selectedButtonText,
+                        ]}
+                      >
+                        {isSelected ?
+                          "선택 완료"
+                        : isWeatherRecommendation ?
+                          "이 장소로 대체"
+                        : "이 장소 선택"}
+                      </Text>
+                    }
+                  </TouchableOpacity>
+
                   {isExpanded ?
                     <View style={styles.detailBox}>
                       <View style={styles.verticalLine} />
@@ -1098,26 +1076,6 @@ export default function RecommendationResultScreen({
 
                         <View style={styles.sourceCard}>
                           <View
-                            style={[styles.sourceIconBox, styles.instagramBox]}
-                          >
-                            <Image
-                              source={InstagramIcon}
-                              style={styles.platformLogo}
-                              resizeMode="contain"
-                            />
-                          </View>
-
-                          <Text style={styles.sourceText}>
-                            {extraDetail?.loading ?
-                              "인스타그램 리뷰 요약을 불러오는 중이에요."
-                            : displayInstagramReview ||
-                              "서버에서 인스타그램 리뷰 요약을 제공하지 않았습니다."
-                            }
-                          </Text>
-                        </View>
-
-                        <View style={styles.sourceCard}>
-                          <View
                             style={[styles.sourceIconBox, styles.googleBox]}
                           >
                             <GoogleReviewIcon width={18} height={18} />
@@ -1133,27 +1091,6 @@ export default function RecommendationResultScreen({
                         </View>
                       </View>
 
-                      <TouchableOpacity
-                        style={[
-                          styles.selectButton,
-                          isSelected && styles.selectedButton,
-                        ]}
-                        activeOpacity={0.85}
-                        disabled={isSubmitting || isSelected}
-                        onPress={() => handleSelectPlace(place)}
-                      >
-                        {isSubmitting ?
-                          <ActivityIndicator size="small" color="#2158E8" />
-                        : <Text
-                            style={[
-                              styles.selectButtonText,
-                              isSelected && styles.selectedButtonText,
-                            ]}
-                          >
-                            {isSelected ? "선택 완료" : "이 장소 선택"}
-                          </Text>
-                        }
-                      </TouchableOpacity>
                     </View>
                   : null}
 
@@ -1163,7 +1100,7 @@ export default function RecommendationResultScreen({
                     onPress={() => handleToggleDetail(place, placeId)}
                   >
                     <Text style={styles.detailButtonText}>
-                      {isExpanded ? "간략히" : "자세히"}
+                      {isExpanded ? "리뷰 접기" : "리뷰 보기"}
                     </Text>
                     <Ionicons
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -1330,20 +1267,19 @@ const styles = StyleSheet.create({
   },
 
   placeCard: {
-    borderRadius: 18,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DDE5F0",
-    paddingHorizontal: 20,
-    paddingTop: 22,
+    paddingHorizontal: 18,
+    paddingTop: 18,
     paddingBottom: 18,
   },
 
   expandedPlaceCard: {
-    paddingTop: 70,
-    paddingBottom: 26,
-    borderRadius: 24,
-    borderColor: "#DDE5F0",
+    paddingBottom: 22,
+    borderRadius: 22,
+    borderColor: "#BFD7FF",
   },
 
   selectedCard: {
@@ -1357,13 +1293,13 @@ const styles = StyleSheet.create({
   },
 
   thumbnailCircle: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#FFD0F6",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 16,
+    marginRight: 14,
   },
 
   thumbnailEmoji: {
@@ -1381,19 +1317,19 @@ const styles = StyleSheet.create({
   },
 
   placeName: {
-    color: "#000000",
-    fontSize: 18,
+    color: "#111827",
+    fontSize: 19,
     fontWeight: "900",
     marginRight: 8,
-    maxWidth: 150,
+    maxWidth: 190,
   },
 
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6,
-    marginTop: 10,
-    marginBottom: 12,
+    marginTop: 12,
+    marginBottom: 10,
     marginLeft: 70,
     alignItems: "center",
   },
@@ -1439,19 +1375,18 @@ const styles = StyleSheet.create({
 
   infoText: {
     flex: 1,
-    color: "#1F2937",
-    fontSize: 14,
+    color: "#64748B",
+    fontSize: 13,
     fontWeight: "700",
-    marginLeft: 8,
+    marginLeft: 7,
+    lineHeight: 18,
   },
 
   aiSummaryBox: {
     position: "relative",
-    marginTop: 20,
-    marginLeft: 28,
-    width: "78%",
-    minHeight: 58,
-    borderRadius: 5,
+    marginTop: 12,
+    minHeight: 54,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#C7DCFF",
     backgroundColor: "#EEF6FF",
@@ -1462,9 +1397,7 @@ const styles = StyleSheet.create({
   },
 
   expandedAiSummaryBox: {
-    width: "78%",
-    marginLeft: 74,
-    marginTop: 30,
+    marginTop: 12,
   },
 
   aiBadge: {
@@ -1508,9 +1441,9 @@ const styles = StyleSheet.create({
   },
 
   detailButton: {
-    marginTop: 22,
-    height: 40,
-    borderRadius: 10,
+    marginTop: 10,
+    height: 38,
+    borderRadius: 12,
     backgroundColor: "#F5F7FA",
     flexDirection: "row",
     alignItems: "center",
@@ -1525,18 +1458,12 @@ const styles = StyleSheet.create({
   },
 
   detailBox: {
-    marginTop: 26,
-    paddingLeft: 58,
+    marginTop: 12,
     position: "relative",
   },
 
   verticalLine: {
-    position: "absolute",
-    left: 45,
-    top: 0,
-    bottom: 52,
-    width: 2,
-    backgroundColor: "#E1E8F2",
+    display: "none",
   },
 
   sourceList: {
@@ -1570,10 +1497,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
   },
 
-  instagramBox: {
-    backgroundColor: "#FFFFFF",
-  },
-
   googleBox: {
     backgroundColor: "#FFFFFF",
   },
@@ -1586,12 +1509,6 @@ const styles = StyleSheet.create({
   naverIconText: {
     color: "#FFFFFF",
     fontSize: 15,
-    fontWeight: "900",
-  },
-
-  instagramIconText: {
-    color: "#FFFFFF",
-    fontSize: 17,
     fontWeight: "900",
   },
 
@@ -1610,10 +1527,10 @@ const styles = StyleSheet.create({
   },
 
   selectButton: {
-    marginTop: 18,
-    height: 42,
-    borderRadius: 12,
-    backgroundColor: "#EAF1FF",
+    marginTop: 12,
+    height: 48,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1623,8 +1540,8 @@ const styles = StyleSheet.create({
   },
 
   selectButtonText: {
-    color: "#2158E8",
-    fontSize: 14,
+    color: "#FFFFFF",
+    fontSize: 15,
     fontWeight: "900",
   },
 
