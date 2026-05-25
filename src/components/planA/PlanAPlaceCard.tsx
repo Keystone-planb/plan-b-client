@@ -183,7 +183,7 @@ export default function PlanAPlaceCard({
                   );
                 }}
               >
-                <Ionicons name="trash-outline" size={15} color="#FFFFFF" />
+                <Ionicons name="trash-outline" size={15} color="#94A3B8" />
               </TouchableOpacity>
             </View>
           </View>
@@ -220,7 +220,7 @@ export default function PlanAPlaceCard({
                     );
                   }}
                 >
-                  <Ionicons name="trash-outline" size={15} color="#EF4444" />
+                  <Ionicons name="trash-outline" size={15} color="#CBD5E1" />
                 </TouchableOpacity>
 
                 <View style={styles.placeActionBadge}>

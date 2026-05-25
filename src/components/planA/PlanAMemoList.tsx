@@ -189,8 +189,8 @@ export default function PlanAMemoList({
 
 const styles = StyleSheet.create({
   memoList: {
-    marginTop: 14,
-    gap: 10,
+    marginTop: 16,
+    gap: 12,
   },
 
   memoItem: {
@@ -264,7 +264,8 @@ const styles = StyleSheet.create({
   memoInputRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
+    marginTop: 4,
   },
 
   memoInput: {
@@ -284,7 +285,7 @@ const styles = StyleSheet.create({
   memoConfirmButton: {
     width: 34,
     height: 34,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: "#8DBEFF",
     alignItems: "center",
     justifyContent: "center",

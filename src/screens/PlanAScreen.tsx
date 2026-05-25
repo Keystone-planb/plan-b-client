@@ -704,7 +704,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         return;
       }
 
-      Alert.alert("중간 저장 완료", "현재 Plan.A 화면에 저장되었습니다.");
+      Alert.alert("중간 저장 완료", "Plan.A 변경사항이 저장되었습니다.");
     } catch (error) {
       console.log("[PlanA] 저장 실패:", error);
 
@@ -1134,7 +1134,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                       isEditMode && styles.editModeButtonTextActive,
                     ]}
                   >
-                    {isEditMode ? "편집 완료" : "일정 편집"}
+                    {isEditMode ? "완료" : "편집"}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -1243,7 +1243,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
               >
                 <Ionicons name="save-outline" size={17} color="#2158E8" />
                 <Text style={styles.secondarySaveButtonText}>
-                  {saving ? "저장 중..." : "현재 변경 저장"}
+                  {saving ? "저장 중..." : "변경 저장"}
                 </Text>
               </TouchableOpacity>
 
@@ -1259,7 +1259,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
               >
                 <Ionicons name="home-outline" size={17} color="#FFFFFF" />
                 <Text style={styles.primarySaveButtonText}>
-                  {saving ? "저장 중..." : "저장하고 홈으로"}
+                  {saving ? "저장 중..." : "저장 후 홈으로"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1468,7 +1468,7 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 50,
     borderRadius: 14,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F8FBFF",
     borderWidth: 1,
     borderColor: "#CBD5E1",
     flexDirection: "row",
@@ -1480,7 +1480,7 @@ const styles = StyleSheet.create({
 
   secondarySaveButtonText: {
     color: "#2158E8",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
   },
 
@@ -1498,27 +1498,27 @@ const styles = StyleSheet.create({
       width: 0,
       height: 6,
     },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.28,
     shadowRadius: 10,
     elevation: 4,
   },
 
   primarySaveButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
   },
 
   safeArea: { flex: 1, backgroundColor: "#FFFFFF" },
-  screen: { flex: 1, backgroundColor: "#F7F9FB", position: "relative" },
+  screen: { flex: 1, backgroundColor: "#F4F7FC", position: "relative" },
   container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: "#F4F7FC",
     paddingBottom: 130,
   },
   headerSection: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8FBFF",
     paddingTop: 26,
     paddingHorizontal: 20,
     paddingBottom: 12,
@@ -1604,9 +1604,9 @@ const styles = StyleSheet.create({
   },
 
   editModeButton: {
-    minHeight: 34,
+    minHeight: 38,
     borderRadius: 999,
-    backgroundColor: "#EEF5FF",
+    backgroundColor: "#E7F0FF",
     borderWidth: 1,
     borderColor: "#CFE3FF",
     paddingHorizontal: 11,
@@ -1957,7 +1957,7 @@ const styles = StyleSheet.create({
   timePickerPreview: {
     minHeight: 68,
     borderRadius: 12,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     alignItems: "center",
