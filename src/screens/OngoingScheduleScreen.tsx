@@ -104,7 +104,6 @@ type Props = {
       transportLabel?: string;
       places?: TodayPlace[];
       days?: ScheduleDay[];
-      refreshPlanAAt?: number;
     };
   };
 };
@@ -414,7 +413,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       };
 
       loadTripDetail();
-    }, [resolvedTripId, params.refreshPlanAAt]),
+    }, [resolvedTripId]),
   );
 
 
@@ -543,7 +542,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       transportLabel,
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
-      refreshPlanAAt: Date.now(),
     });
   };
 

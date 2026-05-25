@@ -1194,6 +1194,31 @@ export default function MainScreen({ navigation }: Props) {
         ),
       );
 
+      if (__DEV__ && currentPlanId && !affectedPlace) {
+        console.log("[Main] 날씨 알림 planId 매칭 실패:", {
+          currentPlanId,
+          tripId: notificationTripId,
+          scheduleTitle: getScheduleTitle(baseSchedule ?? {}),
+          placeIds: Array.isArray(baseSchedule?.days)
+            ? (baseSchedule?.days as any[]).flatMap((day) =>
+                Array.isArray(day?.places)
+                  ? day.places.map((place: any) => ({
+                      day: day?.day,
+                      id: place?.id,
+                      tripPlaceId: place?.tripPlaceId,
+                      serverTripPlaceId: place?.serverTripPlaceId,
+                      placeId: place?.placeId,
+                      googlePlaceId: place?.googlePlaceId,
+                      name: place?.name,
+                      visitTime: place?.visitTime,
+                      endTime: place?.endTime,
+                    }))
+                  : [],
+              )
+            : [],
+        });
+      }
+
       if (__DEV__) {
         console.log("[Main] 날씨 알림 표시 데이터:", {
           notificationId: rawNotification.notificationId ?? rawNotification.id,
