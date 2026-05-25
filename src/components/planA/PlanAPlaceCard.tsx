@@ -259,15 +259,15 @@ const styles = StyleSheet.create({
   },
 
   timelineLeft: {
-    width: 30,
+    width: 34,
     alignItems: "center",
-    marginRight: 14,
+    marginRight: 12,
   },
 
   stepBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
@@ -282,18 +282,19 @@ const styles = StyleSheet.create({
   timelineLine: {
     width: 2,
     flex: 1,
-    minHeight: 204,
-    marginTop: 4,
+    minHeight: 196,
+    marginTop: 6,
     backgroundColor: "#DCEBFF",
   },
 
   placeCard: {
     flex: 1,
-    borderRadius: 12,
+    minHeight: 132,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
-    paddingVertical: 14,
+    paddingVertical: 16,
     paddingHorizontal: 16,
   },
 
@@ -306,12 +307,14 @@ const styles = StyleSheet.create({
 
   placeTitleBox: {
     flex: 1,
+    minWidth: 0,
   },
 
   placeTitle: {
     color: "#252D3C",
     fontSize: 15,
     fontWeight: "900",
+    flexShrink: 1,
   },
 
   placeTime: {

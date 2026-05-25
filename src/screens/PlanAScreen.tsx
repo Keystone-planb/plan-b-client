@@ -465,6 +465,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
     serverTripId: resolvedTripId,
   });
 
+  const effectiveDayOptions = makeDayOptions(
+    schedule.startDate,
+    schedule.endDate,
+  );
+
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
 
   useEffect(() => {
@@ -1183,7 +1188,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
             <View style={styles.dayTabsWrapper}>
               <PlanADayTabs
-                days={dayOptions}
+                days={effectiveDayOptions}
                 selectedDay={selectedDay}
                 onChangeDay={handleChangeDay}
               />

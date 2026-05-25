@@ -1,5 +1,11 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 
 import { DayOption } from "../../types/planA";
 
@@ -15,42 +21,58 @@ export default function PlanADayTabs({
   onChangeDay,
 }: Props) {
   return (
-    <View style={styles.dayTabs}>
-      {days.map((day) => {
-        const isSelected = selectedDay === day.id;
+    <View style={styles.dayTabsWrapper}>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.dayTabs}
+      >
+        {days.map((day) => {
+          const isSelected = selectedDay === day.id;
 
-        return (
-          <TouchableOpacity
-            key={day.id}
-            style={[styles.dayTab, isSelected && styles.activeDayTab]}
-            activeOpacity={0.85}
-            onPress={() => onChangeDay(day.id)}
-          >
-            <Text
-              style={[styles.dayTabText, isSelected && styles.activeDayTabText]}
+          return (
+            <TouchableOpacity
+              key={day.id}
+              style={[styles.dayTab, isSelected && styles.activeDayTab]}
+              activeOpacity={0.85}
+              onPress={() => onChangeDay(day.id)}
             >
-              {day.label}
-            </Text>
-          </TouchableOpacity>
-        );
-      })}
+              <Text
+                style={[
+                  styles.dayTabText,
+                  isSelected && styles.activeDayTabText,
+                ]}
+              >
+                {day.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  dayTabsWrapper: {
+    marginTop: 18,
+    height: 54,
+  },
+
   dayTabs: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 16,
-    gap: 8,
+    gap: 10,
+    paddingHorizontal: 2,
+    paddingRight: 20,
+    height: 54,
   },
 
   dayTab: {
-    minWidth: 56,
-    height: 36,
-    paddingHorizontal: 14,
-    borderRadius: 18,
+    minWidth: 92,
+    height: 48,
+    paddingHorizontal: 20,
+    borderRadius: 24,
     backgroundColor: "#F1F6FF",
     alignItems: "center",
     justifyContent: "center",
@@ -70,7 +92,7 @@ const styles = StyleSheet.create({
 
   dayTabText: {
     color: "#8C9BB1",
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: "800",
   },
 
