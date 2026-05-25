@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Modal,
@@ -51,6 +51,8 @@ type Props = {
       location?: string;
       transportMode?: TransportMode;
       transportLabel?: string;
+      day?: number;
+      selectedDay?: number;
       selectedPlace?: SelectedPlaceParam;
       selectedPlaces?: SelectedPlacesParam;
       gapSelectedPlace?: {
@@ -63,7 +65,6 @@ type Props = {
         latitude?: number;
         longitude?: number;
       };
-      refreshPlanAAt?: number;
     };
   };
 };
@@ -330,6 +331,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const [selectedDay, setSelectedDay] = useState(1);
   const [isEditMode, setIsEditMode] = useState(false);
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const scrollOffsetYRef = useRef(0);
+  const shouldRestoreScrollRef = useRef(false);
+
   const [timePickerPlace, setTimePickerPlace] = useState<PlaceItem | null>(
     null,
   );
@@ -347,6 +352,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const location = route?.params?.location ?? "";
 
   const resolvedTripId = tripId ?? serverTripId;
+  const routeSelectedDay =
+    typeof route?.params?.selectedDay === "number" ? route.params.selectedDay
+    : typeof route?.params?.day === "number" ? route.params.day
+    : undefined;
+
   const routeTransportMode = route?.params?.transportMode ?? "WALK";
 
   const [transportMode, setTransportMode] =
@@ -453,7 +463,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
     location,
     scheduleId,
     serverTripId: resolvedTripId,
-    reloadKey: route?.params?.refreshPlanAAt,
   });
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
@@ -625,6 +634,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
           name: "Main",
           params: {
             refreshSchedules: true,
+            refreshMainAt: Date.now(),
             savedScheduleId: savedSchedule.id,
             tripId: nextTripId,
             serverTripId: nextTripId,
@@ -900,7 +910,15 @@ export default function PlanAScreen({ navigation, route }: Props) {
     closeTimePicker();
   };
 
+  useEffect(() => {
+    if (typeof routeSelectedDay !== "number") return;
+
+    setSelectedDay(routeSelectedDay);
+  }, [routeSelectedDay]);
+
   const handleAddPlace = () => {
+    shouldRestoreScrollRef.current = true;
+
     navigation.navigate("AddScheduleLocation", {
       day: selectedDay,
       selectedDay,
@@ -1021,10 +1039,15 @@ export default function PlanAScreen({ navigation, route }: Props) {
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.screen}>
         <ScrollView
+          ref={scrollViewRef}
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
           bounces={false}
+          scrollEventThrottle={16}
+          onScroll={(event) => {
+            scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
+          }}
         >
           <View style={styles.headerSection}>
             <View style={styles.topHeaderRow}>

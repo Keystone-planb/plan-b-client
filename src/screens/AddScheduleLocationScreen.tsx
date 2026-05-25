@@ -730,7 +730,6 @@ export default function AddScheduleLocationScreen({
         location: nextLocation,
         tripId: serverTripId,
         serverTripId,
-        refreshPlanAAt: Date.now(),
         transportMode,
         transportLabel,
         selectedPlaces: placesToSubmit.map((place) => ({

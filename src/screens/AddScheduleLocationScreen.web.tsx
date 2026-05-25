@@ -823,7 +823,6 @@ export default function AddScheduleLocationScreen({
           route.params?.scheduleId ??
           route.params?.serverTripId ??
           serverTripId,
-        refreshPlanAAt: Date.now(),
         initialSchedule: route.params?.initialSchedule,
         existingPlaces:
           route.params?.existingPlaces ?? route.params?.places ?? [],
