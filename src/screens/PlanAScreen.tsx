@@ -651,7 +651,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const handleSavePlanA = async (
     options: { moveToMainAfterSave?: boolean } = {},
-  ) => {
+  ): Promise<boolean> => {
     const { moveToMainAfterSave = false } = options;
 
     const missingTimePlaceNames = getMissingTimePlaceNames(schedule);
@@ -664,7 +664,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
           .join("\n")}${missingTimePlaceNames.length > 3 ? "\n..." : ""}`,
       );
 
-      return;
+      return false;
     }
 
     resetEditingState();
@@ -689,13 +689,13 @@ export default function PlanAScreen({ navigation, route }: Props) {
             "일정 저장이 완료되었습니다. 홈으로 이동합니다.",
           );
           moveToMain(savedSchedule);
-          return;
+          return true;
         }
 
         browserWindow.alert?.(
-          "중간 저장이 완료되었습니다. 현재 Plan.A 화면에 저장되었습니다.",
+          "변경사항이 저장되었습니다.",
         );
-        return;
+        return true;
       }
 
       if (moveToMainAfterSave) {
@@ -706,10 +706,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
           },
         ]);
 
-        return;
+        return true;
       }
 
-      Alert.alert("중간 저장 완료", "Plan.A 변경사항이 저장되었습니다.");
+      Alert.alert("저장 완료", "변경사항이 저장되었습니다.");
+      return true;
     } catch (error) {
       console.log("[PlanA] 저장 실패:", error);
 
@@ -717,6 +718,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
         "저장 실패",
         "일정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",
       );
+
+      return false;
     }
   };
 
@@ -1122,9 +1125,20 @@ export default function PlanAScreen({ navigation, route }: Props) {
                     isEditMode && styles.editModeButtonActive,
                   ]}
                   activeOpacity={0.8}
-                  onPress={() => {
-                    resetEditingState();
-                    setIsEditMode((prev) => !prev);
+                  onPress={async () => {
+                    if (!isEditMode) {
+                      resetEditingState();
+                      setIsEditMode(true);
+                      return;
+                    }
+
+                    const saved = await handleSavePlanA({
+                      moveToMainAfterSave: false,
+                    });
+
+                    if (saved) {
+                      setIsEditMode(false);
+                    }
                   }}
                 >
                   <Ionicons
@@ -1226,48 +1240,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             }
 
-            <TouchableOpacity
-              style={styles.addPlaceButton}
-              activeOpacity={0.85}
-              onPress={handleAddPlace}
-            >
-              <Ionicons name="add-circle-outline" size={18} color="#2158E8" />
-              <Text style={styles.addPlaceButtonText}>장소 추가</Text>
-            </TouchableOpacity>
-
-            <View style={styles.saveButtonRow}>
+            {isEditMode ?
               <TouchableOpacity
                 style={[
-                  styles.secondarySaveButton,
+                  styles.addPlaceButton,
                   (loadingSchedule || saving) &&
                     styles.bottomSaveButtonDisabled,
                 ]}
                 activeOpacity={0.85}
-                onPress={() => handleSavePlanA({ moveToMainAfterSave: false })}
+                onPress={handleAddPlace}
                 disabled={loadingSchedule || saving}
               >
-                <Ionicons name="save-outline" size={17} color="#2158E8" />
-                <Text style={styles.secondarySaveButtonText}>
-                  {saving ? "저장 중..." : "변경 저장"}
-                </Text>
+                <Ionicons name="add-circle-outline" size={18} color="#2158E8" />
+                <Text style={styles.addPlaceButtonText}>장소 추가</Text>
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.primarySaveButton,
-                  (loadingSchedule || saving) &&
-                    styles.bottomSaveButtonDisabled,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => handleSavePlanA({ moveToMainAfterSave: true })}
-                disabled={loadingSchedule || saving}
-              >
-                <Ionicons name="home-outline" size={17} color="#FFFFFF" />
-                <Text style={styles.primarySaveButtonText}>
-                  {saving ? "저장 중..." : "저장 후 홈으로"}
-                </Text>
-              </TouchableOpacity>
-            </View>
+            : null}
           </View>
         </ScrollView>
 
