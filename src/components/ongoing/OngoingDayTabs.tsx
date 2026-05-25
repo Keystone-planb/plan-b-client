@@ -1,5 +1,7 @@
 import React from "react";
-import { View, TouchableOpacity, Text } from "react-native";
+import { View, TouchableOpacity, Text,
+  ScrollView,
+} from "react-native";
 
 type DayItem = {
   day: number;
@@ -19,7 +21,11 @@ export default function OngoingDayTabs({
   styles,
 }: Props) {
   return (
-    <View style={styles.dayTabs}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.dayTabs}
+    >
       {displayDays.map((day, index) => {
         const selected = selectedDayIndex === index;
 
@@ -41,6 +47,6 @@ export default function OngoingDayTabs({
           </TouchableOpacity>
         );
       })}
-    </View>
+    </ScrollView>
   );
 }

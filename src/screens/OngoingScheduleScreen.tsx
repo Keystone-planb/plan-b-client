@@ -89,6 +89,36 @@ type EditingTimePlace = {
   endTime: string;
 } | null;
 
+
+const getTripDayCount = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return 1;
+
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const end = new Date(endDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return 1;
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+
+  return Math.max(diffDays, 1);
+};
+
+const makeDisplayDaysByDateRange = (
+  startDate?: string,
+  endDate?: string,
+): ScheduleDay[] => {
+  const dayCount = getTripDayCount(startDate, endDate);
+
+  return Array.from({ length: dayCount }, (_, index) => ({
+    day: index + 1,
+    places: [],
+  }));
+};
+
+
 type Props = {
   navigation: any;
   route?: {
@@ -417,14 +447,54 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   );
 
 
+  const displayDays = useMemo(
+    () => makeDisplayDaysByDateRange(startDate, endDate),
+    [startDate, endDate],
+  );
+
+  useEffect(() => {
+    if (displayDays.length === 0) return;
+
+    setSelectedDayIndex((prevIndex) => {
+      if (prevIndex < displayDays.length) return prevIndex;
+      return Math.max(displayDays.length - 1, 0);
+    });
+  }, [displayDays.length]);
+
+  const normalizedRouteDays = useMemo<ScheduleDay[]>(() => {
+    return displayDays.map((displayDay, index) => {
+      const matchedDay =
+        days.find((day) => Number(day.day) === Number(displayDay.day)) ??
+        days[index];
+
+      return {
+        day: displayDay.day,
+        places: Array.isArray(matchedDay?.places) ? matchedDay.places : [],
+      };
+    });
+  }, [days, displayDays]);
+
+  const normalizedServerDays = useMemo<ScheduleDay[]>(() => {
+    return displayDays.map((displayDay) => {
+      const matchedDay = serverDays.find(
+        (day) => Number(day.day) === Number(displayDay.day),
+      );
+
+      return {
+        day: displayDay.day,
+        places: Array.isArray(matchedDay?.places) ? matchedDay.places : [],
+      };
+    });
+  }, [serverDays, displayDays]);
+
   const {
     currentDay,
     places,
     mapPlaces,
     currentDayFallbackGaps,
   } = useOngoingPlaces({
-    days,
-    serverDays,
+    days: normalizedRouteDays,
+    serverDays: normalizedServerDays,
     editedPlacesByDay,
     deletedPlaceKeysByDay,
     selectedDayIndex,
@@ -646,12 +716,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
   };
 
-  const displayDays = serverDays.length > 0 ? serverDays : days;
-
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
-        <OngoingHeader styles={styles} onBack={handleBack} />
+        <OngoingHeader styles={styles} onBack={handleBack} title={tripName} />
 
         <ScrollView
           style={styles.scroll}
