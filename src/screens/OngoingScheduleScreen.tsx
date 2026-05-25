@@ -14,6 +14,7 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -25,6 +26,7 @@ import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import type { TripScheduleGap } from "../types/gapRecommendation";
 import { getPlaceDetail } from "../../api/places/place";
 import {
+  deletePlanPlace,
   getTripDetail,
   updatePlanSchedule,
 } from "../../api/schedules/server";
@@ -322,12 +324,28 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const [timeDraftsByPlaceKey, setTimeDraftsByPlaceKey] = useState<
     Record<string, TimeDraft>
   >({});
+  const [memoDraftsByPlaceKey, setMemoDraftsByPlaceKey] = useState<
+    Record<string, string[]>
+  >({});
   const [editingTimePlace, setEditingTimePlace] =
     useState<EditingTimePlace>(null);
   const [timePickerTarget, setTimePickerTarget] =
     useState<TimePickerTarget>("visitTime");
   const [timePickerHour, setTimePickerHour] = useState(12);
   const [timePickerMinute, setTimePickerMinute] = useState(0);
+  const [deletedPlaceKeysByDay, setDeletedPlaceKeysByDay] = useState<
+    Record<number, string[]>
+  >({});
+  const [deletedPlaceRequestsByDay, setDeletedPlaceRequestsByDay] = useState<
+    Record<
+      number,
+      Array<{
+        placeKey: string;
+        tripPlaceId: string | number;
+        placeName?: string;
+      }>
+    >
+  >({});
   const [editedPlacesByDay, setEditedPlacesByDay] = useState<
     Record<number, TodayPlace[]>
   >({});
@@ -426,16 +444,32 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [days, editedPlacesByDay, serverDays, selectedDayIndex]);
 
   const places = useMemo(() => {
+    const dayNumber = selectedDayIndex + 1;
+    const deletedKeys = deletedPlaceKeysByDay[dayNumber] ?? [];
+
+    const filterDeletedPlaces = (sourcePlaces: TodayPlace[]) => {
+      return sourcePlaces.filter((place, index) => {
+        const placeKey = getEditablePlaceKey(place, index);
+
+        return !deletedKeys.includes(placeKey);
+      });
+    };
+
     if (currentDay?.places?.length) {
-      return sortPlacesByTime(currentDay.places);
+      return sortPlacesByTime(filterDeletedPlaces(currentDay.places));
     }
 
     if (params.places && params.places.length > 0) {
-      return sortPlacesByTime(params.places);
+      return sortPlacesByTime(filterDeletedPlaces(params.places));
     }
 
     return [];
-  }, [currentDay?.places, params.places]);
+  }, [
+    currentDay?.places,
+    deletedPlaceKeysByDay,
+    params.places,
+    selectedDayIndex,
+  ]);
 
   const mapPlaces = useMemo(() => {
     return places.map((place) => {
@@ -689,13 +723,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     const nextEditingPlace: EditingTimePlace = {
       ...editingTimePlace,
       visitTime:
-        timePickerTarget === "visitTime" ?
-          currentPickerValue
-        : editingTimePlace.visitTime,
+        timePickerTarget === "visitTime" ? currentPickerValue : (
+          editingTimePlace.visitTime
+        ),
       endTime:
-        timePickerTarget === "endTime" ?
-          currentPickerValue
-        : editingTimePlace.endTime,
+        timePickerTarget === "endTime" ? currentPickerValue : (
+          editingTimePlace.endTime
+        ),
     };
 
     const parsed = parseTimeForPicker(
@@ -716,21 +750,22 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     )}`;
 
     const nextVisitTime =
-      timePickerTarget === "visitTime" ?
-        selectedTime
-      : normalizeEditableTimeInput(editingTimePlace.visitTime);
+      timePickerTarget === "visitTime" ? selectedTime : (
+        normalizeEditableTimeInput(editingTimePlace.visitTime)
+      );
 
     const nextEndTime =
-      timePickerTarget === "endTime" ?
-        selectedTime
+      timePickerTarget === "endTime" ? selectedTime
       : editingTimePlace.endTime ?
         normalizeEditableTimeInput(editingTimePlace.endTime)
-      : timePickerTarget === "visitTime" ?
-        addOneHourToDisplayTime(selectedTime)
+      : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
       : "";
 
     if (!nextVisitTime || !nextEndTime) {
-      Alert.alert("시간 입력 필요", "시작 시간과 종료 시간을 모두 설정해주세요.");
+      Alert.alert(
+        "시간 입력 필요",
+        "시작 시간과 종료 시간을 모두 설정해주세요.",
+      );
       return;
     }
 
@@ -758,18 +793,39 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     const nextPlaces = places.map((place, index) => {
       const placeKey = getEditablePlaceKey(place, index);
       const timeDraft = timeDraftsByPlaceKey[placeKey];
+      const memoDrafts = memoDraftsByPlaceKey[placeKey];
 
-      if (!timeDraft) {
+      const cleanedMemos = memoDrafts
+        ? memoDrafts
+            .map((memo) => memo.trim())
+            .filter(Boolean)
+            .map((memoText, memoIndex) => ({
+              id:
+                place.memos?.[memoIndex]?.id ??
+                `${placeKey}-memo-${memoIndex + 1}`,
+              text: memoText,
+              updatedAt: new Date().toISOString(),
+            }))
+        : place.memos;
+
+      if (!timeDraft && !memoDrafts) {
         return place;
       }
 
       return {
         ...place,
-        visitTime: timeDraft.visitTime,
-        endTime: timeDraft.endTime,
-        time: `${timeDraft.visitTime} - ${timeDraft.endTime}`,
+        visitTime: timeDraft?.visitTime ?? place.visitTime,
+        endTime: timeDraft?.endTime ?? place.endTime,
+        time:
+          timeDraft ?
+            `${timeDraft.visitTime} - ${timeDraft.endTime}`
+          : place.time,
+        memos: cleanedMemos,
       };
     });
+
+    const deleteRequests =
+      deletedPlaceRequestsByDay[currentDayNumber] ?? [];
 
     const updateRequests = nextPlaces
       .map((place, index) => {
@@ -803,6 +859,15 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     try {
       setIsSavingEdit(true);
 
+      for (const request of deleteRequests) {
+        await deletePlanPlace(request.tripPlaceId);
+
+        console.log("[OngoingSchedule] 장소 삭제 서버 반영 완료:", {
+          tripPlaceId: request.tripPlaceId,
+          placeName: request.placeName,
+        });
+      }
+
       for (const request of updateRequests) {
         await updatePlanSchedule(request.tripPlaceId, {
           visitTime: request.visitTime,
@@ -823,21 +888,93 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       }));
 
       setTimeDraftsByPlaceKey({});
+      setMemoDraftsByPlaceKey({});
+      setDeletedPlaceKeysByDay((prev) => {
+        const next = { ...prev };
+        delete next[currentDayNumber];
+        return next;
+      });
+      setDeletedPlaceRequestsByDay((prev) => {
+        const next = { ...prev };
+        delete next[currentDayNumber];
+        return next;
+      });
       setIsEditMode(false);
 
-      if (updateRequests.length > 0) {
-        Alert.alert("저장 완료", "시간 변경사항이 저장되었습니다.");
+      if (
+        deleteRequests.length > 0 ||
+        updateRequests.length > 0 ||
+        Object.keys(memoDraftsByPlaceKey).length > 0
+      ) {
+        Alert.alert("저장 완료", "수정사항이 반영되었습니다.");
       }
     } catch (error) {
-      console.log("[OngoingSchedule] 시간 변경 서버 저장 실패:", error);
+      console.log("[OngoingSchedule] 일정 수정 저장 실패:", error);
 
       Alert.alert(
         "저장 실패",
-        "시간 변경사항을 서버에 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",
+        "수정사항을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",
       );
     } finally {
       setIsSavingEdit(false);
     }
+  };
+
+  const handleDeletePlaceDraft = (place: TodayPlace, index: number) => {
+    const currentDayNumber = selectedDayIndex + 1;
+    const placeKey = getEditablePlaceKey(place, index);
+
+    Alert.alert(
+      "장소 삭제",
+      "이 장소를 일정에서 삭제할까요?",
+      [
+        {
+          text: "취소",
+          style: "cancel",
+        },
+        {
+          text: "삭제",
+          style: "destructive",
+          onPress: () => {
+            setDeletedPlaceKeysByDay((prev) => ({
+              ...prev,
+              [currentDayNumber]: [
+                ...(prev[currentDayNumber] ?? []),
+                placeKey,
+              ],
+            }));
+
+            const tripPlaceId = place.serverTripPlaceId ?? place.tripPlaceId;
+
+            if (isValidServerPlanId(tripPlaceId)) {
+              setDeletedPlaceRequestsByDay((prev) => ({
+                ...prev,
+                [currentDayNumber]: [
+                  ...(prev[currentDayNumber] ?? []),
+                  {
+                    placeKey,
+                    tripPlaceId,
+                    placeName: place.name,
+                  },
+                ],
+              }));
+            }
+
+            setTimeDraftsByPlaceKey((prev) => {
+              const next = { ...prev };
+              delete next[placeKey];
+              return next;
+            });
+
+            setMemoDraftsByPlaceKey((prev) => {
+              const next = { ...prev };
+              delete next[placeKey];
+              return next;
+            });
+          },
+        },
+      ],
+    );
   };
 
   const handleEdit = () => {
@@ -1011,7 +1148,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     isSavingEdit && styles.disabledEditText,
                   ]}
                 >
-                  {isSavingEdit ? "저장 중..." : isEditMode ? "완료" : "수정"}
+                  {isSavingEdit ?
+                    "저장 중..."
+                  : isEditMode ?
+                    "완료"
+                  : "수정"}
                 </Text>
               </TouchableOpacity>
             : null}
@@ -1087,20 +1228,24 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 place.serverTripPlaceId ?? place.tripPlaceId ?? place.id,
               );
               const placeKey = getEditablePlaceKey(place, index);
+              const memoDrafts =
+                memoDraftsByPlaceKey[placeKey] ??
+                (place.memos?.length ?
+                  place.memos.map((memo) => memo.text)
+                : [""]);
               const timeDraft = timeDraftsByPlaceKey[placeKey];
-              const displayPlace = timeDraft ?
-                {
-                  ...place,
-                  visitTime: timeDraft.visitTime,
-                  endTime: timeDraft.endTime,
-                  time: `${timeDraft.visitTime} - ${timeDraft.endTime}`,
-                }
-              : place;
+              const displayPlace =
+                timeDraft ?
+                  {
+                    ...place,
+                    visitTime: timeDraft.visitTime,
+                    endTime: timeDraft.endTime,
+                    time: `${timeDraft.visitTime} - ${timeDraft.endTime}`,
+                  }
+                : place;
 
               return (
-                <React.Fragment
-                  key={`${placeKey}-${index}`}
-                >
+                <React.Fragment key={`${placeKey}-${index}`}>
                   <View
                     style={[
                       styles.todayCard,
@@ -1151,22 +1296,88 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     : null}
 
                     {isCurrentTripOngoing && isEditMode ?
-                      <TouchableOpacity
-                        style={styles.timeEditButton}
-                        activeOpacity={0.85}
-                        onPress={() => handleOpenTimeEdit(place, index)}
-                      >
-                        <Ionicons
-                          name="time-outline"
-                          size={14}
-                          color="#64748B"
-                        />
-                        <Text style={styles.timeEditButtonText}>시간변경</Text>
-                      </TouchableOpacity>
+                      <View style={styles.editActionRow}>
+                        <TouchableOpacity
+                          style={styles.timeEditButton}
+                          activeOpacity={0.85}
+                          onPress={() => handleOpenTimeEdit(place, index)}
+                        >
+                          <Ionicons
+                            name="time-outline"
+                            size={14}
+                            color="#64748B"
+                          />
+                          <Text style={styles.timeEditButtonText}>시간변경</Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          style={styles.deleteEditButton}
+                          activeOpacity={0.85}
+                          onPress={() => handleDeletePlaceDraft(place, index)}
+                        >
+                          <Ionicons
+                            name="trash-outline"
+                            size={14}
+                            color="#EF4444"
+                          />
+                        </TouchableOpacity>
+                      </View>
                     : null}
                   </View>
 
-                  {place.memos?.length ?
+                  {isEditMode ?
+                    <View style={styles.memoEditBox}>
+                      <View style={styles.memoEditLabelRow}>
+                        <Ionicons
+                          name="reader-outline"
+                          size={15}
+                          color="#64748B"
+                        />
+                        <Text style={styles.memoEditLabel}>메모</Text>
+                      </View>
+
+                      {memoDrafts.map((memoText, memoIndex) => (
+                        <TextInput
+                          key={`${placeKey}-memo-input-${memoIndex}`}
+                          style={[
+                            styles.memoInput,
+                            memoIndex > 0 && styles.memoInputSpacing,
+                          ]}
+                          value={memoText}
+                          placeholder="메모를 입력하세요"
+                          placeholderTextColor="#94A3B8"
+                          multiline
+                          onChangeText={(nextText) => {
+                            setMemoDraftsByPlaceKey((prev) => {
+                              const currentDrafts = prev[placeKey] ?? memoDrafts;
+                              const nextDrafts = [...currentDrafts];
+
+                              nextDrafts[memoIndex] = nextText;
+
+                              return {
+                                ...prev,
+                                [placeKey]: nextDrafts,
+                              };
+                            });
+                          }}
+                        />
+                      ))}
+
+                      <TouchableOpacity
+                        style={styles.addMemoButton}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          setMemoDraftsByPlaceKey((prev) => ({
+                            ...prev,
+                            [placeKey]: [...memoDrafts, ""],
+                          }));
+                        }}
+                      >
+                        <Ionicons name="add" size={16} color="#2158E8" />
+                        <Text style={styles.addMemoButtonText}>메모 추가</Text>
+                      </TouchableOpacity>
+                    </View>
+                  : place.memos?.length ?
                     <View style={styles.memoList}>
                       {place.memos.map((memo) => (
                         <View key={memo.id} style={styles.memoCard}>
@@ -1808,6 +2019,12 @@ const styles = StyleSheet.create({
     marginRight: 3,
   },
 
+  editActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
   timeEditButton: {
     height: 32,
     borderRadius: 16,
@@ -1824,6 +2041,81 @@ const styles = StyleSheet.create({
   timeEditButtonText: {
     color: "#64748B",
     fontSize: 11,
+    fontWeight: "900",
+  },
+
+  deleteEditButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: "#FFF7F7",
+    borderWidth: 1,
+    borderColor: "#FFD6D6",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  memoEditBox: {
+    marginTop: -4,
+    marginLeft: 78,
+    marginRight: 6,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+
+  memoEditLabelRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    marginBottom: 8,
+  },
+
+  memoEditLabel: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  memoInput: {
+    minHeight: 42,
+    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E8EEF7",
+    color: "#1F2937",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    textAlignVertical: "top",
+  },
+
+  memoInputSpacing: {
+    marginTop: 8,
+  },
+
+  addMemoButton: {
+    marginTop: 10,
+    alignSelf: "flex-start",
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#F8FAFF",
+    borderWidth: 1,
+    borderColor: "#C7DCFF",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  addMemoButtonText: {
+    color: "#2158E8",
+    fontSize: 12,
     fontWeight: "900",
   },
 
