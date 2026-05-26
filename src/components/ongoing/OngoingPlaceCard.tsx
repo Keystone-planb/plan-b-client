@@ -48,12 +48,12 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
         styles.todayCard,
         !isCurrentTripOngoing && styles.futureTodayCard,
         focused && styles.todayCardActive,
+        localStyles.placeCard,
+        focused && localStyles.placeCardActive,
       ]}
     >
       <View style={styles.placeTopRow}>
-        <View style={styles.numberCircle}>
-          <Text style={styles.numberText}>{index + 1}</Text>
-        </View>
+
 
         <View style={localStyles.contentArea}>
           <View style={localStyles.topContentRow}>
@@ -141,10 +141,35 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
 export default OngoingPlaceCard;
 
 const localStyles = StyleSheet.create({
+  placeCard: {
+    flex: 1,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    marginRight: 18,
+    marginBottom: 18,
+
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.07,
+    shadowRadius: 12,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    elevation: 3,
+  },
+
+  placeCardActive: {
+    borderColor: "#2563EB",
+  },
+
   contentArea: {
     flex: 1,
     minWidth: 0,
-    marginLeft: 14,
+    marginLeft: 0,
   },
 
   topContentRow: {
