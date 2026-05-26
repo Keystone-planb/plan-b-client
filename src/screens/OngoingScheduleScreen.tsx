@@ -956,7 +956,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             <OngoingTimelineMarker
               hasPlaces={hasPlaces}
               placeCount={places.length}
-              isCurrentTripOngoing={true}
+              isCurrentTripOngoing={isCurrentTripOngoing}
               styles={styles}
             />
 
@@ -1005,7 +1005,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     place={place}
                     index={index}
                     focused={focused}
-                    isCurrentTripOngoing={true}
+                    isCurrentTripOngoing={isCurrentTripOngoing}
                     hasServerPlanId={hasServerPlanId}
                     displayPlace={displayPlace}
                     styles={styles}

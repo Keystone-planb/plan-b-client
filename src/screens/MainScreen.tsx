@@ -1147,9 +1147,7 @@ export default function MainScreen({ navigation }: Props) {
       }
     }
 
-    const targetDayIndex = getMainCurrentPlaceDayIndex(schedule);
-
-    navigation.navigate("OngoingSchedule", {
+    const commonParams = {
       scheduleId: getScheduleId(schedule),
       tripId: resolvedTripId,
       serverTripId: resolvedTripId,
@@ -1160,6 +1158,21 @@ export default function MainScreen({ navigation }: Props) {
       transportMode: schedule.transportMode,
       transportLabel: schedule.transportLabel,
       days,
+    };
+
+    if (isMainTripUpcomingByDate(schedule)) {
+      navigation.navigate("PlanA", {
+        ...commonParams,
+        selectedDay: 1,
+        day: 1,
+      });
+      return;
+    }
+
+    const targetDayIndex = getMainCurrentPlaceDayIndex(schedule);
+
+    navigation.navigate("OngoingSchedule", {
+      ...commonParams,
       ...(targetDayIndex !== null
         ? {
             selectedDayIndex: targetDayIndex,
