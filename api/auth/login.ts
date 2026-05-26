@@ -142,7 +142,9 @@ export const requestLogin = async ({
 
       if (isHtmlResponse(errorData)) {
         throw new LoginError(
-          "로그인 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
+          status === 403
+            ? "로그인 요청이 서버에서 거부되었습니다. 이메일/비밀번호 또는 서버 인증 설정을 확인해주세요."
+            : "로그인 서버가 HTML 오류 응답을 반환했습니다. 서버 상태를 확인해주세요.",
           status,
         );
       }
