@@ -344,6 +344,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [isEditMode, setIsEditMode] = useState(
     route?.params?.isEditMode === true,
   );
+  const [isEditPreviewMode, setIsEditPreviewMode] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const scrollOffsetYRef = useRef(0);
   const shouldRestoreScrollRef = useRef(false);
@@ -1352,43 +1353,46 @@ export default function PlanAScreen({ navigation, route }: Props) {
 </View>
 
               <View style={styles.headerActionRow}>
-                <TouchableOpacity
-                  style={[
-                    styles.editModeButton,
-                    isEditMode && styles.editModeButtonActive,
-                  ]}
-                  activeOpacity={0.8}
-                  onPress={async () => {
-                    if (!isEditMode) {
-                      resetEditingState();
-                      setIsEditMode(true);
-                      return;
-                    }
-
-                    const saved = await handleSavePlanA({
-                      moveToMainAfterSave: false,
-                    });
-
-                    if (saved) {
-                      setIsEditMode(false);
-                    }
-                  }}
-                >
-                  <Ionicons
-                    name={isEditMode ? "checkmark" : "create-outline"}
-                    size={15}
-                    color={isEditMode ? "#FFFFFF" : "#2158E8"}
-                  />
-
-                  <Text
+                {isEditPreviewMode || isEditMode ?
+                  <TouchableOpacity
                     style={[
-                      styles.editModeButtonText,
-                      isEditMode && styles.editModeButtonTextActive,
+                      styles.editModeButton,
+                      isEditMode && styles.editModeButtonActive,
                     ]}
+                    activeOpacity={0.8}
+                    onPress={async () => {
+                      if (isEditPreviewMode && !isEditMode) {
+                        resetEditingState();
+                        setIsEditMode(true);
+                        return;
+                      }
+
+                      const saved = await handleSavePlanA({
+                        moveToMainAfterSave: false,
+                      });
+
+                      if (saved) {
+                        setIsEditMode(false);
+                        setIsEditPreviewMode(false);
+                      }
+                    }}
                   >
-                    {isEditMode ? "완료" : "편집"}
-                  </Text>
-                </TouchableOpacity>
+                    <Ionicons
+                      name={isEditMode ? "checkmark" : "create-outline"}
+                      size={15}
+                      color={isEditMode ? "#FFFFFF" : "#2158E8"}
+                    />
+
+                    <Text
+                      style={[
+                        styles.editModeButtonText,
+                        isEditMode && styles.editModeButtonTextActive,
+                      ]}
+                    >
+                      {isEditMode ? "완료" : "편집"}
+                    </Text>
+                  </TouchableOpacity>
+                : null}
               </View>
             </View>
 
@@ -1450,15 +1454,33 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             {currentPlaces.length > 0 ?
-              <View style={styles.roadmapList}>
+              <>
+                <View style={styles.scheduleSectionHeader}>
+                  <Text style={styles.scheduleSectionTitle}>일정</Text>
+
+                  {!isEditPreviewMode && !isEditMode ?
+                    <TouchableOpacity
+                      activeOpacity={0.8}
+                      onPress={() => {
+                        resetEditingState();
+                        setIsEditPreviewMode(true);
+                      }}
+                    >
+                      <Text style={styles.scheduleEditText}>수정</Text>
+                    </TouchableOpacity>
+                  : null}
+                </View>
+
+                <View style={styles.roadmapList}>
                 {false ? <View pointerEvents="none" style={styles.roadmapLine} /> : null}
 
                 {sortPlacesByTime(currentPlaces).map((place, index) =>
-                  isEditMode ?
+                  isEditPreviewMode || isEditMode ?
                     renderEditablePlaceCard(place, index)
                   : renderPlaceCard(place, index),
                 )}
-              </View>
+                </View>
+              </>
             : <View style={styles.emptyScheduleRow}>
                 <View style={styles.timelineColumn}>
                   <View style={styles.timelineCircle} />
@@ -2740,4 +2762,24 @@ const styles = StyleSheet.create({
   },
 
 
+
+  scheduleSectionHeader: {
+    marginBottom: 14,
+    paddingHorizontal: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  scheduleSectionTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: "#111827",
+  },
+
+  scheduleEditText: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#2563EB",
+  },
 });
