@@ -124,13 +124,32 @@ const isHtmlResponse = (data: unknown) => {
   return trimmed.startsWith("<!doctype html>") || trimmed.startsWith("<html");
 };
 
+const shouldSkipAuthHeader = (url?: string) => {
+  const targetUrl = String(url ?? "");
+
+  return (
+    targetUrl.includes("/api/auth/login") ||
+    targetUrl.includes("/api/auth/refresh") ||
+    targetUrl.includes("/api/users/signup") ||
+    targetUrl.includes("/api/auth/email/request") ||
+    targetUrl.includes("/api/auth/email/verify")
+  );
+};
+
 apiClient.interceptors.request.use(
   async (config) => {
     const accessToken = await getStoredValue("access_token");
+    const skipAuthHeader = shouldSkipAuthHeader(config.url);
 
-    if (accessToken) {
+    if (accessToken && !skipAuthHeader) {
       const headers = (config.headers ?? {}) as AxiosRequestHeaders;
       headers.Authorization = `Bearer ${accessToken}`;
+      config.headers = headers;
+    }
+
+    if (skipAuthHeader) {
+      const headers = (config.headers ?? {}) as AxiosRequestHeaders;
+      delete headers.Authorization;
       config.headers = headers;
     }
 
@@ -138,6 +157,7 @@ apiClient.interceptors.request.use(
       method: config.method,
       url: config.url,
       hasAccessToken: Boolean(accessToken),
+      skipAuthHeader,
     });
 
     return config;
