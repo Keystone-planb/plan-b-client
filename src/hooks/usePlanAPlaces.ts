@@ -1625,20 +1625,29 @@ export function usePlanAPlaces({
           placeName: targetPlace?.name,
         });
       } catch (error) {
-        console.log("[PlanA 장소 삭제 서버 실패]", {
+        console.log("[PlanA 장소 삭제 서버 실패 - 로컬 삭제로 계속 진행]", {
           placeId,
           planId,
           placeName: targetPlace?.name,
           error,
         });
 
-        return;
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "서버 삭제에는 실패했지만 로컬 일정에서는 삭제했습니다.",
+          ),
+        );
       }
     }
 
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.filter((place) => place.id !== placeId),
     );
+
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 장소 삭제 로컬 저장 실패]", error);
+    });
 
     setMemoDrafts((prev) => {
       const next = { ...prev };
@@ -1668,7 +1677,7 @@ export function usePlanAPlaces({
 
     if (!trimmedMemo) return;
 
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId
           ? {
@@ -1679,6 +1688,10 @@ export function usePlanAPlaces({
           : place,
       ),
     );
+
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 메모 추가 로컬 저장 실패]", error);
+    });
 
     setMemoDrafts((prev) => ({
       ...prev,
@@ -1717,7 +1730,7 @@ export function usePlanAPlaces({
 
     if (!editingMemo || !trimmedText) return;
 
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === editingMemo.placeId
           ? {
@@ -1737,11 +1750,15 @@ export function usePlanAPlaces({
       ),
     );
 
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 메모 수정 로컬 저장 실패]", error);
+    });
+
     handleCancelEditMemo();
   };
 
   const handleDeleteMemo = (placeId: string, memoId: string) => {
-    updatePlacesForDay(selectedDay, (places) =>
+    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId
           ? {
@@ -1752,6 +1769,10 @@ export function usePlanAPlaces({
           : place,
       ),
     );
+
+    savePlanASchedule(nextSchedule).catch((error) => {
+      console.log("[PlanA 메모 삭제 로컬 저장 실패]", error);
+    });
 
     if (editingMemo?.placeId === placeId && editingMemo.memoId === memoId) {
       handleCancelEditMemo();
