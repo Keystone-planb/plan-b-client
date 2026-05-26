@@ -64,7 +64,9 @@ type StoredSchedule = {
 };
 
 const normalizeMainDateOnlyText = (value?: string | null) => {
-  const normalized = String(value ?? "").trim().replace(/\./g, "-");
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/\./g, "-");
 
   const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (!match) return "";
@@ -89,9 +91,7 @@ const isMainTripOngoingByDate = (schedule: {
   return startText <= todayText && todayText <= endText;
 };
 
-const isMainTripUpcomingByDate = (schedule: {
-  startDate?: string;
-}) => {
+const isMainTripUpcomingByDate = (schedule: { startDate?: string }) => {
   const startText = normalizeMainDateOnlyText(schedule.startDate);
   const todayText = getMainLocalDateOnlyText();
 
@@ -121,7 +121,6 @@ const getMainTodayDayIndex = (schedule: {
     Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
   );
 };
-
 
 const PLAN_A_STORAGE_PREFIX = "plan_a_schedule:";
 
@@ -291,7 +290,6 @@ const getFirstPlaceName = (schedule?: StoredSchedule) => {
   return "";
 };
 
-
 const getMainTimeMinutes = (value?: unknown) => {
   const normalized = String(value ?? "").trim();
   const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
@@ -356,7 +354,6 @@ const getCurrentPlaceName = (schedule?: StoredSchedule) => {
   return typeof currentPlace.name === "string" ? currentPlace.name : "";
 };
 
-
 const getMainCurrentPlaceDayIndex = (schedule?: StoredSchedule) => {
   if (!schedule) return null;
 
@@ -383,7 +380,9 @@ const getMainCurrentPlaceDayIndex = (schedule?: StoredSchedule) => {
     });
   });
 
-  return matchedDayIndex >= 0 ? matchedDayIndex : getMainTodayDayIndex(schedule);
+  return matchedDayIndex >= 0 ? matchedDayIndex : (
+      getMainTodayDayIndex(schedule)
+    );
 };
 
 const getPlaceCount = (schedule?: StoredSchedule) => {
@@ -723,7 +722,7 @@ export default function MainScreen({ navigation }: Props) {
 
       if (!storedUserId) {
         setNotifications([]);
-      setActiveNotificationIndex(0);
+        setActiveNotificationIndex(0);
         return;
       }
 
@@ -1148,6 +1147,8 @@ export default function MainScreen({ navigation }: Props) {
       }
     }
 
+    const targetDayIndex = getMainCurrentPlaceDayIndex(schedule);
+
     navigation.navigate("OngoingSchedule", {
       scheduleId: getScheduleId(schedule),
       tripId: resolvedTripId,
@@ -1159,8 +1160,12 @@ export default function MainScreen({ navigation }: Props) {
       transportMode: schedule.transportMode,
       transportLabel: schedule.transportLabel,
       days,
-      selectedDayIndex: getMainCurrentPlaceDayIndex(schedule),
-      selectedDay: getMainCurrentPlaceDayIndex(schedule) + 1,
+      ...(targetDayIndex !== null
+        ? {
+            selectedDayIndex: targetDayIndex,
+            selectedDay: targetDayIndex + 1,
+          }
+        : {}),
     });
   };
 
@@ -1334,14 +1339,16 @@ export default function MainScreen({ navigation }: Props) {
         currentSchedule ??
         activeSchedules[0];
 
-      const matchedDay = Array.isArray(baseSchedule?.days)
-        ? (baseSchedule?.days as any[]).find((day) =>
-            Array.isArray(day?.places) &&
-            day.places.some((place: any) =>
-              [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
-                (id) => String(id) === String(currentPlanId),
+      const matchedDay =
+        Array.isArray(baseSchedule?.days) ?
+          (baseSchedule?.days as any[]).find(
+            (day) =>
+              Array.isArray(day?.places) &&
+              day.places.some((place: any) =>
+                [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
+                  (id) => String(id) === String(currentPlanId),
+                ),
               ),
-            ),
           )
         : null;
 
@@ -1356,21 +1363,22 @@ export default function MainScreen({ navigation }: Props) {
           currentPlanId,
           tripId: notificationTripId,
           scheduleTitle: getScheduleTitle(baseSchedule ?? {}),
-          placeIds: Array.isArray(baseSchedule?.days)
-            ? (baseSchedule?.days as any[]).flatMap((day) =>
-                Array.isArray(day?.places)
-                  ? day.places.map((place: any) => ({
-                      day: day?.day,
-                      id: place?.id,
-                      tripPlaceId: place?.tripPlaceId,
-                      serverTripPlaceId: place?.serverTripPlaceId,
-                      placeId: place?.placeId,
-                      googlePlaceId: place?.googlePlaceId,
-                      name: place?.name,
-                      visitTime: place?.visitTime,
-                      endTime: place?.endTime,
-                    }))
-                  : [],
+          placeIds:
+            Array.isArray(baseSchedule?.days) ?
+              (baseSchedule?.days as any[]).flatMap((day) =>
+                Array.isArray(day?.places) ?
+                  day.places.map((place: any) => ({
+                    day: day?.day,
+                    id: place?.id,
+                    tripPlaceId: place?.tripPlaceId,
+                    serverTripPlaceId: place?.serverTripPlaceId,
+                    placeId: place?.placeId,
+                    googlePlaceId: place?.googlePlaceId,
+                    name: place?.name,
+                    visitTime: place?.visitTime,
+                    endTime: place?.endTime,
+                  }))
+                : [],
               )
             : [],
         });
