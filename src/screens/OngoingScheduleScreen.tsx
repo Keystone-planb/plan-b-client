@@ -720,6 +720,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     todayDayIndex !== null &&
     selectedDayIndex === todayDayIndex;
 
+  const canEditSchedule = Boolean(resolvedTripId ?? scheduleId);
+
   useEffect(() => {
     if (!isSelectedDayToday) return;
     if (hasAutoScrolledRef.current) return;
@@ -932,7 +934,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               {isSelectedDayToday ? "오늘 일정" : "일정"}
             </Text>
 
-            {isCurrentTripOngoing ?
+            {canEditSchedule ?
               <TouchableOpacity disabled={isSavingEdit} onPress={handleEdit}>
                 <Text
                   style={[
@@ -949,15 +951,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
 
           <View
-            style={[
-              styles.timelineList,
-              !isSelectedDayToday && styles.futureTimelineList,
-            ]}
+            style={styles.timelineList}
           >
             <OngoingTimelineMarker
               hasPlaces={hasPlaces}
               placeCount={places.length}
-              isCurrentTripOngoing={isSelectedDayToday}
+              isCurrentTripOngoing={true}
               styles={styles}
             />
 
@@ -1006,7 +1005,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     place={place}
                     index={index}
                     focused={focused}
-                    isCurrentTripOngoing={isSelectedDayToday}
+                    isCurrentTripOngoing={true}
                     hasServerPlanId={hasServerPlanId}
                     displayPlace={displayPlace}
                     styles={styles}
