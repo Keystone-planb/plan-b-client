@@ -60,6 +60,52 @@ type Props = {
 
 type Status = "idle" | "loading" | "done" | "error";
 
+type GapTransportMode = "WALK" | "TRANSIT" | "CAR";
+
+const GAP_TRANSPORT_OPTIONS: {
+  mode: GapTransportMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
+  {
+    mode: "WALK",
+    label: "도보",
+    icon: "walk-outline",
+  },
+  {
+    mode: "TRANSIT",
+    label: "대중교통",
+    icon: "bus-outline",
+  },
+  {
+    mode: "CAR",
+    label: "자동차",
+    icon: "car-outline",
+  },
+];
+
+const getGapTransportLabel = (mode?: string | null) => {
+  switch (mode) {
+    case "WALK":
+      return "도보";
+    case "CAR":
+      return "자동차";
+    case "TRANSIT":
+    default:
+      return "대중교통";
+  }
+};
+
+const getSafeGapTransportMode = (
+  mode?: string | null,
+): GapTransportMode => {
+  if (mode === "WALK" || mode === "TRANSIT" || mode === "CAR") {
+    return mode;
+  }
+
+  return "TRANSIT";
+};
+
 const isValidGap = (gap: TripScheduleGap) => {
   return (
     gap.availableMinutes > 0 &&
@@ -80,6 +126,9 @@ export default function GapRecommendationCard({
   const [selectedPlaceId, setSelectedPlaceId] = useState<
     number | string | null
   >(null);
+  const [selectedTransportMode, setSelectedTransportMode] =
+    useState<GapTransportMode>("TRANSIT");
+  const [expandedGapKey, setExpandedGapKey] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [hasLoadedGaps, setHasLoadedGaps] = useState(false);
   const [message, setMessage] = useState(
@@ -125,6 +174,7 @@ export default function GapRecommendationCard({
       setSelectedGap(null);
       setPlaces([]);
       setSelectedPlaceId(null);
+      setExpandedGapKey(null);
       setStatus("idle");
 
       if (nextGaps.length === 0) {
@@ -212,10 +262,9 @@ export default function GapRecommendationCard({
     setStatus("loading");
     setMessage("빈 시간에 들를 수 있는 장소를 분석 중입니다...");
 
-    const safeTransportMode =
-      gap.transportMode === "CAR" || gap.transportMode === "TRANSIT" ?
-        gap.transportMode
-      : "TRANSIT";
+    const safeTransportMode = getSafeGapTransportMode(
+      selectedTransportMode || gap.transportMode,
+    );
 
     const payload: GapRecommendationRequest = {
       beforePlanId: gap.beforePlanId,
@@ -333,58 +382,111 @@ export default function GapRecommendationCard({
         : null}
       </View>
 
-      <Text style={styles.message}>{message}</Text>
+      {status === "loading" || status === "error" ?
+        <Text style={styles.message}>{message}</Text>
+      : null}
 
       {gaps.length > 0 ?
         <View style={styles.gapList}>
           {gaps.map((gap) => {
             const gapKey = `${gap.beforePlanId}-${gap.afterPlanId}`;
-            const isSelected =
-              selectedGap?.beforePlanId === gap.beforePlanId &&
-              selectedGap?.afterPlanId === gap.afterPlanId;
+            const isExpanded = expandedGapKey === gapKey;
 
             return (
-              <TouchableOpacity
-                key={gapKey}
-                style={[styles.gapButton, isSelected && styles.selectedGap]}
-                activeOpacity={0.85}
-                onPress={() => handleRecommend(gap)}
-                disabled={isLoading}
-              >
-                <View style={styles.gapTextBox}>
-                  <Text
-                    style={[
-                      styles.gapTitle,
-                      isSelected && styles.selectedGapText,
-                    ]}
-                  >
-                    {gap.beforePlanTitle} → {gap.afterPlanTitle}
-                  </Text>
+              <View key={gapKey} style={styles.gapItem}>
+                <TouchableOpacity
+                  style={[
+                    styles.gapButton,
+                    isExpanded && styles.expandedGapButton,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={() =>
+                    setExpandedGapKey((prev) =>
+                      prev === gapKey ? null : gapKey,
+                    )
+                  }
+                  disabled={isLoading}
+                >
+                  <View style={styles.gapTextBox}>
+                    <Text style={styles.gapTitle}>
+                      {gap.beforePlanTitle} → {gap.afterPlanTitle}
+                    </Text>
 
-                  <Text
-                    style={[
-                      styles.gapMeta,
-                      isSelected && styles.selectedGapSubText,
-                    ]}
-                  >
-                    총 공백 {gap.gapMinutes}분 · 추천 가능{" "}
-                    {gap.availableMinutes ?? gap.gapMinutes}분 ·{" "}
-                    {gap.transportMode}
-                  </Text>
-                </View>
+                    <Text style={styles.gapMeta}>
+                      총 공백 {gap.gapMinutes}분 · 추천 가능{" "}
+                      {gap.availableMinutes ?? gap.gapMinutes}분
+                    </Text>
+                  </View>
 
-                <View style={styles.gapActionBox}>
-                  <Text
-                    style={[
-                      styles.gapActionText,
-                      isSelected && styles.selectedGapActionText,
-                    ]}
-                  >
-                    장소 추천받기
-                  </Text>
-                  <Ionicons name="chevron-forward" size={18} color="#1D4ED8" />
-                </View>
-              </TouchableOpacity>
+                  <Ionicons
+                    name={isExpanded ? "chevron-up" : "chevron-down"}
+                    size={18}
+                    color="#94A3B8"
+                  />
+                </TouchableOpacity>
+
+                {isExpanded ?
+                  <View style={styles.expandedGapPanel}>
+                    <View style={styles.transportSelector}>
+                      {GAP_TRANSPORT_OPTIONS.map((option) => {
+                        const selected = selectedTransportMode === option.mode;
+
+                        return (
+                          <TouchableOpacity
+                            key={option.mode}
+                            style={[
+                              styles.transportButton,
+                              selected && styles.transportButtonActive,
+                            ]}
+                            activeOpacity={0.85}
+                            onPress={() => setSelectedTransportMode(option.mode)}
+                            disabled={isLoading}
+                          >
+                            <Ionicons
+                              name={option.icon}
+                              size={14}
+                              color={selected ? "#FFFFFF" : "#2158E8"}
+                            />
+
+                            <Text
+                              style={[
+                                styles.transportButtonText,
+                                selected && styles.transportButtonTextActive,
+                              ]}
+                            >
+                              {option.label}
+                            </Text>
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+
+                    <TouchableOpacity
+                      style={[
+                        styles.recommendButton,
+                        isLoading && styles.recommendButtonDisabled,
+                      ]}
+                      activeOpacity={0.85}
+                      onPress={() => handleRecommend(gap)}
+                      disabled={isLoading}
+                    >
+                      {isLoading ?
+                        <ActivityIndicator size="small" color="#FFFFFF" />
+                      : <>
+                          <Text style={styles.recommendButtonText}>
+                            대안찾기
+                          </Text>
+                          <Ionicons
+                            name="chevron-forward"
+                            size={17}
+                            color="#FFFFFF"
+                          />
+                        </>
+                      }
+                    </TouchableOpacity>
+                  </View>
+                : null}
+              </View>
             );
           })}
         </View>
@@ -430,13 +532,14 @@ export default function GapRecommendationCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 22,
+    marginTop: 12,
     marginHorizontal: 24,
-    padding: 18,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#DCEBFF",
+    borderColor: "#E2E8F0",
   },
   headerRow: {
     flexDirection: "row",
@@ -450,47 +553,93 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   iconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     color: "#1C2534",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "900",
   },
   subTitle: {
-    marginTop: 3,
+    marginTop: 2,
     color: "#64748B",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
   },
   message: {
-    marginTop: 18,
+    marginTop: 10,
     color: "#64748B",
-    fontSize: 15,
+    fontSize: 12,
     fontWeight: "700",
-    lineHeight: 23,
+    lineHeight: 18,
   },
+  transportSelector: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 10,
+  },
+
+  transportButton: {
+    minHeight: 28,
+    paddingHorizontal: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#D6E2F5",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+  },
+
+  transportButtonActive: {
+    backgroundColor: "#2158E8",
+    borderColor: "#2158E8",
+  },
+
+  transportButtonText: {
+    color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  transportButtonTextActive: {
+    color: "#FFFFFF",
+  },
+
   gapList: {
-    marginTop: 16,
-    gap: 10,
+    marginTop: 10,
+    gap: 8,
+  },
+
+  gapItem: {
+    borderRadius: 14,
+    overflow: "hidden",
   },
   gapButton: {
-    minHeight: 82,
-    borderRadius: 18,
-    backgroundColor: "#F8FAFC",
+    minHeight: 54,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
-    borderColor: "#DCE5F2",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
+  },
+
+  expandedGapButton: {
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
+    borderBottomColor: "#EEF2F7",
   },
   selectedGap: {
     backgroundColor: "#2563EB",
@@ -501,17 +650,17 @@ const styles = StyleSheet.create({
   },
   gapTitle: {
     color: "#1C2534",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "900",
-    lineHeight: 20,
+    lineHeight: 17,
   },
   selectedGapText: {
     color: "#FFFFFF",
   },
   gapMeta: {
-    marginTop: 5,
+    marginTop: 3,
     color: "#64748B",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "800",
   },
   selectedGapSubText: {
@@ -524,6 +673,40 @@ const styles = StyleSheet.create({
   },
   gapActionText: {
     color: "#2563EB",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  expandedGapPanel: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 12,
+    backgroundColor: "#FFFFFF",
+    borderLeftWidth: 1,
+    borderRightWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: "#E2E8F0",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+
+  recommendButton: {
+    marginTop: 10,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+
+  recommendButtonDisabled: {
+    opacity: 0.6,
+  },
+
+  recommendButtonText: {
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "900",
   },
