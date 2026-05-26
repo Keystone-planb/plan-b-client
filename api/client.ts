@@ -164,8 +164,16 @@ apiClient.interceptors.response.use(
       originalUrl.includes("/api/notifications/") ||
       originalUrl.includes("/api/preferences/");
 
+    const isAuthRequest =
+      originalUrl.includes("/api/auth/login") ||
+      originalUrl.includes("/api/auth/refresh") ||
+      originalUrl.includes("/api/auth/logout") ||
+      originalUrl.includes("/api/users/signup") ||
+      originalUrl.includes("/oauth2/authorization/");
+
     const shouldTryRefresh =
       !isOptionalAuthRequest &&
+      !isAuthRequest &&
       (error.response?.status === 401 || error.response?.status === 403) &&
       originalRequest &&
       !originalRequest._retry;
