@@ -63,6 +63,66 @@ type StoredSchedule = {
   createdAt?: string;
 };
 
+const normalizeMainDateOnlyText = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().replace(/\./g, "-");
+
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!match) return "";
+
+  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+};
+
+const getMainLocalDateOnlyText = (date = new Date()) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const isMainTripOngoingByDate = (schedule: {
+  startDate?: string;
+  endDate?: string;
+}) => {
+  const startText = normalizeMainDateOnlyText(schedule.startDate);
+  const endText = normalizeMainDateOnlyText(schedule.endDate);
+  const todayText = getMainLocalDateOnlyText();
+
+  if (!startText || !endText) return false;
+
+  return startText <= todayText && todayText <= endText;
+};
+
+const isMainTripUpcomingByDate = (schedule: {
+  startDate?: string;
+}) => {
+  const startText = normalizeMainDateOnlyText(schedule.startDate);
+  const todayText = getMainLocalDateOnlyText();
+
+  if (!startText) return false;
+
+  return todayText < startText;
+};
+
+const getMainTodayDayIndex = (schedule: {
+  startDate?: string;
+  endDate?: string;
+}) => {
+  if (!isMainTripOngoingByDate(schedule)) return 0;
+
+  const startText = normalizeMainDateOnlyText(schedule.startDate);
+  const todayText = getMainLocalDateOnlyText();
+
+  const start = new Date(`${startText}T00:00:00`);
+  const today = new Date(`${todayText}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) {
+    return 0;
+  }
+
+  return Math.max(
+    0,
+    Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+};
+
+
 const PLAN_A_STORAGE_PREFIX = "plan_a_schedule:";
 
 const getTodayDisplayText = () => {
@@ -229,6 +289,101 @@ const getFirstPlaceName = (schedule?: StoredSchedule) => {
   }
 
   return "";
+};
+
+
+const getMainTimeMinutes = (value?: unknown) => {
+  const normalized = String(value ?? "").trim();
+  const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
+  const match = firstTime.match(/(?:T|\b)(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3]?.toUpperCase();
+
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  return hour * 60 + minute;
+};
+
+const getMainTimeRangeEndText = (value?: unknown) => {
+  const normalized = String(value ?? "").trim();
+  const [, end] = normalized.split(/\s*-\s*/);
+
+  return end?.trim() || "";
+};
+
+const getCurrentPlaceName = (schedule?: StoredSchedule) => {
+  if (!schedule || !isMainTripOngoingByDate(schedule)) return "";
+
+  const days = Array.isArray(schedule.days) ? schedule.days : [];
+  const todayDayNumber = getMainTodayDayIndex(schedule) + 1;
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const todayDay = days.find((day, index) => {
+    if (!isRecord(day)) return false;
+
+    const rawDay = day.day ?? day.dayNumber ?? index + 1;
+
+    return Number(rawDay) === todayDayNumber;
+  });
+
+  if (!isRecord(todayDay) || !Array.isArray(todayDay.places)) {
+    return "";
+  }
+
+  const currentPlace = todayDay.places.find((place) => {
+    if (!isRecord(place)) return false;
+
+    const startMinutes = getMainTimeMinutes(place.visitTime ?? place.time);
+    const endMinutes = getMainTimeMinutes(
+      place.endTime ?? getMainTimeRangeEndText(place.time),
+    );
+
+    if (startMinutes === null || endMinutes === null) return false;
+
+    return startMinutes <= currentMinutes && currentMinutes <= endMinutes;
+  });
+
+  if (!isRecord(currentPlace)) return "";
+
+  return typeof currentPlace.name === "string" ? currentPlace.name : "";
+};
+
+
+const getMainCurrentPlaceDayIndex = (schedule?: StoredSchedule) => {
+  if (!schedule) return null;
+
+  const days = Array.isArray(schedule.days) ? schedule.days : [];
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const matchedDayIndex = days.findIndex((day) => {
+    if (!isRecord(day) || !Array.isArray(day.places)) {
+      return false;
+    }
+
+    return day.places.some((place) => {
+      if (!isRecord(place)) return false;
+
+      const startMinutes = getMainTimeMinutes(place.visitTime ?? place.time);
+      const endMinutes = getMainTimeMinutes(place.endTime);
+
+      if (startMinutes === null || endMinutes === null) {
+        return false;
+      }
+
+      return startMinutes <= currentMinutes && currentMinutes <= endMinutes;
+    });
+  });
+
+  return matchedDayIndex >= 0 ? matchedDayIndex : getMainTodayDayIndex(schedule);
 };
 
 const getPlaceCount = (schedule?: StoredSchedule) => {
@@ -1004,6 +1159,8 @@ export default function MainScreen({ navigation }: Props) {
       transportMode: schedule.transportMode,
       transportLabel: schedule.transportLabel,
       days,
+      selectedDayIndex: getMainCurrentPlaceDayIndex(schedule),
+      selectedDay: getMainCurrentPlaceDayIndex(schedule) + 1,
     });
   };
 
@@ -1150,7 +1307,7 @@ export default function MainScreen({ navigation }: Props) {
       activeSchedules.find((schedule) => !isOngoingSchedule(schedule)) ?? null;
 
     const currentFirstPlaceName =
-      currentSchedule ? getFirstPlaceName(currentSchedule) : "";
+      currentSchedule ? getCurrentPlaceName(currentSchedule) : "";
 
     const activeNotification =
       notifications[
@@ -1363,8 +1520,7 @@ export default function MainScreen({ navigation }: Props) {
                   </Text>
 
                   <Text style={styles.ongoingLocation} numberOfLines={1}>
-                    {currentFirstPlaceName ||
-                      getScheduleLocation(currentSchedule)}
+                    {currentFirstPlaceName || "현재 진행중인 장소 없음"}
                   </Text>
 
                   <View style={styles.ongoingDateRow}>

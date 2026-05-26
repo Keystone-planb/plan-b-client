@@ -146,6 +146,7 @@ type Props = {
       places?: TodayPlace[];
       days?: ScheduleDay[];
       selectedDay?: number;
+      selectedDayIndex?: number;
       refreshPlanAAt?: number;
       successToastMessage?: string;
     };
@@ -368,6 +369,99 @@ const isValidServerPlanId = (value?: string | number) => {
   return Number.isFinite(Number(text));
 };
 
+
+const normalizeDateOnlyText = (value?: string | null) => {
+  const normalized = String(value ?? "").trim().replace(/\./g, "-");
+
+  const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (!match) return "";
+
+  return `${match[1]}-${match[2].padStart(2, "0")}-${match[3].padStart(2, "0")}`;
+};
+
+const getLocalDateOnlyText = (date = new Date()) => {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+};
+
+const getTodayTripDayIndex = (startDate?: string, endDate?: string) => {
+  const startText = normalizeDateOnlyText(startDate);
+  const endText = normalizeDateOnlyText(endDate);
+  const todayText = getLocalDateOnlyText();
+
+  if (!startText || !endText) return null;
+  if (todayText < startText || todayText > endText) return null;
+
+  const start = new Date(`${startText}T00:00:00`);
+  const today = new Date(`${todayText}T00:00:00`);
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) {
+    return null;
+  }
+
+  return Math.max(
+    0,
+    Math.floor((today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+};
+
+const getInitialSelectedDayIndex = (params: {
+  startDate?: string;
+  endDate?: string;
+  selectedDay?: number;
+  selectedDayIndex?: number;
+}) => {
+  if (
+    typeof params.selectedDayIndex === "number" &&
+    Number.isFinite(params.selectedDayIndex)
+  ) {
+    return Math.max(0, params.selectedDayIndex);
+  }
+
+  if (
+    typeof params.selectedDay === "number" &&
+    Number.isFinite(params.selectedDay)
+  ) {
+    return Math.max(0, params.selectedDay - 1);
+  }
+
+  return getTodayTripDayIndex(params.startDate, params.endDate) ?? 0;
+};
+
+const getMinutesFromTimeText = (value?: string | null) => {
+  const normalized = String(value ?? "").trim();
+  const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
+  const match = firstTime.match(/(?:T|\b)(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3]?.toUpperCase();
+
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  return hour * 60 + minute;
+};
+
+const isPlaceOngoingNow = (place: TodayPlace) => {
+  const now = new Date();
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const startMinutes = getMinutesFromTimeText(place.visitTime ?? place.time);
+  const endMinutes = getMinutesFromTimeText(
+    place.endTime ?? getTimeRangeEndText(place.time),
+  );
+
+  if (startMinutes === null) return false;
+  if (endMinutes === null) return currentMinutes >= startMinutes;
+
+  return startMinutes <= currentMinutes && currentMinutes <= endMinutes;
+};
+
+
 const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) {
     return false;
@@ -411,7 +505,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       scheduleId
     : undefined);
 
-  const [selectedDayIndex, setSelectedDayIndex] = useState(0);
+  const initialSelectedDayIndex = getInitialSelectedDayIndex({
+    startDate,
+    endDate,
+    selectedDay: params.selectedDay,
+    selectedDayIndex: params.selectedDayIndex,
+  });
+
+  const [selectedDayIndex, setSelectedDayIndex] = useState(
+    initialSelectedDayIndex,
+  );
   const [deletedPlaceKeysByDay, setDeletedPlaceKeysByDay] = useState<
     Record<number, string[]>
   >({});
@@ -429,6 +532,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     Record<number, TodayPlace[]>
   >({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+
+  const scrollViewRef = useRef<ScrollView | null>(null);
+  const focusedPlaceRef = useRef<View | null>(null);
+  const hasAutoScrolledRef = useRef(false);
 
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
 
@@ -469,11 +576,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   useEffect(() => {
     if (displayDays.length === 0) return;
 
-    setSelectedDayIndex((prevIndex) => {
-      if (prevIndex < displayDays.length) return prevIndex;
-      return Math.max(displayDays.length - 1, 0);
-    });
-  }, [displayDays.length]);
+    const nextIndex = Math.min(
+      Math.max(initialSelectedDayIndex, 0),
+      Math.max(displayDays.length - 1, 0),
+    );
+
+    setSelectedDayIndex(nextIndex);
+  }, [displayDays.length, initialSelectedDayIndex]);
 
   const normalizedRouteDays = useMemo<ScheduleDay[]>(() => {
     return displayDays.map((displayDay, index) => {
@@ -605,6 +714,33 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const hasPlaces = places.length > 0;
   const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
+  const todayDayIndex = getTodayTripDayIndex(startDate, endDate);
+  const isSelectedDayToday =
+    isCurrentTripOngoing &&
+    todayDayIndex !== null &&
+    selectedDayIndex === todayDayIndex;
+
+  useEffect(() => {
+    if (!isSelectedDayToday) return;
+    if (hasAutoScrolledRef.current) return;
+
+    const timer = setTimeout(() => {
+      focusedPlaceRef.current?.measureLayout(
+        scrollViewRef.current as any,
+        (_x, y) => {
+          scrollViewRef.current?.scrollTo({
+            y: Math.max(y - 120, 0),
+            animated: true,
+          });
+
+          hasAutoScrolledRef.current = true;
+        },
+        () => {},
+      );
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [isSelectedDayToday, selectedDayIndex, places.length]);
 
   const handleBack = () => {
     navigation.goBack();
@@ -777,6 +913,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         : null}
 
         <ScrollView
+          ref={scrollViewRef}
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
@@ -792,7 +929,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
           <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>
-              {isCurrentTripOngoing ? "오늘 일정" : "예정 일정"}
+              {isSelectedDayToday ? "오늘 일정" : "일정"}
             </Text>
 
             {isCurrentTripOngoing ?
@@ -814,13 +951,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           <View
             style={[
               styles.timelineList,
-              !isCurrentTripOngoing && styles.futureTimelineList,
+              !isSelectedDayToday && styles.futureTimelineList,
             ]}
           >
             <OngoingTimelineMarker
               hasPlaces={hasPlaces}
               placeCount={places.length}
-              isCurrentTripOngoing={isCurrentTripOngoing}
+              isCurrentTripOngoing={isSelectedDayToday}
               styles={styles}
             />
 
@@ -828,7 +965,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               <OngoingEmptyDayCard styles={styles} />
             : null}
             {places.map((place, index) => {
-              const focused = isCurrentTripOngoing && index === 0;
+              const focused = isSelectedDayToday && isPlaceOngoingNow(place);
               const nextPlaceForGap = places[index + 1];
               const gapBeforePlanId =
                 place.serverTripPlaceId ?? place.tripPlaceId ?? place.id;
@@ -865,17 +1002,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               return (
                 <React.Fragment key={`${placeKey}-${index}`}>
                   <OngoingPlaceCard
+                    ref={focused ? focusedPlaceRef : undefined}
                     place={place}
                     index={index}
                     focused={focused}
-                    isCurrentTripOngoing={isCurrentTripOngoing}
+                    isCurrentTripOngoing={isSelectedDayToday}
                     hasServerPlanId={hasServerPlanId}
                     displayPlace={displayPlace}
                     styles={styles}
                     getPlaceDisplayTime={getPlaceDisplayTime}
                     handleAlternative={handleAlternative}
                   />
-                  {isCurrentTripOngoing ?
+                  {isSelectedDayToday ?
                     <OngoingGapRecommendationSection
                       styles={styles}
                       navigation={navigation}
