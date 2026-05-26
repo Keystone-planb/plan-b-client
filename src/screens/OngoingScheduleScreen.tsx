@@ -10,8 +10,8 @@ import React, {
 import { useFocusEffect } from "@react-navigation/native";
 import {
   Alert,
-  Modal,
   ScrollView,
+  StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
@@ -38,6 +38,35 @@ import {
 } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
+const TRANSPORT_OPTIONS: Array<{
+  key: TransportMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  {
+    key: "WALK",
+    label: "도보",
+    icon: "walk-outline",
+  },
+  {
+    key: "TRANSIT",
+    label: "대중교통",
+    icon: "train-outline",
+  },
+  {
+    key: "CAR",
+    label: "자동차",
+    icon: "car-outline",
+  },
+];
+
+const getTransportOption = (mode?: TransportMode) => {
+  return (
+    TRANSPORT_OPTIONS.find((option) => option.key === mode) ??
+    TRANSPORT_OPTIONS[0]
+  );
+};
 
 type ScheduleMemo = {
   id: string;
@@ -88,7 +117,6 @@ type EditingTimePlace = {
   endTime: string;
 } | null;
 
-
 const getTripDayCount = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) return 1;
 
@@ -128,7 +156,6 @@ const makeDisplayDaysByDateRange = (
     places: [],
   }));
 };
-
 
 type Props = {
   navigation: any;
@@ -369,9 +396,10 @@ const isValidServerPlanId = (value?: string | number) => {
   return Number.isFinite(Number(text));
 };
 
-
 const normalizeDateOnlyText = (value?: string | null) => {
-  const normalized = String(value ?? "").trim().replace(/\./g, "-");
+  const normalized = String(value ?? "")
+    .trim()
+    .replace(/\./g, "-");
 
   const match = normalized.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
   if (!match) return "";
@@ -461,7 +489,6 @@ const isPlaceOngoingNow = (place: TodayPlace) => {
   return startMinutes <= currentMinutes && currentMinutes <= endMinutes;
 };
 
-
 const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) {
     return false;
@@ -532,6 +559,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     Record<number, TodayPlace[]>
   >({});
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [transportModesByPair, setTransportModesByPair] = useState<
+    Record<string, TransportMode>
+  >({});
+  const [transportPickerTarget, setTransportPickerTarget] = useState<{
+    pairKey: string;
+    beforePlaceName?: string;
+    afterPlaceName?: string;
+  } | null>(null);
 
   const scrollViewRef = useRef<ScrollView | null>(null);
   const focusedPlaceRef = useRef<View | null>(null);
@@ -566,7 +601,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       loadTripDetail();
     }, [resolvedTripId]),
   );
-
 
   const displayDays = useMemo(
     () => makeDisplayDaysByDateRange(startDate, endDate),
@@ -610,22 +644,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
   }, [serverDays, displayDays]);
 
-  const {
-    currentDay,
-    places,
-    mapPlaces,
-    currentDayFallbackGaps,
-  } = useOngoingPlaces({
-    days: normalizedRouteDays,
-    serverDays: normalizedServerDays,
-    editedPlacesByDay,
-    deletedPlaceKeysByDay,
-    selectedDayIndex,
-    paramsPlaces: params.places,
-    hasSamePlaceForMerge,
-    getPlaceStartTimeValueForGap,
-    getPlaceEndTimeValueForGap,
-  });
+  const { currentDay, places, mapPlaces, currentDayFallbackGaps } =
+    useOngoingPlaces({
+      days: normalizedRouteDays,
+      serverDays: normalizedServerDays,
+      editedPlacesByDay,
+      deletedPlaceKeysByDay,
+      selectedDayIndex,
+      paramsPlaces: params.places,
+      hasSamePlaceForMerge,
+      getPlaceStartTimeValueForGap,
+      getPlaceEndTimeValueForGap,
+    });
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
   const [successToastMessage, setSuccessToastMessage] = useState("");
@@ -748,11 +778,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-
-
-
-
-
   const getTimeValueForTarget = (
     place: EditingTimePlace,
     target: TimePickerTarget,
@@ -780,6 +805,29 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
     });
+  };
+
+  const handleOpenTransportPicker = (params: {
+    pairKey: string;
+    beforePlaceName?: string;
+    afterPlaceName?: string;
+  }) => {
+    setTransportPickerTarget((prev) =>
+      prev?.pairKey === params.pairKey ? null : params,
+    );
+  };
+
+  const handleSelectTransportMode = (mode: TransportMode) => {
+    if (!transportPickerTarget?.pairKey) return;
+
+    setTransportModesByPair((prev) => ({
+      ...prev,
+      [transportPickerTarget.pairKey]: mode,
+    }));
+  };
+
+  const handleConfirmTransportMode = () => {
+    setTransportPickerTarget(null);
   };
 
   const handleEdit = () => {
@@ -942,17 +990,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     isSavingEdit && styles.disabledEditText,
                   ]}
                 >
-                  {isSavingEdit ?
-                    "저장 중..."
-                  : "수정"}
+                  {isSavingEdit ? "저장 중..." : "수정"}
                 </Text>
               </TouchableOpacity>
             : null}
           </View>
 
-          <View
-            style={styles.timelineList}
-          >
+          <View style={styles.timelineList}>
             <OngoingTimelineMarker
               hasPlaces={hasPlaces}
               placeCount={places.length}
@@ -1012,6 +1056,156 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     getPlaceDisplayTime={getPlaceDisplayTime}
                     handleAlternative={handleAlternative}
                   />
+
+                  {nextPlaceForGap ?
+                    (() => {
+                      const pairKey = `${String(gapBeforePlanId ?? placeKey)}-${String(
+                        gapAfterPlanId ?? index + 1,
+                      )}`;
+
+                      const selectedTransportMode =
+                        transportModesByPair[pairKey];
+                      const selectedTransportOption = getTransportOption(
+                        selectedTransportMode,
+                      );
+
+                      const currentEndMinutes =
+                        getPlaceEndTimeValueForGap(place);
+                      const nextStartMinutes =
+                        getPlaceStartTimeValueForGap(nextPlaceForGap);
+
+                      const hasMoveSlot =
+                        Number.isFinite(currentEndMinutes) &&
+                        Number.isFinite(nextStartMinutes) &&
+                        nextStartMinutes > currentEndMinutes;
+
+                      if (!hasMoveSlot) return null;
+
+                      const isTransportExpanded =
+                        transportPickerTarget?.pairKey === pairKey;
+
+                      return (
+                        <View style={localStyles.transportBetweenWrapper}>
+                          <View style={localStyles.transportIconColumn}>
+                            <Ionicons
+                              name={selectedTransportOption.icon}
+                              size={16}
+                              color="#94A3B8"
+                            />
+                          </View>
+
+                          <View style={localStyles.transportAxisColumn}>
+                            <View style={localStyles.transportBlueLineCover} />
+                            <View style={localStyles.transportDashedLine} />
+                          </View>
+
+                          <View style={localStyles.transportCardColumn}>
+                            <View style={localStyles.transportAccordionCard}>
+                              <TouchableOpacity
+                                activeOpacity={0.85}
+                                style={localStyles.transportAccordionHeader}
+                                onPress={() =>
+                                  handleOpenTransportPicker({
+                                    pairKey,
+                                    beforePlaceName: place.name,
+                                    afterPlaceName: nextPlaceForGap.name,
+                                  })
+                                }
+                              >
+                                <View style={localStyles.transportAddTextGroup}>
+                                  <Text style={localStyles.transportAddTitle}>
+                                    {selectedTransportMode ?
+                                      `${selectedTransportOption.label} 이동`
+                                    : "이동수단 추가하기"}
+                                  </Text>
+
+                                  <Text
+                                    style={localStyles.transportAddDescription}
+                                  >
+                                    {selectedTransportMode ?
+                                      "장소 사이 이동수단이 설정되었어요"
+                                    : "이동수단을 추가해주세요"}
+                                  </Text>
+                                </View>
+
+                                <Ionicons
+                                  name={
+                                    isTransportExpanded ? "chevron-up" : (
+                                      "chevron-down"
+                                    )
+                                  }
+                                  size={18}
+                                  color="#CBD5E1"
+                                />
+                              </TouchableOpacity>
+
+                              {isTransportExpanded ?
+                                <View
+                                  style={localStyles.transportAccordionBody}
+                                >
+                                  <View
+                                    style={localStyles.transportInlineOptionRow}
+                                  >
+                                    {TRANSPORT_OPTIONS.map((option) => {
+                                      const selected =
+                                        transportModesByPair[pairKey] ===
+                                        option.key;
+
+                                      return (
+                                        <TouchableOpacity
+                                          key={option.key}
+                                          activeOpacity={0.85}
+                                          style={[
+                                            localStyles.transportInlineOptionButton,
+                                            selected ?
+                                              localStyles.transportInlineOptionButtonSelected
+                                            : null,
+                                          ]}
+                                          onPress={() =>
+                                            handleSelectTransportMode(
+                                              option.key,
+                                            )
+                                          }
+                                        >
+                                          <Text
+                                            style={[
+                                              localStyles.transportInlineOptionText,
+                                              selected ?
+                                                localStyles.transportInlineOptionTextSelected
+                                              : null,
+                                            ]}
+                                          >
+                                            {option.label}
+                                          </Text>
+                                        </TouchableOpacity>
+                                      );
+                                    })}
+                                  </View>
+
+                                  <TouchableOpacity
+                                    activeOpacity={0.85}
+                                    style={
+                                      localStyles.transportInlineConfirmButton
+                                    }
+                                    onPress={handleConfirmTransportMode}
+                                  >
+                                    <Text
+                                      style={
+                                        localStyles.transportInlineConfirmText
+                                      }
+                                    >
+                                      확인
+                                    </Text>
+                                  </TouchableOpacity>
+                                </View>
+                              : null}
+                            </View>
+                          </View>
+                        </View>
+                      );
+                    })()
+                  : null}
+
                   {isSelectedDayToday ?
                     <OngoingGapRecommendationSection
                       styles={styles}
@@ -1038,3 +1232,140 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     </SafeAreaView>
   );
 }
+
+const localStyles = StyleSheet.create({
+  transportBetweenWrapper: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginTop: 10,
+    marginBottom: 16,
+    zIndex: 5,
+  },
+
+  transportIconColumn: {
+    width: 34,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  transportAxisColumn: {
+    width: 18,
+    alignItems: "center",
+    position: "relative",
+    marginLeft: -4,
+    marginRight: 2,
+  },
+
+  transportBlueLineCover: {
+    position: "absolute",
+    top: -10,
+    bottom: -10,
+    width: 18,
+    backgroundColor: "#FFFFFF",
+    zIndex: 1,
+  },
+
+  transportDashedLine: {
+    flex: 1,
+    minHeight: 78,
+    borderLeftWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    zIndex: 2,
+  },
+
+  transportCardColumn: {
+    flex: 1,
+  },
+
+  transportAccordionCard: {
+    flex: 1,
+    marginRight: 18,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    overflow: "hidden",
+  },
+
+  transportAccordionHeader: {
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  transportAddTextGroup: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  transportAddTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  transportAddDescription: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
+  transportAccordionBody: {
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+
+  transportInlineOptionRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingTop: 10,
+  },
+
+  transportInlineOptionButton: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D9E2F2",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  transportInlineOptionButtonSelected: {
+    borderColor: "#64748B",
+    backgroundColor: "#64748B",
+  },
+
+  transportInlineOptionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  transportInlineOptionTextSelected: {
+    color: "#FFFFFF",
+  },
+
+  transportInlineConfirmButton: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+
+  transportInlineConfirmText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+});
