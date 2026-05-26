@@ -114,6 +114,22 @@ export interface UpdatePlanScheduleResponse {
   memo?: string | null;
 }
 
+export interface PlanMemoResponse {
+  id: number | string;
+  content: string;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface CreatePlanMemoRequest {
+  content: string;
+}
+
+export interface UpdatePlanMemoRequest {
+  content: string;
+}
+
+
 export interface ReplacePlanRequest {
   newGooglePlaceId: string;
   newPlaceName: string;
@@ -264,6 +280,54 @@ export const updatePlanSchedule = async (
 
     throw error;
   }
+};
+
+/**
+ * 장소별 메모 추가
+ * POST /api/plans/{planId}/memos
+ */
+export const addPlanMemo = async (
+  planId: number | string,
+  request: CreatePlanMemoRequest,
+): Promise<PlanMemoResponse> => {
+  const response = await apiClient.post<unknown>(
+    `/api/plans/${planId}/memos`,
+    request,
+  );
+
+  assertNotHtmlResponse(response.data, "장소 메모 추가");
+
+  return response.data as PlanMemoResponse;
+};
+
+/**
+ * 장소별 메모 수정
+ * PATCH /api/plans/{planId}/memos/{memoId}
+ */
+export const updatePlanMemo = async (
+  planId: number | string,
+  memoId: number | string,
+  request: UpdatePlanMemoRequest,
+): Promise<PlanMemoResponse> => {
+  const response = await apiClient.patch<unknown>(
+    `/api/plans/${planId}/memos/${memoId}`,
+    request,
+  );
+
+  assertNotHtmlResponse(response.data, "장소 메모 수정");
+
+  return response.data as PlanMemoResponse;
+};
+
+/**
+ * 장소별 메모 삭제
+ * DELETE /api/plans/{planId}/memos/{memoId}
+ */
+export const deletePlanMemo = async (
+  planId: number | string,
+  memoId: number | string,
+): Promise<void> => {
+  await apiClient.delete(`/api/plans/${planId}/memos/${memoId}`);
 };
 
 /**

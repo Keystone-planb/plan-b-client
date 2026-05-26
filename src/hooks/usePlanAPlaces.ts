@@ -18,6 +18,9 @@ import {
   createTrip,
   deleteTrip,
   deletePlanPlace,
+  addPlanMemo,
+  updatePlanMemo,
+  deletePlanMemo,
   updateTrip,
   updatePlanSchedule,
   getTripDetail,
@@ -493,6 +496,28 @@ const getServerNumberByPaths = (source: unknown, paths: string[]) => {
   return undefined;
 };
 
+const normalizeServerMemoForPlanA = (source: unknown): MemoItem | null => {
+  const id =
+    getServerValueByPath(source, "id") ??
+    getServerValueByPath(source, "memoId");
+
+  const text =
+    getServerTextByPaths(source, ["content", "text", "memo"]) ?? "";
+
+  if (!id || !text.trim()) {
+    return null;
+  }
+
+  return {
+    id: String(id),
+    text,
+    createdAt:
+      getServerTextByPaths(source, ["createdAt"]) ?? createNow(),
+    updatedAt:
+      getServerTextByPaths(source, ["updatedAt"]) ?? undefined,
+  };
+};
+
 const normalizeServerPlaceForPlanA = (
   source: unknown,
   index: number,
@@ -552,7 +577,9 @@ const normalizeServerPlaceForPlanA = (
     visitTime,
     endTime,
     order: getServerNumberByPaths(source, ["visitOrder", "order"]) ?? index + 1,
-    memos: [],
+    memos: getServerArrayByPaths(source, ["memos"])
+      .map(normalizeServerMemoForPlanA)
+      .filter((memo): memo is MemoItem => Boolean(memo)),
   });
 };
 
@@ -1672,17 +1699,56 @@ export function usePlanAPlaces({
     }));
   };
 
-  const handleAddMemo = (placeId: string) => {
+  const handleAddMemo = async (placeId: string) => {
     const trimmedMemo = memoDrafts[placeId]?.trim();
 
     if (!trimmedMemo) return;
+
+    const targetPlace = currentPlaces.find((place) => place.id === placeId);
+    const planId = targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+
+    let nextMemo = createMemo(trimmedMemo);
+
+    if (planId) {
+      try {
+        const serverMemo = await addPlanMemo(planId, {
+          content: trimmedMemo,
+        });
+
+        nextMemo = {
+          id: String(serverMemo.id),
+          text: serverMemo.content,
+          createdAt: serverMemo.createdAt ?? nextMemo.createdAt,
+          updatedAt: serverMemo.updatedAt ?? undefined,
+        };
+
+        console.log("[PlanA 메모 추가 서버 완료]", {
+          placeId,
+          planId,
+          memoId: nextMemo.id,
+        });
+      } catch (error) {
+        console.log("[PlanA 메모 추가 서버 실패 - 로컬 저장으로 계속 진행]", {
+          placeId,
+          planId,
+          error,
+        });
+
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "서버 메모 추가에는 실패했지만 로컬 일정에는 저장했습니다.",
+          ),
+        );
+      }
+    }
 
     const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId
           ? {
               ...place,
-              memos: [...place.memos, createMemo(trimmedMemo)],
+              memos: [...place.memos, nextMemo],
               updatedAt: createNow(),
             }
           : place,
@@ -1725,10 +1791,43 @@ export function usePlanAPlaces({
     setEditingMemoText("");
   };
 
-  const handleSaveEditMemo = () => {
+  const handleSaveEditMemo = async () => {
     const trimmedText = editingMemoText.trim();
 
     if (!editingMemo || !trimmedText) return;
+
+    const targetPlace = currentPlaces.find(
+      (place) => place.id === editingMemo.placeId,
+    );
+    const planId = targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+
+    if (planId) {
+      try {
+        await updatePlanMemo(planId, editingMemo.memoId, {
+          content: trimmedText,
+        });
+
+        console.log("[PlanA 메모 수정 서버 완료]", {
+          placeId: editingMemo.placeId,
+          planId,
+          memoId: editingMemo.memoId,
+        });
+      } catch (error) {
+        console.log("[PlanA 메모 수정 서버 실패 - 로컬 저장으로 계속 진행]", {
+          placeId: editingMemo.placeId,
+          planId,
+          memoId: editingMemo.memoId,
+          error,
+        });
+
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "서버 메모 수정에는 실패했지만 로컬 일정에는 저장했습니다.",
+          ),
+        );
+      }
+    }
 
     const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
@@ -1757,7 +1856,36 @@ export function usePlanAPlaces({
     handleCancelEditMemo();
   };
 
-  const handleDeleteMemo = (placeId: string, memoId: string) => {
+  const handleDeleteMemo = async (placeId: string, memoId: string) => {
+    const targetPlace = currentPlaces.find((place) => place.id === placeId);
+    const planId = targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+
+    if (planId) {
+      try {
+        await deletePlanMemo(planId, memoId);
+
+        console.log("[PlanA 메모 삭제 서버 완료]", {
+          placeId,
+          planId,
+          memoId,
+        });
+      } catch (error) {
+        console.log("[PlanA 메모 삭제 서버 실패 - 로컬 삭제로 계속 진행]", {
+          placeId,
+          planId,
+          memoId,
+          error,
+        });
+
+        setSaveError(
+          getServerErrorMessage(
+            error,
+            "서버 메모 삭제에는 실패했지만 로컬 일정에서는 삭제했습니다.",
+          ),
+        );
+      }
+    }
+
     const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
         place.id === placeId
