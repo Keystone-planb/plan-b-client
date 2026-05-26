@@ -188,6 +188,9 @@ type RootStackParamList = {
     transportLabel?: string;
     places?: TodayPlace[];
     days?: ScheduleDay[];
+    selectedDay?: number;
+    refreshPlanAAt?: number;
+    successToastMessage?: string;
   };
 
   AlternativeSettings: {

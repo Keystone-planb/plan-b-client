@@ -695,6 +695,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
         browserWindow.alert?.(
           "변경사항이 저장되었습니다.",
         );
+
+        setTimeout(() => {
+          navigation.goBack();
+        }, 900);
+
         return true;
       }
 
@@ -709,8 +714,22 @@ export default function PlanAScreen({ navigation, route }: Props) {
         return true;
       }
 
-      Alert.alert("저장 완료", "변경사항이 저장되었습니다.");
-      return true;
+      navigation.navigate("OngoingSchedule", {
+          scheduleId: savedSchedule.id,
+          tripId: savedSchedule.serverTripId ?? route?.params?.tripId,
+          serverTripId: savedSchedule.serverTripId ?? route?.params?.serverTripId,
+          tripName: savedSchedule.tripName,
+          startDate: savedSchedule.startDate,
+          endDate: savedSchedule.endDate,
+          location: savedSchedule.location,
+          transportMode: route?.params?.transportMode,
+          transportLabel: route?.params?.transportLabel,
+          selectedDay: selectedDay,
+          refreshPlanAAt: Date.now(),
+          successToastMessage: "변경사항이 저장되었습니다.",
+        });
+
+        return true;
     } catch (error) {
       console.log("[PlanA] 저장 실패:", error);
 

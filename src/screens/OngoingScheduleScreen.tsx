@@ -27,7 +27,6 @@ import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
 import OngoingDayTabs from "../components/ongoing/OngoingDayTabs";
 import OngoingHeader from "../components/ongoing/OngoingHeader";
 import OngoingMapSection from "../components/ongoing/OngoingMapSection";
-import OngoingMemoList from "../components/ongoing/OngoingMemoList";
 import styles from "../styles/ongoingScheduleStyles";
 import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
 import type { TripScheduleGap } from "../types/gapRecommendation";
@@ -106,6 +105,18 @@ const getTripDayCount = (startDate?: string, endDate?: string) => {
   return Math.max(diffDays, 1);
 };
 
+const normalizeOngoingMemos = (memos?: any[]) => {
+  if (!Array.isArray(memos)) return [];
+
+  return memos
+    .map((memo) => ({
+      ...memo,
+      id: String(memo?.id ?? memo?.memoId ?? `memo-${Date.now()}`),
+      text: String(memo?.text ?? memo?.content ?? memo?.memo ?? "").trim(),
+    }))
+    .filter((memo) => memo.text.length > 0);
+};
+
 const makeDisplayDaysByDateRange = (
   startDate?: string,
   endDate?: string,
@@ -134,6 +145,9 @@ type Props = {
       transportLabel?: string;
       places?: TodayPlace[];
       days?: ScheduleDay[];
+      selectedDay?: number;
+      refreshPlanAAt?: number;
+      successToastMessage?: string;
     };
   };
 };
@@ -505,6 +519,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   });
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
+  const [successToastMessage, setSuccessToastMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -573,6 +588,20 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       cancelled = true;
     };
   }, [mapPlaces]);
+
+  useEffect(() => {
+    const nextMessage = route?.params?.successToastMessage;
+
+    if (!nextMessage) return;
+
+    setSuccessToastMessage(String(nextMessage));
+
+    const timer = setTimeout(() => {
+      setSuccessToastMessage("");
+    }, 1800);
+
+    return () => clearTimeout(timer);
+  }, [route?.params?.successToastMessage, route?.params?.refreshPlanAAt]);
 
   const hasPlaces = places.length > 0;
   const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
@@ -721,6 +750,32 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       <View style={styles.screen}>
         <OngoingHeader styles={styles} onBack={handleBack} title={tripName} />
 
+        {successToastMessage ?
+          <View
+            style={{
+              marginHorizontal: 24,
+              marginTop: 10,
+              marginBottom: 4,
+              paddingHorizontal: 14,
+              paddingVertical: 11,
+              borderRadius: 14,
+              backgroundColor: "#ECFDF3",
+              borderWidth: 1,
+              borderColor: "#BBF7D0",
+            }}
+          >
+            <Text
+              style={{
+                color: "#15803D",
+                fontSize: 13,
+                fontWeight: "800",
+              }}
+            >
+              {successToastMessage}
+            </Text>
+          </View>
+        : null}
+
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={styles.scrollContent}
@@ -820,8 +875,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     getPlaceDisplayTime={getPlaceDisplayTime}
                     handleAlternative={handleAlternative}
                   />
-
-                  <OngoingMemoList memos={place.memos} styles={styles} />
                   {isCurrentTripOngoing ?
                     <OngoingGapRecommendationSection
                       styles={styles}
