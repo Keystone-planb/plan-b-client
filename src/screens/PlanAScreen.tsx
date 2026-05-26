@@ -997,16 +997,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 {displayTime || "시간을 설정해주세요"}
               </Text>
             </View>
-            <View style={styles.timeActionRow}>
-              <TouchableOpacity
-                style={styles.simpleTimeAction}
-                activeOpacity={0.75}
-                onPress={() => openTimePicker(place, "visitTime")}
-              >
-                <Ionicons name="time-outline" size={14} color="#64748B" />
-                <Text style={styles.simpleTimeActionText}>시간변경</Text>
-              </TouchableOpacity>
-            </View>
 {place.memos?.length > 0 ?
               <View style={styles.simpleMemoPreviewBox}>
                 <Ionicons
@@ -1063,6 +1053,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onCancelEditPlace={handleCancelEditPlace}
         onSaveEditPlace={handleSaveEditPlace}
         onDeletePlace={handleDeletePlace}
+        onQuickEditTime={(place) => openTimePicker(place, "visitTime")}
         onChangeEditingPlaceName={setEditingPlaceName}
         onChangeEditingPlaceVisitTime={setEditingPlaceVisitTime}
         onChangeEditingPlaceEndTime={setEditingPlaceEndTime}

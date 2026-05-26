@@ -34,6 +34,7 @@ type Props = {
   onCancelEditPlace: () => void;
   onSaveEditPlace: () => void;
   onDeletePlace: (placeId: string) => void;
+  onQuickEditTime?: (place: PlaceItem) => void;
   onChangeEditingPlaceName: (value: string) => void;
   onChangeEditingPlaceVisitTime: (value: string) => void;
   onChangeEditingPlaceEndTime: (value: string) => void;
@@ -77,6 +78,7 @@ export default function PlanAPlaceCard({
   onCancelEditPlace,
   onSaveEditPlace,
   onDeletePlace,
+  onQuickEditTime,
   onChangeEditingPlaceName,
   onChangeEditingPlaceVisitTime,
   onChangeEditingPlaceEndTime,
@@ -114,36 +116,6 @@ export default function PlanAPlaceCard({
               placeholderTextColor="#8C9BB1"
               style={styles.placeEditInput}
             />
-
-            <View style={styles.timeEditRow}>
-              <View style={styles.timeEditColumn}>
-                <Text style={[styles.editLabel, styles.timeEditLabel]}>
-                  시작 시간
-                </Text>
-
-                <TextInput
-                  value={editingPlaceVisitTime}
-                  onChangeText={onChangeEditingPlaceVisitTime}
-                  placeholder="10:00 AM"
-                  placeholderTextColor="#8C9BB1"
-                  style={styles.placeEditInput}
-                />
-              </View>
-
-              <View style={styles.timeEditColumn}>
-                <Text style={[styles.editLabel, styles.timeEditLabel]}>
-                  종료 시간
-                </Text>
-
-                <TextInput
-                  value={editingPlaceEndTime}
-                  onChangeText={onChangeEditingPlaceEndTime}
-                  placeholder="11:00 AM"
-                  placeholderTextColor="#8C9BB1"
-                  style={styles.placeEditInput}
-                />
-              </View>
-            </View>
 
             <View style={styles.placeEditButtonRow}>
               <TouchableOpacity
@@ -223,9 +195,33 @@ export default function PlanAPlaceCard({
                   <Ionicons name="trash-outline" size={15} color="#CBD5E1" />
                 </TouchableOpacity>
 
-                <View style={styles.placeActionBadge}>
-                  <Ionicons name="create-outline" size={14} color="#2158E8" />
-                  <Text style={styles.placeActionText}>수정</Text>
+                <View style={styles.placeHeaderActionColumn}>
+                  <TouchableOpacity
+                    style={styles.quickTimeButton}
+                    activeOpacity={0.85}
+                    onPress={(event) => {
+                      event.stopPropagation();
+                      onQuickEditTime?.(place);
+                    }}
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={13}
+                      color="#64748B"
+                    />
+                    <Text style={styles.quickTimeButtonText}>
+                      시간변경
+                    </Text>
+                  </TouchableOpacity>
+
+                  <View style={styles.placeActionBadge}>
+                    <Ionicons
+                      name="create-outline"
+                      size={14}
+                      color="#2158E8"
+                    />
+                    <Text style={styles.placeActionText}>정보 수정</Text>
+                  </View>
                 </View>
               </View>
             </TouchableOpacity>
@@ -339,6 +335,29 @@ const styles = StyleSheet.create({
     backgroundColor: "#FEF2F2",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  placeHeaderActionColumn: {
+    alignItems: "flex-end",
+    gap: 6,
+  },
+
+  quickTimeButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+
+  quickTimeButtonText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
   },
 
   placeActionBadge: {
