@@ -991,7 +991,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 {displayTime || "시간을 설정해주세요"}
               </Text>
             </View>
-
             <View style={styles.timeActionRow}>
               <TouchableOpacity
                 style={styles.simpleTimeAction}
@@ -1002,8 +1001,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 <Text style={styles.simpleTimeActionText}>시간변경</Text>
               </TouchableOpacity>
             </View>
-
-            {place.memos?.length > 0 ?
+{place.memos?.length > 0 ?
               <View style={styles.simpleMemoPreviewBox}>
                 <Ionicons
                   name="chatbubble-ellipses-outline"
@@ -1106,36 +1104,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   {formatDisplayDate(schedule.startDate)} -{" "}
                   {formatDisplayDate(schedule.endDate)}
                 </Text>
-
-                <View style={styles.transportButtonRow}>
-                  {(["WALK", "TRANSIT", "CAR"] as TransportMode[]).map(
-                    (mode) => {
-                      const active = transportMode === mode;
-
-                      return (
-                        <TouchableOpacity
-                          key={mode}
-                          style={[
-                            styles.transportButton,
-                            active && styles.transportButtonActive,
-                          ]}
-                          activeOpacity={0.85}
-                          onPress={() => handleChangeTransportMode(mode)}
-                        >
-                          <Text
-                            style={[
-                              styles.planTransport,
-                              active && styles.planTransportActive,
-                            ]}
-                          >
-                            {getTransportLabel(mode)}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    },
-                  )}
-                </View>
-              </View>
+</View>
 
               <View style={styles.headerActionRow}>
                 <TouchableOpacity
@@ -1833,6 +1802,7 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "#94A3B8",
   },
+
   timeActionRow: {
     flexDirection: "row",
     alignItems: "center",
