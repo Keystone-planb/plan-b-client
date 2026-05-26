@@ -716,7 +716,22 @@ export default function AddScheduleLocationScreen({
         );
       }
 
-      navigation.navigate("PlanA", {
+      const selectedPlacesForRoute = placesToSubmit.map((place) => ({
+        id: place.placeId,
+        placeId: place.placeId,
+        googlePlaceId: place.googlePlaceId ?? place.placeId,
+        tripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+        serverTripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
+        name: place.name,
+        address: place.address,
+        category: place.category,
+        latitude: place.latitude,
+        longitude: place.longitude,
+        time: "",
+        day: selectedDay,
+      }));
+
+      const commonRouteParams = {
         scheduleId:
           route.params?.scheduleId ??
           route.params?.serverTripId ??
@@ -732,21 +747,14 @@ export default function AddScheduleLocationScreen({
         serverTripId,
         transportMode,
         transportLabel,
-        selectedPlaces: placesToSubmit.map((place) => ({
-          id: place.placeId,
-          placeId: place.placeId,
-          googlePlaceId: place.googlePlaceId ?? place.placeId,
-          tripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
-          serverTripPlaceId: serverPlaceMap[place.placeId]?.tripPlaceId,
-          name: place.name,
-          address: place.address,
-          category: place.category,
-          latitude: place.latitude,
-          longitude: place.longitude,
-          time: "",
-          day: selectedDay,
-        })),
-      });
+        selectedPlaces: selectedPlacesForRoute,
+        selectedDay,
+        day: selectedDay,
+        refreshPlanAAt: Date.now(),
+        isEditMode: route.params?.returnScreen === "PlanAEdit",
+      };
+
+      navigation.navigate("PlanA", commonRouteParams);
     } catch (error) {
       console.log("일정 생성 실패:", error);
 

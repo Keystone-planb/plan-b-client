@@ -922,6 +922,10 @@ export default function AddScheduleLocationScreen({
       location: targetLocation,
       transportMode,
       transportLabel,
+      selectedDay,
+      day: selectedDay,
+      isEditMode: true,
+      refreshPlanAAt: Date.now(),
       selectedPlaces: navigationPlaces.map((place) => {
         const serverPlace = serverPlaceMap?.[place.placeId];
 

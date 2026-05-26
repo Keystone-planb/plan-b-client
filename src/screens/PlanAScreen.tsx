@@ -55,6 +55,7 @@ type Props = {
       selectedDay?: number;
       selectedPlace?: SelectedPlaceParam;
       selectedPlaces?: SelectedPlacesParam;
+      isEditMode?: boolean;
       gapSelectedPlace?: {
         id?: string;
         placeId?: string;
@@ -330,7 +331,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const insets = useSafeAreaInsets();
 
   const [selectedDay, setSelectedDay] = useState(1);
-  const [isEditMode, setIsEditMode] = useState(false);
+  const [isEditMode, setIsEditMode] = useState(
+    route?.params?.isEditMode === true,
+  );
   const scrollViewRef = useRef<ScrollView | null>(null);
   const scrollOffsetYRef = useRef(0);
   const shouldRestoreScrollRef = useRef(false);
@@ -958,6 +961,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
       location: schedule.location,
       transportMode,
       transportLabel,
+      existingPlaces: currentPlaces,
+      returnScreen: "PlanAEdit",
+      isEditMode: true,
     });
   };
 
