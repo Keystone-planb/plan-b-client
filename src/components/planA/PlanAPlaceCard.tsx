@@ -161,11 +161,7 @@ export default function PlanAPlaceCard({
           </View>
         ) : (
           <>
-            <TouchableOpacity
-              style={styles.placeHeader}
-              activeOpacity={0.85}
-              onPress={() => onStartEditPlace(place)}
-            >
+            <View style={styles.placeHeader}>
               <View style={styles.placeTitleBox}>
                 <Text style={styles.placeTitle}>{place.name}</Text>
                 <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
@@ -214,17 +210,9 @@ export default function PlanAPlaceCard({
                     </Text>
                   </TouchableOpacity>
 
-                  <View style={styles.placeActionBadge}>
-                    <Ionicons
-                      name="create-outline"
-                      size={14}
-                      color="#2158E8"
-                    />
-                    <Text style={styles.placeActionText}>정보 수정</Text>
-                  </View>
                 </View>
               </View>
-            </TouchableOpacity>
+            </View>
 
             <PlanAMemoList
               place={place}

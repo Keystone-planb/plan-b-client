@@ -1360,17 +1360,69 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.timePickerPreview}>
-              <Text style={styles.timePickerPreviewLabel}>
-                {timePickerTarget === "visitTime" ? "시작" : "종료"}
-              </Text>
+              <View
+                style={[
+                  styles.timePickerSummaryCard,
+                  timePickerTarget === "visitTime" &&
+                    styles.timePickerSummaryCardActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.timePickerSummaryLabel,
+                    timePickerTarget === "visitTime" &&
+                      styles.timePickerSummaryLabelActive,
+                  ]}
+                >
+                  시작 시간
+                </Text>
 
-              <Text style={styles.timePickerPreviewText}>
-                {timePickerPreviewText}
-              </Text>
+                <Text
+                  style={[
+                    styles.timePickerSummaryValue,
+                    timePickerTarget === "visitTime" &&
+                      styles.timePickerSummaryValueActive,
+                  ]}
+                >
+                  {timePickerTarget === "visitTime"
+                    ? timePickerPreviewText
+                    : timePickerPlace
+                      ? getPlaceVisitTime(timePickerPlace)
+                      : "00:00"}
+                </Text>
+              </View>
 
-              <Text style={styles.timePickerPreviewHelpText}>
-                24시간 기준
-              </Text>
+              <View
+                style={[
+                  styles.timePickerSummaryCard,
+                  timePickerTarget === "endTime" &&
+                    styles.timePickerSummaryCardActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.timePickerSummaryLabel,
+                    timePickerTarget === "endTime" &&
+                      styles.timePickerSummaryLabelActive,
+                  ]}
+                >
+                  종료 시간
+                </Text>
+
+                <Text
+                  style={[
+                    styles.timePickerSummaryValue,
+                    timePickerTarget === "endTime" &&
+                      styles.timePickerSummaryValueActive,
+                  ]}
+                >
+                  {timePickerTarget === "endTime"
+                    ? timePickerPreviewText
+                    : timePickerPlace
+                      ? getPlaceEndTime(timePickerPlace)
+                      : "00:00"}
+                </Text>
+              </View>
             </View>
 
             <View style={styles.timePickerControls}>
@@ -1949,32 +2001,47 @@ const styles = StyleSheet.create({
   },
   timeTargetTabTextActive: { color: "#FFFFFF" },
   timePickerPreview: {
-    minHeight: 68,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
+    flexDirection: "row",
+    gap: 10,
     marginBottom: 18,
   },
-  timePickerPreviewLabel: {
-    color: "#94A3B8",
-    fontSize: 10,
-    fontWeight: "900",
-    marginBottom: 2,
+
+  timePickerSummaryCard: {
+    flex: 1,
+    minHeight: 72,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    justifyContent: "center",
   },
-  timePickerPreviewText: {
-    color: "#111827",
-    fontSize: 20,
-    fontWeight: "900",
-    letterSpacing: 0.4,
+
+  timePickerSummaryCardActive: {
+    backgroundColor: "#EEF4FF",
+    borderColor: "#2158E8",
   },
-  timePickerPreviewHelpText: {
-    marginTop: 3,
+
+  timePickerSummaryLabel: {
     color: "#94A3B8",
     fontSize: 11,
     fontWeight: "800",
+    marginBottom: 6,
+  },
+
+  timePickerSummaryLabelActive: {
+    color: "#2158E8",
+  },
+
+  timePickerSummaryValue: {
+    color: "#111827",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+
+  timePickerSummaryValueActive: {
+    color: "#2158E8",
   },
   timePickerControls: {
     flexDirection: "row",
