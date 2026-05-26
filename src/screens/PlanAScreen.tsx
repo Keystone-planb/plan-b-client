@@ -1010,69 +1010,147 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const renderPlaceCard = (place: PlaceItem, index: number) => {
     const displayTime = getPlaceDisplayTime(place);
-    const visitTime = getPlaceVisitTime(place);
-    const endTime = getPlaceEndTime(place);
+    const sortedPlaces = sortPlacesByTime(currentPlaces);
+    const nextPlace = sortedPlaces[index + 1];
+    const isLast = index >= sortedPlaces.length - 1;
+    const pairKey = `${String(place.id)}-${String(nextPlace?.id ?? index + 1)}`;
+    const selectedTransportMode = editTransportModesByPair[pairKey];
+    const selectedTransportLabel =
+      selectedTransportMode ? getTransportLabel(selectedTransportMode) : null;
 
     return (
-      <View key={place.id} style={styles.simplePlaceRow}>
-        <View style={styles.timelineColumn}>
-          <View style={styles.timelineCircle} />
-        </View>
-
-        <View style={styles.simplePlaceCard}>
-          <View style={styles.placeNumberBadge}>
-            <Text style={styles.placeNumberBadgeText}>{index + 1}</Text>
+      <View key={place.id} style={styles.viewTimelineGroup}>
+        <View style={styles.viewPlaceRow}>
+          <View style={styles.viewSidebarColumn}>
+            <View style={styles.viewBlueDot} />
+            {!isLast ? <View style={styles.viewBlueLine} /> : null}
           </View>
 
-          <View style={styles.simplePlaceContent}>
-            <View style={styles.simplePlaceHeader}>
-              <Text style={styles.simplePlaceTitle} numberOfLines={1}>
-                {place.name}
-              </Text>
+          <View style={styles.viewPlaceCardContent}>
+            <PlanAPlaceCard
+              place={place}
+              index={index}
+              memoDraft={memoDrafts[place.id] ?? ""}
+              editingMemo={editingMemo}
+              editingMemoText={editingMemoText}
+              onDeletePlace={handleDeletePlace}
+              onQuickEditTime={(place) => openTimePicker(place, "visitTime")}
+              onChangeMemoDraft={handleChangeMemoDraft}
+              onAddMemo={handleAddMemo}
+              onClearMemo={handleClearMemo}
+              onStartEditMemo={handleStartEditMemo}
+              onCancelEditMemo={handleCancelEditMemo}
+              onSaveEditMemo={handleSaveEditMemo}
+              onDeleteMemo={handleDeleteMemo}
+              onChangeEditingMemoText={setEditingMemoText}
+            />
+          </View>
+        </View>
+
+        {!isLast ?
+          <View style={styles.viewTransportRow}>
+            <View style={styles.viewTransportIconColumn}>
+              <Ionicons
+                name={
+                  selectedTransportMode === "TRANSIT" ? "train-outline"
+                  : selectedTransportMode === "CAR" ? "car-outline"
+                  : "walk-outline"
+                }
+                size={15}
+                color="#94A3B8"
+              />
             </View>
 
-            <View style={styles.simpleTimeRow}>
-              <Ionicons name="time-outline" size={16} color="#94A3B8" />
-
-              <Text style={styles.simplePlaceTime}>
-                {displayTime || "시간을 설정해주세요"}
-              </Text>
+            <View style={styles.viewTransportAxisColumn}>
+              <View style={styles.viewTransportLineCover} />
+              <View style={styles.viewTransportDashedLine} />
             </View>
-{place.memos?.length > 0 ?
-              <View style={styles.simpleMemoPreviewBox}>
-                <Ionicons
-                  name="chatbubble-ellipses-outline"
-                  size={14}
-                  color="#94A3B8"
-                />
 
-                <View style={{ flex: 1, gap: 4 }}>
-                  {place.memos
-                    .slice(0, 2)
-                    .filter((memo) => Boolean(memo.text))
-                    .map((memo) => (
-                      <View
-                        key={memo.id}
-                        style={{
-                          flexDirection: "row",
-                          alignItems: "flex-start",
-                          gap: 6,
-                        }}
-                      >
+            <View style={styles.viewTransportCard}>
+              <TouchableOpacity
+                activeOpacity={0.85}
+                style={styles.viewTransportHeader}
+                onPress={() =>
+                  handleOpenEditTransportModal({
+                    pairKey,
+                    beforePlaceName: place.name,
+                    afterPlaceName: nextPlace?.name,
+                  })
+                }
+              >
+                <View style={styles.viewTransportTextGroup}>
+                  <Text style={styles.viewTransportTitle}>
+                    {selectedTransportLabel ?
+                      `${selectedTransportLabel}로 이동`
+                    : "이동수단 추가하기"}
+                  </Text>
 
-                        <Text
-                          style={styles.simpleMemoPreviewText}
-                          numberOfLines={1}
-                        >
-                          {memo.text}
-                        </Text>
-                      </View>
-                    ))}
+                  <Text style={styles.viewTransportDescription}>
+                    {selectedTransportLabel ?
+                      `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
+                    : "팀 이동수단을 추가해주세요"}
+                  </Text>
                 </View>
-              </View>
-            : null}
+
+                <Ionicons
+                  name={
+                    transportModalTarget?.pairKey === pairKey ?
+                      "chevron-up"
+                    : "chevron-down"
+                  }
+                  size={17}
+                  color="#CBD5E1"
+                />
+              </TouchableOpacity>
+
+              {transportModalTarget?.pairKey === pairKey ?
+                <View style={styles.viewTransportPickerBody}>
+                  <View style={styles.viewTransportOptionRow}>
+                    {EDIT_TRANSPORT_OPTIONS.map((option) => {
+                      const selected =
+                        editTransportModesByPair[pairKey] === option.key;
+
+                      return (
+                        <TouchableOpacity
+                          key={option.key}
+                          activeOpacity={0.85}
+                          style={[
+                            styles.viewTransportOptionButton,
+                            selected ?
+                              styles.viewTransportOptionButtonActive
+                            : null,
+                          ]}
+                          onPress={() =>
+                            handleSelectEditTransportMode(option.key)
+                          }
+                        >
+                          <Text
+                            style={[
+                              styles.viewTransportOptionText,
+                              selected ?
+                                styles.viewTransportOptionTextActive
+                              : null,
+                            ]}
+                          >
+                            {option.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <TouchableOpacity
+                    activeOpacity={0.85}
+                    style={styles.viewTransportConfirmButton}
+                    onPress={handleConfirmEditTransportMode}
+                  >
+                    <Text style={styles.viewTransportConfirmText}>확인</Text>
+                  </TouchableOpacity>
+                </View>
+              : null}
+            </View>
           </View>
-        </View>
+        : null}
       </View>
     );
   };
@@ -1373,7 +1451,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
             {currentPlaces.length > 0 ?
               <View style={styles.roadmapList}>
-                {!isEditMode ? <View pointerEvents="none" style={styles.roadmapLine} /> : null}
+                {false ? <View pointerEvents="none" style={styles.roadmapLine} /> : null}
 
                 {sortPlacesByTime(currentPlaces).map((place, index) =>
                   isEditMode ?
@@ -1937,44 +2015,33 @@ const styles = StyleSheet.create({
   },
   simplePlaceCard: {
     flex: 1,
-    minHeight: 100,
-    borderRadius: 18,
+    minHeight: 74,
+    borderRadius: 14,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    shadowColor: "#0F172A",
-    shadowOpacity: 0.05,
-    shadowRadius: 12,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 2,
-  },
-  placeNumberBadge: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#2563EB",
-    alignItems: "center",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     justifyContent: "center",
-    marginRight: 14,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
   },
-  placeNumberBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
+  simplePlaceContent: {
+    flex: 1,
+    minWidth: 0,
   },
-  simplePlaceContent: { flex: 1 },
   simplePlaceHeader: {
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
+
   simplePlaceTitle: {
     flex: 1,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: "900",
     color: "#1E293B",
   },
@@ -1982,11 +2049,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    marginBottom: 9,
+    marginBottom: 0,
   },
   simplePlaceTime: {
     flex: 1,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     color: "#94A3B8",
   },
@@ -2242,6 +2309,7 @@ const styles = StyleSheet.create({
     width: 34,
     alignItems: "center",
     position: "relative",
+    marginRight: 10,
   },
 
   editBlueDot: {
@@ -2267,33 +2335,36 @@ const styles = StyleSheet.create({
   editPlaceCardContent: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 2,
   },
 
   editTransportRow: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "stretch",
-    marginBottom: 16,
-    position: "relative",
+    marginTop: -2,
+    marginBottom: 18,
   },
 
   editTransportIconColumn: {
     width: 34,
     alignItems: "center",
     justifyContent: "center",
+    marginRight: 10,
   },
 
   editTransportAxisColumn: {
     width: 34,
     alignItems: "center",
     position: "relative",
-    marginLeft: -34,
-    marginRight: 0,
+    marginLeft: -44,
+    marginRight: 10,
   },
 
   editTransportLineCover: {
     position: "absolute",
-    top: -8,
-    bottom: -8,
+    top: -10,
+    bottom: -10,
     width: 18,
     backgroundColor: "#FFFFFF",
     zIndex: 1,
@@ -2301,7 +2372,7 @@ const styles = StyleSheet.create({
 
   editTransportDashedLine: {
     flex: 1,
-    minHeight: 58,
+    minHeight: 70,
     borderLeftWidth: 2,
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
@@ -2310,12 +2381,11 @@ const styles = StyleSheet.create({
 
   editTransportCard: {
     flex: 1,
-    minHeight: 58,
-    borderRadius: 14,
+    minHeight: 72,
+    borderRadius: 16,
     borderWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#F8FAFC",
-    marginRight: 2,
     overflow: "hidden",
   },
 
@@ -2487,4 +2557,187 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     color: "#FFFFFF",
   },
+
+  viewTimelineGroup: {
+    width: "100%",
+    position: "relative",
+    zIndex: 2,
+  },
+
+  viewPlaceRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
+
+  viewSidebarColumn: {
+    width: 34,
+    alignItems: "center",
+    position: "relative",
+    marginRight: 10,
+  },
+
+  viewBlueDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    borderWidth: 3,
+    borderColor: "#2563EB",
+    backgroundColor: "#FFFFFF",
+    marginTop: 31,
+    zIndex: 3,
+  },
+
+  viewBlueLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 72,
+    backgroundColor: "#2563EB",
+    marginTop: 4,
+  },
+
+  viewPlaceCardContent: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 2,
+  },
+
+  viewTransportRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginTop: -2,
+    marginBottom: 14,
+    position: "relative",
+  },
+
+  viewTransportIconColumn: {
+    position: "absolute",
+    left: -10,
+    top: 0,
+    bottom: 0,
+    width: 34,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 4,
+  },
+
+  viewTransportAxisColumn: {
+    width: 34,
+    alignItems: "center",
+    position: "relative",
+    marginRight: 10,
+  },
+
+  viewTransportLineCover: {
+    position: "absolute",
+    top: -10,
+    bottom: -10,
+    width: 18,
+    backgroundColor: "#FFFFFF",
+    zIndex: 1,
+  },
+
+  viewTransportDashedLine: {
+    flex: 1,
+    minHeight: 54,
+    borderLeftWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    zIndex: 2,
+  },
+
+  viewTransportCard: {
+    flex: 1,
+    minHeight: 58,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    overflow: "hidden",
+  },
+
+  viewTransportTitle: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  viewTransportDescription: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#94A3B8",
+  },
+
+  viewTransportHeader: {
+    minHeight: 58,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  viewTransportTextGroup: {
+    flex: 1,
+    paddingRight: 10,
+  },
+
+  viewTransportPickerBody: {
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+
+  viewTransportOptionRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingTop: 10,
+  },
+
+  viewTransportOptionButton: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D9E2F2",
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  viewTransportOptionButtonActive: {
+    borderColor: "#64748B",
+    backgroundColor: "#64748B",
+  },
+
+  viewTransportOptionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  viewTransportOptionTextActive: {
+    color: "#FFFFFF",
+  },
+
+  viewTransportConfirmButton: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+
+  viewTransportConfirmText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+
+
 });
