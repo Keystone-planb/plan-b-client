@@ -3,7 +3,6 @@ import {
   Alert,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -25,19 +24,9 @@ type Props = {
   editingMemo: EditingMemoState;
   editingMemoText: string;
 
-  editingPlaceId: string | null;
-  editingPlaceName: string;
-  editingPlaceVisitTime: string;
-  editingPlaceEndTime: string;
 
-  onStartEditPlace: (place: PlaceItem) => void;
-  onCancelEditPlace: () => void;
-  onSaveEditPlace: () => void;
   onDeletePlace: (placeId: string) => void;
-  onQuickEditTime?: (place: PlaceItem) => void;
-  onChangeEditingPlaceName: (value: string) => void;
-  onChangeEditingPlaceVisitTime: (value: string) => void;
-  onChangeEditingPlaceEndTime: (value: string) => void;
+  onQuickEditTime: (place: PlaceItem) => void;
 
   onChangeMemoDraft: (placeId: string, value: string) => void;
   onAddMemo: (placeId: string) => void;
@@ -69,19 +58,9 @@ export default function PlanAPlaceCard({
   editingMemo,
   editingMemoText,
 
-  editingPlaceId,
-  editingPlaceName,
-  editingPlaceVisitTime,
-  editingPlaceEndTime,
 
-  onStartEditPlace,
-  onCancelEditPlace,
-  onSaveEditPlace,
   onDeletePlace,
   onQuickEditTime,
-  onChangeEditingPlaceName,
-  onChangeEditingPlaceVisitTime,
-  onChangeEditingPlaceEndTime,
 
   onChangeMemoDraft,
   onAddMemo,
@@ -92,184 +71,71 @@ export default function PlanAPlaceCard({
   onDeleteMemo,
   onChangeEditingMemoText,
 }: Props) {
-  const isEditingPlace = editingPlaceId === place.id;
 
   return (
-    <View style={styles.timelineRow}>
-      <View style={styles.timelineLeft}>
-        <View style={styles.stepBadge}>
-          <Text style={styles.stepBadgeText}>{index + 1}</Text>
+    <View style={styles.placeCard}>
+      <View style={styles.placeHeader}>
+        <View style={styles.placeTitleBox}>
+          <Text style={styles.placeTitle}>{place.name}</Text>
+          <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
         </View>
 
-        <View style={styles.timelineLine} />
+        <View style={styles.placeHeaderActions}>
+          <TouchableOpacity
+            style={styles.placeDeleteIconButton}
+            activeOpacity={0.85}
+            onPress={(event) => {
+              event.stopPropagation();
+
+              Alert.alert(
+                "장소 삭제",
+                "이 장소와 연결된 메모가 함께 삭제됩니다. 삭제할까요?",
+                [
+                  { text: "취소", style: "cancel" },
+                  {
+                    text: "삭제",
+                    style: "destructive",
+                    onPress: () => onDeletePlace(place.id),
+                  },
+                ],
+              );
+            }}
+          >
+            <Ionicons name="close" size={15} color="#EF4444" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.placeTimeEditIconButton}
+            activeOpacity={0.85}
+            onPress={(event) => {
+              event.stopPropagation();
+              onQuickEditTime(place);
+            }}
+          >
+            <Ionicons name="time-outline" size={15} color="#2563EB" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <View style={styles.placeCard}>
-        {isEditingPlace ? (
-          <View style={styles.placeEditBox}>
-            <Text style={styles.editLabel}>장소명</Text>
-
-            <TextInput
-              value={editingPlaceName}
-              onChangeText={onChangeEditingPlaceName}
-              placeholder="장소명을 입력하세요"
-              placeholderTextColor="#8C9BB1"
-              style={styles.placeEditInput}
-            />
-
-            <View style={styles.placeEditButtonRow}>
-              <TouchableOpacity
-                style={styles.placeEditSaveButton}
-                activeOpacity={0.85}
-                onPress={onSaveEditPlace}
-              >
-                <Text style={styles.placeEditSaveText}>저장</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.placeEditCancelButton}
-                activeOpacity={0.85}
-                onPress={onCancelEditPlace}
-              >
-                <Text style={styles.placeEditCancelText}>취소</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.placeDeleteButton}
-                activeOpacity={0.85}
-                onPress={() => {
-                  Alert.alert(
-                    "장소 삭제",
-                    "이 장소와 연결된 메모가 함께 삭제됩니다. 삭제할까요?",
-                    [
-                      {
-                        text: "취소",
-                        style: "cancel",
-                      },
-                      {
-                        text: "삭제",
-                        style: "destructive",
-                        onPress: () => onDeletePlace(place.id),
-                      },
-                    ],
-                  );
-                }}
-              >
-                <Ionicons name="trash-outline" size={15} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <>
-            <View style={styles.placeHeader}>
-              <View style={styles.placeTitleBox}>
-                <Text style={styles.placeTitle}>{place.name}</Text>
-                <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
-              </View>
-
-              <View style={styles.placeHeaderActions}>
-                <TouchableOpacity
-                  style={styles.placeDeleteIconButton}
-                  activeOpacity={0.85}
-                  onPress={(event) => {
-                    event.stopPropagation();
-
-                    Alert.alert(
-                      "장소 삭제",
-                      "이 장소와 연결된 메모가 함께 삭제됩니다. 삭제할까요?",
-                      [
-                        { text: "취소", style: "cancel" },
-                        {
-                          text: "삭제",
-                          style: "destructive",
-                          onPress: () => onDeletePlace(place.id),
-                        },
-                      ],
-                    );
-                  }}
-                >
-                  <Ionicons name="trash-outline" size={15} color="#CBD5E1" />
-                </TouchableOpacity>
-
-                <View style={styles.placeHeaderActionColumn}>
-                  <TouchableOpacity
-                    style={styles.quickTimeButton}
-                    activeOpacity={0.85}
-                    onPress={(event) => {
-                      event.stopPropagation();
-                      onQuickEditTime?.(place);
-                    }}
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={13}
-                      color="#64748B"
-                    />
-                    <Text style={styles.quickTimeButtonText}>
-                      시간변경
-                    </Text>
-                  </TouchableOpacity>
-
-                </View>
-              </View>
-            </View>
-
-            <PlanAMemoList
-              place={place}
-              memoDraft={memoDraft}
-              editingMemo={editingMemo}
-              editingMemoText={editingMemoText}
-              onChangeMemoDraft={onChangeMemoDraft}
-              onAddMemo={onAddMemo}
-              onClearMemo={onClearMemo}
-              onStartEditMemo={onStartEditMemo}
-              onCancelEditMemo={onCancelEditMemo}
-              onSaveEditMemo={onSaveEditMemo}
-              onDeleteMemo={onDeleteMemo}
-              onChangeEditingMemoText={onChangeEditingMemoText}
-            />
-          </>
-        )}
-      </View>
+      <PlanAMemoList
+        place={place}
+        memoDraft={memoDraft}
+        editingMemo={editingMemo}
+        editingMemoText={editingMemoText}
+        onChangeMemoDraft={onChangeMemoDraft}
+        onAddMemo={onAddMemo}
+        onClearMemo={onClearMemo}
+        onStartEditMemo={onStartEditMemo}
+        onCancelEditMemo={onCancelEditMemo}
+        onSaveEditMemo={onSaveEditMemo}
+        onDeleteMemo={onDeleteMemo}
+        onChangeEditingMemoText={onChangeEditingMemoText}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  timelineRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
-
-  timelineLeft: {
-    width: 34,
-    alignItems: "center",
-    marginRight: 12,
-  },
-
-  stepBadge: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  stepBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-
-  timelineLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 196,
-    marginTop: 6,
-    backgroundColor: "#DCEBFF",
-  },
 
   placeCard: {
     flex: 1,
@@ -309,139 +175,42 @@ const styles = StyleSheet.create({
   },
 
   placeHeaderActions: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
 
   placeDeleteIconButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  placeHeaderActionColumn: {
-    alignItems: "flex-end",
-    gap: 6,
-  },
-
-  quickTimeButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    width: 24,
+    height: 24,
     borderRadius: 999,
-    backgroundColor: "#F8FAFC",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-  },
-
-  quickTimeButtonText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "700",
-  },
-
-  placeActionBadge: {
-    minHeight: 28,
-    paddingHorizontal: 9,
-    borderRadius: 8,
-    backgroundColor: "#EAF3FF",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  placeActionText: {
-    color: "#2158E8",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  placeEditBox: {
-    gap: 8,
-  },
-
-  editLabel: {
-    color: "#627187",
-    fontSize: 11,
-    fontWeight: "900",
-  },
-
-  timeEditLabel: {
-    marginTop: 4,
-  },
-
-  timeEditRow: {
-    flexDirection: "row",
-    gap: 8,
-  },
-
-  timeEditColumn: {
-    flex: 1,
-  },
-
-  placeEditInput: {
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#9FC8FF",
+    borderColor: "#FCA5A5",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    color: "#1C2534",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  placeEditButtonRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    marginTop: 4,
-  },
-
-  placeEditSaveButton: {
-    flex: 1,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  placeEditSaveText: {
-    color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "900",
-  },
-
-  placeEditCancelButton: {
-    flex: 1,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: "#EAF3FF",
+  placeTimeEditIconButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#2563EB",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
 
-  placeEditCancelText: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
-  },
 
-  placeDeleteButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: "#EF4444",
-    alignItems: "center",
-    justifyContent: "center",
-  },
+
+
+
+
+
+
+
+
+
+
+
 });
