@@ -1009,13 +1009,29 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   color="#94A3B8"
                 />
 
-                <Text style={styles.simpleMemoPreviewText} numberOfLines={2}>
+                <View style={{ flex: 1, gap: 4 }}>
                   {place.memos
                     .slice(0, 2)
-                    .map((memo) => memo.text)
-                    .filter(Boolean)
-                    .join(" · ")}
-                </Text>
+                    .filter((memo) => Boolean(memo.text))
+                    .map((memo) => (
+                      <View
+                        key={memo.id}
+                        style={{
+                          flexDirection: "row",
+                          alignItems: "flex-start",
+                          gap: 6,
+                        }}
+                      >
+
+                        <Text
+                          style={styles.simpleMemoPreviewText}
+                          numberOfLines={1}
+                        >
+                          {memo.text}
+                        </Text>
+                      </View>
+                    ))}
+                </View>
               </View>
             : null}
           </View>
