@@ -105,7 +105,7 @@ export default function OngoingPlaceCard({
 
           {memoExpanded ? (
             <View style={localStyles.memoPanel}>
-              {shownMemos.map((memo, memoIndex) => (
+              {shownMemos.map((memo: string, memoIndex: number) => (
                 <View
                   key={`${String(place.id ?? index)}-memo-${memoIndex}`}
                   style={localStyles.memoRow}
