@@ -1,28 +1,79 @@
 import React from "react";
-import { View, Text } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 
-type MemoItem = {
+type MemoLike = {
   id?: string | number;
+  memoId?: string | number;
   text?: string;
+  content?: string;
+  memo?: string;
 };
 
 type Props = {
-  memos?: MemoItem[];
-  styles: any;
+  memos?: MemoLike[];
+  styles?: any;
 };
 
-export default function OngoingMemoList({ memos, styles }: Props) {
-  if (!memos?.length) return null;
+const getMemoText = (memo: MemoLike) => {
+  return String(memo.text ?? memo.content ?? memo.memo ?? "").trim();
+};
+
+export default function OngoingMemoList({ memos = [] }: Props) {
+  const visibleMemos = memos
+    .map((memo, index) => ({
+      id: String(memo.id ?? memo.memoId ?? `memo-${index}`),
+      text: getMemoText(memo),
+    }))
+    .filter((memo) => memo.text.length > 0);
+
+  if (visibleMemos.length === 0) {
+    return null;
+  }
 
   return (
-    <View style={styles.memoList}>
-      {memos.map((memo, index) => (
-        <View key={memo.id ?? `memo-${index}`} style={styles.memoCard}>
-          <Ionicons name="reader-outline" size={17} color="#64748B" />
-          <Text style={styles.memoText}>{memo.text}</Text>
+    <View style={localStyles.wrapper}>
+      {visibleMemos.map((memo) => (
+        <View key={memo.id} style={localStyles.memoBox}>
+          <Ionicons
+            name="chatbox-ellipses-outline"
+            size={14}
+            color="#94A3B8"
+          />
+          <Text style={localStyles.memoText} numberOfLines={2}>
+            {memo.text}
+          </Text>
         </View>
       ))}
     </View>
   );
 }
+
+const localStyles = StyleSheet.create({
+  wrapper: {
+    width: "100%",
+    marginTop: 14,
+    gap: 6,
+  },
+
+  memoBox: {
+    minHeight: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  memoText: {
+    flex: 1,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+});

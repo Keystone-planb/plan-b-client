@@ -267,16 +267,17 @@ const styles = StyleSheet.create({
   editTimelineLine: {
     backgroundColor: "#DDE5F0",
   },
-
   todayCard: {
     minHeight: 98,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 18,
     paddingVertical: 16,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: "column",
+    alignItems: "stretch",
   },
+
+
 
   futureTodayCard: {
     minHeight: 82,
@@ -312,11 +313,14 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
   },
-
   placeInfo: {
     flex: 1,
-    paddingRight: 10,
+    minWidth: 0,
+    marginLeft: 14,
+    marginRight: 12,
   },
+
+
 
   placeName: {
     color: "#1F2937",
@@ -344,35 +348,36 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 5,
   },
-
   alternativeButton: {
-    height: 44,
+    width: 104,
+    height: 42,
     borderRadius: 14,
     backgroundColor: "#2158E8",
-    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 3,
+    flexShrink: 0,
     shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.14,
+    shadowRadius: 8,
+    elevation: 3,
   },
+
+
+
 
   disabledAlternativeButton: {
     opacity: 0.55,
   },
-
   alternativeButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
-    marginRight: 3,
   },
+
+
 
 
 
@@ -394,16 +399,25 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-
-
-
-
-
   memoList: {
-    marginTop: -6,
-    paddingLeft: 92,
-    gap: 9,
+    width: "100%",
+    marginTop: 12,
+    paddingLeft: 62,
+    gap: 6,
   },
+  memoItem: {
+    minHeight: 36,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
 
   memoCard: {
     minHeight: 44,
@@ -415,13 +429,14 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
-
   memoText: {
-    color: "#1F2937",
-    fontSize: 14,
+    flex: 1,
+    color: "#64748B",
+    fontSize: 12,
     fontWeight: "700",
-    marginLeft: 8,
+    lineHeight: 17,
   },
+
 
 
 
@@ -526,6 +541,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     lineHeight: 20,
+  },
+
+  placeTopRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "center",
   },
 });
 
