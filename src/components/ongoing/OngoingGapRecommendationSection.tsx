@@ -20,7 +20,6 @@ type Props = {
     beforePlanId?: string | number;
     afterPlanId?: string | number;
   }>;
-  currentPairFallbackGaps: any[];
 };
 
 export default function OngoingGapRecommendationSection({
@@ -36,7 +35,6 @@ export default function OngoingGapRecommendationSection({
   transportLabel,
   selectedDayIndex,
   currentGapPlanPairs,
-  currentPairFallbackGaps,
 }: Props) {
   if (!resolvedTripId || currentGapPlanPairs.length <= 0) return null;
 
@@ -44,7 +42,6 @@ export default function OngoingGapRecommendationSection({
     <View style={styles.gapRecommendationSection}>
       <GapRecommendationCard
         allowedPlanPairs={currentGapPlanPairs}
-        fallbackGaps={currentPairFallbackGaps}
         onSelectPlace={(place, gap) => {
           const recommendedPlaceId = String(place.placeId);
           const recommendedGooglePlaceId =

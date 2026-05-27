@@ -21,7 +21,15 @@ export const getTripGaps = async (
       },
     );
 
-    return Array.isArray(response.data) ? response.data : [];
+    const gaps = Array.isArray(response.data) ? response.data : [];
+
+    console.log("[trip gaps] response:", {
+      tripId,
+      count: gaps.length,
+      gaps,
+    });
+
+    return gaps;
   } catch (error) {
     console.log("[trip gaps] request failed:", error);
     return [];

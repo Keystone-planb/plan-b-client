@@ -646,7 +646,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
   }, [serverDays, displayDays]);
 
-  const { currentDay, places, mapPlaces, currentDayFallbackGaps } =
+  const { currentDay, places, mapPlaces } =
     useOngoingPlaces({
       days: normalizedRouteDays,
       serverDays: normalizedServerDays,
@@ -1067,11 +1067,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                   ]
                 : [];
 
-              const currentPairFallbackGaps = currentDayFallbackGaps.filter(
-                (gap) =>
-                  String(gap.beforePlanId) === String(gapBeforePlanId) &&
-                  String(gap.afterPlanId) === String(gapAfterPlanId),
-              );
               const hasServerPlanId = isValidServerPlanId(
                 place.serverTripPlaceId ?? place.tripPlaceId ?? place.id,
               );
@@ -1115,10 +1110,32 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         Number.isFinite(nextStartMinutes) &&
                         nextStartMinutes > currentEndMinutes;
 
-                      if (!hasMoveSlot) return null;
+                      const hasGapRecommendation =
+                        currentGapPlanPairs.length > 0;
+
+                      if (!hasMoveSlot && !hasGapRecommendation) return null;
 
                       const isTransportExpanded =
                         transportPickerTarget?.pairKey === pairKey;
+
+                      const shouldCompactTransportSpace =
+                        !selectedTransportMode && !isTransportExpanded;
+
+                      if (shouldCompactTransportSpace) {
+                        return (
+                          <View style={localStyles.transportCompactConnector}>
+                            <View style={localStyles.transportCompactIconColumn}>
+                              <Ionicons
+                                name={selectedTransportOption.icon}
+                                size={16}
+                                color="#94A3B8"
+                              />
+                            </View>
+
+                            <View style={localStyles.transportCompactLine} />
+                          </View>
+                        );
+                      }
 
                       return (
                         <View style={localStyles.transportBetweenWrapper}>
@@ -1132,7 +1149,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
                           <View style={localStyles.transportAxisColumn}>
                             <View style={localStyles.transportBlueLineCover} />
-                            <View style={localStyles.transportDashedLine} />
+                            <View
+                              style={[
+                                localStyles.transportDashedLine,
+                                shouldCompactTransportSpace ?
+                                  localStyles.transportDashedLineCompact
+                                : null,
+                              ]}
+                            />
                           </View>
 
                           <View style={localStyles.transportCardColumn}>
@@ -1256,7 +1280,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       transportLabel={transportLabel}
                       selectedDayIndex={selectedDayIndex}
                       currentGapPlanPairs={currentGapPlanPairs}
-                      currentPairFallbackGaps={currentPairFallbackGaps}
                     />
                   : null}
                 </React.Fragment>
@@ -1348,6 +1371,34 @@ const localStyles = StyleSheet.create({
     zIndex: 5,
   },
 
+  transportCompactConnector: {
+    width: 54,
+    height: 72,
+    marginLeft: 56,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  transportCompactIconColumn: {
+    height: 22,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  transportCompactLine: {
+    width: 3,
+    height: 42,
+    borderRadius: 999,
+    borderWidth: 1.5,
+    borderColor: "#CBD5E1",
+    borderStyle: "dashed",
+  },
+
+  transportBetweenWrapperCompact: {
+    marginTop: 4,
+    marginBottom: 6,
+  },
+
   transportIconColumn: {
     width: 34,
     alignItems: "center",
@@ -1378,6 +1429,10 @@ const localStyles = StyleSheet.create({
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
     zIndex: 2,
+  },
+
+  transportDashedLineCompact: {
+    minHeight: 28,
   },
 
   transportCardColumn: {

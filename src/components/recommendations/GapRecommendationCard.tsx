@@ -54,7 +54,7 @@ const getCachedTripGaps = async (tripId: number | string) => {
 type Props = {
   tripId?: number | string | null;
   allowedPlanPairs?: AllowedGapPlanPair[];
-  fallbackGaps?: TripScheduleGap[];
+
   onSelectPlace?: (place: RecommendedPlace, gap: TripScheduleGap) => void;
 };
 
@@ -115,7 +115,7 @@ const isValidGap = (gap: TripScheduleGap) => {
 export default function GapRecommendationCard({
   tripId,
   allowedPlanPairs = EMPTY_ALLOWED_PLAN_PAIRS,
-  fallbackGaps = [],
+
   onSelectPlace,
 }: Props) {
   const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
@@ -151,15 +151,6 @@ export default function GapRecommendationCard({
   const allowedPlanPairKey = useMemo(() => {
     return Array.from(allowedPairKeys).join("|");
   }, [allowedPairKeys]);
-
-  const fallbackGapKey = useMemo(() => {
-    return fallbackGaps
-      .map(
-        (gap) =>
-          `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}-${String(gap.day ?? "")}`,
-      )
-      .join("|");
-  }, [fallbackGaps]);
 
   useEffect(() => {
     let mounted = true;
@@ -199,55 +190,24 @@ export default function GapRecommendationCard({
 
       const serverGaps = await getCachedTripGaps(tripId);
 
-      const fallbackGapByPairKey = new Map(
-        fallbackGaps.map((gap) => [
-          `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`,
-          gap,
-        ]),
-      );
-
-      const normalizedServerGaps = serverGaps.map((gap) => {
-        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-        const fallbackGap = fallbackGapByPairKey.get(gapKey);
-
-        return {
-          ...gap,
-          day: gap.day ?? fallbackGap?.day,
-        };
-      });
-
-      const currentScreenGaps = normalizedServerGaps.filter((gap) => {
+      const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
 
         return allowedPairKeys.has(gapKey) && isValidGap(gap);
       });
-      const currentFallbackGaps = fallbackGaps.filter((gap) => {
-        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-
-        return allowedPairKeys.has(gapKey) && isValidGap(gap);
-      });
-
-      applyGaps(
-        currentScreenGaps.length > 0 ? currentScreenGaps : currentFallbackGaps,
-      );
+      applyGaps(currentScreenGaps);
     };
 
     loadGaps().catch((error) => {
       console.log("[GapRecommendationCard] gap load failed:", error);
 
-      const currentFallbackGaps = fallbackGaps.filter((gap) => {
-        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-
-        return allowedPairKeys.has(gapKey) && isValidGap(gap);
-      });
-
-      applyGaps(currentFallbackGaps);
+      applyGaps([]);
     });
 
     return () => {
       mounted = false;
     };
-  }, [tripId, allowedPlanPairKey, fallbackGapKey]);
+  }, [tripId, allowedPlanPairKey]);
 
   const handleRecommend = async (gap: TripScheduleGap) => {
     if (isLoading || requestLockRef.current) return;
@@ -370,7 +330,7 @@ export default function GapRecommendationCard({
           <View>
             <Text style={styles.title}>빈 시간 장소 추천</Text>
             <Text style={styles.subTitle}>
-              일정 사이 60분 이상 남는 시간 기준
+              일정 사이 30분 이상 남는 시간 기준
             </Text>
           </View>
         </View>
