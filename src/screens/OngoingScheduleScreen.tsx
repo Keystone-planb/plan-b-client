@@ -964,12 +964,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           </View>
         : null}
 
-        <ScrollView
-          ref={scrollViewRef}
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
+        <View style={localStyles.mapLayerBody}>
           <OngoingDayTabs
             displayDays={displayDays}
             selectedDayIndex={selectedDayIndex}
@@ -977,12 +972,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             styles={styles}
           />
 
-          <OngoingMapSection
-            places={resolvedMapPlaces}
-            styles={styles}
-            collapsed={isSheetCollapsed}
-            mapInteractive={isSheetCollapsed}
-          />
+          <View style={localStyles.mapLayer}>
+            <OngoingMapSection
+              places={resolvedMapPlaces}
+              styles={styles}
+              collapsed={isSheetCollapsed}
+              mapInteractive={isSheetCollapsed}
+            />
 
           <View
             style={[
@@ -1008,28 +1004,34 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               />
             </TouchableOpacity>
 
-            {!isSheetCollapsed ? (
-              <>
-                <View style={styles.todayHeader}>
-            <Text style={styles.todayTitle}>
-              {isSelectedDayToday ? "오늘 일정" : "일정"}
-            </Text>
+            <View style={styles.todayHeader}>
+              <Text style={styles.todayTitle}>
+                {isSelectedDayToday ? "오늘 일정" : "일정"}
+              </Text>
 
-            {canEditSchedule ?
-              <TouchableOpacity disabled={isSavingEdit} onPress={handleEdit}>
-                <Text
-                  style={[
-                    styles.editText,
-                    isSavingEdit && styles.disabledEditText,
-                  ]}
-                >
-                  {isSavingEdit ? "저장 중..." : "수정"}
-                </Text>
-              </TouchableOpacity>
-            : null}
-          </View>
+              {canEditSchedule ?
+                <TouchableOpacity disabled={isSavingEdit} onPress={handleEdit}>
+                  <Text
+                    style={[
+                      styles.editText,
+                      isSavingEdit && styles.disabledEditText,
+                    ]}
+                  >
+                    {isSavingEdit ? "저장 중..." : "수정"}
+                  </Text>
+                </TouchableOpacity>
+              : null}
+            </View>
 
-          <View style={styles.timelineList}>
+            <ScrollView
+              style={localStyles.sheetScroll}
+              contentContainerStyle={localStyles.sheetScrollContent}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={!isSheetCollapsed}
+            >
+              {!isSheetCollapsed ? (
+                <>
+                  <View style={styles.timelineList}>
             <OngoingTimelineMarker
               hasPlaces={hasPlaces}
               placeCount={places.length}
@@ -1260,11 +1262,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               );
             })}
           </View>
-            </>
-          ) : null}
+                </>
+              ) : null}
+            </ScrollView>
           </View>
-
-        </ScrollView>
+          </View>
+        </View>
       </View>
     </SafeAreaView>
   );
