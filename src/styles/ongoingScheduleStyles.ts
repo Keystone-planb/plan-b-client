@@ -53,13 +53,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     gap: 10,
     marginTop: 0,
-    marginBottom: 0,
+    marginBottom: -4,
   },
 
   dayTab: {
-    height: 48,
+    height: 46,
     minWidth: 82,
-    borderRadius: 24,
+    borderRadius: 23,
     backgroundColor: "#CBD5E1",
     alignItems: "center",
     justifyContent: "center",
@@ -69,13 +69,10 @@ const styles = StyleSheet.create({
   dayTabActive: {
     backgroundColor: "#2158E8",
     shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 5,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 4,
   },
 
   dayTabText: {
@@ -212,9 +209,9 @@ const styles = StyleSheet.create({
   },
 
   todayHeader: {
-    paddingHorizontal: 30,
-    paddingTop: 26,
-    paddingBottom: 16,
+    paddingHorizontal: 26,
+    paddingTop: 18,
+    paddingBottom: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -239,13 +236,13 @@ const styles = StyleSheet.create({
 
   timelineList: {
     position: "relative",
-    paddingBottom: 24,
-    paddingHorizontal: 24,
-    gap: 14,
+    paddingBottom: 22,
+    paddingHorizontal: 22,
+    gap: 12,
   },
 
   futureTimelineList: {
-    gap: 28,
+    gap: 20,
   },
 
   timelineLine: {
