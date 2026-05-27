@@ -532,14 +532,16 @@ export default function GapRecommendationCard({
 
 const styles = StyleSheet.create({
   card: {
-    marginTop: 12,
-    marginHorizontal: 24,
-    paddingHorizontal: 14,
+    width: "100%",
+    marginTop: 8,
+    marginHorizontal: 0,
+    paddingHorizontal: 12,
     paddingVertical: 12,
     borderRadius: 14,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
+    alignSelf: "stretch",
   },
   headerRow: {
     flexDirection: "row",
@@ -549,8 +551,9 @@ const styles = StyleSheet.create({
   titleBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     flex: 1,
+    minWidth: 0,
   },
   iconCircle: {
     width: 34,
@@ -581,8 +584,10 @@ const styles = StyleSheet.create({
   transportSelector: {
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
     marginTop: 10,
+    paddingHorizontal: 0,
   },
 
   transportButton: {

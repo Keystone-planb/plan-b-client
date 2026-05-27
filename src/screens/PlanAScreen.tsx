@@ -464,13 +464,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const {
     schedule,
-    saveError,
-    saveSuccessMessage,
     saving,
     handleSaveSchedule,
     handleUpdateTripName,
     loadingSchedule,
-    loadError,
     currentPlaces,
 
     memoDrafts,
@@ -1395,47 +1392,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             </View>
 
-            {saveSuccessMessage ?
-              <View style={styles.saveFeedbackBox}>
-                <Ionicons name="checkmark-circle" size={14} color="#16A34A" />
-                <Text style={styles.saveSuccessText}>{saveSuccessMessage}</Text>
-              </View>
-            : null}
-
-            {saveError ?
-              <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
-                <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                <Text style={styles.saveErrorText}>{saveError}</Text>
-              </View>
-            : null}
-
-            {loadingSchedule ?
-              <View style={styles.saveFeedbackBox}>
-                <Ionicons
-                  name="cloud-download-outline"
-                  size={14}
-                  color="#2158E8"
-                />
-                <Text style={styles.loadingText}>
-                  저장된 일정을 불러오는 중...
-                </Text>
-              </View>
-            : null}
-
-            {saving ?
-              <View style={styles.saveFeedbackBox}>
-                <Ionicons name="sync-outline" size={14} color="#2158E8" />
-                <Text style={styles.loadingText}>일정을 저장하는 중...</Text>
-              </View>
-            : null}
-
-            {loadError ?
-              <View style={[styles.saveFeedbackBox, styles.saveErrorBox]}>
-                <Ionicons name="alert-circle" size={14} color="#EF4444" />
-                <Text style={styles.saveErrorText}>{loadError}</Text>
-              </View>
-            : null}
-
             <View style={styles.dayTabsWrapper}>
               <PlanADayTabs
                 days={effectiveDayOptions}
@@ -1541,8 +1497,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
         </ScrollView>
 
       </View>
-
-
 
       <Modal
         visible={Boolean(timePickerPlace)}
@@ -1926,31 +1880,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   headerIconDisabled: { opacity: 0.55 },
-  saveFeedbackBox: {
-    marginTop: 8,
-    minHeight: 32,
-    borderRadius: 10,
-    backgroundColor: "#F0FDF4",
-    borderWidth: 1,
-    borderColor: "#BBF7D0",
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  saveErrorBox: { backgroundColor: "#FEF2F2", borderColor: "#FECACA" },
-  saveSuccessText: {
-    flex: 1,
-    color: "#16A34A",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  saveErrorText: {
-    flex: 1,
-    color: "#EF4444",
-    fontSize: 12,
-    fontWeight: "800",
-  },
   loadingText: {
     flex: 1,
     color: "#2158E8",
@@ -1969,7 +1898,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    paddingTop: 14,
+    paddingTop: 6,
     paddingHorizontal: 20,
     paddingBottom: 36,
   },
@@ -2378,7 +2307,6 @@ const styles = StyleSheet.create({
     marginTop: 18,
     zIndex: 3,
   },
-
 
   editBlueLine: {
     width: 2,
@@ -2795,8 +2723,6 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
 
-
-
   scheduleSectionHeader: {
     marginBottom: 14,
     paddingHorizontal: 2,
@@ -2822,7 +2748,6 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
 
-
   sheetChevron: {
     marginTop: 0,
   },
@@ -2833,11 +2758,24 @@ const styles = StyleSheet.create({
     color: "#64748B",
   },
 
+  floatingToast: {
+    position: "absolute",
+    top: 110,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
+    backgroundColor: "#EAFBF0",
+    borderWidth: 1,
+    borderColor: "#A7E8B8",
+    borderRadius: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+  },
 
-
-
-
-
-
+  floatingToastText: {
+    color: "#17823B",
+    fontSize: 16,
+    fontWeight: "700",
+  },
 
 });

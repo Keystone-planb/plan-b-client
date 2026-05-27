@@ -639,6 +639,24 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const [successToastMessage, setSuccessToastMessage] = useState("");
 
   useEffect(() => {
+    if (!route?.params?.successToastMessage) {
+      return;
+    }
+
+    setSuccessToastMessage("변경사항이 저장되었습니다.");
+
+    const timer = setTimeout(() => {
+      setSuccessToastMessage("");
+
+      navigation.setParams({
+        successToastMessage: undefined,
+      });
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }, [route?.params?.successToastMessage]);
+
+  useEffect(() => {
     let cancelled = false;
 
     const resolveMapPlaces = async () => {
@@ -711,13 +729,17 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
     if (!nextMessage) return;
 
-    setSuccessToastMessage(String(nextMessage));
+    setSuccessToastMessage(nextMessage);
 
-    const timer = setTimeout(() => {
+    const successToastHideTimer = setTimeout(() => {
       setSuccessToastMessage("");
-    }, 1800);
 
-    return () => clearTimeout(timer);
+      navigation.setParams({
+        successToastMessage: undefined,
+      });
+    }, 2500);
+
+    return () => clearTimeout(successToastHideTimer);
   }, [route?.params?.successToastMessage, route?.params?.refreshPlanAAt]);
 
   const hasPlaces = places.length > 0;
@@ -755,7 +777,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [isSelectedDayToday, selectedDayIndex, places.length]);
 
   const handleBack = () => {
-    navigation.goBack();
+    Alert.alert("홈으로 이동할까요?", "", [
+      {
+        text: "취소",
+        style: "cancel",
+      },
+      {
+        text: "홈으로 이동",
+        onPress: () => navigation.navigate("Main"),
+      },
+    ]);
   };
 
   const getTimeValueForTarget = (
@@ -937,19 +968,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         </View>
 
         {successToastMessage ?
-          <View
-            style={{
-              marginHorizontal: 24,
-              marginTop: 10,
-              marginBottom: 4,
-              paddingHorizontal: 14,
-              paddingVertical: 11,
-              borderRadius: 14,
-              backgroundColor: "#ECFDF3",
-              borderWidth: 1,
-              borderColor: "#BBF7D0",
-            }}
-          >
+          <View style={localStyles.successToast}>
             <Text
               style={{
                 color: "#15803D",
@@ -1114,9 +1133,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                     style={localStyles.transportIcon}
                                   />
 
-                                  <View
-                                    style={localStyles.transportDashedLine}
-                                  />
+                                  <View style={localStyles.transportDotLine}>
+                                    {Array.from({ length: 7 }).map(
+                                      (_, index) => (
+                                        <View
+                                          key={index}
+                                          style={localStyles.transportDot}
+                                        />
+                                      ),
+                                    )}
+                                  </View>
 
                                   <View
                                     style={localStyles.transportSolidLineBottom}
@@ -1189,6 +1215,36 @@ const localStyles = StyleSheet.create({
     color: "#64748B",
   },
 
+  
+  successToast: {
+    position: "absolute",
+
+    top: 110,
+    left: 20,
+    right: 20,
+
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+
+    borderRadius: 14,
+
+    backgroundColor: "#ECFDF3",
+    borderWidth: 1,
+    borderColor: "#BBF7D0",
+
+    zIndex: 9999,
+    elevation: 20,
+
+    shadowColor: "#000",
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+  },
+
+
   mapLayerBody: {
     flex: 1,
     paddingTop: 0,
@@ -1260,50 +1316,60 @@ const localStyles = StyleSheet.create({
 
   transportBetweenWrapper: {
     flexDirection: "row",
-    alignItems: "stretch",
-    marginTop: 0,
-    marginBottom: 2,
-    minHeight: 148,
-    position: "relative",
+    alignItems: "center",
+    marginTop: -6,
+    marginBottom: -10,
+    paddingLeft: 18,
   },
 
   transportSolidLineTop: {
-    width: 4,
-    flex: 1,
+    width: 3,
+    height: 24,
+    backgroundColor: "#CBD5E1",
     borderRadius: 999,
-    backgroundColor: "#C7D2FE",
   },
 
   transportIcon: {
-    marginVertical: 6,
+    marginVertical: 8,
+    transform: [{ scale: 1.15 }],
   },
+
   transportSolidLineBottom: {
-    width: 4,
-    flex: 1,
+    width: 3,
+    height: 24,
+    backgroundColor: "#CBD5E1",
     borderRadius: 999,
-    backgroundColor: "#C7D2FE",
+    marginTop: 6,
   },
 
   transportIconColumn: {
-    width: 40,
+    width: 42,
     alignItems: "center",
     justifyContent: "flex-start",
-    marginRight: 2,
+    marginRight: 6,
     zIndex: 50,
   },
 
-  transportDashedLine: {
-    width: 2,
-    minHeight: 72,
-    borderLeftWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#CBD5E1",
+  transportDotLine: {
+    minHeight: 96,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 6,
+    paddingTop: 4,
+  },
+
+  transportDot: {
+    width: 3,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#CBD5E1",
   },
 
   transportCardColumn: {
     flex: 1,
+    justifyContent: "center",
     paddingTop: 0,
-    marginTop: -10,
-    marginLeft: -6,
+    marginLeft: -8,
+    paddingRight: 0,
   },
 });

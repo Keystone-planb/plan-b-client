@@ -827,7 +827,23 @@ export function usePlanAPlaces({
 
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState("");
+
+  
+
+
   const [saveSuccessMessage, setSaveSuccessMessage] = useState("");
+
+  useEffect(() => {
+    if (!saveSuccessMessage) return;
+
+    const timeout = setTimeout(() => {
+      setSaveSuccessMessage("");
+    }, 1800);
+
+    return () => {
+      clearTimeout(timeout);
+    };
+  }, [saveSuccessMessage]);
 
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [loadError, setLoadError] = useState("");
