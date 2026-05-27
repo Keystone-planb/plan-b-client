@@ -41,6 +41,8 @@ export interface TripResponse {
   totalDays?: number;
 }
 
+export type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
 export interface TripPlace {
   tripPlaceId: number;
   placeId: string;
@@ -50,6 +52,7 @@ export interface TripPlace {
   visitOrder?: number;
   memo?: string | null;
   transitGapMinutes?: number | null;
+  transportMode?: TransportMode | null;
 }
 
 export interface TripItinerary {
@@ -86,6 +89,7 @@ export interface AddTripLocationRequest {
   visitTime?: string | null;
   endTime?: string | null;
   memo?: string | null;
+  transportMode?: TransportMode | null;
 }
 
 export interface AddTripLocationResponse {
@@ -96,12 +100,14 @@ export interface AddTripLocationResponse {
   endTime?: string | null;
   visitOrder?: number;
   memo?: string | null;
+  transportMode?: TransportMode | null;
 }
 
 export interface UpdatePlanScheduleRequest {
   visitTime?: string | null;
   endTime?: string | null;
   memo?: string | null;
+  transportMode?: TransportMode | null;
 }
 
 export interface UpdatePlanScheduleResponse {
@@ -112,6 +118,7 @@ export interface UpdatePlanScheduleResponse {
   endTime?: string | null;
   visitOrder?: number;
   memo?: string | null;
+  transportMode?: TransportMode | null;
 }
 
 export interface PlanMemoResponse {
