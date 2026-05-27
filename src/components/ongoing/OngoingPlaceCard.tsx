@@ -70,7 +70,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
               </View>
             </View>
 
-            {isCurrentTripOngoing ?
+            {isCurrentTripOngoing ? (
               <TouchableOpacity
                 style={[
                   styles.alternativeButton,
@@ -82,7 +82,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
                 <Text style={styles.alternativeButtonText}>대안찾기</Text>
                 <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
               </TouchableOpacity>
-            : null}
+            ) : null}
           </View>
 
           {visibleMemos.length > 0 ? (
@@ -147,10 +147,10 @@ const localStyles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingHorizontal: 18,
-    paddingVertical: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
     marginRight: 18,
-    marginBottom: 18,
+    marginBottom: 14,
 
     shadowColor: "#0F172A",
     shadowOpacity: 0.07,

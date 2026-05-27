@@ -12,7 +12,7 @@ const styles = StyleSheet.create({
   },
 
   header: {
-    height: 76,
+    height: 50,
     paddingHorizontal: 20,
     flexDirection: "row",
     alignItems: "center",
@@ -50,9 +50,10 @@ const styles = StyleSheet.create({
   dayTabs: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 24,
-    gap: 12,
-    marginBottom: 18,
+    paddingHorizontal: 20,
+    gap: 10,
+    marginTop: 0,
+    marginBottom: 0,
   },
 
   dayTab: {
@@ -236,9 +237,6 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
-
-
-
   timelineList: {
     position: "relative",
     paddingBottom: 24,
@@ -267,6 +265,7 @@ const styles = StyleSheet.create({
   editTimelineLine: {
     backgroundColor: "#DDE5F0",
   },
+
   todayCard: {
     minHeight: 98,
     borderRadius: 18,
@@ -276,8 +275,6 @@ const styles = StyleSheet.create({
     flexDirection: "column",
     alignItems: "stretch",
   },
-
-
 
   futureTodayCard: {
     minHeight: 82,
@@ -313,14 +310,13 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: "900",
   },
+
   placeInfo: {
     flex: 1,
     minWidth: 0,
     marginLeft: 14,
     marginRight: 12,
   },
-
-
 
   placeName: {
     color: "#1F2937",
@@ -348,45 +344,34 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginLeft: 5,
   },
+
   alternativeButton: {
-    width: 104,
-    height: 42,
-    borderRadius: 14,
+    minWidth: 118,
+    height: 48,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     backgroundColor: "#2158E8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 3,
-    flexShrink: 0,
+    gap: 4,
     shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.14,
-    shadowRadius: 8,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.16,
+    shadowRadius: 10,
+    elevation: 4,
   },
-
-
-
 
   disabledAlternativeButton: {
     opacity: 0.55,
   },
+
   alternativeButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "900",
+    marginRight: 3,
   },
-
-
-
-
-
-
-
-
-
-
-
 
   deleteMemoButton: {
     position: "absolute",
@@ -399,25 +384,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  memoList: {
-    width: "100%",
-    marginTop: 12,
-    paddingLeft: 62,
-    gap: 6,
-  },
-  memoItem: {
-    minHeight: 36,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
 
+  memoList: {
+    marginTop: -6,
+    paddingLeft: 92,
+    gap: 9,
+  },
 
   memoCard: {
     minHeight: 44,
@@ -429,20 +401,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
   },
+
   memoText: {
-    flex: 1,
-    color: "#64748B",
-    fontSize: 12,
+    color: "#1F2937",
+    fontSize: 14,
     fontWeight: "700",
-    lineHeight: 17,
+    marginLeft: 8,
   },
-
-
-
-
-
-
-
 
   timeTargetTabs: {
     height: 42,
@@ -473,21 +438,6 @@ const styles = StyleSheet.create({
   timeTargetTabTextActive: {
     color: "#FFFFFF",
   },
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
   emptyDayCard: {
     minHeight: 150,
@@ -541,12 +491,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     lineHeight: 20,
-  },
-
-  placeTopRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
   },
 });
 

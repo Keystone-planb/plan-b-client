@@ -96,9 +96,7 @@ const getGapTransportLabel = (mode?: string | null) => {
   }
 };
 
-const getSafeGapTransportMode = (
-  mode?: string | null,
-): GapTransportMode => {
+const getSafeGapTransportMode = (mode?: string | null): GapTransportMode => {
   if (mode === "WALK" || mode === "TRANSIT" || mode === "CAR") {
     return mode;
   }
@@ -439,7 +437,9 @@ export default function GapRecommendationCard({
                               selected && styles.transportButtonActive,
                             ]}
                             activeOpacity={0.85}
-                            onPress={() => setSelectedTransportMode(option.mode)}
+                            onPress={() =>
+                              setSelectedTransportMode(option.mode)
+                            }
                             disabled={isLoading}
                           >
                             <Ionicons
