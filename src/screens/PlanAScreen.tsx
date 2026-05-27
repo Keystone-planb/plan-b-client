@@ -1315,6 +1315,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
+          scrollEnabled={!isSheetCollapsed}
           bounces={false}
           scrollEventThrottle={16}
           onScroll={(event) => {
@@ -1449,7 +1450,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
           <PlanAMapPreview
             places={sortPlacesByTime(resolvedMapPlaces)}
-            height={isSheetCollapsed ? 360 : 220}
+            height={isSheetCollapsed ? 520 : 220}
             mapInteractive={isSheetCollapsed}
           />
 
@@ -1464,17 +1465,25 @@ export default function PlanAScreen({ navigation, route }: Props) {
               style={styles.sheetHandleWrapper}
               onPress={() => setIsSheetCollapsed((prev) => !prev)}
             >
+              <Text style={styles.sheetToggleText}>
+                {isSheetCollapsed ? "일정 펼치기" : "일정 접기"}
+              </Text>
+
               <Ionicons
                 name={isSheetCollapsed ? "chevron-up" : "chevron-down"}
-                size={24}
+                size={18}
                 color="#94A3B8"
                 style={styles.sheetChevron}
               />
             </TouchableOpacity>
 
-            {!isSheetCollapsed && currentPlaces.length > 0 ?
+            {currentPlaces.length > 0 ?
               <>
-                <View style={styles.scheduleSectionHeader}>
+                <View
+                  style={[
+                    styles.scheduleSectionHeader,
+                  ]}
+                >
                   <Text style={styles.scheduleSectionTitle}>일정</Text>
 
                   {!isEditPreviewMode && !isEditMode ?
@@ -1490,7 +1499,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   : null}
                 </View>
 
-                <View style={styles.roadmapList}>
+                <View
+                  style={styles.roadmapList}
+                >
                 {false ? <View pointerEvents="none" style={styles.roadmapLine} /> : null}
 
                 {sortPlacesByTime(currentPlaces).map((place, index) =>
@@ -1514,7 +1525,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             }
 
-            {!isSheetCollapsed && isEditMode ?
+            {isEditMode ?
               <TouchableOpacity
                 style={[
                   styles.addPlaceButton,
@@ -1967,12 +1978,16 @@ const styles = StyleSheet.create({
   },
   sheetHandleWrapper: {
     alignSelf: "center",
-    width: 48,
-    height: 32,
+    minWidth: 124,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 4,
     marginTop: -4,
-    marginBottom: 8,
+    marginBottom: 10,
   },
 
   emptyScheduleRow: {
@@ -2810,7 +2825,22 @@ const styles = StyleSheet.create({
     paddingBottom: 18,
   },
 
+
   sheetChevron: {
     marginTop: 0,
   },
+
+  sheetToggleText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+
+
+
+
+
+
+
 });
