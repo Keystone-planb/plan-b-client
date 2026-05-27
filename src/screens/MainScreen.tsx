@@ -1161,7 +1161,7 @@ export default function MainScreen({ navigation }: Props) {
     };
 
     if (isMainTripUpcomingByDate(schedule)) {
-      navigation.navigate("PlanA", {
+      navigation.navigate("UpcomingSchedule", {
         ...commonParams,
         selectedDay: 1,
         day: 1,
