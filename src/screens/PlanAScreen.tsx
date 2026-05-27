@@ -35,6 +35,9 @@ import {
   getTripTransportMode,
   updateTripTransportMode,
 } from "../../api/schedules/transportMode";
+import {
+  updatePlanSchedule,
+} from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -517,6 +520,49 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
 
   useEffect(() => {
+    const nextModesByPair: Record<string, TransportMode> = {};
+
+    schedule.days.forEach((day) => {
+      const sortedPlaces = sortPlacesByTime(day.places);
+
+      sortedPlaces.slice(0, -1).forEach((place, index) => {
+        const nextPlace = sortedPlaces[index + 1];
+        const transportModeValue = (place as PlaceItem & {
+          transportMode?: TransportMode | null;
+        }).transportMode;
+
+        if (
+          !nextPlace ||
+          !(
+            transportModeValue === "WALK" ||
+            transportModeValue === "TRANSIT" ||
+            transportModeValue === "CAR"
+          )
+        ) {
+          return;
+        }
+
+        const planPairKey = `${String(getPlacePlanId(place))}-${String(
+          getPlacePlanId(nextPlace),
+        )}`;
+        const localPairKey = `${String(place.id)}-${String(
+          nextPlace.id ?? index + 1,
+        )}`;
+
+        nextModesByPair[planPairKey] = transportModeValue;
+        nextModesByPair[localPairKey] = transportModeValue;
+      });
+    });
+
+    if (Object.keys(nextModesByPair).length === 0) return;
+
+    setEditTransportModesByPair((prev) => ({
+      ...nextModesByPair,
+      ...prev,
+    }));
+  }, [schedule.days]);
+
+  useEffect(() => {
     let mounted = true;
 
     const resolveMapCoordinates = async () => {
@@ -693,6 +739,59 @@ export default function PlanAScreen({ navigation, route }: Props) {
     });
   };
 
+  const getPlacePlanId = (place: PlaceItem) => {
+    const source = place as PlaceItem & {
+      serverTripPlaceId?: number | string;
+      tripPlaceId?: number | string;
+    };
+
+    return source.serverTripPlaceId ?? source.tripPlaceId ?? source.id;
+  };
+
+  const getPairTransportMode = (place: PlaceItem, nextPlace: PlaceItem, index: number) => {
+    const planPairKey = `${String(getPlacePlanId(place))}-${String(getPlacePlanId(nextPlace))}`;
+    const localPairKey = `${String(place.id)}-${String(nextPlace.id ?? index + 1)}`;
+    const serverMode = (place as PlaceItem & { transportMode?: TransportMode | null }).transportMode;
+
+    return editTransportModesByPair[planPairKey] ??
+      editTransportModesByPair[localPairKey] ??
+      serverMode ??
+      null;
+  };
+
+  const getMissingTransportPlaceNames = () => {
+    const sortedPlaces = sortPlacesByTime(currentPlaces);
+
+    return sortedPlaces
+      .slice(0, -1)
+      .filter((place, index) => {
+        const nextPlace = sortedPlaces[index + 1];
+        if (!nextPlace) return false;
+
+        return !getPairTransportMode(place, nextPlace, index);
+      })
+      .map((place) => place.name);
+  };
+
+  const saveSegmentTransportModes = async () => {
+    const sortedPlaces = sortPlacesByTime(currentPlaces);
+
+    await Promise.all(
+      sortedPlaces.slice(0, -1).map(async (place, index) => {
+        const nextPlace = sortedPlaces[index + 1];
+        if (!nextPlace) return;
+
+        const transportMode = getPairTransportMode(place, nextPlace, index);
+        if (!transportMode) return;
+
+        const planId = getPlacePlanId(place);
+        if (!planId) return;
+
+        await updatePlanSchedule(planId, { transportMode });
+      }),
+    );
+  };
+
   const handleSavePlanA = async (
     options: { moveToMainAfterSave?: boolean } = {},
   ): Promise<boolean> => {
@@ -711,9 +810,24 @@ export default function PlanAScreen({ navigation, route }: Props) {
       return false;
     }
 
+    const missingTransportPlaceNames = getMissingTransportPlaceNames();
+
+    if (missingTransportPlaceNames.length > 0) {
+      Alert.alert(
+        "이동수단 선택 필요",
+        `이동수단이 선택되지 않은 구간이 있습니다.\n\n${missingTransportPlaceNames
+          .slice(0, 3)
+          .join("\n")}${missingTransportPlaceNames.length > 3 ? "\n..." : ""}`,
+      );
+
+      return false;
+    }
+
     resetEditingState();
 
     try {
+      await saveSegmentTransportModes();
+
       const savedSchedule = await handleSaveSchedule();
 
       console.log("[PlanA] 저장 완료:", {
@@ -1015,8 +1129,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
     const sortedPlaces = sortPlacesByTime(currentPlaces);
     const nextPlace = sortedPlaces[index + 1];
     const isLast = index >= sortedPlaces.length - 1;
-    const pairKey = `${String(place.id)}-${String(nextPlace?.id ?? index + 1)}`;
-    const selectedTransportMode = editTransportModesByPair[pairKey];
+    const pairKey = `${String(getPlacePlanId(place))}-${String(nextPlace ? getPlacePlanId(nextPlace) : index + 1)}`;
+    const selectedTransportMode =
+      nextPlace ? getPairTransportMode(place, nextPlace, index) : null;
     const selectedTransportLabel =
       selectedTransportMode ? getTransportLabel(selectedTransportMode) : null;
 
@@ -1095,8 +1210,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
     const sortedPlaces = sortPlacesByTime(currentPlaces);
     const nextPlace = sortedPlaces[index + 1];
     const isLast = index >= sortedPlaces.length - 1;
-    const pairKey = `${String(place.id)}-${String(nextPlace?.id ?? index + 1)}`;
-    const selectedTransportMode = editTransportModesByPair[pairKey];
+    const pairKey = `${String(getPlacePlanId(place))}-${String(nextPlace ? getPlacePlanId(nextPlace) : index + 1)}`;
+    const selectedTransportMode =
+      nextPlace ? getPairTransportMode(place, nextPlace, index) : null;
     const selectedTransportLabel =
       selectedTransportMode ? getTransportLabel(selectedTransportMode) : null;
 
