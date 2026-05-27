@@ -1090,7 +1090,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                           gapAfterPlanId ?? index + 1,
                         )}`;
                         const selectedTransportMode =
-                          transportModesByPair[pairKey];
+                          transportModesByPair[pairKey] ??
+                          (place as TodayPlace & { transportMode?: TransportMode | null }).transportMode ??
+                          null;
                         const placeKey = getEditablePlaceKey(place, index);
                         const displayPlace = place;
 

@@ -1095,7 +1095,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       )}`;
 
                       const selectedTransportMode =
-                        transportModesByPair[pairKey];
+                        transportModesByPair[pairKey] ??
+                        (place as TodayPlace & { transportMode?: TransportMode | null }).transportMode ??
+                        null;
                       const selectedTransportOption = getTransportOption(
                         selectedTransportMode,
                       );
