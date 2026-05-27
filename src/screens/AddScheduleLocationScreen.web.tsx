@@ -795,6 +795,7 @@ export default function AddScheduleLocationScreen({
                 visitTime: null,
                 endTime: null,
                 memo: null,
+                transportMode,
               },
             );
 
