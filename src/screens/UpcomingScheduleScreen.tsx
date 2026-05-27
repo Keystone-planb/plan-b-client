@@ -18,7 +18,6 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import UpcomingPlaceCard from "../components/ongoing/OngoingPlaceCard";
-import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
 import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
 import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
 import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
@@ -1034,13 +1033,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                 {!isSheetCollapsed ?
                   <>
                     <View style={styles.timelineList}>
-                      <OngoingTimelineMarker
-                        hasPlaces={hasPlaces}
-                        placeCount={places.length}
-                        isCurrentTripOngoing={false}
-                        styles={styles}
-                      />
-
                       {!hasPlaces ?
                         <OngoingEmptyDayCard styles={styles} />
                       : null}
@@ -1109,26 +1101,29 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                             {nextPlaceForGap ?
                               <View style={localStyles.transportBetweenWrapper}>
                                 <View style={localStyles.transportIconColumn}>
+                                  <View
+                                    style={localStyles.transportSolidLineTop}
+                                  />
+
                                   <Ionicons
                                     name={getTransportIconName(
                                       selectedTransportMode,
                                     )}
                                     size={18}
                                     color="#94A3B8"
-                                  />
-                                </View>
-
-                                <View style={localStyles.transportAxisColumn}>
-                                  <View
-                                    style={localStyles.transportBlueLineCover}
+                                    style={localStyles.transportIcon}
                                   />
 
                                   <View
                                     style={localStyles.transportDashedLine}
                                   />
+
+                                  <View
+                                    style={localStyles.transportSolidLineBottom}
+                                  />
                                 </View>
 
-                                <View style={{ flex: 1 }}>
+                                <View style={localStyles.transportCardColumn}>
                                   <GapRecommendationCard
                                     tripId={resolvedTripId ?? scheduleId}
                                     allowedPlanPairs={currentGapPlanPairs}
@@ -1154,12 +1149,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
 const localStyles = StyleSheet.create({
   upcomingHeader: {
-    minHeight: 76,
+    minHeight: 84,
     paddingHorizontal: 20,
-    paddingTop: 0,
-    paddingBottom: 8,
+    paddingTop: 6,
+    paddingBottom: 0,
     backgroundColor: "#FFFFFF",
-    justifyContent: "center",
+    justifyContent: "flex-start",
   },
 
   upcomingBackButton: {
@@ -1175,23 +1170,23 @@ const localStyles = StyleSheet.create({
 
   upcomingTitleBlock: {
     alignItems: "center",
-    paddingHorizontal: 64,
-    marginTop: 4,
+    justifyContent: "center",
+    marginTop: 8,
+    marginBottom: 18,
   },
 
   upcomingTitle: {
-    color: "#172033",
     fontSize: 28,
+    lineHeight: 34,
     fontWeight: "900",
-    lineHeight: 32,
+    color: "#0F172A",
   },
 
   upcomingSubtitle: {
-    marginTop: 0,
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: "700",
     color: "#64748B",
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 17,
   },
 
   mapLayerBody: {
@@ -1201,11 +1196,11 @@ const localStyles = StyleSheet.create({
   },
 
   mapLayer: {
-    height: 620,
+    height: 640,
     position: "relative",
     backgroundColor: "#EDF3F9",
     overflow: "hidden",
-    marginTop: -56,
+    marginTop: 12,
   },
 
   scheduleBottomSheet: {
@@ -1213,7 +1208,7 @@ const localStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 540,
+    height: 520,
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
@@ -1232,11 +1227,11 @@ const localStyles = StyleSheet.create({
   },
 
   scheduleBottomSheetCollapsed: {
-    transform: [{ translateY: 340 }],
+    transform: [{ translateY: 390 }],
   },
 
   sheetToggleButton: {
-    height: 36,
+    height: 32,
     borderRadius: 999,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
@@ -1245,7 +1240,7 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginBottom: 8,
+    marginBottom: 2,
   },
 
   sheetToggleText: {
@@ -1259,76 +1254,56 @@ const localStyles = StyleSheet.create({
   },
 
   sheetScrollContent: {
-    paddingTop: 4,
+    paddingTop: 2,
     paddingBottom: 120,
   },
 
   transportBetweenWrapper: {
     flexDirection: "row",
     alignItems: "stretch",
-    marginTop: 8,
-    marginBottom: 14,
-    zIndex: 30,
+    marginTop: 0,
+    marginBottom: 2,
+    minHeight: 148,
+    position: "relative",
+  },
+
+  transportSolidLineTop: {
+    width: 4,
+    flex: 1,
+    borderRadius: 999,
+    backgroundColor: "#C7D2FE",
+  },
+
+  transportIcon: {
+    marginVertical: 6,
+  },
+  transportSolidLineBottom: {
+    width: 4,
+    flex: 1,
+    borderRadius: 999,
+    backgroundColor: "#C7D2FE",
   },
 
   transportIconColumn: {
-    width: 42,
+    width: 40,
     alignItems: "center",
     justifyContent: "flex-start",
-    paddingTop: 10,
-    marginRight: -2,
+    marginRight: 2,
     zIndex: 50,
   },
 
-  transportAxisColumn: {
-    width: 16,
-    alignItems: "center",
-    position: "relative",
-    marginLeft: -14,
-    marginRight: 10,
-    zIndex: 1,
-  },
-
-  transportBlueLineCover: {
-    position: "absolute",
-    top: -14,
-    bottom: -14,
-    width: 20,
-    backgroundColor: "#FFFFFF",
-    zIndex: 0,
-  },
-
   transportDashedLine: {
-    flex: 1,
-    minHeight: 78,
+    width: 2,
+    minHeight: 72,
     borderLeftWidth: 2,
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
-    zIndex: 2,
   },
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+  transportCardColumn: {
+    flex: 1,
+    paddingTop: 0,
+    marginTop: -10,
+    marginLeft: -6,
+  },
 });
