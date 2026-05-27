@@ -182,7 +182,7 @@ const createMemo = (text: string): MemoItem => {
     id: createId("memo"),
     text,
     createdAt: now,
-    updatedAt: now,
+    updatedAt: now ?? new Date().toISOString(),
   };
 };
 
@@ -366,7 +366,7 @@ const createPlace = ({
     order,
     memos,
     createdAt: now,
-    updatedAt: now,
+    updatedAt: now ?? new Date().toISOString(),
   };
 };
 
@@ -376,7 +376,7 @@ const reorderPlaces = (places: PlaceItem[]) => {
   return places.map((place, index) => ({
     ...place,
     order: index + 1,
-    updatedAt: now,
+    updatedAt: now ?? new Date().toISOString(),
   }));
 };
 
@@ -402,7 +402,7 @@ const createInitialSchedule = ({
     endDate,
     location: location ?? "",
     createdAt: now,
-    updatedAt: now,
+    updatedAt: now ?? new Date().toISOString(),
     days: [
       {
         day: 1,
@@ -513,8 +513,7 @@ const normalizeServerMemoForPlanA = (source: unknown): MemoItem | null => {
     text,
     createdAt:
       getServerTextByPaths(source, ["createdAt"]) ?? createNow(),
-    updatedAt:
-      getServerTextByPaths(source, ["updatedAt"]) ?? undefined,
+    updatedAt: getServerTextByPaths(source, ["updatedAt"]) ?? createNow(),
   };
 };
 
@@ -684,7 +683,7 @@ const normalizeServerTripDetailToSchedule = ({
       getServerTextByPaths(unwrapped, ["location", "destination"]) ??
       fallbackSchedule.location,
     days: normalizedDays,
-    updatedAt: now,
+    updatedAt: now ?? new Date().toISOString(),
   };
 };
 
@@ -772,7 +771,7 @@ const applyServerPlaceIdsToSchedule = ({
             visitTime,
             endTime,
             time: makeDisplayTime(visitTime, endTime) || place.time,
-            updatedAt: createNow(),
+            updatedAt: createNow() ?? new Date().toISOString(),
           };
         }),
       };
@@ -999,7 +998,7 @@ export function usePlanAPlaces({
       startDate: payload.startDate ?? prev.startDate,
       endDate: payload.endDate ?? prev.endDate,
       location: payload.location ?? prev.location,
-      updatedAt: createNow(),
+      updatedAt: createNow() ?? new Date().toISOString(),
     }));
 
     setSaveSuccessMessage("");
@@ -1033,7 +1032,7 @@ export function usePlanAPlaces({
     const nextSchedule = {
       ...prev,
       days: nextDays.sort((a, b) => a.day - b.day),
-      updatedAt: createNow(),
+      updatedAt: createNow() ?? new Date().toISOString(),
     };
 
     setScheduleSafely(nextSchedule);
@@ -1162,7 +1161,7 @@ export function usePlanAPlaces({
               visitTime: nextVisitTime,
               endTime: nextEndTime,
               time: nextDisplayTime,
-              updatedAt: createNow(),
+              updatedAt: createNow() ?? new Date().toISOString(),
             }
           : place,
       ),
@@ -1223,7 +1222,7 @@ export function usePlanAPlaces({
     const nextSchedule: TravelSchedule = {
       ...scheduleRef.current,
       tripName: nextTripName,
-      updatedAt: createNow(),
+      updatedAt: createNow() ?? new Date().toISOString(),
     };
 
     scheduleRef.current = nextSchedule;
@@ -1237,7 +1236,7 @@ export function usePlanAPlaces({
       serverTripId:
         scheduleRef.current.serverTripId ??
         (serverTripId ? Number(serverTripId) : undefined),
-      updatedAt: createNow(),
+      updatedAt: createNow() ?? new Date().toISOString(),
     }));
 
     scheduleRef.current = scheduleBase;
@@ -1516,7 +1515,7 @@ export function usePlanAPlaces({
         tripName: createdTrip.title ?? scheduleBase.tripName,
         startDate: createdTrip.startDate ?? scheduleBase.startDate,
         endDate: createdTrip.endDate ?? scheduleBase.endDate,
-        updatedAt: createNow(),
+        updatedAt: createNow() ?? new Date().toISOString(),
       };
 
       await savePlanASchedule(scheduleToSave);
@@ -1606,7 +1605,7 @@ export function usePlanAPlaces({
               visitTime: nextVisitTime,
               endTime: nextEndTime,
               time: nextDisplayTime,
-              updatedAt: createNow(),
+              updatedAt: createNow() ?? new Date().toISOString(),
             }
           : place,
       ),
@@ -1735,7 +1734,7 @@ export function usePlanAPlaces({
           id: String(serverMemo.id),
           text: serverMemo.content,
           createdAt: serverMemo.createdAt ?? nextMemo.createdAt,
-          updatedAt: serverMemo.updatedAt ?? undefined,
+          updatedAt: serverMemo.updatedAt ?? createNow(),
         };
 
         console.log("[PlanA 메모 추가 서버 완료]", {
@@ -1765,7 +1764,7 @@ export function usePlanAPlaces({
           ? {
               ...place,
               memos: [...place.memos, nextMemo],
-              updatedAt: createNow(),
+              updatedAt: createNow() ?? new Date().toISOString(),
             }
           : place,
       ),
@@ -1855,11 +1854,11 @@ export function usePlanAPlaces({
                   ? {
                       ...memo,
                       text: trimmedText,
-                      updatedAt: createNow(),
+                      updatedAt: createNow() ?? new Date().toISOString(),
                     }
                   : memo,
               ),
-              updatedAt: createNow(),
+              updatedAt: createNow() ?? new Date().toISOString(),
             }
           : place,
       ),
@@ -1908,7 +1907,7 @@ export function usePlanAPlaces({
           ? {
               ...place,
               memos: place.memos.filter((memo) => memo.id !== memoId),
-              updatedAt: createNow(),
+              updatedAt: createNow() ?? new Date().toISOString(),
             }
           : place,
       ),
