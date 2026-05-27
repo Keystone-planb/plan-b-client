@@ -175,6 +175,7 @@ const styles = StyleSheet.create({
   },
 
   placeHeaderActions: {
+    flexDirection: "row",
     alignItems: "center",
     gap: 8,
   },

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Alert,
   Platform,
@@ -50,6 +50,8 @@ export default function PlanAMemoList({
   const hasEditingText = editingMemoText.trim().length > 0;
   const isAnyMemoEditing = Boolean(editingMemo);
 
+  const [isExpanded, setIsExpanded] = useState(false);
+
   const handleDeleteMemoPress = (memoId: string) => {
     if (Platform.OS === "web") {
       const confirmed =
@@ -79,16 +81,37 @@ export default function PlanAMemoList({
 
   return (
     <View style={styles.memoList}>
-      {place.memos.length === 0 && !isAnyMemoEditing ?
-        <View style={styles.emptyMemoBox}>
-          <Ionicons name="chatbubble-ellipses-outline" size={15} color="#94A3B8" />
-          <Text style={styles.emptyMemoText}>
-            아직 메모가 없어요. 이 장소에서 기억할 내용을 남겨보세요.
-          </Text>
-        </View>
+      {!isAnyMemoEditing ?
+        <TouchableOpacity
+          activeOpacity={0.85}
+          style={styles.memoSummaryRow}
+          onPress={() => setIsExpanded((prev) => !prev)}
+        >
+          <View style={styles.memoSummaryLeft}>
+            <Ionicons
+              name="document-text-outline"
+              size={14}
+              color="#94A3B8"
+            />
+
+            <Text style={styles.memoSummaryText}>
+              {place.memos.length > 0 ?
+                `메모 ${place.memos.length}개`
+              : "+ 메모 추가"}
+            </Text>
+          </View>
+
+          <Ionicons
+            name={isExpanded ? "chevron-up" : "chevron-forward"}
+            size={15}
+            color="#94A3B8"
+          />
+        </TouchableOpacity>
       : null}
 
-      {place.memos.map((item) => {
+
+      {isExpanded || isAnyMemoEditing ?
+        place.memos.map((item) => {
         const isEditing =
           editingMemo?.placeId === place.id && editingMemo.memoId === item.id;
 
@@ -145,13 +168,14 @@ export default function PlanAMemoList({
               activeOpacity={0.8}
               onPress={() => handleDeleteMemoPress(item.id)}
             >
-              <Ionicons name="trash-outline" size={14} color="#94A3B8" />
+              <Ionicons name="trash-outline" size={14} color="#64748B" />
             </TouchableOpacity>
           </TouchableOpacity>
         );
-      })}
+      })
+      : null}
 
-      {!isAnyMemoEditing ?
+      {!isAnyMemoEditing && isExpanded ?
         <View style={styles.memoInputRow}>
           <TextInput
             value={memoDraft}
@@ -193,6 +217,30 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
+  memoSummaryRow: {
+    minHeight: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+  },
+
+  memoSummaryLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  memoSummaryText: {
+    marginLeft: 7,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
   memoItem: {
     minHeight: 40,
     borderRadius: 10,
@@ -215,7 +263,6 @@ const styles = StyleSheet.create({
   memoDeleteButton: {
     width: 30,
     height: 30,
-    borderRadius: 8,
     alignItems: "center",
     justifyContent: "center",
     marginLeft: 6,
