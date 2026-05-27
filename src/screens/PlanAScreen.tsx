@@ -1073,7 +1073,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 <View style={styles.viewTransportTextGroup}>
                   <Text style={styles.viewTransportTitle}>
                     {selectedTransportLabel ?
-                      `${selectedTransportLabel}로 이동`
+                      `${selectedTransportLabel}(으)로 이동`
                     : "이동수단 미설정"}
                   </Text>
 
@@ -1163,14 +1163,14 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 <View style={styles.editTransportTextGroup}>
                   <Text style={styles.editTransportTitle}>
                     {selectedTransportLabel ?
-                      `${selectedTransportLabel}로 이동`
+                      `${selectedTransportLabel}(으)로 이동`
                     : "이동수단을 선택해주세요"}
                   </Text>
 
                   <Text style={styles.editTransportDescription}>
                     {selectedTransportLabel ?
                       `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
-                    : "장소와 장소 사이 이동수단 설정"}
+                    : "구간 별 이동 수단 설정"}
                   </Text>
                 </View>
 
@@ -1206,6 +1206,12 @@ export default function PlanAScreen({ navigation, route }: Props) {
                             handleSelectEditTransportMode(option.key)
                           }
                         >
+                          <Ionicons
+                            name={option.icon}
+                            size={15}
+                            color={selected ? "#FFFFFF" : "#64748B"}
+                          />
+
                           <Text
                             style={[
                               styles.editTransportOptionText,
@@ -2442,8 +2448,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#D9E2F2",
     backgroundColor: "#FFFFFF",
+    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 5,
   },
 
   editTransportOptionButtonActive: {
