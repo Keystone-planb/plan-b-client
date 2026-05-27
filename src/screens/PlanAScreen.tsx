@@ -1069,87 +1069,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
 
             <View style={styles.viewTransportCard}>
-              <TouchableOpacity
-                activeOpacity={0.85}
-                style={styles.viewTransportHeader}
-                onPress={() =>
-                  handleOpenEditTransportModal({
-                    pairKey,
-                    beforePlaceName: place.name,
-                    afterPlaceName: nextPlace?.name,
-                  })
-                }
-              >
+              <View style={styles.viewTransportHeader}>
                 <View style={styles.viewTransportTextGroup}>
                   <Text style={styles.viewTransportTitle}>
                     {selectedTransportLabel ?
                       `${selectedTransportLabel}로 이동`
-                    : "이동수단 추가하기"}
+                    : "이동수단 미설정"}
                   </Text>
 
                   <Text style={styles.viewTransportDescription}>
                     {selectedTransportLabel ?
                       `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
-                    : "팀 이동수단을 추가해주세요"}
+                    : "수정 화면에서 이동수단을 설정할 수 있어요"}
                   </Text>
                 </View>
-
-                <Ionicons
-                  name={
-                    transportModalTarget?.pairKey === pairKey ?
-                      "chevron-up"
-                    : "chevron-down"
-                  }
-                  size={17}
-                  color="#CBD5E1"
-                />
-              </TouchableOpacity>
-
-              {transportModalTarget?.pairKey === pairKey ?
-                <View style={styles.viewTransportPickerBody}>
-                  <View style={styles.viewTransportOptionRow}>
-                    {EDIT_TRANSPORT_OPTIONS.map((option) => {
-                      const selected =
-                        editTransportModesByPair[pairKey] === option.key;
-
-                      return (
-                        <TouchableOpacity
-                          key={option.key}
-                          activeOpacity={0.85}
-                          style={[
-                            styles.viewTransportOptionButton,
-                            selected ?
-                              styles.viewTransportOptionButtonActive
-                            : null,
-                          ]}
-                          onPress={() =>
-                            handleSelectEditTransportMode(option.key)
-                          }
-                        >
-                          <Text
-                            style={[
-                              styles.viewTransportOptionText,
-                              selected ?
-                                styles.viewTransportOptionTextActive
-                              : null,
-                            ]}
-                          >
-                            {option.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-
-                  <TouchableOpacity
-                    activeOpacity={0.85}
-                    style={styles.viewTransportConfirmButton}
-                    onPress={handleConfirmEditTransportMode}
-                  >
-                    <Text style={styles.viewTransportConfirmText}>확인</Text>
-                  </TouchableOpacity>
-                </View>
-              : null}
+              </View>
             </View>
           </View>
         : null}
