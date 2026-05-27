@@ -344,6 +344,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [isEditMode, setIsEditMode] = useState(
     route?.params?.isEditMode === true,
   );
+  const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
   const [isEditPreviewMode, setIsEditPreviewMode] = useState(false);
   const scrollViewRef = useRef<ScrollView | null>(null);
   const scrollOffsetYRef = useRef(0);
@@ -1446,14 +1447,32 @@ export default function PlanAScreen({ navigation, route }: Props) {
             </View>
           </View>
 
-          <PlanAMapPreview places={sortPlacesByTime(resolvedMapPlaces)} />
+          <PlanAMapPreview
+            places={sortPlacesByTime(resolvedMapPlaces)}
+            height={isSheetCollapsed ? 360 : 220}
+            mapInteractive={isSheetCollapsed}
+          />
 
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandleWrapper}>
-              <View style={styles.sheetHandle} />
-            </View>
+          <View
+            style={[
+              styles.sheet,
+              isSheetCollapsed && styles.sheetCollapsed,
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={styles.sheetHandleWrapper}
+              onPress={() => setIsSheetCollapsed((prev) => !prev)}
+            >
+              <Ionicons
+                name={isSheetCollapsed ? "chevron-up" : "chevron-down"}
+                size={24}
+                color="#94A3B8"
+                style={styles.sheetChevron}
+              />
+            </TouchableOpacity>
 
-            {currentPlaces.length > 0 ?
+            {!isSheetCollapsed && currentPlaces.length > 0 ?
               <>
                 <View style={styles.scheduleSectionHeader}>
                   <Text style={styles.scheduleSectionTitle}>일정</Text>
@@ -1495,7 +1514,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
               </View>
             }
 
-            {isEditMode ?
+            {!isSheetCollapsed && isEditMode ?
               <TouchableOpacity
                 style={[
                   styles.addPlaceButton,
@@ -1946,13 +1965,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 36,
   },
-  sheetHandleWrapper: { alignItems: "center", marginBottom: 20 },
-  sheetHandle: {
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#D6DFEA",
+  sheetHandleWrapper: {
+    alignSelf: "center",
+    width: 48,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: -4,
+    marginBottom: 8,
   },
+
   emptyScheduleRow: {
     width: "100%",
     flexDirection: "row",
@@ -2781,5 +2803,14 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "800",
     color: "#2563EB",
+  },
+
+  sheetCollapsed: {
+    minHeight: 72,
+    paddingBottom: 18,
+  },
+
+  sheetChevron: {
+    marginTop: 0,
   },
 });
