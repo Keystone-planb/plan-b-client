@@ -56,6 +56,7 @@ type Props = {
       selectedPlace?: SelectedPlaceParam;
       selectedPlaces?: SelectedPlacesParam;
       isEditMode?: boolean;
+      returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
       gapSelectedPlace?: {
         id?: string;
         placeId?: string;
@@ -760,7 +761,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
         return true;
       }
 
-      navigation.navigate("OngoingSchedule", {
+      const returnScreen = route?.params?.returnScreen ?? "OngoingSchedule";
+
+      navigation.navigate(returnScreen, {
           scheduleId: savedSchedule.id,
           tripId: savedSchedule.serverTripId ?? route?.params?.tripId,
           serverTripId: savedSchedule.serverTripId ?? route?.params?.serverTripId,
@@ -1355,7 +1358,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 </View>
 
               <View style={styles.headerActionRow}>
-                {isEditPreviewMode || isEditMode ?
+                {isEditMode ?
                   <TouchableOpacity
                     style={[
                       styles.editModeButton,
@@ -1363,12 +1366,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
                     ]}
                     activeOpacity={0.8}
                     onPress={async () => {
-                      if (isEditPreviewMode && !isEditMode) {
-                        resetEditingState();
-                        setIsEditMode(true);
-                        return;
-                      }
-
                       const saved = await handleSavePlanA({
                         moveToMainAfterSave: false,
                       });
@@ -1391,7 +1388,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                         isEditMode && styles.editModeButtonTextActive,
                       ]}
                     >
-                      {isEditMode ? "완료" : "편집"}
+                      {isEditMode ? "완료" : "수정"}
                     </Text>
                   </TouchableOpacity>
                 : null}
@@ -1486,7 +1483,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 >
                   <Text style={styles.scheduleSectionTitle}>일정</Text>
 
-                  {!isEditPreviewMode && !isEditMode ?
+                  {!isEditMode ?
                     <TouchableOpacity
                       activeOpacity={0.8}
                       onPress={() => {
@@ -1505,7 +1502,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 {false ? <View pointerEvents="none" style={styles.roadmapLine} /> : null}
 
                 {sortPlacesByTime(currentPlaces).map((place, index) =>
-                  isEditPreviewMode || isEditMode ?
+                  isEditMode ?
                     renderEditablePlaceCard(place, index)
                   : renderPlaceCard(place, index),
                 )}

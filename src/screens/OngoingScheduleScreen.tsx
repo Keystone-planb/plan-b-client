@@ -845,6 +845,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       transportLabel,
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
+      isEditMode: true,
     });
   };
 
