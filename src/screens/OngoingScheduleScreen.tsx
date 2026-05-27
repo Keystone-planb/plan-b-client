@@ -542,6 +542,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const [selectedDayIndex, setSelectedDayIndex] = useState(
     initialSelectedDayIndex,
   );
+
+  const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
   const [deletedPlaceKeysByDay, setDeletedPlaceKeysByDay] = useState<
     Record<number, string[]>
   >({});
@@ -975,9 +977,40 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             styles={styles}
           />
 
-          <OngoingMapSection places={resolvedMapPlaces} styles={styles} />
+          <OngoingMapSection
+            places={resolvedMapPlaces}
+            styles={styles}
+            collapsed={isSheetCollapsed}
+            mapInteractive={isSheetCollapsed}
+          />
 
-          <View style={styles.todayHeader}>
+          <View
+            style={[
+              localStyles.scheduleBottomSheet,
+              isSheetCollapsed ?
+                localStyles.scheduleBottomSheetCollapsed
+              : localStyles.scheduleBottomSheetExpanded,
+            ]}
+          >
+            <TouchableOpacity
+              activeOpacity={0.85}
+              style={localStyles.sheetToggleButton}
+              onPress={() => setIsSheetCollapsed((prev) => !prev)}
+            >
+              <Text style={localStyles.sheetToggleText}>
+                {isSheetCollapsed ? "일정 펼치기" : "일정 접기"}
+              </Text>
+
+              <Ionicons
+                name={isSheetCollapsed ? "chevron-up" : "chevron-down"}
+                size={18}
+                color="#94A3B8"
+              />
+            </TouchableOpacity>
+
+            {!isSheetCollapsed ? (
+              <>
+                <View style={styles.todayHeader}>
             <Text style={styles.todayTitle}>
               {isSelectedDayToday ? "오늘 일정" : "일정"}
             </Text>
@@ -1227,6 +1260,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               );
             })}
           </View>
+            </>
+          ) : null}
+          </View>
+
         </ScrollView>
       </View>
     </SafeAreaView>
@@ -1234,6 +1271,71 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 }
 
 const localStyles = StyleSheet.create({
+  mapLayerBody: {
+    flex: 1,
+  },
+
+  mapLayer: {
+    height: 620,
+    position: "relative",
+    backgroundColor: "#EDF3F9",
+    overflow: "hidden",
+  },
+
+  scheduleBottomSheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 430,
+    backgroundColor: "#FFFFFF",
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    paddingTop: 10,
+    paddingHorizontal: 24,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 10,
+    overflow: "hidden",
+  },
+
+  scheduleBottomSheetExpanded: {
+    transform: [{ translateY: 0 }],
+  },
+
+  scheduleBottomSheetCollapsed: {
+    transform: [{ translateY: 340 }],
+  },
+
+  sheetToggleButton: {
+    height: 42,
+    borderRadius: 999,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 12,
+  },
+
+  sheetToggleText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
+  sheetScroll: {
+    flex: 1,
+  },
+
+  sheetScrollContent: {
+    paddingBottom: 28,
+  },
+
   transportBetweenWrapper: {
     flexDirection: "row",
     alignItems: "stretch",
