@@ -147,10 +147,10 @@ const localStyles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     marginRight: 18,
-    marginBottom: 14,
+    marginBottom: 0,
 
     shadowColor: "#0F172A",
     shadowOpacity: 0.07,
@@ -180,16 +180,16 @@ const localStyles = StyleSheet.create({
   },
 
   memoArea: {
-    marginTop: 10,
+    marginTop: 8,
     alignItems: "flex-start",
   },
 
   memoSummaryPill: {
-    minHeight: 30,
+    minHeight: 28,
     borderRadius: 999,
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 12,
-    paddingVertical: 7,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,

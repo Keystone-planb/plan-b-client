@@ -104,13 +104,8 @@ const getSafeGapTransportMode = (mode?: string | null): GapTransportMode => {
   return "TRANSIT";
 };
 
-const isValidGap = (gap: TripScheduleGap) => {
-  return (
-    gap.availableMinutes > 0 &&
-    gap.gapMinutes >= 30 &&
-    gap.gapMinutes > gap.estimatedTravelMinutes
-  );
-};
+// 서버 gaps 응답을 그대로 사용
+// 프론트에서 추가 필터링하지 않음
 
 export default function GapRecommendationCard({
   tripId,
@@ -160,10 +155,12 @@ export default function GapRecommendationCard({
 
       setGaps(nextGaps);
       setHasLoadedGaps(true);
+
       setSelectedGap(null);
+      setExpandedGapKey(null);
+
       setPlaces([]);
       setSelectedPlaceId(null);
-      setExpandedGapKey(null);
       setStatus("idle");
 
       if (nextGaps.length === 0) {
@@ -193,7 +190,12 @@ export default function GapRecommendationCard({
       const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
 
-        return allowedPairKeys.has(gapKey) && isValidGap(gap);
+        console.log("[GapRecommendationCard] pair compare", {
+          gapKey,
+          allowedPairKeys: Array.from(allowedPairKeys),
+        });
+
+        return allowedPairKeys.has(gapKey);
       });
       applyGaps(currentScreenGaps);
     };
@@ -316,7 +318,11 @@ export default function GapRecommendationCard({
     status !== "error";
 
   if (shouldHideCard) {
-    return null;
+    return (
+      <View style={styles.emptyCard}>
+        <Text style={styles.emptyCardText}>추천 가능한 빈 시간이 없어요</Text>
+      </View>
+    );
   }
 
   return (
@@ -491,17 +497,46 @@ export default function GapRecommendationCard({
 }
 
 const styles = StyleSheet.create({
+  emptyCard: {
+    width: "100%",
+    minHeight: 42,
+    marginTop: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    justifyContent: "flex-start",
+    zIndex: 30,
+    elevation: 2,
+  },
+
+  emptyCardText: {
+    flex: 1,
+    fontSize: 12,
+    lineHeight: 16,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+
   card: {
     width: "100%",
-    marginTop: 8,
+    marginTop: 0,
     marginHorizontal: 0,
-    paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 9,
     borderRadius: 14,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     alignSelf: "stretch",
+    marginBottom: 8,
+    zIndex: 1,
+    elevation: 0,
   },
   headerRow: {
     flexDirection: "row",
@@ -516,22 +551,22 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   iconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
   },
   title: {
     color: "#1C2534",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
   },
   subTitle: {
-    marginTop: 2,
+    marginTop: 1,
     color: "#64748B",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
   },
   message: {
@@ -545,14 +580,15 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginTop: 10,
+    gap: 5,
+    marginTop: 7,
     paddingHorizontal: 0,
+    marginBottom: 8,
   },
 
   transportButton: {
-    minHeight: 28,
-    paddingHorizontal: 10,
+    minHeight: 30,
+    paddingHorizontal: 8,
     borderRadius: 999,
     borderWidth: 1,
     borderColor: "#D6E2F5",
@@ -561,6 +597,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
+    paddingVertical: 4,
   },
 
   transportButtonActive: {
@@ -579,8 +616,8 @@ const styles = StyleSheet.create({
   },
 
   gapList: {
-    marginTop: 10,
-    gap: 8,
+    marginTop: 8,
+    gap: 6,
   },
 
   gapItem: {
@@ -588,13 +625,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   gapButton: {
-    minHeight: 54,
-    borderRadius: 12,
+    minHeight: 42,
+    borderRadius: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -615,17 +652,17 @@ const styles = StyleSheet.create({
   },
   gapTitle: {
     color: "#1C2534",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "900",
-    lineHeight: 17,
+    lineHeight: 15,
   },
   selectedGapText: {
     color: "#FFFFFF",
   },
   gapMeta: {
-    marginTop: 3,
+    marginTop: 2,
     color: "#64748B",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "800",
   },
   selectedGapSubText: {
@@ -643,9 +680,9 @@ const styles = StyleSheet.create({
   },
 
   expandedGapPanel: {
-    paddingHorizontal: 12,
+    paddingHorizontal: 0,
     paddingTop: 8,
-    paddingBottom: 12,
+    paddingBottom: 0,
     backgroundColor: "#FFFFFF",
     borderLeftWidth: 1,
     borderRightWidth: 1,
@@ -656,14 +693,15 @@ const styles = StyleSheet.create({
   },
 
   recommendButton: {
-    marginTop: 10,
-    height: 38,
-    borderRadius: 10,
+    marginTop: 8,
+    height: 36,
+    borderRadius: 12,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
     gap: 4,
+    minHeight: 36,
   },
 
   recommendButtonDisabled: {

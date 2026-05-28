@@ -238,11 +238,11 @@ const styles = StyleSheet.create({
     position: "relative",
     paddingBottom: 22,
     paddingHorizontal: 22,
-    gap: 12,
+    gap: 4,
   },
 
   futureTimelineList: {
-    gap: 20,
+    gap: 6,
   },
 
   timelineLine: {
@@ -250,13 +250,13 @@ const styles = StyleSheet.create({
     left: 61,
     top: 38,
     bottom: 68,
-    width: 3,
-    backgroundColor: "#2158E8",
+    width: 0,
+    backgroundColor: "transparent",
     borderRadius: 999,
   },
 
   futureTimelineLine: {
-    backgroundColor: "#cedcff",
+    backgroundColor: "transparent",
   },
 
   editTimelineLine: {
@@ -343,10 +343,10 @@ const styles = StyleSheet.create({
   },
 
   alternativeButton: {
-    minWidth: 118,
-    height: 48,
-    paddingHorizontal: 18,
-    borderRadius: 16,
+    minWidth: 104,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 15,
     backgroundColor: "#2158E8",
     flexDirection: "row",
     alignItems: "center",
@@ -365,7 +365,7 @@ const styles = StyleSheet.create({
 
   alternativeButtonText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "900",
     marginRight: 3,
   },

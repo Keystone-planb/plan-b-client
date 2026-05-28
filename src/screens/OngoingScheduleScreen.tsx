@@ -27,6 +27,7 @@ import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
 import OngoingDayTabs from "../components/ongoing/OngoingDayTabs";
 import OngoingHeader from "../components/ongoing/OngoingHeader";
 import OngoingMapSection from "../components/ongoing/OngoingMapSection";
+import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
 import styles from "../styles/ongoingScheduleStyles";
 import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
 import type { TripScheduleGap } from "../types/gapRecommendation";
@@ -175,7 +176,6 @@ type Props = {
       selectedDay?: number;
       selectedDayIndex?: number;
       refreshPlanAAt?: number;
-      successToastMessage?: string;
     };
   };
 };
@@ -660,7 +660,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
-  const [successToastMessage, setSuccessToastMessage] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -729,20 +728,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       cancelled = true;
     };
   }, [mapPlaces]);
-
-  useEffect(() => {
-    const nextMessage = route?.params?.successToastMessage;
-
-    if (!nextMessage) return;
-
-    setSuccessToastMessage(String(nextMessage));
-
-    const timer = setTimeout(() => {
-      setSuccessToastMessage("");
-    }, 1800);
-
-    return () => clearTimeout(timer);
-  }, [route?.params?.successToastMessage, route?.params?.refreshPlanAAt]);
 
   const hasPlaces = places.length > 0;
   const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
@@ -937,33 +922,25 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
-        <OngoingHeader styles={styles} onBack={handleBack} title={tripName} />
-
-        {successToastMessage ?
-          <View
-            style={{
-              marginHorizontal: 24,
-              marginTop: 10,
-              marginBottom: 4,
-              paddingHorizontal: 14,
-              paddingVertical: 11,
-              borderRadius: 14,
-              backgroundColor: "#ECFDF3",
-              borderWidth: 1,
-              borderColor: "#BBF7D0",
-            }}
+        <View style={localStyles.upcomingHeader}>
+          <TouchableOpacity
+            activeOpacity={0.8}
+            style={localStyles.upcomingBackButton}
+            onPress={handleBack}
           >
-            <Text
-              style={{
-                color: "#15803D",
-                fontSize: 13,
-                fontWeight: "800",
-              }}
-            >
-              {successToastMessage}
+            <Ionicons name="chevron-back" size={28} color="#64748B" />
+          </TouchableOpacity>
+
+          <View style={localStyles.upcomingTitleBlock}>
+            <Text style={localStyles.upcomingTitle} numberOfLines={1}>
+              {tripName}
+            </Text>
+
+            <Text style={localStyles.upcomingSubtitle}>
+              {startDate} - {endDate} · {displayDays.length}일
             </Text>
           </View>
-        : null}
+        </View>
 
         <View style={localStyles.mapLayerBody}>
           <OngoingDayTabs
@@ -1098,6 +1075,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         transportModesByPair[pairKey] ??
                         (place as TodayPlace & { transportMode?: TransportMode | null }).transportMode ??
                         null;
+
                       const selectedTransportOption = getTransportOption(
                         selectedTransportMode,
                       );
@@ -1120,48 +1098,51 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       const isTransportExpanded =
                         transportPickerTarget?.pairKey === pairKey;
 
-                      const shouldCompactTransportSpace =
-                        !selectedTransportMode && !isTransportExpanded;
-
-                      if (shouldCompactTransportSpace) {
+                      if (hasGapRecommendation) {
                         return (
-                          <View style={localStyles.transportCompactConnector}>
-                            <View style={localStyles.transportCompactIconColumn}>
+                          <View style={localStyles.transportBetweenWrapper}>
+                            <View style={localStyles.transportIconColumn}>
+                              <View style={localStyles.transportSolidLineTop} />
+
                               <Ionicons
                                 name={selectedTransportOption.icon}
-                                size={16}
+                                size={18}
                                 color="#94A3B8"
+                                style={localStyles.transportIcon}
                               />
+
+                              <View style={localStyles.transportDotLine}>
+                                {Array.from({ length: 7 }).map((_, dotIndex) => (
+                                  <View
+                                    key={dotIndex}
+                                    style={localStyles.transportDot}
+                                  />
+                                ))}
+                              </View>
+
+                              <View style={localStyles.transportSolidLineBottom} />
                             </View>
 
-                            <View style={localStyles.transportCompactLine} />
+                            <View style={localStyles.transportCardColumn}>
+                              <GapRecommendationCard
+                                tripId={resolvedTripId ?? scheduleId}
+                                allowedPlanPairs={currentGapPlanPairs}
+                              />
+                            </View>
                           </View>
                         );
                       }
 
                       return (
-                        <View style={localStyles.transportBetweenWrapper}>
-                          <View style={localStyles.transportIconColumn}>
-                            <Ionicons
-                              name={selectedTransportOption.icon}
-                              size={16}
-                              color="#94A3B8"
-                            />
-                          </View>
+                        <View style={localStyles.transportEmptyRow}>
+                          <Ionicons
+                            name={selectedTransportOption.icon}
+                            size={18}
+                            color="#94A3B8"
+                            style={localStyles.transportIconCompact}
+                          />
 
-                          <View style={localStyles.transportAxisColumn}>
-                            <View style={localStyles.transportBlueLineCover} />
-                            <View
-                              style={[
-                                localStyles.transportDashedLine,
-                                shouldCompactTransportSpace ?
-                                  localStyles.transportDashedLineCompact
-                                : null,
-                              ]}
-                            />
-                          </View>
-
-                          <View style={localStyles.transportCardColumn}>
+                          <View style={localStyles.transportEmptyCardWrapper}>
                             <View style={localStyles.transportAccordionCard}>
                               <TouchableOpacity
                                 activeOpacity={0.85}
@@ -1181,9 +1162,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                     : "이동수단 추가하기"}
                                   </Text>
 
-                                  <Text
-                                    style={localStyles.transportAddDescription}
-                                  >
+                                  <Text style={localStyles.transportAddDescription}>
                                     {selectedTransportMode ?
                                       "장소 사이 이동수단이 설정되었어요"
                                     : "이동수단을 추가해주세요"}
@@ -1191,27 +1170,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                 </View>
 
                                 <Ionicons
-                                  name={
-                                    isTransportExpanded ? "chevron-up" : (
-                                      "chevron-down"
-                                    )
-                                  }
+                                  name={isTransportExpanded ? "chevron-up" : "chevron-down"}
                                   size={18}
                                   color="#CBD5E1"
                                 />
                               </TouchableOpacity>
 
                               {isTransportExpanded ?
-                                <View
-                                  style={localStyles.transportAccordionBody}
-                                >
-                                  <View
-                                    style={localStyles.transportInlineOptionRow}
-                                  >
+                                <View style={localStyles.transportAccordionBody}>
+                                  <View style={localStyles.transportInlineOptionRow}>
                                     {TRANSPORT_OPTIONS.map((option) => {
                                       const selected =
-                                        transportModesByPair[pairKey] ===
-                                        option.key;
+                                        transportModesByPair[pairKey] === option.key;
 
                                       return (
                                         <TouchableOpacity
@@ -1224,9 +1194,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                             : null,
                                           ]}
                                           onPress={() =>
-                                            handleSelectTransportMode(
-                                              option.key,
-                                            )
+                                            handleSelectTransportMode(option.key)
                                           }
                                         >
                                           <Text
@@ -1246,16 +1214,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
                                   <TouchableOpacity
                                     activeOpacity={0.85}
-                                    style={
-                                      localStyles.transportInlineConfirmButton
-                                    }
+                                    style={localStyles.transportInlineConfirmButton}
                                     onPress={handleConfirmTransportMode}
                                   >
-                                    <Text
-                                      style={
-                                        localStyles.transportInlineConfirmText
-                                      }
-                                    >
+                                    <Text style={localStyles.transportInlineConfirmText}>
                                       확인
                                     </Text>
                                   </TouchableOpacity>
@@ -1268,7 +1230,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                     })()
                   : null}
 
-                  {isSelectedDayToday ?
+                  {false && isSelectedDayToday ?
                     <OngoingGapRecommendationSection
                       styles={styles}
                       navigation={navigation}
@@ -1302,13 +1264,16 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 const localStyles = StyleSheet.create({
   mapLayerBody: {
     flex: 1,
+    paddingTop: 0,
+    marginTop: 0,
   },
 
   mapLayer: {
-    height: 620,
+    height: 640,
     position: "relative",
     backgroundColor: "#EDF3F9",
     overflow: "hidden",
+    marginTop: 12,
   },
 
   scheduleBottomSheet: {
@@ -1316,12 +1281,12 @@ const localStyles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 430,
+    height: 520,
     backgroundColor: "#FFFFFF",
     borderTopLeftRadius: 28,
     borderTopRightRadius: 28,
-    paddingTop: 10,
-    paddingHorizontal: 24,
+    paddingTop: 6,
+    paddingHorizontal: 20,
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: -8 },
     shadowOpacity: 0.08,
@@ -1335,11 +1300,13 @@ const localStyles = StyleSheet.create({
   },
 
   scheduleBottomSheetCollapsed: {
-    transform: [{ translateY: 340 }],
+    transform: [{ translateY: 390 }],
   },
 
   sheetToggleButton: {
-    height: 42,
+    width: 180,
+    alignSelf: "center",
+    height: 32,
     borderRadius: 999,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
@@ -1348,7 +1315,7 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
-    marginBottom: 12,
+    marginBottom: 2,
   },
 
   sheetToggleText: {
@@ -1362,20 +1329,63 @@ const localStyles = StyleSheet.create({
   },
 
   sheetScrollContent: {
-    paddingBottom: 28,
+    paddingTop: 2,
+    paddingBottom: 120,
+  },
+
+
+  upcomingHeader: {
+    minHeight: 84,
+    paddingHorizontal: 20,
+    paddingTop: 6,
+    paddingBottom: 0,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "flex-start",
+  },
+
+  upcomingBackButton: {
+    position: "absolute",
+    left: 16,
+    top: 20,
+    width: 36,
+    height: 36,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+
+  upcomingTitleBlock: {
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 8,
+    marginBottom: 18,
+  },
+
+  upcomingTitle: {
+    fontSize: 28,
+    lineHeight: 34,
+    fontWeight: "900",
+    color: "#0F172A",
+  },
+
+  upcomingSubtitle: {
+    marginTop: 6,
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#64748B",
   },
 
   transportBetweenWrapper: {
     flexDirection: "row",
-    alignItems: "stretch",
-    marginTop: 10,
-    marginBottom: 16,
+    alignItems: "flex-start",
+    marginTop: 8,
+    marginBottom: 10,
     zIndex: 5,
   },
 
   transportCompactConnector: {
     width: 54,
-    height: 72,
+    height: 54,
     marginLeft: 56,
     alignItems: "center",
     justifyContent: "center",
@@ -1389,7 +1399,7 @@ const localStyles = StyleSheet.create({
 
   transportCompactLine: {
     width: 3,
-    height: 42,
+    height: 24,
     borderRadius: 999,
     borderWidth: 1.5,
     borderColor: "#CBD5E1",
@@ -1397,48 +1407,112 @@ const localStyles = StyleSheet.create({
   },
 
   transportBetweenWrapperCompact: {
-    marginTop: 4,
-    marginBottom: 6,
+    marginTop: -8,
+    marginBottom: -14,
   },
 
   transportIconColumn: {
-    width: 34,
+    width: 28,
     alignItems: "center",
     justifyContent: "center",
   },
 
+  transportSolidLineTop: {
+    width: 3,
+    height: 14,
+    backgroundColor: "#CBD5E1",
+    borderRadius: 999,
+  },
+
+  transportIcon: {
+    marginVertical: 8,
+    transform: [{ scale: 1.15 }],
+  },
+
+  transportIconCompact: {
+    marginVertical: 0,
+    transform: [{ scale: 1.15 }],
+  },
+
+  transportDotLine: {
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: 5,
+    paddingTop: 2,
+  },
+
+  transportDot: {
+    width: 3,
+    height: 10,
+    borderRadius: 999,
+    backgroundColor: "#CBD5E1",
+  },
+
+  transportSolidLineBottom: {
+    width: 3,
+    height: 14,
+    backgroundColor: "#CBD5E1",
+    borderRadius: 999,
+    marginTop: 4,
+  },
+
+  transportEmptyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 26,
+    height: 26,
+    marginTop: 2,
+    marginBottom: 2,
+    paddingLeft: 18,
+    zIndex: 10,
+  },
+
+  transportEmptyCardWrapper: {
+    flex: 1,
+    marginLeft: 8,
+    paddingRight: 18,
+    justifyContent: "center",
+    zIndex: 20,
+  },
+
   transportAxisColumn: {
-    width: 18,
+    width: 14,
     alignItems: "center",
     position: "relative",
-    marginLeft: -4,
-    marginRight: 2,
+    marginLeft: -2,
+    marginRight: 4,
   },
 
   transportBlueLineCover: {
     position: "absolute",
-    top: -10,
-    bottom: -10,
-    width: 18,
+    top: -2,
+    bottom: -2,
+    width: 14,
     backgroundColor: "#FFFFFF",
     zIndex: 1,
   },
 
   transportDashedLine: {
-    flex: 1,
-    minHeight: 78,
+    flex: 0,
+    minHeight: 24,
     borderLeftWidth: 2,
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
-    zIndex: 2,
+    zIndex: 1,
+    height: 24,
   },
 
   transportDashedLineCompact: {
-    minHeight: 28,
+    minHeight: 12,
+    height: 12,
   },
 
   transportCardColumn: {
     flex: 1,
+    zIndex: 5,
+    backgroundColor: "#FFFFFF",
+    paddingTop: 6,
   },
 
   transportAccordionCard: {
