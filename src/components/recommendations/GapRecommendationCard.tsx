@@ -320,7 +320,16 @@ export default function GapRecommendationCard({
   if (shouldHideCard) {
     return (
       <View style={styles.emptyCard}>
-        <Text style={styles.emptyCardText}>추천 가능한 빈 시간이 없어요</Text>
+        <View style={styles.emptyCardIconCircle}>
+          <Ionicons name="sparkles-outline" size={20} color="#94A3B8" />
+        </View>
+
+        <View style={styles.emptyCardTextGroup}>
+          <Text style={styles.emptyCardTitle}>추천 가능한 빈 시간이 없어요</Text>
+          <Text style={styles.emptyCardSubText}>
+            다른 장소를 추가하거나 이동 시간을 늘려보세요
+          </Text>
+        </View>
       </View>
     );
   }
@@ -499,27 +508,48 @@ export default function GapRecommendationCard({
 const styles = StyleSheet.create({
   emptyCard: {
     width: "100%",
-    minHeight: 42,
+    minHeight: 56,
     marginTop: 0,
     paddingHorizontal: 14,
     paddingVertical: 8,
-    borderRadius: 14,
+    borderRadius: 16,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 12,
     justifyContent: "flex-start",
     zIndex: 30,
     elevation: 2,
   },
 
-  emptyCardText: {
+  emptyCardIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  emptyCardTextGroup: {
     flex: 1,
-    fontSize: 12,
-    lineHeight: 16,
-    fontWeight: "800",
+    minWidth: 0,
+  },
+
+  emptyCardTitle: {
+    fontSize: 13,
+    lineHeight: 17,
+    fontWeight: "900",
+    color: "#1E293B",
+  },
+
+  emptyCardSubText: {
+    marginTop: 2,
+    fontSize: 11,
+    lineHeight: 14,
+    fontWeight: "700",
     color: "#64748B",
   },
 
@@ -727,7 +757,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#DCE5F2",
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",

@@ -1138,7 +1138,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                               />
 
                               <View style={localStyles.transportDotLine}>
-                                {Array.from({ length: 7 }).map((_, dotIndex) => (
+                                {Array.from({ length: 4 }).map((_, dotIndex) => (
                                   <View
                                     key={dotIndex}
                                     style={localStyles.transportDot}
@@ -1404,8 +1404,8 @@ const localStyles = StyleSheet.create({
   transportBetweenWrapper: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 8,
-    marginBottom: 10,
+    marginTop: 14,
+    marginBottom: 18,
     zIndex: 5,
   },
 
@@ -1445,7 +1445,7 @@ const localStyles = StyleSheet.create({
 
   transportSolidLineTop: {
     width: 3,
-    height: 14,
+    height: 10,
     backgroundColor: "#CBD5E1",
     borderRadius: 999,
   },
@@ -1461,10 +1461,11 @@ const localStyles = StyleSheet.create({
   },
 
   transportDotLine: {
-    minHeight: 54,
+    minHeight: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 5,
+    gap: 4,
     paddingTop: 2,
   },
 
@@ -1477,10 +1478,10 @@ const localStyles = StyleSheet.create({
 
   transportSolidLineBottom: {
     width: 3,
-    height: 14,
+    height: 8,
     backgroundColor: "#CBD5E1",
     borderRadius: 999,
-    marginTop: 4,
+    marginTop: 3,
   },
 
   transportEmptyRow: {
@@ -1536,9 +1537,12 @@ const localStyles = StyleSheet.create({
 
   transportCardColumn: {
     flex: 1,
-    zIndex: 5,
-    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
     paddingTop: 6,
+    marginLeft: 12,
+    paddingRight: 18,
+    paddingBottom: 14,
+    zIndex: 1,
   },
 
   transportAccordionCard: {

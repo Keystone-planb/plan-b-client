@@ -151,7 +151,6 @@ type Props = {
       selectedDay?: number;
       selectedDayIndex?: number;
       refreshPlanAAt?: number;
-      successToastMessage?: string;
     };
   };
 };
@@ -638,25 +637,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
-  const [successToastMessage, setSuccessToastMessage] = useState("");
-
-  useEffect(() => {
-    if (!route?.params?.successToastMessage) {
-      return;
-    }
-
-    setSuccessToastMessage("변경사항이 저장되었습니다.");
-
-    const timer = setTimeout(() => {
-      setSuccessToastMessage("");
-
-      navigation.setParams({
-        successToastMessage: undefined,
-      });
-    }, 2500);
-
-    return () => clearTimeout(timer);
-  }, [route?.params?.successToastMessage]);
 
   useEffect(() => {
     let cancelled = false;
@@ -725,24 +705,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       cancelled = true;
     };
   }, [mapPlaces]);
-
-  useEffect(() => {
-    const nextMessage = route?.params?.successToastMessage;
-
-    if (!nextMessage) return;
-
-    setSuccessToastMessage(nextMessage);
-
-    const successToastHideTimer = setTimeout(() => {
-      setSuccessToastMessage("");
-
-      navigation.setParams({
-        successToastMessage: undefined,
-      });
-    }, 2500);
-
-    return () => clearTimeout(successToastHideTimer);
-  }, [route?.params?.successToastMessage, route?.params?.refreshPlanAAt]);
 
   const hasPlaces = places.length > 0;
   const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
@@ -968,20 +930,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             </Text>
           </View>
         </View>
-
-        {successToastMessage ?
-          <View style={localStyles.successToast}>
-            <Text
-              style={{
-                color: "#15803D",
-                fontSize: 13,
-                fontWeight: "800",
-              }}
-            >
-              {successToastMessage}
-            </Text>
-          </View>
-        : null}
 
         <View style={localStyles.mapLayerBody}>
           <UpcomingDayTabs
@@ -1217,7 +1165,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                     />
 
                                     <View style={localStyles.transportDotLine}>
-                                      {Array.from({ length: 7 }).map(
+                                      {Array.from({ length: 4 }).map(
                                         (_, index) => (
                                           <View
                                             key={index}
@@ -1422,7 +1370,7 @@ const localStyles = StyleSheet.create({
   transportBetweenWrapper: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 4,
+    marginTop: 12,
     marginBottom: 18,
     paddingLeft: 18,
   },
@@ -1452,7 +1400,7 @@ const localStyles = StyleSheet.create({
 
   transportSolidLineTop: {
     width: 3,
-    height: 24,
+    height: 10,
     backgroundColor: "#CBD5E1",
     borderRadius: 999,
   },
@@ -1469,10 +1417,10 @@ const localStyles = StyleSheet.create({
 
   transportSolidLineBottom: {
     width: 3,
-    height: 24,
+    height: 8,
     backgroundColor: "#CBD5E1",
     borderRadius: 999,
-    marginTop: 6,
+    marginTop: 3,
   },
 
   transportIconColumn: {
@@ -1509,11 +1457,12 @@ const localStyles = StyleSheet.create({
   },
 
   transportDotLine: {
-    minHeight: 96,
+    minHeight: 52,
+    height: 52,
     alignItems: "center",
     justifyContent: "flex-start",
-    gap: 6,
-    paddingTop: 4,
+    gap: 4,
+    paddingTop: 2,
   },
 
   transportDot: {
@@ -1527,9 +1476,9 @@ const localStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingTop: 0,
-    marginLeft: 0,
-    paddingRight: 0,
-    paddingBottom: 12,
+    marginLeft: 12,
+    paddingRight: 18,
+    paddingBottom: 8,
     zIndex: 1,
   },
 

@@ -2583,7 +2583,7 @@ const styles = StyleSheet.create({
   editTransportHeader: {
     minHeight: 58,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -2761,7 +2761,7 @@ const styles = StyleSheet.create({
   viewTransportHeader: {
     minHeight: 58,
     paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
