@@ -26,15 +26,16 @@ import OngoingHeader from "../components/ongoing/OngoingHeader";
 import OngoingMapSection from "../components/ongoing/OngoingMapSection";
 import styles from "../styles/ongoingScheduleStyles";
 
-const getTransportIconName = (mode?: string) => {
+const getTransportIconName = (mode?: string | null) => {
   switch (mode) {
-    case "CAR":
-      return "car-outline";
+    case "WALK":
+      return "walk-outline";
     case "TRANSIT":
       return "bus-outline";
-    case "WALK":
+    case "CAR":
+      return "car-outline";
     default:
-      return "walk-outline";
+      return "alert-circle-outline";
   }
 };
 
@@ -1105,7 +1106,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                         getTransportIconName(
                                           selectedTransportMode,
                                         )
-                                      : "help-circle-outline"
+                                      : "alert-circle-outline"
                                     }
                                     size={18}
                                     color="#94A3B8"
@@ -1157,7 +1158,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                                           getTransportIconName(
                                             selectedTransportMode,
                                           )
-                                        : "help-circle-outline"
+                                        : "alert-circle-outline"
                                       }
                                       size={18}
                                       color="#94A3B8"

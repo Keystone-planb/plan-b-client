@@ -53,7 +53,7 @@ const TRANSPORT_OPTIONS: Array<{
   {
     key: "TRANSIT",
     label: "대중교통",
-    icon: "train-outline",
+    icon: "bus-outline",
   },
   {
     key: "CAR",
@@ -62,10 +62,16 @@ const TRANSPORT_OPTIONS: Array<{
   },
 ];
 
-const getTransportOption = (mode?: TransportMode) => {
+const FALLBACK_TRANSPORT_OPTION = {
+  key: "TRANSIT",
+  label: "이동수단",
+  icon: "alert-circle-outline",
+} as const;
+
+const getTransportOption = (mode?: TransportMode | null) => {
   return (
     TRANSPORT_OPTIONS.find((option) => option.key === mode) ??
-    TRANSPORT_OPTIONS[0]
+    FALLBACK_TRANSPORT_OPTION
   );
 };
 
