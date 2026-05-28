@@ -762,7 +762,33 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [isSelectedDayToday, selectedDayIndex, places.length]);
 
   const handleBack = () => {
-    navigation.goBack();
+    Alert.alert(
+      "현재 일정에서 홈으로 이동할까요?",
+      "현재 일정 화면에서 나가 홈으로 이동합니다.",
+      [
+        {
+          text: "현재 화면에 남기",
+          style: "cancel",
+        },
+        {
+          text: "홈으로 이동",
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: "Main",
+                  params: {
+                    refreshSchedules: true,
+                    refreshMainAt: Date.now(),
+                  },
+                },
+              ],
+            });
+          },
+        },
+      ],
+    );
   };
 
   const getTimeValueForTarget = (
