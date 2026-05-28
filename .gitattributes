@@ -1,27 +1,39 @@
-# GitHub language stats cleanup
+# ==============================================================================
+# GitHub Language Stats Cleanup Configuration
+# ==============================================================================
 
-# React Native / Expo generated native projects
+# 1. Shell & Perl Scripts (통계 제외)
+# ------------------------------------------------------------------------------
+*.sh linguist-generated=true
+*.pl linguist-generated=true
+*.pm linguist-generated=true
+gradlew linguist-generated=true
+
+# 2. React Native / Expo Generated Native Projects
+# ------------------------------------------------------------------------------
 android/** linguist-generated=true
 ios/** linguist-generated=true
 
-# Native build / wrapper scripts
-gradlew linguist-generated=true
+# 3. Build Configuration & Dependency Lock Files
+# ------------------------------------------------------------------------------
 *.gradle linguist-generated=true
-*.sh linguist-generated=true
-
-# Generated lock / build files
 package-lock.json linguist-generated=true
 yarn.lock linguist-generated=true
 pnpm-lock.yaml linguist-generated=true
+bun.lockb linguist-generated=true
 
-# Assets should not dominate language stats
+# 4. Assets & Images (디자인 자산 제외)
+# ------------------------------------------------------------------------------
 *.svg linguist-generated=true
 *.png linguist-generated=true
 *.jpg linguist-generated=true
 *.jpeg linguist-generated=true
 *.webp linguist-generated=true
+*.gif linguist-generated=true
+*.ico linguist-generated=true
 
-# Git internals / hook samples should not affect GitHub language stats
+# 5. Git Internals & Third-party / Vendor Configurations
+# ------------------------------------------------------------------------------
 Keystone.git/** linguist-vendored
 *.sample linguist-vendored
-*.pl linguist-vendored
+.github/** linguist-vendored
