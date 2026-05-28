@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Alert,
   Modal,
   Platform,
@@ -764,13 +765,17 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     return sortedPlaces
       .slice(0, -1)
-      .filter((place, index) => {
+      .map((place, index) => {
         const nextPlace = sortedPlaces[index + 1];
-        if (!nextPlace) return false;
+        if (!nextPlace) return null;
 
-        return !getPairTransportMode(place, nextPlace, index);
+        if (getPairTransportMode(place, nextPlace, index)) {
+          return null;
+        }
+
+        return `${place.name ?? "장소"} → ${nextPlace.name ?? "장소"}`;
       })
-      .map((place) => place.name);
+      .filter(Boolean) as string[];
   };
 
   const saveSegmentTransportModes = async () => {
@@ -815,8 +820,9 @@ export default function PlanAScreen({ navigation, route }: Props) {
     if (missingTransportPlaceNames.length > 0) {
       Alert.alert(
         "이동수단 선택 필요",
-        `이동수단이 선택되지 않은 구간이 있습니다.\n\n${missingTransportPlaceNames
+        `아래 구간의 이동수단이 선택되지 않았어요.\n\n${missingTransportPlaceNames
           .slice(0, 3)
+          .map((name, index) => `${index + 1}. ${name}`)
           .join("\n")}${missingTransportPlaceNames.length > 3 ? "\n..." : ""}`,
       );
 
@@ -886,7 +892,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
           transportLabel: route?.params?.transportLabel,
           selectedDay: selectedDay,
           refreshPlanAAt: Date.now(),
-          successToastMessage: "변경사항이 저장되었습니다.",
         });
 
         return true;
@@ -1264,7 +1269,14 @@ export default function PlanAScreen({ navigation, route }: Props) {
               <View style={styles.editTransportDashedLine} />
             </View>
 
-            <View style={styles.editTransportCard}>
+            <View
+              style={[
+                styles.editTransportCard,
+                !selectedTransportLabel ?
+                  styles.editTransportCardWarning
+                : null,
+              ]}
+            >
               <TouchableOpacity
                 activeOpacity={0.85}
                 style={styles.editTransportHeader}
@@ -1277,16 +1289,30 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 }
               >
                 <View style={styles.editTransportTextGroup}>
-                  <Text style={styles.editTransportTitle}>
+                  <Text
+                    style={[
+                      styles.editTransportTitle,
+                      !selectedTransportLabel ?
+                        styles.editTransportTitleWarning
+                      : null,
+                    ]}
+                  >
                     {selectedTransportLabel ?
                       `${selectedTransportLabel}(으)로 이동`
-                    : "이동수단을 선택해주세요"}
+                    : "⚠ 이동수단을 선택해주세요"}
                   </Text>
 
-                  <Text style={styles.editTransportDescription}>
+                  <Text
+                    style={[
+                      styles.editTransportDescription,
+                      !selectedTransportLabel ?
+                        styles.editTransportDescriptionWarning
+                      : null,
+                    ]}
+                  >
                     {selectedTransportLabel ?
                       `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
-                    : "구간 별 이동 수단 설정"}
+                    : `${place.name ?? "장소"} → ${nextPlace?.name ?? "장소"}`}
                   </Text>
                 </View>
 
@@ -1416,8 +1442,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
                     style={[
                       styles.editModeButton,
                       isEditMode && styles.editModeButtonActive,
+                      saving && styles.headerIconDisabled,
                     ]}
                     activeOpacity={0.8}
+                    disabled={saving}
                     onPress={async () => {
                       const saved = await handleSavePlanA({
                         moveToMainAfterSave: false,
@@ -1429,11 +1457,14 @@ export default function PlanAScreen({ navigation, route }: Props) {
                       }
                     }}
                   >
-                    <Ionicons
-                      name={isEditMode ? "checkmark" : "create-outline"}
-                      size={15}
-                      color={isEditMode ? "#FFFFFF" : "#2158E8"}
-                    />
+                    {saving ?
+                      <ActivityIndicator size="small" color="#FFFFFF" />
+                    : <Ionicons
+                        name={isEditMode ? "checkmark" : "create-outline"}
+                        size={15}
+                        color={isEditMode ? "#FFFFFF" : "#2158E8"}
+                      />
+                    }
 
                     <Text
                       style={[
@@ -1441,7 +1472,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                         isEditMode && styles.editModeButtonTextActive,
                       ]}
                     >
-                      {isEditMode ? "완료" : "수정"}
+                      {saving ? "저장 중..." : isEditMode ? "완료" : "수정"}
                     </Text>
                   </TouchableOpacity>
                 : null}
@@ -2427,6 +2458,20 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     backgroundColor: "#F8FAFC",
     overflow: "hidden",
+  },
+
+  editTransportCardWarning: {
+    borderWidth: 1.5,
+    borderColor: "#F59E0B",
+    backgroundColor: "#FFF7ED",
+  },
+
+  editTransportTitleWarning: {
+    color: "#D97706",
+  },
+
+  editTransportDescriptionWarning: {
+    color: "#92400E",
   },
 
   editTransportTextGroup: {
