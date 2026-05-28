@@ -1404,8 +1404,8 @@ const localStyles = StyleSheet.create({
   transportBetweenWrapper: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginTop: 14,
-    marginBottom: 18,
+    marginTop: 18,
+    marginBottom: 22,
     zIndex: 5,
   },
 
@@ -1461,8 +1461,8 @@ const localStyles = StyleSheet.create({
   },
 
   transportDotLine: {
-    minHeight: 44,
-    height: 44,
+    minHeight: 48,
+    height: 48,
     alignItems: "center",
     justifyContent: "flex-start",
     gap: 4,
@@ -1538,10 +1538,10 @@ const localStyles = StyleSheet.create({
   transportCardColumn: {
     flex: 1,
     justifyContent: "center",
-    paddingTop: 6,
+    paddingTop: 4,
     marginLeft: 12,
     paddingRight: 18,
-    paddingBottom: 14,
+    paddingBottom: 12,
     zIndex: 1,
   },
 
