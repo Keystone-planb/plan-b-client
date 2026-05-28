@@ -486,6 +486,8 @@ const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
 };
 
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
+  console.log("[SCREEN DEBUG] UpcomingScheduleScreen rendered");
+
   const params = route?.params ?? {};
 
   const {
@@ -1059,13 +1061,17 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         const focused = false;
                         const nextPlaceForGap = places[index + 1];
                         const gapBeforePlanId =
-                          place.serverTripPlaceId ??
-                          place.tripPlaceId ??
-                          place.id;
+                          place.serverTripPlaceId ?? place.tripPlaceId;
                         const gapAfterPlanId =
                           nextPlaceForGap?.serverTripPlaceId ??
-                          nextPlaceForGap?.tripPlaceId ??
-                          nextPlaceForGap?.id;
+                          nextPlaceForGap?.tripPlaceId;
+
+                        console.log("[Upcoming pair debug]", {
+                          placeName: place.name,
+                          nextPlaceName: nextPlaceForGap?.name,
+                          beforePlanId: gapBeforePlanId,
+                          afterPlanId: gapAfterPlanId,
+                        });
 
                         const currentGapPlanPairs =
                           (
@@ -1091,8 +1097,39 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         )}`;
                         const selectedTransportMode =
                           transportModesByPair[pairKey] ??
-                          (place as TodayPlace & { transportMode?: TransportMode | null }).transportMode ??
+                          (
+                            place as TodayPlace & {
+                              transportMode?: TransportMode | null;
+                            }
+                          ).transportMode ??
                           null;
+
+                        const transportGapMinutes =
+                          (
+                            nextPlaceForGap &&
+                            Number.isFinite(
+                              getPlaceEndTimeValueForGap(place),
+                            ) &&
+                            Number.isFinite(
+                              getPlaceStartTimeValueForGap(nextPlaceForGap),
+                            )
+                          ) ?
+                            getPlaceStartTimeValueForGap(nextPlaceForGap) -
+                            getPlaceEndTimeValueForGap(place)
+                          : 0;
+
+                        const hasGapRecommendation =
+                          currentGapPlanPairs.length > 0 &&
+                          transportGapMinutes >= 30;
+
+                        console.log("[UPCOMING GAP ROW DEBUG]", {
+                          placeName: place.name,
+                          nextPlaceName: nextPlaceForGap?.name,
+                          currentGapPlanPairs,
+                          transportGapMinutes,
+                          hasGapRecommendation,
+                        });
+
                         const placeKey = getEditablePlaceKey(place, index);
                         const displayPlace = place;
 
@@ -1112,82 +1149,119 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                             />
 
                             {nextPlaceForGap ?
-                              <View
-                                style={[
-                                  localStyles.transportBetweenWrapper,
-                                  currentGapPlanPairs.length === 0 ?
-                                    localStyles.transportBetweenWrapperCompact
-                                  : null,
-                                ]}
-                              >
-                                <View style={localStyles.transportIconColumn}>
-                                  <View
-                                    style={[
-                                      localStyles.transportSolidLineTop,
-                                      currentGapPlanPairs.length === 0 ?
-                                        localStyles.transportSolidLineCompact
-                                      : null,
-                                    ]}
-                                  />
-
+                              !hasGapRecommendation ?
+                                <View style={localStyles.transportEmptyRow}>
                                   <Ionicons
                                     name={
                                       selectedTransportMode ?
-                                        getTransportIconName(selectedTransportMode)
+                                        getTransportIconName(
+                                          selectedTransportMode,
+                                        )
                                       : "help-circle-outline"
                                     }
                                     size={18}
                                     color="#94A3B8"
-                                    style={localStyles.transportIcon}
+                                    style={localStyles.transportIconCompact}
                                   />
 
                                   <View
-                                    style={[
-                                      localStyles.transportDotLine,
-                                      currentGapPlanPairs.length === 0 ?
-                                        localStyles.transportDotLineCompact
-                                      : null,
-                                    ]}
+                                    style={
+                                      localStyles.transportEmptyCardWrapper
+                                    }
                                   >
-                                    {Array.from({
-                                      length:
-                                        currentGapPlanPairs.length === 0 ? 1 : 7,
-                                    }).map((_, index) => (
+                                    {!selectedTransportMode ?
                                       <View
-                                        key={index}
-                                        style={localStyles.transportDot}
+                                        style={localStyles.transportUnsetCard}
+                                      >
+                                        <Text
+                                          style={
+                                            localStyles.transportUnsetTitle
+                                          }
+                                        >
+                                          이동수단을 선택하지 않았어요
+                                        </Text>
+                                        <Text
+                                          style={
+                                            localStyles.transportUnsetDescription
+                                          }
+                                        >
+                                          수정 화면에서 이동수단을 추가해주세요
+                                        </Text>
+                                      </View>
+                                    : <GapRecommendationCard
+                                        tripId={resolvedTripId ?? scheduleId}
+                                        allowedPlanPairs={currentGapPlanPairs}
                                       />
-                                    ))}
+                                    }
+                                  </View>
+                                </View>
+                              : <View
+                                  style={localStyles.transportBetweenWrapper}
+                                >
+                                  <View style={localStyles.transportIconColumn}>
+                                    <View
+                                      style={localStyles.transportSolidLineTop}
+                                    />
+
+                                    <Ionicons
+                                      name={
+                                        selectedTransportMode ?
+                                          getTransportIconName(
+                                            selectedTransportMode,
+                                          )
+                                        : "help-circle-outline"
+                                      }
+                                      size={18}
+                                      color="#94A3B8"
+                                      style={localStyles.transportIcon}
+                                    />
+
+                                    <View style={localStyles.transportDotLine}>
+                                      {Array.from({ length: 7 }).map(
+                                        (_, index) => (
+                                          <View
+                                            key={index}
+                                            style={localStyles.transportDot}
+                                          />
+                                        ),
+                                      )}
+                                    </View>
+
+                                    <View
+                                      style={
+                                        localStyles.transportSolidLineBottom
+                                      }
+                                    />
                                   </View>
 
-                                  <View
-                                    style={[
-                                      localStyles.transportSolidLineBottom,
-                                      currentGapPlanPairs.length === 0 ?
-                                        localStyles.transportSolidLineCompact
-                                      : null,
-                                    ]}
-                                  />
+                                  <View style={localStyles.transportCardColumn}>
+                                    {!selectedTransportMode ?
+                                      <View
+                                        style={localStyles.transportUnsetCard}
+                                      >
+                                        <Text
+                                          style={
+                                            localStyles.transportUnsetTitle
+                                          }
+                                        >
+                                          이동수단을 선택하지 않았어요
+                                        </Text>
+                                        <Text
+                                          style={
+                                            localStyles.transportUnsetDescription
+                                          }
+                                        >
+                                          수정 화면에서 이동수단을 추가해주세요
+                                        </Text>
+                                      </View>
+                                    : <GapRecommendationCard
+                                        tripId={resolvedTripId ?? scheduleId}
+                                        allowedPlanPairs={currentGapPlanPairs}
+                                      />
+                                    }
+                                  </View>
                                 </View>
 
-                                <View style={localStyles.transportCardColumn}>
-                                  {!selectedTransportMode ?
-                                    <View style={localStyles.transportUnsetCard}>
-                                      <Text style={localStyles.transportUnsetTitle}>
-                                        이동수단을 선택하지 않았어요
-                                      </Text>
-                                      <Text style={localStyles.transportUnsetDescription}>
-                                        수정 화면에서 이동수단을 추가해주세요
-                                      </Text>
-                                    </View>
-                                  : currentGapPlanPairs.length > 0 ?
-                                    <GapRecommendationCard
-                                      tripId={resolvedTripId ?? scheduleId}
-                                      allowedPlanPairs={currentGapPlanPairs}
-                                    />
-                                  : null}
-                                </View>
-                              </View>
                             : null}
                           </React.Fragment>
                         );
@@ -1246,7 +1320,6 @@ const localStyles = StyleSheet.create({
     color: "#64748B",
   },
 
-  
   successToast: {
     position: "absolute",
 
@@ -1274,7 +1347,6 @@ const localStyles = StyleSheet.create({
       height: 4,
     },
   },
-
 
   mapLayerBody: {
     flex: 1,
@@ -1318,6 +1390,8 @@ const localStyles = StyleSheet.create({
   },
 
   sheetToggleButton: {
+    width: 180,
+    alignSelf: "center",
     height: 32,
     borderRadius: 999,
     backgroundColor: "#F8FAFC",
@@ -1347,29 +1421,33 @@ const localStyles = StyleSheet.create({
 
   transportBetweenWrapper: {
     flexDirection: "row",
-    alignItems: "center",
-    marginTop: -6,
-    marginBottom: -10,
+    alignItems: "flex-start",
+    marginTop: 4,
+    marginBottom: 18,
     paddingLeft: 18,
   },
 
   transportBetweenWrapperCompact: {
-    minHeight: 54,
-    height: 54,
-    marginTop: -18,
-    marginBottom: -18,
+    minHeight: 22,
+    height: 22,
+    marginTop: -24,
+    marginBottom: -34,
   },
 
   transportDotLineCompact: {
-    minHeight: 8,
-    height: 8,
+    minHeight: 0,
+    height: 0,
     gap: 0,
     paddingTop: 0,
+    marginTop: 0,
   },
 
   transportSolidLineCompact: {
-    height: 4,
+    height: 0,
     marginTop: 0,
+    minHeight: 0,
+    paddingTop: 0,
+    gap: 0,
   },
 
   transportSolidLineTop: {
@@ -1384,6 +1462,11 @@ const localStyles = StyleSheet.create({
     transform: [{ scale: 1.15 }],
   },
 
+  transportIconCompact: {
+    marginVertical: 0,
+    transform: [{ scale: 1.15 }],
+  },
+
   transportSolidLineBottom: {
     width: 3,
     height: 24,
@@ -1395,9 +1478,34 @@ const localStyles = StyleSheet.create({
   transportIconColumn: {
     width: 42,
     alignItems: "center",
-    justifyContent: "flex-start",
-    marginRight: 6,
+    justifyContent: "center",
+    marginRight: 8,
     zIndex: 50,
+  },
+
+  transportEmptyCardWrapper: {
+    flex: 1,
+    marginLeft: 8,
+    paddingRight: 18,
+    justifyContent: "center",
+    zIndex: 20,
+  },
+  transportEmptyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    minHeight: 44,
+    height: 44,
+    marginTop: -8,
+    marginBottom: -12,
+    paddingLeft: 18,
+    zIndex: 10,
+  },
+
+  transportEmptyIconColumn: {
+    width: 42,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 8,
   },
 
   transportDotLine: {
@@ -1419,8 +1527,10 @@ const localStyles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     paddingTop: 0,
-    marginLeft: -8,
+    marginLeft: 0,
     paddingRight: 0,
+    paddingBottom: 12,
+    zIndex: 1,
   },
 
   transportUnsetCard: {
