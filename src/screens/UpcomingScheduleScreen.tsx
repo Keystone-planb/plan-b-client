@@ -486,7 +486,6 @@ const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
 };
 
 export default function OngoingScheduleScreen({ navigation, route }: Props) {
-  console.log("[SCREEN DEBUG] UpcomingScheduleScreen rendered");
 
   const params = route?.params ?? {};
 
