@@ -1,0 +1,56 @@
+# ==============================================================================
+# GitHub Language Stats Cleanup Configuration
+# ==============================================================================
+
+# 1. Main React Native / Expo source language
+# ------------------------------------------------------------------------------
+*.ts linguist-language=TypeScript
+*.tsx linguist-language=TypeScript
+*.js linguist-language=JavaScript
+*.jsx linguist-language=JavaScript
+
+# 2. Shell & Perl Scripts
+# ------------------------------------------------------------------------------
+*.sh linguist-generated=true
+*.bash linguist-generated=true
+*.zsh linguist-generated=true
+*.pl linguist-generated=true
+*.pm linguist-generated=true
+gradlew linguist-generated=true
+
+# 3. React Native / Expo Generated Native Projects
+# ------------------------------------------------------------------------------
+android/** linguist-generated=true
+ios/** linguist-generated=true
+
+# 4. Build Configuration & Dependency Lock Files
+# ------------------------------------------------------------------------------
+*.gradle linguist-generated=true
+package-lock.json linguist-generated=true
+yarn.lock linguist-generated=true
+pnpm-lock.yaml linguist-generated=true
+bun.lockb linguist-generated=true
+
+# 5. Assets & Images
+# ------------------------------------------------------------------------------
+*.svg linguist-generated=true
+*.png linguist-generated=true
+*.jpg linguist-generated=true
+*.jpeg linguist-generated=true
+*.webp linguist-generated=true
+*.gif linguist-generated=true
+*.ico linguist-generated=true
+
+# 6. Git Internals & Third-party / Vendor Configurations
+# ------------------------------------------------------------------------------
+Keystone.git/** linguist-vendored
+*.sample linguist-vendored
+.github/** linguist-vendored
+node_modules/** linguist-vendored
+dist/** linguist-vendored
+build/** linguist-vendored
+coverage/** linguist-vendored
+
+# Exclude embedded git internals from GitHub language stats
+Keystone.git/** linguist-generated=true
+Keystone.git/** linguist-vendored
