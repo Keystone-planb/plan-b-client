@@ -69,7 +69,7 @@ export default function PlanAMapPreview({ places = [], height = 220 }: Props) {
     return (
       <View style={[styles.emptyContainer, { height }]}>
         <View style={styles.emptyIconCircle}>
-          <Ionicons name="location-outline" size={24} color="#94A3B8" />
+          <Ionicons name="location-outline" size={22} color="#94A3B8" />
         </View>
         <Text style={styles.emptyTitle}>위치 정보를 불러오지 못했어요</Text>
         {/* description removed */}
@@ -116,22 +116,21 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
-    paddingBottom: 72,
-    transform: [{ translateY: -24 }],
+    paddingBottom: 34,
   },
 
   emptyIconCircle: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     backgroundColor: "#EEF2F7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    marginBottom: 8,
   },
 
   emptyTitle: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
     color: "#334155",
     textAlign: "center",

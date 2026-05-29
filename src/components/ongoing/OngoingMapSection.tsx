@@ -16,11 +16,17 @@ export default function OngoingMapSection({
   mapInteractive = false,
   collapsed = false,
 }: Props) {
+  const hasPlaces = Array.isArray(places) && places.length > 0;
+  const mapHeight =
+    collapsed ? 620
+    : hasPlaces ? 220
+    : 160;
+
   return (
-    <View style={[styles.mapSection, { height: collapsed ? 620 : 220 }]}>
+    <View style={[styles.mapSection, { height: mapHeight }]}>
       <PlanAMapPreview
         places={places}
-        height={collapsed ? 620 : 220}
+        height={mapHeight}
         mapInteractive={mapInteractive}
       />
     </View>

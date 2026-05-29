@@ -55,24 +55,24 @@ export default function PlanADayTabs({
 
 const styles = StyleSheet.create({
   dayTabsWrapper: {
-    marginTop: 18,
-    height: 54,
+    marginTop: 14,
+    height: 50,
   },
 
   dayTabs: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 2,
-    paddingRight: 20,
-    height: 54,
+    gap: 8,
+    paddingHorizontal: 0,
+    paddingRight: 12,
+    height: 50,
   },
 
   dayTab: {
-    minWidth: 92,
-    height: 48,
-    paddingHorizontal: 20,
-    borderRadius: 24,
+    minWidth: 82,
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 22,
     backgroundColor: "#F1F6FF",
     alignItems: "center",
     justifyContent: "center",
@@ -92,7 +92,7 @@ const styles = StyleSheet.create({
 
   dayTabText: {
     color: "#8C9BB1",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "800",
   },
 

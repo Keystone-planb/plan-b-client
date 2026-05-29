@@ -22,10 +22,10 @@ export default function PlanAEmptyPlaceCard({ selectedDay, onPress }: Props) {
         activeOpacity={0.85}
         onPress={onPress}
       >
-        <Text style={styles.emptyPlaceTitle}>장소를 추가해주세요</Text>
+        <Text style={styles.emptyPlaceTitle}>아직 추가된 장소가 없어요</Text>
 
         <Text style={styles.emptyPlaceSubText}>
-          Day {selectedDay}에 방문할 장소를 등록해보세요.
+          Day {selectedDay}에 방문할 장소를 추가해보세요.
         </Text>
       </TouchableOpacity>
     </View>
@@ -36,7 +36,7 @@ const styles = StyleSheet.create({
   timelineRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 14,
+    marginBottom: 10,
   },
 
   timelineLeft: {
@@ -48,7 +48,7 @@ const styles = StyleSheet.create({
   stepBadge: {
     width: 24,
     height: 24,
-    borderRadius: 12,
+    borderRadius: 14,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
@@ -62,14 +62,14 @@ const styles = StyleSheet.create({
 
   shortTimelineLine: {
     width: 2,
-    minHeight: 56,
+    minHeight: 40,
     marginTop: 4,
     backgroundColor: "#DCEBFF",
   },
 
   emptyPlaceCardLarge: {
     flex: 1,
-    minHeight: 86,
+    minHeight: 74,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E1E7EF",
@@ -80,12 +80,12 @@ const styles = StyleSheet.create({
 
   emptyPlaceTitle: {
     color: "#252D3C",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
   },
 
   emptyPlaceSubText: {
-    marginTop: 7,
+    marginTop: 5,
     color: "#8C9BB1",
     fontSize: 12,
     fontWeight: "600",

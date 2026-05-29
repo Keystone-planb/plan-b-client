@@ -228,6 +228,24 @@ const formatDisplayDate = (value: string) => {
   return value.replace(/-/g, ".");
 };
 
+const formatTripDateRange = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) return "";
+
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const end = new Date(endDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}`;
+  }
+
+  const dayCount = Math.max(
+    1,
+    Math.floor((end.getTime() - start.getTime()) / 86400000) + 1,
+  );
+
+  return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일 · ${dayCount}일`;
+};
+
 const normalizeTimeText = (value?: string | null) => {
   const trimmed = value?.trim();
   return trimmed ? trimmed : "";
@@ -1431,8 +1449,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 }
 
                 <Text style={styles.planDate}>
-                  {formatDisplayDate(schedule.startDate)} -{" "}
-                  {formatDisplayDate(schedule.endDate)}
+                  {formatTripDateRange(schedule.startDate, schedule.endDate)}
                 </Text>
 </View>
 
@@ -1490,7 +1507,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
           <PlanAMapPreview
             places={sortPlacesByTime(resolvedMapPlaces)}
-            height={isSheetCollapsed ? 520 : 220}
+            height={
+              isSheetCollapsed ? 520
+              : resolvedMapPlaces.length > 0 ? 220
+              : 150
+            }
             mapInteractive={isSheetCollapsed}
           />
 
