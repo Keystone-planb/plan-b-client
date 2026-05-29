@@ -164,6 +164,29 @@ const formatSelectedDayDateLabel = (
   return `${year}년 ${month}월 ${date}일 (${day})`;
 };
 
+
+const formatTripDateRange = (startDate?: string, endDate?: string) => {
+  if (!startDate || !endDate) {
+    return "";
+  }
+
+  const start = new Date(startDate.replace(/\./g, "-"));
+  const end = new Date(endDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return `${startDate} ~ ${endDate}`;
+  }
+
+  const startYear = start.getFullYear();
+  const startMonth = start.getMonth() + 1;
+  const startDay = start.getDate();
+
+  const endMonth = end.getMonth() + 1;
+  const endDay = end.getDate();
+
+  return `${startYear}년 ${startMonth}월 ${startDay}일 ~ ${endMonth}월 ${endDay}일`;
+};
+
 const normalizeOngoingMemos = (memos?: any[]) => {
   if (!Array.isArray(memos)) return [];
 
@@ -999,7 +1022,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             </Text>
 
             <Text style={localStyles.upcomingSubtitle}>
-              {startDate} - {endDate} · {displayDays.length}일
+              {formatTripDateRange(startDate, endDate)} · {displayDays.length}일
             </Text>
           </View>
         </View>
