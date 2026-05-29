@@ -298,6 +298,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
   const receivedPlacesRef = useRef<RecommendedPlace[]>([]);
   const navigatedRef = useRef(false);
+  const lastActivityAtRef = useRef(Date.now());
 
   const floatValue = useMemo(() => new Animated.Value(0), []);
   const pulseValue = useMemo(() => new Animated.Value(0), []);
@@ -347,6 +348,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const handleRetry = () => {
     receivedPlacesRef.current = [];
     navigatedRef.current = false;
+    lastActivityAtRef.current = Date.now();
 
     setErrorMessage("");
     setStreamMessage("");
@@ -395,6 +397,37 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   }, [progress, errorMessage, retryVersion]);
 
   useEffect(() => {
+    if (
+      errorMessage ||
+      navigatedRef.current ||
+      progress < 94 ||
+      progress >= 100
+    ) {
+      return;
+    }
+
+    const watchdog = setInterval(() => {
+      const idleMs = Date.now() - lastActivityAtRef.current;
+
+      if (idleMs < 20000) {
+        return;
+      }
+
+      console.log("[AIAnalysisLoading] watchdog timeout:", idleMs);
+
+      setProgress(100);
+      setErrorMessage(
+        "추천 결과를 끝까지 불러오지 못했습니다.\n다시 시도해주세요.",
+      );
+    }, 1000);
+
+    return () => {
+      clearInterval(watchdog);
+    };
+  }, [progress, errorMessage, retryVersion]);
+
+
+  useEffect(() => {
     if (errorMessage) return;
 
     let cancelled = false;
@@ -404,6 +437,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         receivedPlacesRef.current = [];
         setReceivedPlaceCount(0);
         navigatedRef.current = false;
+        lastActivityAtRef.current = Date.now();
 
         const storedUserId = await AsyncStorage.getItem("user_id");
         const userId = storedUserId ? toNumberIfNumeric(storedUserId) : 1;
@@ -501,6 +535,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           onProgress: (message) => {
             if (cancelled) return;
 
+            lastActivityAtRef.current = Date.now();
             setStreamMessage(message);
             setProgress((prev) => Math.min(prev + 4, 96));
           },
@@ -508,6 +543,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           onPlace: (place) => {
             if (cancelled) return;
 
+            lastActivityAtRef.current = Date.now();
             receivedPlacesRef.current = [...receivedPlacesRef.current, place];
             setReceivedPlaceCount(receivedPlacesRef.current.length);
             setStreamMessage(
@@ -519,8 +555,17 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           onWarning: (message) => {
             if (cancelled) return;
 
+            lastActivityAtRef.current = Date.now();
+
             console.log("[AIAnalysisLoading] stream warning:", message);
-            setStreamMessage(message);
+            setStreamMessage(
+              message || "조건에 맞는 장소를 찾지 못했습니다.",
+            );
+            setProgress(100);
+            setErrorMessage(
+              message ||
+                "조건에 맞는 장소를 찾지 못했습니다.\n조건을 바꾸거나 다시 시도해주세요.",
+            );
           },
 
           onStreamError: (message) => {
