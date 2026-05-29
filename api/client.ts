@@ -5,7 +5,7 @@ import axios, {
 } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG } from "./config";
-import { requestRefresh } from "./auth/refresh";
+import { runRefreshOnce } from "./auth/refreshLock";
 
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
@@ -48,20 +48,6 @@ const getCachedTrip = async <T>(
   });
 
   return data;
-};
-
-let refreshPromise: Promise<RefreshResponse> | null = null;
-
-const runRefreshOnce = async (refreshToken: string) => {
-  if (!refreshPromise) {
-    refreshPromise = requestRefresh({
-      refresh_token: refreshToken,
-    }).finally(() => {
-      refreshPromise = null;
-    });
-  }
-
-  return refreshPromise;
 };
 
 const apiClient = axios.create({

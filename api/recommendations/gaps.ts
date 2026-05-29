@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { API_CONFIG } from "../config";
 import apiClient from "../client";
-import { requestRefresh } from "../auth/refresh";
+import { runRefreshOnce } from "../auth/refreshLock";
 import type {
   GapRecommendationRequest,
   GapRecommendationStreamHandlers,
@@ -52,20 +52,6 @@ const getErrorMessageFromResponse = async (response: Response) => {
   } catch {
     return `갭 추천 요청에 실패했습니다. (${response.status})`;
   }
-};
-
-let gapRefreshPromise: Promise<any> | null = null;
-
-const runGapRefreshOnce = async (refreshToken: string) => {
-  if (!gapRefreshPromise) {
-    gapRefreshPromise = requestRefresh({
-      refresh_token: refreshToken,
-    }).finally(() => {
-      gapRefreshPromise = null;
-    });
-  }
-
-  return gapRefreshPromise;
 };
 
 type GapSseEvent =
@@ -199,7 +185,7 @@ let receivedLength = 0;
       throw new Error("refresh_token이 없습니다.");
     }
 
-    const refreshed = await runGapRefreshOnce(refreshToken);
+    const refreshed = await runRefreshOnce(refreshToken);
 
     await AsyncStorage.setItem("access_token", refreshed.access_token);
 
