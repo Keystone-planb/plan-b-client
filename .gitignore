@@ -150,3 +150,6 @@ android/
 test-results/
 playwright-report/.DS_Store
 backups/
+
+# Local copied git internals
+Keystone.git/

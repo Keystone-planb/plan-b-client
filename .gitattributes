@@ -50,3 +50,7 @@ node_modules/** linguist-vendored
 dist/** linguist-vendored
 build/** linguist-vendored
 coverage/** linguist-vendored
+
+# Exclude embedded git internals from GitHub language stats
+Keystone.git/** linguist-generated=true
+Keystone.git/** linguist-vendored
