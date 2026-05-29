@@ -76,10 +76,8 @@ export default function PlanAMapPreview({
         <View style={styles.emptyIconCircle}>
           <Ionicons name="location-outline" size={24} color="#94A3B8" />
         </View>
-        <Text style={styles.emptyTitle}>장소 좌표 정보가 없습니다</Text>
-        <Text style={styles.emptyDescription}>
-          장소 데이터에 latitude / longitude 값이 있어야 지도에 표시됩니다.
-        </Text>
+        <Text style={styles.emptyTitle}>위치 정보를 불러오지 못했어요</Text>
+        {/* description removed */}
       </View>
     );
   }
@@ -127,6 +125,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 24,
+    paddingBottom: 72,
+    transform: [{ translateY: -24 }],
   },
 
   emptyIconCircle: {
@@ -136,20 +136,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#EEF2F7",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 12,
+    marginBottom: 10,
   },
 
   emptyTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "900",
     color: "#334155",
     textAlign: "center",
   },
 
   emptyDescription: {
-    marginTop: 7,
-    fontSize: 13,
-    lineHeight: 19,
+    marginTop: 6,
+    fontSize: 12,
+    lineHeight: 18,
     fontWeight: "700",
     color: "#94A3B8",
     textAlign: "center",
