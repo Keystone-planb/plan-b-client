@@ -838,8 +838,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const handleBack = () => {
     Alert.alert(
-      "현재 일정에서 홈으로 이동할까요?",
-      "현재 일정 화면에서 나가 홈으로 이동합니다.",
+      "홈으로 이동할까요?",
+      "현재 화면에서 홈으로 이동합니다.",
       [
         {
           text: "현재 화면에 남기",

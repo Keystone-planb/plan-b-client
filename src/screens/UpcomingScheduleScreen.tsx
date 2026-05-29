@@ -787,16 +787,33 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   }, [isSelectedDayToday, selectedDayIndex, places.length]);
 
   const handleBack = () => {
-    Alert.alert("홈으로 이동할까요?", "", [
-      {
-        text: "취소",
-        style: "cancel",
-      },
-      {
-        text: "홈으로 이동",
-        onPress: () => navigation.navigate("Main"),
-      },
-    ]);
+    Alert.alert(
+      "홈으로 이동할까요?",
+      "현재 화면에서 홈으로 이동합니다.",
+      [
+        {
+          text: "현재 화면에 남기",
+          style: "cancel",
+        },
+        {
+          text: "홈으로 이동",
+          onPress: () => {
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: "Main",
+                  params: {
+                    refreshSchedules: true,
+                    refreshMainAt: Date.now(),
+                  },
+                },
+              ],
+            });
+          },
+        },
+      ],
+    );
   };
 
   const getTimeValueForTarget = (

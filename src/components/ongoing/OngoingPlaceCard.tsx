@@ -35,16 +35,6 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
 ) {
   const [memoExpanded, setMemoExpanded] = useState(false);
 
-  if (__DEV__) {
-    console.log("[OngoingPlaceCard] category debug:", {
-      name: place.name,
-      category: place.category,
-      type: place.type,
-      placeType: place.placeType,
-      rawKeys: Object.keys(place ?? {}),
-    });
-  }
-
   const visibleMemos = Array.isArray(place.memos)
     ? place.memos.map(getMemoText).filter(Boolean)
     : [];
@@ -80,7 +70,11 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
                   />
                 </View>
 
-                <Text style={styles.placeName} numberOfLines={1}>
+                <Text
+                  style={[styles.placeName, localStyles.placeNameWithIcon]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
                   {place.name || "이름 없는 장소"}
                 </Text>
               </View>
@@ -97,13 +91,21 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
               <TouchableOpacity
                 style={[
                   styles.alternativeButton,
+                  localStyles.compactAlternativeButton,
                   !hasServerPlanId && styles.disabledAlternativeButton,
                 ]}
                 activeOpacity={0.85}
                 onPress={() => handleAlternative(place)}
               >
-                <Text style={styles.alternativeButtonText}>대안찾기</Text>
-                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                <Text
+                  style={[
+                    styles.alternativeButtonText,
+                    localStyles.compactAlternativeButtonText,
+                  ]}
+                >
+                  대안찾기
+                </Text>
+                <Ionicons name="chevron-forward" size={13} color="#FFFFFF" />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -202,19 +204,41 @@ const localStyles = StyleSheet.create({
     justifyContent: "space-between",
   },
 
+  compactAlternativeButton: {
+    minWidth: 96,
+    height: 44,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    flexShrink: 0,
+  },
+
+  compactAlternativeButtonText: {
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+
+  placeNameWithIcon: {
+    flex: 1,
+    flexShrink: 1,
+    minWidth: 0,
+    lineHeight: 24,
+    fontSize: 17,
+  },
+
   placeNameRow: {
     flex: 1,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 7,
     minWidth: 0,
-    paddingRight: 10,
+    paddingRight: 8,
   },
 
   categoryIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#F1F7FF",
     alignItems: "center",
     justifyContent: "center",
@@ -222,8 +246,8 @@ const localStyles = StyleSheet.create({
   },
 
   categoryIcon: {
-    width: 30,
-    height: 30,
+    width: 27,
+    height: 27,
   },
 
   memoArea: {
