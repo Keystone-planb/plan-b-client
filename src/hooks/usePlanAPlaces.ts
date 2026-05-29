@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import {
@@ -941,6 +942,51 @@ export function usePlanAPlaces({
             });
 
             if (serverSchedule) {
+
+              const transportModeMap = new Map();
+
+              fallbackSchedule.days.forEach((day) => {
+                day.places.forEach((place) => {
+                  const key =
+                    String(
+                      place.serverTripPlaceId ??
+                      place.tripPlaceId ??
+                      place.placeId ??
+                      place.id,
+                    );
+
+                  const transportMode =
+                    (place as any).transportMode;
+
+                  if (transportMode) {
+                    transportModeMap.set(key, transportMode);
+                  }
+                });
+              });
+
+              serverSchedule.days = serverSchedule.days.map((day) => ({
+                ...day,
+                places: day.places.map((place) => {
+                  const key =
+                    String(
+                      place.serverTripPlaceId ??
+                      place.tripPlaceId ??
+                      place.placeId ??
+                      place.id,
+                    );
+
+                  const preservedTransportMode =
+                    transportModeMap.get(key);
+
+                  return preservedTransportMode ?
+                    {
+                      ...place,
+                      transportMode: preservedTransportMode,
+                    }
+                  : place;
+                }),
+              }));
+
               console.log("[PlanA hook 서버 상세 우선 적용]", {
                 scheduleId: serverSchedule.id,
                 serverTripId: serverSchedule.serverTripId,
@@ -1152,6 +1198,30 @@ export function usePlanAPlaces({
     const nextVisitTime = normalizeNullableTime(visitTime);
     const nextEndTime = normalizeNullableTime(endTime);
     const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
+
+    const parseHHmmToMinutes = (value?: string | null) => {
+      if (!value) return null;
+
+      const match = value.match(/^(\d{2}):(\d{2})$/);
+      if (!match) return null;
+
+      return Number(match[1]) * 60 + Number(match[2]);
+    };
+
+    const visitMinutes = parseHHmmToMinutes(nextVisitTime);
+    const endMinutes = parseHHmmToMinutes(nextEndTime);
+
+    if (
+      visitMinutes !== null &&
+      endMinutes !== null &&
+      visitMinutes >= endMinutes
+    ) {
+      Alert.alert(
+        "시간 설정 확인",
+        "종료 시간은 시작 시간보다 늦어야 합니다.",
+      );
+      return;
+    }
 
     const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
       places.map((place) =>
@@ -1593,6 +1663,30 @@ export function usePlanAPlaces({
     const nextVisitTime = normalizeNullableTime(editingPlaceVisitTime);
     const nextEndTime = normalizeNullableTime(editingPlaceEndTime);
     const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
+
+    const parseHHmmToMinutes = (value?: string | null) => {
+      if (!value) return null;
+
+      const match = value.match(/^(\d{2}):(\d{2})$/);
+      if (!match) return null;
+
+      return Number(match[1]) * 60 + Number(match[2]);
+    };
+
+    const visitMinutes = parseHHmmToMinutes(nextVisitTime);
+    const endMinutes = parseHHmmToMinutes(nextEndTime);
+
+    if (
+      visitMinutes !== null &&
+      endMinutes !== null &&
+      visitMinutes >= endMinutes
+    ) {
+      Alert.alert(
+        "시간 설정 확인",
+        "종료 시간은 시작 시간보다 늦어야 합니다.",
+      );
+      return;
+    }
 
     if (!editingPlaceId || !trimmedName) return;
 

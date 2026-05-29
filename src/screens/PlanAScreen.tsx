@@ -320,6 +320,36 @@ const formatPickerTimeValue = (
   )} ${period}`;
 };
 
+const parseTimeToMinutes = (value?: string | null) => {
+  const normalized = String(value ?? "").trim();
+  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2]);
+  const period = match[3]?.toUpperCase();
+
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+
+  if (period === "PM" && hour < 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+};
+
+const isValidVisitTimeRange = (
+  visitTime?: string | null,
+  endTime?: string | null,
+) => {
+  const visitMinutes = parseTimeToMinutes(visitTime);
+  const endMinutes = parseTimeToMinutes(endTime);
+
+  if (visitMinutes === null || endMinutes === null) return true;
+
+  return visitMinutes < endMinutes;
+};
+
 const addOneHourToDisplayTime = (value: string) => {
   const parsed = parsePickerTimeValue(value);
 
@@ -810,7 +840,19 @@ export default function PlanAScreen({ navigation, route }: Props) {
         const planId = getPlacePlanId(place);
         if (!planId) return;
 
+        console.log("[PlanA 이동수단 저장 요청]", {
+          planId,
+          transportMode,
+          from: place.name,
+          to: nextPlace.name,
+        });
+
         await updatePlanSchedule(planId, { transportMode });
+
+        console.log("[PlanA 이동수단 저장 성공]", {
+          planId,
+          transportMode,
+        });
       }),
     );
   };
@@ -906,8 +948,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
           startDate: savedSchedule.startDate,
           endDate: savedSchedule.endDate,
           location: savedSchedule.location,
-          transportMode: route?.params?.transportMode,
-          transportLabel: route?.params?.transportLabel,
+          transportMode,
+          transportLabel,
           selectedDay: selectedDay,
           refreshPlanAAt: Date.now(),
         });
@@ -1115,6 +1157,14 @@ export default function PlanAScreen({ navigation, route }: Props) {
       : currentEndTime ? currentEndTime
       : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
       : currentEndTime;
+
+    if (!isValidVisitTimeRange(nextVisitTime, nextEndTime)) {
+      Alert.alert(
+        "시간 설정 확인",
+        "종료 시간은 시작 시간보다 늦어야 합니다.",
+      );
+      return;
+    }
 
     handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
     closeTimePicker();
