@@ -28,6 +28,7 @@ import {
   savePlanASchedule,
 } from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
+import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
@@ -398,8 +399,6 @@ export default function RecommendationResultScreen({
       if (!params.placesJson) return [];
 
       const parsed = JSON.parse(params.placesJson);
-
-      console.log("[RecommendationResult] parsed alternatives:", parsed);
 
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
@@ -944,7 +943,12 @@ export default function RecommendationResultScreen({
                 >
                   <View style={styles.placeTopRow}>
                     <View style={styles.thumbnailCircle}>
-                      <Text style={styles.thumbnailEmoji}>🎡</Text>
+                      <Image
+                        source={getPlaceCategoryIcon(
+                          place.category ?? place.type,
+                        )}
+                        style={styles.categoryImageIcon}
+                      />
                     </View>
 
                     <View style={styles.placeMainInfo}>
@@ -1126,6 +1130,12 @@ export default function RecommendationResultScreen({
 }
 
 const styles = StyleSheet.create({
+  categoryImageIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+  },
+
   safeArea: {
     flex: 1,
     backgroundColor: "#F5F7FA",
