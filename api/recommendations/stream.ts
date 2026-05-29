@@ -11,6 +11,8 @@ import type {
 type StreamHandlers = {
   onProgress?: (message: string, total?: number) => void;
   onPlace?: (place: RecommendedPlace) => void;
+  onWarning?: (message: string, code?: string) => void;
+  onStreamError?: (message: string, code?: string) => void;
   onDone?: () => void;
   onError?: (error: unknown) => void;
 };
@@ -107,6 +109,22 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
       };
     }
 
+    if (inferredEventName === "warning") {
+      return {
+        type: "warning",
+        message: parsed.message ?? "조건에 맞는 장소를 찾지 못했습니다.",
+        code: parsed.code,
+      };
+    }
+
+    if (inferredEventName === "error") {
+      return {
+        type: "error",
+        message: parsed.message ?? "서버 오류가 발생했습니다.",
+        code: parsed.code,
+      };
+    }
+
     if (inferredEventName === "done") {
       return { type: "done" };
     }
@@ -133,6 +151,14 @@ const createSafeHandlers = (handlers: StreamHandlers) => {
     onPlace: (place) => {
       receivedPlaceCount += 1;
       handlers.onPlace?.(place);
+    },
+
+    onWarning: (message, code) => {
+      handlers.onWarning?.(message, code);
+    },
+
+    onStreamError: (message, code) => {
+      handlers.onStreamError?.(message, code);
     },
 
     onDone: () => {
@@ -171,6 +197,16 @@ const dispatchStreamEvent = (
 
   if (event.type === "place") {
     handlers.onPlace?.(event.place);
+    return false;
+  }
+
+  if (event.type === "warning") {
+    handlers.onWarning?.(event.message, event.code);
+    return false;
+  }
+
+  if (event.type === "error") {
+    handlers.onStreamError?.(event.message, event.code);
     return false;
   }
 
@@ -235,14 +271,7 @@ const streamRecommendationsWithFetch = async ({
     },
     body: JSON.stringify(payload),
   });
-
-  console.log("[recommendations/stream] fetch response:", {
-    status: response.status,
-    ok: response.ok,
-    hasBody: Boolean(response.body),
-  });
-
-  if (!response.ok) {
+if (!response.ok) {
     const errorText = await response.text().catch(() => "");
     throw new Error(`추천 스트리밍 요청 실패: ${response.status} ${errorText}`);
   }
@@ -286,7 +315,6 @@ const streamRecommendationsWithFetch = async ({
       const text = decoder.decode(value, { stream: true });
       receivedText += text;
 
-      console.log("[recommendations/stream] fetch chunk:", text);
 
       const result = consumeSseText(text, buffer, safe.handlers);
 
@@ -397,12 +425,7 @@ const streamRecommendationsWithXHR = ({
 
     xhr.onreadystatechange = () => {
       if (xhr.readyState === XMLHttpRequest.HEADERS_RECEIVED) {
-        console.log("[recommendations/stream] xhr headers received:", {
-          status: xhr.status,
-          url,
-        });
-
-        if (xhr.status < 200 || xhr.status >= 300) {
+if (xhr.status < 200 || xhr.status >= 300) {
           failOnce(
             new Error(
               `추천 스트리밍 요청 실패: ${xhr.status} ${xhr.responseText}`,
@@ -413,15 +436,7 @@ const streamRecommendationsWithXHR = ({
 
       if (xhr.readyState === XMLHttpRequest.DONE) {
         const responseText = xhr.responseText ?? "";
-
-        console.log("[recommendations/stream] xhr done:", {
-          status: xhr.status,
-          responseLength: responseText.length,
-          receivedPlaceCount: safe.getReceivedPlaceCount(),
-          remainingBuffer: buffer,
-        });
-
-        if (xhr.status === 0) {
+if (xhr.status === 0) {
           if (safe.getReceivedPlaceCount() > 0 || safe.getDoneDispatched()) {
             finishOnce(true);
             return;
@@ -474,13 +489,7 @@ const streamRecommendationsWithXHR = ({
       lastIndex = responseText.length;
 
       if (!chunk) return;
-
-      console.log("[recommendations/stream] xhr chunk:", {
-        chunk,
-        responseLength: responseText.length,
-      });
-
-      const result = consumeSseText(chunk, buffer, safe.handlers);
+const result = consumeSseText(chunk, buffer, safe.handlers);
 
       buffer = result.buffer;
 
@@ -507,15 +516,7 @@ const streamRecommendationsWithXHR = ({
         failOnce(new Error("추천 스트리밍 요청이 중단되었습니다."));
       }
     };
-
-    console.log("[recommendations/stream] xhr request:", {
-      url,
-      payload,
-      hasAccessToken: Boolean(accessToken),
-      platform: Platform.OS,
-    });
-
-    xhr.send(JSON.stringify(payload));
+xhr.send(JSON.stringify(payload));
   });
 };
 
@@ -531,16 +532,7 @@ export const streamRecommendations = async (
     if (!accessToken) {
       throw new Error("access_token이 없습니다.");
     }
-
-    console.log("[recommendations/stream] request:", {
-      url,
-      platform: Platform.OS,
-      payload,
-      payloadJson: JSON.stringify(payload),
-      hasAccessToken: Boolean(accessToken),
-    });
-
-    if (Platform.OS === "web") {
+if (Platform.OS === "web") {
       try {
         await streamRecommendationsWithFetch({
           url,
@@ -557,7 +549,6 @@ export const streamRecommendations = async (
           throw fetchError;
         }
 
-        console.log("[recommendations/stream] retry with XHR on web");
 
         await streamRecommendationsWithXHR({
           url,

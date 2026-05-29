@@ -1,4 +1,4 @@
-export type RecommendationStreamEventType = "progress" | "place" | "done";
+export type RecommendationStreamEventType = "progress" | "place" | "warning" | "error" | "done";
 
 export type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -61,6 +61,18 @@ export type RecommendationPlaceEvent = {
   place: RecommendedPlace;
 };
 
+export type RecommendationWarningEvent = {
+  type: "warning";
+  message: string;
+  code?: string;
+};
+
+export type RecommendationErrorEvent = {
+  type: "error";
+  message: string;
+  code?: string;
+};
+
 export type RecommendationDoneEvent = {
   type: "done";
 };
@@ -68,6 +80,8 @@ export type RecommendationDoneEvent = {
 export type RecommendationStreamEvent =
   | RecommendationProgressEvent
   | RecommendationPlaceEvent
+  | RecommendationWarningEvent
+  | RecommendationErrorEvent
   | RecommendationDoneEvent;
 
 /**

@@ -269,13 +269,7 @@ const fetchPlaceDetailForRecommendation = async (
 
   try {
     const placeDetail = await getAnalyzedPlaceDetail(String(googlePlaceId));
-
-    console.log("[AIAnalysisLoading] place detail response:", {
-      ok: true,
-      googlePlaceId,
-    });
-
-    return placeDetail as PlaceDetailForRecommendation;
+return placeDetail as PlaceDetailForRecommendation;
   } catch (error) {
     console.log("[AIAnalysisLoading] place detail request failed:", error);
     return null;
@@ -391,19 +385,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         const resolvedCurrentPlanId =
           targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
 
-        console.log("[DEBUG] targetPlace:", targetPlace);
         const debugParams = params as Record<string, unknown>;
-
-        console.log("[AIAnalysisLoading] params summary:", {
-          source: debugParams.source,
-          hasNotificationId: Boolean(debugParams.notificationId),
-          hasTripId: Boolean(debugParams.tripId ?? debugParams.serverTripId),
-          hasTripPlaceId: Boolean(
-            debugParams.tripPlaceId ?? debugParams.serverTripPlaceId,
-          ),
-          hasTargetPlace: Boolean(debugParams.targetPlace),
-        });
-        console.log("[DEBUG] resolvedCurrentPlanId:", resolvedCurrentPlanId);
 
         const resolvedGooglePlaceId =
           targetPlace?.googlePlaceId ??
@@ -465,21 +447,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
             "추천 요청에 필요한 장소 좌표를 가져오지 못했습니다. 장소 상세 API 응답 또는 장소 저장 좌표를 확인해주세요.",
           );
         }
-
-        console.log("[AIAnalysisLoading] stream payload:", {
-          tripId: payload.tripId,
-          currentPlanId: payload.currentPlanId,
-          transportMode: payload.transportMode,
-          selectedType: (payload as any).selectedType,
-          selectedSpace: (payload as any).selectedSpace,
-          radiusMinute: payload.radiusMinute,
-          hasCurrentLat:
-            payload.currentLat !== undefined && payload.currentLat !== null,
-          hasCurrentLng:
-            payload.currentLng !== undefined && payload.currentLng !== null,
-        });
-
-        if (!payload.currentPlanId) {
+if (!payload.currentPlanId) {
           throw new Error(
             "추천 요청에 필요한 currentPlanId가 없습니다. 서버 tripPlaceId 전달을 확인해주세요.",
           );
@@ -493,21 +461,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
             "추천 요청에 필요한 currentLat/currentLng가 없습니다. 장소 상세 API 좌표 응답을 확인해주세요.",
           );
         }
-
-        console.log("[AIAnalysisLoading] final stream payload:", {
-          tripId: payload.tripId,
-          currentPlanId: payload.currentPlanId,
-          transportMode: payload.transportMode,
-          selectedType: (payload as any).selectedType,
-          selectedSpace: (payload as any).selectedSpace,
-          radiusMinute: payload.radiusMinute,
-          hasCurrentLat:
-            payload.currentLat !== undefined && payload.currentLat !== null,
-          hasCurrentLng:
-            payload.currentLng !== undefined && payload.currentLng !== null,
-        });
-
-        await streamRecommendations(payload, {
+await streamRecommendations(payload, {
           onProgress: (message) => {
             if (cancelled) return;
 
@@ -518,25 +472,33 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           onPlace: (place) => {
             if (cancelled) return;
 
-            console.log("[AIAnalysisLoading] stream place:", place);
-
             receivedPlacesRef.current = [...receivedPlacesRef.current, place];
             setProgress((prev) => Math.min(prev + 8, 98));
+          },
+
+          onWarning: (message) => {
+            if (cancelled) return;
+
+            console.log("[AIAnalysisLoading] stream warning:", message);
+            setStreamMessage(message);
+          },
+
+          onStreamError: (message) => {
+            if (cancelled) return;
+
+            console.log("[AIAnalysisLoading] stream server error:", message);
+            setProgress(100);
+            setErrorMessage(message || "서버 오류가 발생했습니다. 다시 시도해주세요.");
           },
 
           onDone: () => {
             if (cancelled) return;
 
             const receivedPlaces = receivedPlacesRef.current;
-
-            console.log("[AIAnalysisLoading] stream done:", {
-              receivedCount: receivedPlaces.length,
-            });
-
-            if (receivedPlaces.length === 0) {
+if (receivedPlaces.length === 0) {
               setProgress(100);
               setErrorMessage(
-                "추천 스트림은 완료됐지만 서버에서 추천 장소가 내려오지 않았습니다.",
+                streamMessage || "조건에 맞는 장소를 찾지 못했습니다. 조건을 바꾸거나 다시 시도해주세요.",
               );
               return;
             }
