@@ -1,6 +1,7 @@
 import React, { forwardRef, useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity } from "react-native";
+import { Image, StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { getPlaceCategoryIcon } from "../../utils/placeCategoryIcon";
 
 type Props = {
   place: any;
@@ -34,6 +35,16 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
 ) {
   const [memoExpanded, setMemoExpanded] = useState(false);
 
+  if (__DEV__) {
+    console.log("[OngoingPlaceCard] category debug:", {
+      name: place.name,
+      category: place.category,
+      type: place.type,
+      placeType: place.placeType,
+      rawKeys: Object.keys(place ?? {}),
+    });
+  }
+
   const visibleMemos = Array.isArray(place.memos)
     ? place.memos.map(getMemoText).filter(Boolean)
     : [];
@@ -58,9 +69,21 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
         <View style={localStyles.contentArea}>
           <View style={localStyles.topContentRow}>
             <View style={styles.placeInfo}>
-              <Text style={styles.placeName} numberOfLines={1}>
-                {place.name || "이름 없는 장소"}
-              </Text>
+              <View style={localStyles.placeNameRow}>
+                <View style={localStyles.categoryIconBox}>
+                  <Image
+                    source={getPlaceCategoryIcon(
+                      place.category ?? place.type ?? place.placeType,
+                    )}
+                    style={localStyles.categoryIcon}
+                    resizeMode="contain"
+                  />
+                </View>
+
+                <Text style={styles.placeName} numberOfLines={1}>
+                  {place.name || "이름 없는 장소"}
+                </Text>
+              </View>
 
               <View style={styles.timeRow}>
                 <Ionicons name="time-outline" size={15} color="#94A3B8" />
@@ -177,6 +200,30 @@ const localStyles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+  },
+
+  placeNameRow: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 0,
+    paddingRight: 10,
+  },
+
+  categoryIconBox: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: "#F1F7FF",
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+  },
+
+  categoryIcon: {
+    width: 30,
+    height: 30,
   },
 
   memoArea: {
