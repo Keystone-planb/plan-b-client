@@ -117,8 +117,8 @@ const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
 };
 
 const INITIAL_REGION = {
-  latitude: 37.7519,
-  longitude: 128.8761,
+  latitude: 37.5665,
+  longitude: 126.978,
   latitudeDelta: 0.014,
   longitudeDelta: 0.014,
 };
@@ -132,7 +132,7 @@ const MOCK_LIKE_SUMMARY_PATTERNS = [
   "오후 방문을 추천합니다",
 ];
 
-const REVIEW_TEXT_MAX_LENGTH = 120;
+const REVIEW_TEXT_MAX_LENGTH = 80;
 
 const getReviewPlaceKey = (place: PlaceSearchResult) => {
   return String(place.googlePlaceId ?? place.placeId);
@@ -359,15 +359,58 @@ const isMockLikeSummary = (summary: string) => {
   );
 };
 
-const createKeywordsFromReviews = (_reviews: ReviewItem[]) => {
-  // 장소 상세 태그는 서버 detail.tags.space/type/mood만 사용한다.
-  // 리뷰 기반 키워드 fallback은 목값처럼 보일 수 있어 사용하지 않는다.
-  return [];
+const createKeywordsFromReviews = (reviews: ReviewItem[]) => {
+  const text = reviews.map((review) => review.text ?? "").join(" ");
+
+  const keywords = new Set<string>();
+
+  if (/야구|경기장|관람/.test(text)) {
+    keywords.add("야구장");
+    keywords.add("스포츠");
+    keywords.add("관람");
+  }
+
+  if (/먹거리|음식|식당|쉐이크|커피/.test(text)) {
+    keywords.add("먹거리");
+  }
+
+  if (/가족|아이|어린이/.test(text)) {
+    keywords.add("가족");
+  }
+
+  if (/깔끔|쾌적|시설/.test(text)) {
+    keywords.add("시설");
+  }
+
+  return Array.from(keywords).slice(0, 5);
 };
 
-const createReviewSummaryFromReviews = (_reviews: ReviewItem[]) => {
-  // 서버 AI 요약이 없을 때 플랫폼별 리뷰를 가공해 AI 요약처럼 보이지 않게 한다.
-  return "";
+const createReviewSummaryFromReviews = (reviews: ReviewItem[]) => {
+  if (reviews.length === 0) {
+    return "";
+  }
+
+  const text = reviews.map((review) => review.text ?? "").join(" ");
+
+  const summaries: string[] = [];
+
+  if (/깔끔|쾌적|시설/.test(text)) {
+    summaries.push(
+      "방문객들은 시설이 깔끔하고 관람 환경이 쾌적하다고 평가했습니다.",
+    );
+  }
+
+  if (/먹거리|음식|쉐이크|커피/.test(text)) {
+    summaries.push("먹거리와 편의시설 선택지가 다양하다는 의견이 많았습니다.");
+  }
+
+  if (/야구|경기장|관람/.test(text)) {
+    summaries.push(
+      "경기 시야와 관람 만족도가 높다는 리뷰가 다수 확인되었습니다.",
+    );
+  }
+
+  return summaries.slice(0, 2).join(" ");
 };
 
 const getSpaceLabel = (value?: string) => {
@@ -449,10 +492,46 @@ const isUsefulReviewText = (value: unknown) => {
   const normalized = value.trim();
 
   if (!normalized) return false;
-  if (normalized.includes("데이터 부족")) return false;
-  if (normalized.includes("아직 분석 데이터가 없습니다")) return false;
 
-  return true;
+  const uselessPatterns = [
+    "데이터 부족",
+    "분석 불가",
+    "분석된 리뷰 정보가 없습니다",
+    "아직 분석 데이터가 없습니다",
+    "정보가 없습니다",
+    "제공하지 않았습니다",
+  ];
+
+  return !uselessPatterns.some((pattern) => normalized.includes(pattern));
+};
+
+const getServerReviewTexts = (reviews: unknown, limit = 2) => {
+  if (!Array.isArray(reviews)) return [];
+
+  return reviews
+    .map((review) => {
+      if (!review || typeof review !== "object") return "";
+
+      const target = review as Record<string, unknown>;
+      const text =
+        target.text ??
+        target.content ??
+        target.comment ??
+        target.review ??
+        target.description;
+
+      return typeof text === "string" ? text.trim() : "";
+    })
+    .filter((text) => text.length > 0)
+    .slice(0, limit);
+};
+
+const formatServerReviewTexts = (reviews: unknown) => {
+  const texts = getServerReviewTexts(reviews);
+
+  if (texts.length === 0) return "";
+
+  return texts.join("\n\n");
 };
 
 const hasUsefulReviewPayload = (payload: unknown) => {
@@ -490,6 +569,7 @@ const isAnalysisStatusCompleted = (payload: unknown) => {
   ).toUpperCase();
 
   return (
+    status === "COMPLETE" ||
     status === "COMPLETED" ||
     status === "DONE" ||
     status === "SUCCESS" ||
@@ -665,9 +745,10 @@ export default function AddScheduleLocationScreen({
     try {
       setDetailLoadingPlaceId(placeId);
 
-      const detail = hasSearchCoordinate
-        ? null
-        : await getAnalyzedPlaceDetail(googlePlaceId);
+      const detail =
+        hasSearchCoordinate ? null : (
+          await getAnalyzedPlaceDetail(googlePlaceId)
+        );
 
       const nextPlace: SelectedPlace = {
         placeId,
@@ -768,8 +849,8 @@ export default function AddScheduleLocationScreen({
     const detailLoadingStartedAt = Date.now();
 
     // 폴링 설정: 백엔드 OpenAI 분석은 보통 5~30초 걸림
-    const MAX_POLL_ATTEMPTS = 20;
-    const POLL_INTERVAL_MS = 5000;
+    const MAX_POLL_ATTEMPTS = 6;
+    const POLL_INTERVAL_MS = 2000;
 
     try {
       setReviewLoadingPlaceId(placeKey);
@@ -812,7 +893,7 @@ export default function AddScheduleLocationScreen({
 
         // AI 분석 완료 판정: 백엔드 status가 COMPLETED 이거나,
         // detail에 space/type/mood 태그가 들어있고 AI summary 같은 리뷰 텍스트가 채워졌을 때.
-        if (statusCompleted || (hasTags && hasUsefulReview)) {
+        if (statusCompleted || hasTags || hasUsefulReview) {
           analysisCompleted = true;
           break;
         }
@@ -845,6 +926,16 @@ export default function AddScheduleLocationScreen({
           : [],
       });
 
+      console.log(
+        "[AddScheduleLocation] detail full json:",
+        JSON.stringify(detail, null, 2),
+      );
+
+      console.log(
+        "[AddScheduleLocation] summary full json:",
+        JSON.stringify(summary, null, 2),
+      );
+
       // 분석이 끝나지 않았으면 모달을 띄우지 않는다.
       if (!analysisCompleted) {
         const elapsed = Date.now() - detailLoadingStartedAt;
@@ -859,20 +950,20 @@ export default function AddScheduleLocationScreen({
         return;
       }
 
-      setPlaceReviewMap((prev) => ({
-        ...prev,
-        [placeKey]: {
-          detail,
-          summary,
-          freshness,
-        },
-      }));
+      setPlaceReviewMap((prev) => {
+        const next = {
+          ...prev,
+          [placeKey]: {
+            detail,
+            summary,
+            freshness,
+          },
+        };
 
-      const elapsed = Date.now() - detailLoadingStartedAt;
-      if (elapsed < 1000) {
-        await wait(1000 - elapsed);
-      }
+        return next;
+      });
 
+      setReviewLoadingPlaceId(null);
       setExpandedPlaceId(placeKey);
     } catch (error) {
       console.log("장소 상세 정보 조회 실패:", error);
@@ -1185,27 +1276,33 @@ export default function AddScheduleLocationScreen({
         platform: "Google",
         logoType: "google",
         text:
-          googleAiReviewText ||
-          googleRawReviewText ||
-          "아직 분석 데이터가 없습니다.",
+          (isUsefulReviewText(googleAiReviewText) ? googleAiReviewText : (
+            googleRawReviewText
+          )) || "리뷰 정보가 없습니다.",
       },
       {
         id: "naverReview",
         platform: "Naver",
         logoType: "naver",
-        text:
-          getPlatformReviewText([
+        text: (() => {
+          const naverReviewText = getPlatformReviewText([
             "naverReview",
             "data.naverReview",
             "result.naverReview",
             "payload.naverReview",
-          ]) || "아직 분석 데이터가 없습니다.",
-      },
+          ]);
 
+          return isUsefulReviewText(naverReviewText) ?
+              truncateText(naverReviewText, REVIEW_TEXT_MAX_LENGTH)
+            : "Naver 리뷰 분석 중입니다.";
+        })(),
+      },
     ];
   }, [detailModalDetail, detailModalRawGoogleReviews, detailModalSummary]);
 
-  const reviewBasedSummary = "";
+  const reviewBasedSummary = createReviewSummaryFromReviews(
+    detailModalRawGoogleReviews,
+  );
 
   const rawDetailReviewSummary = getFirstText(detailModalDetail, [
     "reviewSummary",
@@ -1215,13 +1312,26 @@ export default function AddScheduleLocationScreen({
   ]);
 
   const detailModalAiSummary =
-    rawAiSummary.trim() ||
-    rawDetailReviewSummary.trim() ||
-    "아직 분석 데이터가 없습니다.";
+    ((
+      rawAiSummary.includes("분석된 리뷰 정보가 없습니다") ||
+      rawAiSummary.includes("데이터 부족") ||
+      isMockLikeSummary(rawAiSummary)
+    ) ?
+      ""
+    : rawAiSummary.trim()) ||
+    ((
+      rawDetailReviewSummary.includes("분석된 리뷰 정보가 없습니다") ||
+      rawDetailReviewSummary.includes("데이터 부족") ||
+      isMockLikeSummary(rawDetailReviewSummary)
+    ) ?
+      ""
+    : rawDetailReviewSummary.trim()) ||
+    reviewBasedSummary ||
+    "리뷰 정보가 없습니다.";
 
   const detailModalKeywords = useMemo(() => {
-    return [];
-  }, []);
+    return createKeywordsFromReviews(detailModalRawGoogleReviews);
+  }, [detailModalRawGoogleReviews]);
 
   const detailModalFreshnessStatus = getFirstText(detailModalFreshness, [
     "status",
@@ -1333,7 +1443,7 @@ export default function AddScheduleLocationScreen({
   const detailRaw = detailModalDetail as any;
   const summaryRaw = detailModalSummary as any;
 
-  const detailTags = [
+  const serverDetailTags = [
     getSpaceLabel(
       detailRaw?.tags?.space ??
         detailRaw?.data?.tags?.space ??
@@ -1379,6 +1489,9 @@ export default function AddScheduleLocationScreen({
         summaryRaw?.placeMood,
     ),
   ].filter(Boolean);
+
+  const detailTags =
+    detailModalKeywords.length > 0 ? detailModalKeywords : serverDetailTags;
 
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||
@@ -1480,7 +1593,9 @@ export default function AddScheduleLocationScreen({
               (item) => item.placeId === placeId,
             );
             const isDetailLoading = detailLoadingPlaceId === placeId;
-            const isReviewLoading = reviewLoadingPlaceId === reviewPlaceKey;
+            const isReviewLoading =
+              reviewLoadingPlaceId === reviewPlaceKey &&
+              expandedPlaceId !== reviewPlaceKey;
 
             return (
               <View
@@ -1650,7 +1765,10 @@ export default function AddScheduleLocationScreen({
                 </View>
               </View>
 
-              {reviewLoadingPlaceId === detailModalPlaceId ?
+              {(
+                reviewLoadingPlaceId === detailModalPlaceId &&
+                !detailModalReviewInfo
+              ) ?
                 <View style={styles.detailLoadingBox}>
                   <ActivityIndicator size="large" color="#2158E8" />
                   <Text style={styles.detailLoadingText}>
@@ -1726,7 +1844,7 @@ export default function AddScheduleLocationScreen({
                           플랫폼별 리뷰
                         </Text>
                         <Text style={styles.reviewSectionSubtitle}>
-                          Google · Naver · Instagram
+                          Google · Naver
                         </Text>
                       </View>
 
@@ -1745,7 +1863,7 @@ export default function AddScheduleLocationScreen({
                               </View>
 
                               <Text style={styles.platformText}>
-                                {truncateText(review.text)}
+                                {truncateText(review.text, REVIEW_TEXT_MAX_LENGTH)}
                               </Text>
                             </View>
                           </View>

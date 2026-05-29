@@ -284,6 +284,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const [activeDotIndex, setActiveDotIndex] = useState(0);
   const [dotDirection, setDotDirection] = useState<1 | -1>(1);
   const [streamMessage, setStreamMessage] = useState("");
+  const [receivedPlaceCount, setReceivedPlaceCount] = useState(0);
   const [errorMessage, setErrorMessage] = useState("");
   const [retryVersion, setRetryVersion] = useState(0);
 
@@ -340,6 +341,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
     setErrorMessage("");
     setStreamMessage("");
+    setReceivedPlaceCount(0);
     setProgress(2);
     setDisplayStepIndex(0);
     setRetryVersion((prev) => prev + 1);
@@ -392,6 +394,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     const runRecommendationStream = async () => {
       try {
         receivedPlacesRef.current = [];
+        setReceivedPlaceCount(0);
         navigatedRef.current = false;
 
         const storedUserId = await AsyncStorage.getItem("user_id");
@@ -491,6 +494,10 @@ await streamRecommendations(payload, {
             if (cancelled) return;
 
             receivedPlacesRef.current = [...receivedPlacesRef.current, place];
+            setReceivedPlaceCount(receivedPlacesRef.current.length);
+            setStreamMessage(
+              `${receivedPlacesRef.current.length}개의 추천 후보를 찾았어요`,
+            );
             setProgress((prev) => Math.min(prev + 8, 98));
           },
 
@@ -674,6 +681,11 @@ if (receivedPlaces.length === 0) {
     };
   }, [floatValue, pulseValue]);
 
+  const placeCountText =
+    receivedPlaceCount > 0 ?
+      `현재 ${receivedPlaceCount}개의 추천 후보를 분석했어요`
+    : "";
+
   const descriptionText =
     errorMessage || streamMessage || currentStep.description;
 
@@ -724,6 +736,10 @@ if (receivedPlaces.length === 0) {
           >
             {descriptionText}
           </Text>
+
+          {!errorMessage && placeCountText ? (
+            <Text style={styles.placeCountText}>{placeCountText}</Text>
+          ) : null}
 
           {errorMessage ?
             <View style={styles.errorButtonRow}>
@@ -869,6 +885,14 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 13,
   },
+  placeCountText: {
+    marginTop: 8,
+    color: "#2563EB",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center",
+  },
+
   description: {
     color: "#8A9BB2",
     fontSize: 12,

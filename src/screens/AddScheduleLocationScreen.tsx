@@ -528,7 +528,7 @@ export default function AddScheduleLocationScreen({
       );
     };
 
-    const MAX_POLL_ATTEMPTS = 20;
+    const MAX_POLL_ATTEMPTS = 6;
     const POLL_INTERVAL_MS = 2000;
     const detailLoadingStartedAt = Date.now();
 
