@@ -140,6 +140,30 @@ const getTripDayCount = (startDate?: string, endDate?: string) => {
   return Math.max(diffDays, 1);
 };
 
+const formatSelectedDayDateLabel = (
+  startDate?: string,
+  selectedDayIndex = 0,
+) => {
+  if (!startDate) return "";
+
+  const parsedStartDate = new Date(startDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(parsedStartDate.getTime())) {
+    return "";
+  }
+
+  const selectedDate = new Date(parsedStartDate);
+  selectedDate.setDate(parsedStartDate.getDate() + selectedDayIndex);
+
+  const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth() + 1;
+  const date = selectedDate.getDate();
+  const day = weekDays[selectedDate.getDay()];
+
+  return `${year}년 ${month}월 ${date}일 (${day})`;
+};
+
 const normalizeOngoingMemos = (memos?: any[]) => {
   if (!Array.isArray(memos)) return [];
 
@@ -745,6 +769,12 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const canEditSchedule = Boolean(resolvedTripId ?? scheduleId);
 
+  const selectedDayNumber = selectedDayIndex + 1;
+  const selectedDayDateLabel = formatSelectedDayDateLabel(
+    startDate,
+    selectedDayIndex,
+  );
+
   useEffect(() => {
     if (!isSelectedDayToday) return;
     if (hasAutoScrolledRef.current) return;
@@ -1015,9 +1045,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
             </TouchableOpacity>
 
             <View style={styles.todayHeader}>
-              <Text style={styles.todayTitle}>
-                {isSelectedDayToday ? "오늘 일정" : "일정"}
-              </Text>
+              <View style={localStyles.selectedDayHeaderBlock}>
+                <Text style={localStyles.selectedDayTitle}>
+                  {selectedDayNumber}일 차 일정
+                </Text>
+
+                {selectedDayDateLabel ? (
+                  <Text style={localStyles.selectedDaySubtitle}>
+                    {selectedDayDateLabel} · 전체 {displayDays.length}일 중{" "}
+                    {selectedDayNumber}일 차
+                  </Text>
+                ) : null}
+              </View>
 
               {canEditSchedule ?
                 <TouchableOpacity disabled={isSavingEdit} onPress={handleEdit}>
@@ -1294,6 +1333,24 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 }
 
 const localStyles = StyleSheet.create({
+  selectedDayHeaderBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  selectedDayTitle: {
+    color: "#111827",
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+  },
+  selectedDaySubtitle: {
+    marginTop: 7,
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+
   mapLayerBody: {
     flex: 1,
     paddingTop: 0,

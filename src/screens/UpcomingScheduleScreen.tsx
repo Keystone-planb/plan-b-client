@@ -110,7 +110,31 @@ const getTripDayCount = (startDate?: string, endDate?: string) => {
   return Math.max(diffDays, 1);
 };
 
-const normalizeOngoingMemos = (memos?: any[]) => {
+const formatSelectedDayDateLabel = (
+  startDate?: string,
+  selectedDayIndex = 0,
+) => {
+  if (!startDate) return "";
+
+  const parsedStartDate = new Date(startDate.replace(/\./g, "-"));
+
+  if (Number.isNaN(parsedStartDate.getTime())) {
+    return "";
+  }
+
+  const selectedDate = new Date(parsedStartDate);
+  selectedDate.setDate(parsedStartDate.getDate() + selectedDayIndex);
+
+  const weekDays = ["일", "월", "화", "수", "목", "금", "토"];
+  const year = selectedDate.getFullYear();
+  const month = selectedDate.getMonth() + 1;
+  const date = selectedDate.getDate();
+  const day = weekDays[selectedDate.getDay()];
+
+  return `${year}년 ${month}월 ${date}일 (${day})`;
+};
+
+const normalizeUpcomingMemos = (memos?: any[]) => {
   if (!Array.isArray(memos)) return [];
 
   return memos
@@ -450,7 +474,7 @@ const getMinutesFromTimeText = (value?: string | null) => {
   return hour * 60 + minute;
 };
 
-const isPlaceOngoingNow = (place: TodayPlace) => {
+const isPlaceActiveNow = (place: TodayPlace) => {
   const now = new Date();
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
@@ -465,7 +489,7 @@ const isPlaceOngoingNow = (place: TodayPlace) => {
   return startMinutes <= currentMinutes && currentMinutes <= endMinutes;
 };
 
-const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
+const isTripUpcomingOrOngoingByDate = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) {
     return false;
   }
@@ -485,7 +509,7 @@ const isTripOngoingByDate = (startDate?: string, endDate?: string) => {
   return start.getTime() <= today.getTime() && today.getTime() <= end.getTime();
 };
 
-export default function OngoingScheduleScreen({ navigation, route }: Props) {
+export default function UpcomingScheduleScreen({ navigation, route }: Props) {
 
   const params = route?.params ?? {};
 
@@ -573,7 +597,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
           setServerDays(mappedDays);
         } catch (error) {
-          console.log("[OngoingSchedule] getTripDetail 재조회 실패:", error);
+          console.log("[UpcomingSchedule] getTripDetail 재조회 실패:", error);
         }
       };
 
@@ -623,7 +647,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     });
   }, [serverDays, displayDays]);
 
-  const { currentDay, places, mapPlaces, currentDayFallbackGaps } =
+  const { currentDay, places, mapPlaces } =
     useOngoingPlaces({
       days: normalizedRouteDays,
       serverDays: normalizedServerDays,
@@ -707,16 +731,22 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   }, [mapPlaces]);
 
   const hasPlaces = places.length > 0;
-  const isCurrentTripOngoing = isTripOngoingByDate(startDate, endDate);
+  const isCurrentTripActive = isTripUpcomingOrOngoingByDate(startDate, endDate);
 
   const isViewMode = true;
   const todayDayIndex = getTodayTripDayIndex(startDate, endDate);
   const isSelectedDayToday =
-    isCurrentTripOngoing &&
+    isCurrentTripActive &&
     todayDayIndex !== null &&
     selectedDayIndex === todayDayIndex;
 
   const canEditSchedule = Boolean(resolvedTripId ?? scheduleId);
+
+  const selectedDayNumber = selectedDayIndex + 1;
+  const selectedDayDateLabel = formatSelectedDayDateLabel(
+    startDate,
+    selectedDayIndex,
+  );
 
   useEffect(() => {
     if (!isSelectedDayToday) return;
@@ -972,9 +1002,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               </TouchableOpacity>
 
               <View style={styles.todayHeader}>
-                <Text style={styles.todayTitle}>
-                  {isSelectedDayToday ? "오늘 일정" : "일정"}
-                </Text>
+                <View style={localStyles.selectedDayHeaderBlock}>
+                  <Text style={localStyles.selectedDayTitle}>
+                    {selectedDayNumber}일 차 일정
+                  </Text>
+
+                  {selectedDayDateLabel ? (
+                    <Text style={localStyles.selectedDaySubtitle}>
+                      {selectedDayDateLabel} · 전체 {displayDays.length}일 중{" "}
+                      {selectedDayNumber}일 차
+                    </Text>
+                  ) : null}
+                </View>
 
                 {canEditSchedule ?
                   <TouchableOpacity
@@ -1013,15 +1052,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                         const gapAfterPlanId =
                           nextPlaceForGap?.serverTripPlaceId ??
                           nextPlaceForGap?.tripPlaceId;
-
-                        console.log("[Upcoming pair debug]", {
-                          placeName: place.name,
-                          nextPlaceName: nextPlaceForGap?.name,
-                          beforePlanId: gapBeforePlanId,
-                          afterPlanId: gapAfterPlanId,
-                        });
-
-                        const currentGapPlanPairs =
+const currentGapPlanPairs =
                           (
                             nextPlaceForGap &&
                             isValidServerPlanId(gapBeforePlanId) &&
@@ -1052,33 +1083,9 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                           ).transportMode ??
                           null;
 
-                        const transportGapMinutes =
-                          (
-                            nextPlaceForGap &&
-                            Number.isFinite(
-                              getPlaceEndTimeValueForGap(place),
-                            ) &&
-                            Number.isFinite(
-                              getPlaceStartTimeValueForGap(nextPlaceForGap),
-                            )
-                          ) ?
-                            getPlaceStartTimeValueForGap(nextPlaceForGap) -
-                            getPlaceEndTimeValueForGap(place)
-                          : 0;
-
                         const hasGapRecommendation =
-                          currentGapPlanPairs.length > 0 &&
-                          transportGapMinutes >= 30;
-
-                        console.log("[UPCOMING GAP ROW DEBUG]", {
-                          placeName: place.name,
-                          nextPlaceName: nextPlaceForGap?.name,
-                          currentGapPlanPairs,
-                          transportGapMinutes,
-                          hasGapRecommendation,
-                        });
-
-                        const placeKey = getEditablePlaceKey(place, index);
+                          currentGapPlanPairs.length > 0;
+const placeKey = getEditablePlaceKey(place, index);
                         const displayPlace = place;
 
                         return (
@@ -1227,6 +1234,24 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 }
 
 const localStyles = StyleSheet.create({
+  selectedDayHeaderBlock: {
+    flex: 1,
+    paddingRight: 12,
+  },
+  selectedDayTitle: {
+    color: "#111827",
+    fontSize: 28,
+    fontWeight: "900",
+    letterSpacing: -0.7,
+  },
+  selectedDaySubtitle: {
+    marginTop: 7,
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "800",
+    lineHeight: 18,
+  },
+
   upcomingHeader: {
     minHeight: 84,
     paddingHorizontal: 20,

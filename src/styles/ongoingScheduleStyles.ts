@@ -48,12 +48,13 @@ const styles = StyleSheet.create({
   },
 
   dayTabs: {
+    minHeight: 54,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
     gap: 10,
     marginTop: 0,
-    marginBottom: -4,
+    marginBottom: 0,
   },
 
   dayTab: {
@@ -68,11 +69,6 @@ const styles = StyleSheet.create({
 
   dayTabActive: {
     backgroundColor: "#2158E8",
-    shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 4,
   },
 
   dayTabText: {
