@@ -676,6 +676,19 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
       getPlaceEndTimeValueForGap,
     });
 
+  useEffect(() => {
+  }, [
+    selectedDayIndex,
+    currentDay,
+    places,
+    mapPlaces,
+    normalizedRouteDays,
+    normalizedServerDays,
+    editedPlacesByDay,
+    deletedPlaceKeysByDay,
+    isSheetCollapsed,
+  ]);
+
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(mapPlaces);
 
   useEffect(() => {
@@ -1147,7 +1160,8 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
                       {!hasPlaces ?
                         <OngoingEmptyDayCard styles={styles} />
                       : null}
-                      {places.map((place, index) => {
+
+            {places.map((place, index) => {
                         const focused = false;
                         const nextPlaceForGap = places[index + 1];
                         const gapBeforePlanId =
