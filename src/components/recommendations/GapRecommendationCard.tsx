@@ -180,7 +180,6 @@ export default function GapRecommendationCard({
       }
 
       if (allowedPairKeys.size === 0) {
-        console.log("[GapRecommendationCard] no allowed current screen pairs");
         applyGaps([]);
         return;
       }
@@ -189,13 +188,7 @@ export default function GapRecommendationCard({
 
       const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-
-        console.log("[GapRecommendationCard] pair compare", {
-          gapKey,
-          allowedPairKeys: Array.from(allowedPairKeys),
-        });
-
-        return allowedPairKeys.has(gapKey);
+return allowedPairKeys.has(gapKey);
       });
       applyGaps(currentScreenGaps);
     };

@@ -23,11 +23,6 @@ export const getTripGaps = async (
 
     const gaps = Array.isArray(response.data) ? response.data : [];
 
-    console.log("[trip gaps] response:", {
-      tripId,
-      count: gaps.length,
-      gaps,
-    });
 
     return gaps;
   } catch (error) {
@@ -185,15 +180,7 @@ export const streamGapRecommendations = async (
   }
 
   const url = `${API_CONFIG.BASE_URL}/api/trips/${tripId}/gaps/recommend/stream`;
-
-  console.log("[gap recommendations/stream] xhr request:", {
-    tripId,
-    payload,
-    url,
-    hasAccessToken: Boolean(accessToken),
-  });
-
-  let receivedLength = 0;
+let receivedLength = 0;
   let pendingSseBuffer = "";
   let buffer = "";
   let doneCalled = false;
@@ -256,15 +243,7 @@ export const streamGapRecommendations = async (
 
 
       buffer += chunk;
-
-      console.log("[gap recommendations/stream] xhr chunk:", {
-        readyState: xhr.readyState,
-        status: xhr.status,
-        responseTextLength: xhr.responseText.length,
-        bufferPreview: buffer.slice(-500),
-      });
-
-      pendingSseBuffer += buffer;
+pendingSseBuffer += buffer;
 
       const parsedChunk = parseSseChunk(pendingSseBuffer);
       pendingSseBuffer = parsedChunk.remaining;
@@ -295,23 +274,14 @@ export const streamGapRecommendations = async (
     };
 
     xhr.onload = async () => {
-      console.log("[gap recommendations/stream] xhr done:", {
-        status: xhr.status,
-        receivedLength,
-      });
-
-      if (xhr.status >= 200 && xhr.status < 300) {
+if (xhr.status >= 200 && xhr.status < 300) {
         callDoneOnce();
         return;
       }
 
       if ((xhr.status === 401 || xhr.status === 403) && !hasRetried) {
         try {
-          console.log("[gap recommendations/stream] auth retry:", {
-            status: xhr.status,
-          });
-
-          receivedLength = 0;
+receivedLength = 0;
           buffer = "";
           const refreshedAccessToken = await refreshAccessToken();
           sendRequest(refreshedAccessToken, true);
