@@ -68,10 +68,9 @@ export const requestRefresh = async ({
       `${BASE_URL}/api/auth/refresh`,
       {
         refresh_token,
-        refreshToken: refresh_token,
       },
       {
-        timeout: 5000,
+        timeout: 10000,
         headers: {
           "Content-Type": "application/json",
         },
