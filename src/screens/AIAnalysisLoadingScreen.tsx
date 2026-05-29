@@ -97,8 +97,8 @@ type PlaceDetailForRecommendation = {
 const LOADING_STEPS: LoadingStep[] = [
   {
     icon: StepSearchIcon,
-    title: "여행 데이터 분석 중",
-    description: "현재 일정과 선택 조건을 함께 분석하고 있어요",
+    title: "주변 장소를 찾고 있어요",
+    description: "주변 장소를 찾고 있어요",
     tip: "5개의 대안을 찾아드려요",
     detailTitle: "잠깐! 알고 계셨나요?",
     detailDescription:
@@ -106,8 +106,8 @@ const LOADING_STEPS: LoadingStep[] = [
   },
   {
     icon: StepPinIcon,
-    title: "주변 장소 분석 중",
-    description: "현재 장소 주변에서 갈 수 있는 대안을 찾고 있어요",
+    title: "이동 거리와 시간을 계산하고 있어요",
+    description: "이동 거리와 시간을 계산하고 있어요",
     tip: "위치와 이동 조건을 반영해요",
     detailTitle: "장소를 비교하고 있어요",
     detailDescription:
@@ -115,8 +115,8 @@ const LOADING_STEPS: LoadingStep[] = [
   },
   {
     icon: StepStarIcon,
-    title: "리뷰 분석 중",
-    description: "장소 평점과 방문자 반응을 함께 확인하고 있어요",
+    title: "리뷰 데이터를 분석하고 있어요",
+    description: "리뷰 데이터를 분석하고 있어요",
     tip: "리뷰와 분위기를 종합해요",
     detailTitle: "리뷰도 함께 확인해요",
     detailDescription:
@@ -124,8 +124,8 @@ const LOADING_STEPS: LoadingStep[] = [
   },
   {
     icon: StepInboxIcon,
-    title: "대안 장소 선별 중",
-    description: "일정 흐름에 맞는 장소를 추려내고 있어요",
+    title: "조건에 맞는 장소를 고르고 있어요",
+    description: "조건에 맞는 장소를 고르고 있어요",
     tip: "다음 목적지까지 고려해요",
     detailTitle: "일정 흐름을 지켜요",
     detailDescription:
@@ -133,8 +133,8 @@ const LOADING_STEPS: LoadingStep[] = [
   },
   {
     icon: StepWriteIcon,
-    title: "추천 결과 생성 중",
-    description: "추천 이유와 장소 정보를 정리하고 있어요",
+    title: "추천 결과를 정리하고 있어요",
+    description: "추천 결과를 정리하고 있어요",
     tip: "곧 완료돼요",
     detailTitle: "추천 결과를 정리 중이에요",
     detailDescription:
@@ -280,6 +280,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
   const [progress, setProgress] = useState(2);
+  const [displayStepIndex, setDisplayStepIndex] = useState(0);
   const [activeDotIndex, setActiveDotIndex] = useState(0);
   const [dotDirection, setDotDirection] = useState<1 | -1>(1);
   const [streamMessage, setStreamMessage] = useState("");
@@ -293,11 +294,12 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const pulseValue = useMemo(() => new Animated.Value(0), []);
   const progressValue = useMemo(() => new Animated.Value(2), []);
 
-  const currentStepIndex = Math.min(
+  const progressStepIndex = Math.min(
     Math.floor((progress / 100) * LOADING_STEPS.length),
     LOADING_STEPS.length - 1,
   );
 
+  const currentStepIndex = progress >= 94 ? displayStepIndex : progressStepIndex;
   const currentStep = LOADING_STEPS[currentStepIndex];
 
   const iconFloat = floatValue.interpolate({
@@ -339,6 +341,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     setErrorMessage("");
     setStreamMessage("");
     setProgress(2);
+    setDisplayStepIndex(0);
     setRetryVersion((prev) => prev + 1);
   };
 
@@ -365,6 +368,21 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
       clearInterval(progressTimer);
     };
   }, [errorMessage, retryVersion]);
+
+
+  useEffect(() => {
+    if (progress < 94 || errorMessage || navigatedRef.current) {
+      return;
+    }
+
+    const stepCycleTimer = setInterval(() => {
+      setDisplayStepIndex((prev) => (prev + 1) % LOADING_STEPS.length);
+    }, 1400);
+
+    return () => {
+      clearInterval(stepCycleTimer);
+    };
+  }, [progress, errorMessage, retryVersion]);
 
   useEffect(() => {
     if (errorMessage) return;
