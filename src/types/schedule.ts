@@ -44,6 +44,8 @@ export type SchedulePlace = {
   visitTime?: string | null;
   endTime?: string | null;
 
+  transportMode?: "WALK" | "TRANSIT" | "CAR" | null;
+
   memos: ScheduleMemo[];
   order: number;
   createdAt: string;

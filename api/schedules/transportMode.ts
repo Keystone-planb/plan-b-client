@@ -1,6 +1,10 @@
 import apiClient from "../client";
 import type { TransportMode } from "../../src/types/recommendation";
 
+const isTransportMode = (value: unknown): value is TransportMode => {
+  return value === "WALK" || value === "TRANSIT" || value === "CAR";
+};
+
 export const getTripTransportMode = async (
   tripId: number | string,
 ): Promise<TransportMode | null> => {
@@ -12,23 +16,16 @@ export const getTripTransportMode = async (
       },
     );
 
-    console.log(
-      "[transport-mode/get] response:",
-      response.status,
-      response.data,
-    );
+    console.log("[transport-mode/get] response:", {
+      status: response.status,
+      data: response.data,
+      tripId,
+    });
 
-    const mode =
-      response.data === "WALK" ||
-      response.data === "TRANSIT" ||
-      response.data === "CAR"
-        ? response.data
-        : "WALK";
-
-    return mode;
+    return isTransportMode(response.data) ? response.data : null;
   } catch (error) {
-    console.log("[trip transport-mode] mock fallback:", error);
-    return "WALK";
+    console.log("[trip transport-mode] failed:", error);
+    return null;
   }
 };
 
@@ -37,15 +34,25 @@ export const updateTripTransportMode = async (
   mode: TransportMode,
 ): Promise<boolean> => {
   try {
-    await apiClient.patch(`/api/trips/${tripId}/transport-mode`, null, {
-      params: {
-        mode,
+    const response = await apiClient.patch(
+      `/api/trips/${tripId}/transport-mode`,
+      null,
+      {
+        params: {
+          mode,
+        },
       },
+    );
+
+    console.log("[transport-mode/update] response:", {
+      status: response.status,
+      tripId,
+      mode,
     });
 
     return true;
   } catch (error) {
-    console.log("[trip transport-mode/update] mock fallback:", error);
-    return true;
+    console.log("[trip transport-mode/update] failed:", error);
+    return false;
   }
 };

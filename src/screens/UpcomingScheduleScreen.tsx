@@ -858,6 +858,14 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   const handleSelectTransportMode = (mode: TransportMode) => {
     if (!transportPickerTarget?.pairKey) return;
 
+    console.log("[QA transport] screen=Upcoming select", {
+      pairKey: transportPickerTarget.pairKey,
+      mode,
+      day: selectedDayIndex + 1,
+      beforePlaceName: transportPickerTarget.beforePlaceName,
+      afterPlaceName: transportPickerTarget.afterPlaceName,
+    });
+
     setTransportModesByPair((prev) => ({
       ...prev,
       [transportPickerTarget.pairKey]: mode,
@@ -865,10 +873,72 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleConfirmTransportMode = () => {
+    if (!transportPickerTarget?.pairKey) {
+      setTransportPickerTarget(null);
+      return;
+    }
+
+    const selectedMode = transportModesByPair[transportPickerTarget.pairKey];
+
+    if (!selectedMode) {
+      setTransportPickerTarget(null);
+      return;
+    }
+
+    const [beforePlanId] = transportPickerTarget.pairKey.split("-");
+    const dayNumber = selectedDayIndex + 1;
+
+    setEditedPlacesByDay((prev) => {
+      const sourcePlaces =
+        prev[dayNumber] && prev[dayNumber].length > 0 ?
+          prev[dayNumber]
+        : places;
+
+      return {
+        ...prev,
+        [dayNumber]: sourcePlaces.map((place) => {
+          const placePlanId = String(
+            place.serverTripPlaceId ??
+            place.tripPlaceId ??
+            place.id,
+          );
+
+          if (placePlanId !== beforePlanId) {
+            return place;
+          }
+
+          return {
+            ...place,
+            transportMode: selectedMode,
+          };
+        }),
+      };
+    });
+
     setTransportPickerTarget(null);
   };
 
   const handleEdit = () => {
+    console.log("[QA transport] screen=Upcoming navigate PlanA", {
+      tripId: resolvedTripId,
+      day: selectedDayIndex + 1,
+      transportModesByPair,
+      places: places.map((place: any) => ({
+        id: place.id,
+        tripPlaceId: place.tripPlaceId,
+        serverTripPlaceId: place.serverTripPlaceId,
+        name: place.name,
+        transportMode: place.transportMode,
+      })),
+      editedPlaces: editedPlacesByDay[selectedDayIndex + 1]?.map((place: any) => ({
+        id: place.id,
+        tripPlaceId: place.tripPlaceId,
+        serverTripPlaceId: place.serverTripPlaceId,
+        name: place.name,
+        transportMode: place.transportMode,
+      })),
+    });
+
     navigation.navigate("PlanA", {
       scheduleId,
       tripId: resolvedTripId,

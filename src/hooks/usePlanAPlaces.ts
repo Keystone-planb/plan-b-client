@@ -10,6 +10,7 @@ import {
   SelectedPlacesParam,
 } from "../types/planA";
 import { TravelSchedule } from "../types/schedule";
+import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import {
   loadPlanASchedule,
   savePlanASchedule,
@@ -323,6 +324,7 @@ const createPlace = ({
   time,
   visitTime,
   endTime,
+  transportMode,
   order,
   memos = [],
 }: {
@@ -339,6 +341,11 @@ const createPlace = ({
   time?: string;
   visitTime?: string | null;
   endTime?: string | null;
+  transportMode?:
+    | "WALK"
+    | "TRANSIT"
+    | "CAR"
+    | null;
   order: number;
   memos?: MemoItem[];
 }): PlaceItem => {
@@ -364,6 +371,7 @@ const createPlace = ({
     time: displayTime,
     visitTime: nextVisitTime,
     endTime: nextEndTime,
+    transportMode,
     order,
     memos,
     createdAt: now,
@@ -543,6 +551,19 @@ const normalizeServerPlaceForPlanA = (
 
   const endTime = getServerTextByPaths(source, ["endTime"]);
 
+  const rawTransportMode =
+    getServerTextByPaths(source, [
+      "transportMode",
+      "transport_mode",
+    ]) ?? null;
+
+  const transportMode =
+    rawTransportMode === "WALK" ||
+    rawTransportMode === "TRANSIT" ||
+    rawTransportMode === "CAR"
+      ? rawTransportMode
+      : null;
+
   return createPlace({
     id: String(tripPlaceId ?? placeId ?? `server-place-${index}`),
     tripPlaceId,
@@ -576,6 +597,7 @@ const normalizeServerPlaceForPlanA = (
     ]),
     visitTime,
     endTime,
+    transportMode,
     order: getServerNumberByPaths(source, ["visitOrder", "order"]) ?? index + 1,
     memos: getServerArrayByPaths(source, ["memos"])
       .map(normalizeServerMemoForPlanA)
@@ -978,10 +1000,17 @@ export function usePlanAPlaces({
                   const preservedTransportMode =
                     transportModeMap.get(key);
 
+                  const normalizedTransportMode =
+                    preservedTransportMode === "WALK" ||
+                    preservedTransportMode === "TRANSIT" ||
+                    preservedTransportMode === "CAR"
+                      ? preservedTransportMode
+                      : undefined;
+
                   return preservedTransportMode ?
                     {
                       ...place,
-                      transportMode: preservedTransportMode,
+                      transportMode: normalizedTransportMode,
                     }
                   : place;
                 }),
@@ -1260,6 +1289,10 @@ export function usePlanAPlaces({
       updatePlanSchedule(planId, {
         visitTime: toServerTimeText(nextVisitTime),
         endTime: toServerTimeText(nextEndTime),
+      }).then(() => {
+        clearTripGapCache(scheduleRef.current.serverTripId);
+      }).then(() => {
+        clearTripGapCache(scheduleRef.current.serverTripId);
       }).catch((error) => {
         console.log("[PlanA 시간 변경 서버 반영 실패]", {
           placeId,
@@ -1538,6 +1571,8 @@ export function usePlanAPlaces({
               item.tripPlaceId,
               updatePayload,
             );
+
+            clearTripGapCache(scheduleRef.current.serverTripId);
 
           } catch (error) {
             console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {

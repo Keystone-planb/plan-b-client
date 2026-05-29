@@ -569,6 +569,22 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
 
   useEffect(() => {
+    console.log("[QA transport] screen=PlanA loaded schedule", {
+      scheduleId: schedule.id,
+      tripId: schedule.serverTripId ?? resolvedTripId,
+      selectedDay,
+      places: schedule.days.flatMap((day) =>
+        day.places.map((place: any) => ({
+          day: day.day,
+          id: place.id,
+          tripPlaceId: place.tripPlaceId,
+          serverTripPlaceId: place.serverTripPlaceId,
+          name: place.name,
+          transportMode: place.transportMode,
+        })),
+      ),
+    });
+
     const nextModesByPair: Record<string, TransportMode> = {};
 
     schedule.days.forEach((day) => {
@@ -993,13 +1009,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   const parseTimeForPicker = (value?: string | null) => {
     const normalized = String(value ?? "").trim();
-    const firstTime = normalized.split("-")[0]?.trim() ?? normalized;
-
-    const match = firstTime.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
+    const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
 
     if (!match) {
       return {
-        hour: 12,
+        hour: 0,
         minute: 0,
         period: "AM" as const,
       };
@@ -1007,44 +1021,25 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
     let rawHour = Number(match[1]);
     const rawMinute = Number(match[2]);
-    const explicitPeriod = match[3]?.toUpperCase() as "AM" | "PM" | undefined;
+    const period = match[3]?.toUpperCase();
 
-    if (explicitPeriod) {
-      return {
-        hour: Math.min(Math.max(rawHour, 1), 12),
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: explicitPeriod,
-      };
+    if (period === "PM" && rawHour < 12) {
+      rawHour += 12;
     }
 
-    if (rawHour === 0) {
-      return {
-        hour: 12,
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "AM" as const,
-      };
+    if (period === "AM" && rawHour === 12) {
+      rawHour = 0;
     }
 
-    if (rawHour === 12) {
-      return {
-        hour: 12,
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "PM" as const,
-      };
-    }
-
-    if (rawHour > 12) {
-      return {
-        hour: Math.min(Math.max(rawHour - 12, 1), 12),
-        minute: Math.min(Math.max(rawMinute, 0), 55),
-        period: "PM" as const,
-      };
-    }
+    const hour =
+      Number.isFinite(rawHour) ? Math.min(Math.max(rawHour, 0), 23) : 0;
+    const minute =
+      Number.isFinite(rawMinute) ? Math.min(Math.max(rawMinute, 0), 55) : 0;
 
     return {
-      hour: Math.min(Math.max(rawHour, 1), 12),
-      minute: Math.min(Math.max(rawMinute, 0), 55),
-      period: "AM" as const,
+      hour,
+      minute,
+      period: hour >= 12 ? ("PM" as const) : ("AM" as const),
     };
   };
 
@@ -1267,7 +1262,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
                   <Text style={styles.viewTransportDescription}>
                     {selectedTransportLabel ?
-                      `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
+                      `${place.endTime ?? place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
                     : "수정 화면에서 이동수단을 설정할 수 있어요"}
                   </Text>
                 </View>
@@ -1379,7 +1374,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                     ]}
                   >
                     {selectedTransportLabel ?
-                      `${place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
+                      `${place.endTime ?? place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
                     : `${place.name ?? "장소"} → ${nextPlace?.name ?? "장소"}`}
                   </Text>
                 </View>
