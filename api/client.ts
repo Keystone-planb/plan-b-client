@@ -22,6 +22,17 @@ type RefreshResponse = {
 };
 
 const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
+const AUTH_STORAGE_KEYS = ["access_token", "refresh_token", "user_id", "nickname"] as const;
+
+const clearStoredAuth = async () => {
+  await AsyncStorage.multiRemove([...AUTH_STORAGE_KEYS]);
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    AUTH_STORAGE_KEYS.forEach((key) => {
+      window.localStorage.removeItem(key);
+    });
+  }
+};
 
 // ===============================
 // MVP Trip Cache Layer (safe)
@@ -249,6 +260,13 @@ apiClient.interceptors.response.use(
           originalMethod: originalRequest?.method,
           responseStatus: error.response?.status,
         });
+
+        console.log("[apiClient] clearing tokens after refresh failure:", {
+          originalUrl: originalRequest?.url,
+          reason: "refresh_failed",
+        });
+
+        await clearStoredAuth();
 
         return Promise.reject(refreshError);
       }
