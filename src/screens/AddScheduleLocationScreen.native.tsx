@@ -27,6 +27,7 @@ import {
   searchPlaces,
   getPlaceAnalysisStatus,
 } from "../../api/places/searchPlaces";
+import { reanalyzePlace } from "../../api/places/place";
 import {
   PlaceFreshnessResponse,
   PlaceSearchResult,
@@ -1050,6 +1051,30 @@ export default function AddScheduleLocationScreen({
     submitLockRef.current = true;
 
     const placesToSubmit = getUniquePlaces(overridePlaces ?? selectedPlaces);
+
+    const duplicatePlaceIds = new Set<string>();
+
+    const filteredPlacesToSubmit = placesToSubmit.filter((place) => {
+      const key = String(
+        place.placeId ??
+        place.googlePlaceId ??
+        "",
+      );
+
+      if (!key) return true;
+
+      if (duplicatePlaceIds.has(key)) {
+        console.log("[QA_DUPLICATE] blocked duplicate submit:", {
+          placeId: key,
+          name: place.name,
+        });
+
+        return false;
+      }
+
+      duplicatePlaceIds.add(key);
+      return true;
+    });
     if (placesToSubmit.length === 0) {
       submitLockRef.current = false;
       return;
@@ -1091,7 +1116,7 @@ export default function AddScheduleLocationScreen({
         }
 
         if (targetServerTripId) {
-          for (const place of placesToSubmit) {
+          for (const place of filteredPlacesToSubmit) {
             console.log("[QA_DUPLICATE] before addTripLocation:", {
               file: "AddScheduleLocationScreen.native.tsx",
               tripId: targetServerTripId,
@@ -1235,7 +1260,7 @@ export default function AddScheduleLocationScreen({
   ]);
 
   const detailModalRawGoogleReviews = useMemo(() => {
-    return getDetailReviews(detailModalDetail).slice(0, 3);
+    return getDetailReviews(detailModalDetail).slice(0, 5);
   }, [detailModalDetail]);
 
   const detailModalReviews = useMemo(() => {
@@ -1265,7 +1290,10 @@ export default function AddScheduleLocationScreen({
             ` · ${review.relativeTimeDescription}`
           : "";
 
-        return `${ratingText}${timeText}\n${review.text}`;
+        return `${ratingText}${timeText}\n${truncateText(
+          review.text,
+          REVIEW_TEXT_MAX_LENGTH,
+        )}`;
       })
       .filter(Boolean)
       .join("\n\n");
@@ -1863,7 +1891,10 @@ export default function AddScheduleLocationScreen({
                               </View>
 
                               <Text style={styles.platformText}>
-                                {truncateText(review.text, REVIEW_TEXT_MAX_LENGTH)}
+                                {truncateText(
+                                  review.text,
+                                  REVIEW_TEXT_MAX_LENGTH,
+                                )}
                               </Text>
                             </View>
                           </View>

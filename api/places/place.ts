@@ -364,3 +364,19 @@ export const getAnalyzedPlaceDetail = async (placeId: string) => {
 
   return getPlaceDetail(placeId);
 };
+
+
+export const reanalyzePlace = async (
+  placeId: string | number,
+) => {
+  const encodedPlaceId = normalizePlaceId(placeId);
+
+  const response = await apiClient.post(
+    `/api/places/${encodedPlaceId}/reanalyze`,
+  );
+
+  placeDetailCache.delete(String(encodedPlaceId))
+  placeSummaryCache.delete(String(encodedPlaceId))
+
+  return response.data;
+};
