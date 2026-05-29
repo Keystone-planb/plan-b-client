@@ -512,7 +512,7 @@ await streamRecommendations(payload, {
             if (cancelled) return;
 
             console.log("[AIAnalysisLoading] stream server error:", message);
-            setProgress(100);
+            setProgress((prev) => Math.max(prev, 98));
             setErrorMessage(message || "서버 오류가 발생했습니다. 다시 시도해주세요.");
           },
 
