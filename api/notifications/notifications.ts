@@ -76,53 +76,6 @@ export const replaceNotificationPlace = async (
   }
 };
 
-export const triggerWeatherCheck = async (
-  userId?: number | string,
-): Promise<boolean> => {
-  const attempts = [
-    {
-      label: "body-userId",
-      url: "/api/notifications/actions/trigger-weather-check",
-      body: { userId },
-    },
-    {
-      label: "query-userId",
-      url: `/api/notifications/actions/trigger-weather-check?userId=${encodeURIComponent(
-        String(userId ?? ""),
-      )}`,
-      body: {},
-    },
-    {
-      label: "empty-body",
-      url: "/api/notifications/actions/trigger-weather-check",
-      body: {},
-    },
-  ];
 
-  for (const attempt of attempts) {
-    try {
-      console.log("[notifications/trigger-weather-check] request:", attempt);
-
-      const response = await apiClient.post(attempt.url, attempt.body);
-
-      console.log("[notifications/trigger-weather-check] response:", {
-        label: attempt.label,
-        status: response.status,
-        data: response.data,
-      });
-
-      return true;
-    } catch (error: any) {
-      console.log("[notifications/trigger-weather-check] attempt failed:", {
-        label: attempt.label,
-        status: error?.response?.status,
-        data: error?.response?.data,
-        message: error?.message,
-      });
-    }
-  }
-
-  return false;
-};
 
 
