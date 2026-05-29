@@ -373,37 +373,6 @@ export default function AlternativeSettingsScreen({
             />
           </View>
 
-          <View style={styles.conditionCard}>
-            <Text style={styles.sectionTitle}>실내/실외</Text>
-
-            <View style={styles.scopeRow}>
-              {PLACE_SCOPE_OPTIONS.map((option) => {
-                const selected = selectedPlaceScope === option.key;
-
-                return (
-                  <TouchableOpacity
-                    key={option.key}
-                    style={[
-                      styles.scopeButton,
-                      selected && styles.scopeButtonActive,
-                    ]}
-                    activeOpacity={0.82}
-                    onPress={() => setSelectedPlaceScope(option.key)}
-                  >
-                    <Text
-                      style={[
-                        styles.scopeButtonText,
-                        selected && styles.scopeButtonTextActive,
-                      ]}
-                    >
-                      {option.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </View>
-
           {changeCategory ?
             <View style={styles.conditionCard}>
               <Text style={styles.sectionTitle}>장소 유형</Text>
@@ -436,6 +405,38 @@ export default function AlternativeSettingsScreen({
               </View>
             </View>
           : null}
+
+          <View style={styles.conditionCard}>
+            <Text style={styles.sectionTitle}>실내/실외</Text>
+
+            <View style={styles.scopeRow}>
+              {PLACE_SCOPE_OPTIONS.map((option) => {
+                const selected = selectedPlaceScope === option.key;
+
+                return (
+                  <TouchableOpacity
+                    key={option.key}
+                    style={[
+                      styles.scopeButton,
+                      selected && styles.scopeButtonActive,
+                    ]}
+                    activeOpacity={0.82}
+                    onPress={() => setSelectedPlaceScope(option.key)}
+                  >
+                    <Text
+                      style={[
+                        styles.scopeButtonText,
+                        selected && styles.scopeButtonTextActive,
+                      ]}
+                    >
+                      {option.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </View>
+
         </ScrollView>
 
         <View style={styles.footer}>
