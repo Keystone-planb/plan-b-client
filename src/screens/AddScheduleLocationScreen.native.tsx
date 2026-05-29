@@ -983,6 +983,47 @@ export default function AddScheduleLocationScreen({
     }
   };
 
+
+
+  const handleReanalyzePlace = async (
+    place: PlaceSearchResult,
+  ) => {
+    const placeKey = getReviewPlaceKey(place);
+
+    try {
+      setReviewLoadingPlaceId(placeKey);
+
+      await reanalyzePlace(placeKey);
+
+      setPlaceReviewMap((prev) => {
+        const next = { ...prev };
+        delete next[placeKey];
+        return next;
+      });
+
+      setExpandedPlaceId(null);
+
+      await handleTogglePlaceReview(place);
+
+      Alert.alert(
+        "재분석 완료",
+        "최신 분석 결과로 갱신되었습니다.",
+      );
+    } catch (error) {
+      console.log(
+        "[AddScheduleLocation] reanalyze failed:",
+        error,
+      );
+
+      Alert.alert(
+        "재분석 실패",
+        "잠시 후 다시 시도해주세요.",
+      );
+    } finally {
+      setReviewLoadingPlaceId(null);
+    }
+  };
+
   const navigateToPlanAWithPlaces = ({
     targetScheduleId,
     targetTripId,
@@ -1518,8 +1559,7 @@ export default function AddScheduleLocationScreen({
     ),
   ].filter(Boolean);
 
-  const detailTags =
-    detailModalKeywords.length > 0 ? detailModalKeywords : serverDetailTags;
+  const detailTags = serverDetailTags.slice(0, 3);
 
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||
@@ -1850,6 +1890,26 @@ export default function AddScheduleLocationScreen({
                       : null}
                     </View>
                   : null}
+
+                  <TouchableOpacity
+                    style={styles.reanalyzeButton}
+                    activeOpacity={0.8}
+                    disabled={reviewLoadingPlaceId === detailModalPlaceId}
+                    onPress={() => {
+                      if (detailModalPlace) {
+                        handleReanalyzePlace(detailModalPlace);
+                      }
+                    }}
+                  >
+                    <Ionicons
+                      name="refresh-outline"
+                      size={16}
+                      color="#2158E8"
+                    />
+                    <Text style={styles.reanalyzeButtonText}>
+                      재분석 요청
+                    </Text>
+                  </TouchableOpacity>
 
                   {detailModalAiSummary ?
                     <View style={styles.aiSummaryCard}>
@@ -2404,7 +2464,28 @@ const styles = StyleSheet.create({
     color: "#94A3B8",
   },
 
+
+  reanalyzeButton: {
+    height: 42,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#CFE0FF",
+    backgroundColor: "#F8FBFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 14,
+  },
+
+  reanalyzeButtonText: {
+    color: "#2158E8",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+
   aiSummaryCard: {
+
     position: "relative",
     minHeight: 78,
     borderRadius: 8,

@@ -1002,7 +1002,7 @@ export default function RecommendationResultScreen({
                   <View style={styles.tagRow}>
                     {[
                       getSpaceLabel(place.space),
-                      getTypeLabel(place.type ?? place.category),
+                      getTypeLabel(place.type),
                       getMoodLabel(place.mood),
                     ]
                       .filter(Boolean)
