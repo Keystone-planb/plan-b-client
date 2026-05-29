@@ -51,6 +51,19 @@ const getCachedTripGaps = async (tripId: number | string) => {
   return promise;
 };
 
+
+export const clearTripGapCache = (
+  tripId?: number | string | null,
+) => {
+  if (!tripId) return;
+
+  const key = String(tripId);
+
+  tripGapsCache.delete(key);
+  tripGapsPromiseCache.delete(key);
+};
+
+
 type Props = {
   tripId?: number | string | null;
   allowedPlanPairs?: AllowedGapPlanPair[];
