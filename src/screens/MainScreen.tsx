@@ -583,6 +583,10 @@ const enrichDaysWithServerTripPlaceIds = async (
   tripId: number | string,
   localDays?: unknown[],
 ): Promise<unknown[]> => {
+  if (__DEV__) {
+    console.count("[Main] getTripDetail hydrateMainScheduleWithDetail");
+  }
+
   const detail = await getTripDetail(tripId);
   const serverItineraries = detail.itineraries ?? [];
 
@@ -727,6 +731,10 @@ export default function MainScreen({ navigation }: Props) {
       }
 
       setNotificationsLoading(true);
+
+      if (__DEV__) {
+        console.count("[Main] getWeatherNotifications");
+      }
 
       const serverNotifications = await getWeatherNotifications(storedUserId);
 

@@ -574,6 +574,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   const scrollViewRef = useRef<ScrollView | null>(null);
   const focusedPlaceRef = useRef<View | null>(null);
   const hasAutoScrolledRef = useRef(false);
+  const lastTripDetailLoadKeyRef = useRef<string | null>(null);
 
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
 
@@ -581,6 +582,21 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
     useCallback(() => {
       const loadTripDetail = async () => {
         if (!resolvedTripId) return;
+
+        const refreshKey = String(route?.params?.refreshPlanAAt ?? "");
+        const loadKey = `${String(resolvedTripId)}:${refreshKey}`;
+
+        if (lastTripDetailLoadKeyRef.current === loadKey) {
+          if (__DEV__) {
+            console.log("[UpcomingSchedule'] getTripDetail 중복 호출 생략:", {
+              resolvedTripId,
+              refreshKey,
+            });
+          }
+          return;
+        }
+
+        lastTripDetailLoadKeyRef.current = loadKey;
 
         try {
           const detail = await getTripDetail(resolvedTripId);
@@ -602,7 +618,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
       };
 
       loadTripDetail();
-    }, [resolvedTripId]),
+    }, [resolvedTripId, route?.params?.refreshPlanAAt]),
   );
 
   const displayDays = useMemo(

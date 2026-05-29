@@ -151,6 +151,7 @@ const normalizePlaceId = (placeId: string | number) => {
 };
 
 const placeDetailCache = new Map<string, PlaceDetailResponse>();
+const placeSummaryCache = new Map<string, PlaceReviewSummaryResponse>();
 
 const unwrapPlaceData = <T>(data: unknown): T => {
   if (
@@ -221,16 +222,50 @@ export const invalidatePlaceDetailCache = (placeId: string | number) => {
   placeDetailCache.delete(String(encodedPlaceId));
 };
 
+const hasUsefulReviewSummary = (
+  summary?: PlaceReviewSummaryResponse | null,
+) => {
+  if (!summary) return false;
+
+  return Boolean(
+    summary.aiSummary ||
+      summary.summary ||
+      summary.reviewSummary ||
+      summary.googleReview ||
+      summary.naverReview ||
+      summary.instaReview ||
+      summary.instagramReview,
+  );
+};
+
 export const getPlaceReviewSummary = async (
   placeId: string | number,
+  options: { forceRefresh?: boolean } = {},
 ): Promise<PlaceReviewSummaryResponse> => {
   const encodedPlaceId = normalizePlaceId(placeId);
+  const cacheKey = String(encodedPlaceId);
+
+  if (!options.forceRefresh) {
+    const cached = placeSummaryCache.get(cacheKey);
+    if (cached) return cached;
+  }
 
   const response = await apiClient.get<
     PlaceReviewSummaryResponse | { data: PlaceReviewSummaryResponse }
   >(`/api/places/${encodedPlaceId}/summary`);
 
-  return unwrapPlaceData<PlaceReviewSummaryResponse>(response.data);
+  const result = unwrapPlaceData<PlaceReviewSummaryResponse>(response.data);
+
+  if (hasUsefulReviewSummary(result)) {
+    placeSummaryCache.set(cacheKey, result);
+  }
+
+  return result;
+};
+
+export const invalidatePlaceSummaryCache = (placeId: string | number) => {
+  const encodedPlaceId = normalizePlaceId(placeId);
+  placeSummaryCache.delete(String(encodedPlaceId));
 };
 
 /**

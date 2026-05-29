@@ -793,7 +793,7 @@ export default function RecommendationResultScreen({
       const successMessage = `${place.name}으로 기존 일정이 교체되었습니다.`;
 
       const moveToPlanA = () => {
-        navigation.replace("PlanA", {
+        const planAParams = {
           scheduleId: params.scheduleId,
           tripId: params.tripId,
           serverTripId: params.serverTripId ?? params.tripId,
@@ -815,7 +815,11 @@ export default function RecommendationResultScreen({
             : undefined,
           selectedPlace: undefined,
           selectedPlaces: undefined,
-        });
+          refreshPlanAAt: Date.now(),
+          replacedTripPlaceId: usedCurrentPlanId,
+        };
+
+        navigation.replace("PlanA", planAParams as any);
       };
 
       if (typeof window !== "undefined") {
