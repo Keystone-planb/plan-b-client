@@ -26,11 +26,20 @@ type SelectedType =
 
 type TodayPlace = {
   id?: string | number;
+  tripPlaceId?: string | number;
+  serverTripPlaceId?: string | number;
+  placeId?: string;
+  googlePlaceId?: string;
   name?: string;
   address?: string;
   time?: string;
   latitude?: number;
   longitude?: number;
+  category?: string;
+  day?: number;
+  scheduleId?: string;
+  tripId?: string | number;
+  serverTripId?: string | number;
 };
 
 type RecommendationType = "PLACE" | "GAP";
@@ -168,9 +177,48 @@ export default function AlternativeSettingsScreen({
   };
 
   const handleStartAnalysis = () => {
+    const targetPlace = params.targetPlace;
+
     navigation.navigate("AlternativeLoading", {
       ...params,
       recommendationType: params.recommendationType ?? "PLACE",
+      currentPlanId:
+        targetPlace?.serverTripPlaceId ??
+        targetPlace?.tripPlaceId ??
+        (params as any).serverTripPlaceId ??
+        (params as any).tripPlaceId ??
+        (params as any).currentPlanId,
+      tripPlaceId:
+        targetPlace?.tripPlaceId ??
+        targetPlace?.serverTripPlaceId ??
+        (params as any).tripPlaceId ??
+        (params as any).serverTripPlaceId,
+      serverTripPlaceId:
+        targetPlace?.serverTripPlaceId ??
+        targetPlace?.tripPlaceId ??
+        (params as any).serverTripPlaceId ??
+        (params as any).tripPlaceId,
+      targetPlace: targetPlace ?
+        {
+          ...targetPlace,
+          tripPlaceId:
+            targetPlace.tripPlaceId ??
+            targetPlace.serverTripPlaceId ??
+            (params as any).tripPlaceId ??
+            (params as any).serverTripPlaceId,
+          serverTripPlaceId:
+            targetPlace.serverTripPlaceId ??
+            targetPlace.tripPlaceId ??
+            (params as any).serverTripPlaceId ??
+            (params as any).tripPlaceId,
+          placeId:
+            targetPlace.placeId ??
+            targetPlace.googlePlaceId,
+          googlePlaceId:
+            targetPlace.googlePlaceId ??
+            targetPlace.placeId,
+        }
+      : targetPlace,
       transportMode: selectedTransportMode,
       transportLabel: selectedTransportLabel,
       moveTime: selectedMoveTime,
@@ -358,7 +406,9 @@ export default function AlternativeSettingsScreen({
             <View style={styles.toggleTextBox}>
               <Text style={styles.toggleTitle}>카테고리 변경</Text>
               <Text style={styles.toggleSubtitle}>
-                기존 카테고리와 동일한 장소를 추천합니다
+                {changeCategory ?
+                  "선택한 카테고리를 우선으로 추천합니다"
+                : "기존 카테고리와 동일한 장소를 추천합니다"}
               </Text>
             </View>
 

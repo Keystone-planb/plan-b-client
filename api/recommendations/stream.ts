@@ -524,6 +524,11 @@ export const streamRecommendations = async (
   payload: RecommendRequest,
   handlers: StreamHandlers,
 ) => {
+  console.log(
+    "[recommendations/stream] payload:",
+    JSON.stringify(payload, null, 2),
+  );
+
   const url = getStreamUrl();
 
   try {

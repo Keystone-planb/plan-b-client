@@ -44,6 +44,8 @@ type TodayPlace = {
   time?: string;
   latitude?: number;
   longitude?: number;
+  lat?: number;
+  lng?: number;
   category?: string;
 };
 
@@ -69,6 +71,13 @@ type Props = {
       recommendationType?: RecommendationType;
       beforePlanId?: string | number;
       afterPlanId?: string | number;
+      currentPlanId?: string | number;
+      tripPlaceId?: string | number;
+      serverTripPlaceId?: string | number;
+      currentLat?: number;
+      currentLng?: number;
+      latitude?: number;
+      longitude?: number;
     };
   };
 };
@@ -169,7 +178,6 @@ const removeUndefined = <T extends Record<string, unknown>>(value: T) => {
   ) as Partial<T>;
 };
 
-
 const getErrorMessage = (error: unknown) => {
   if (error instanceof Error) return error.message;
   if (typeof error === "string") return error;
@@ -269,7 +277,7 @@ const fetchPlaceDetailForRecommendation = async (
 
   try {
     const placeDetail = await getAnalyzedPlaceDetail(String(googlePlaceId));
-return placeDetail as PlaceDetailForRecommendation;
+    return placeDetail as PlaceDetailForRecommendation;
   } catch (error) {
     console.log("[AIAnalysisLoading] place detail request failed:", error);
     return null;
@@ -300,7 +308,8 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     LOADING_STEPS.length - 1,
   );
 
-  const currentStepIndex = progress >= 94 ? displayStepIndex : progressStepIndex;
+  const currentStepIndex =
+    progress >= 94 ? displayStepIndex : progressStepIndex;
   const currentStep = LOADING_STEPS[currentStepIndex];
 
   const iconFloat = floatValue.interpolate({
@@ -371,7 +380,6 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     };
   }, [errorMessage, retryVersion]);
 
-
   useEffect(() => {
     if (progress < 94 || errorMessage || navigatedRef.current) {
       return;
@@ -404,7 +412,8 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         const resolvedTripId = params.tripId ?? params.serverTripId;
 
         const resolvedCurrentPlanId =
-          targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId;
+          targetPlace?.serverTripPlaceId ??
+          targetPlace?.tripPlaceId;
 
         const debugParams = params as Record<string, unknown>;
 
@@ -441,14 +450,20 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         }
 
         const selectedType =
-          params.changeCategory ? params.selectedType : normalizePlaceType(category);
+          params.changeCategory ?
+            params.selectedType
+          : undefined;
         const selectedSpace = getSelectedSpace(params.placeScope);
 
         const rawPayload = {
           tripId: toNumberIfNumeric(resolvedTripId),
           currentPlanId: toNumberIfNumeric(resolvedCurrentPlanId),
+          tripPlaceId: toNumberIfNumeric(resolvedCurrentPlanId),
+          placeId: resolvedGooglePlaceId,
           currentLat,
           currentLng,
+          latitude: currentLat,
+          longitude: currentLng,
           radiusMinute: Math.max(getRadiusMinute(params.moveTime), 30),
           transportMode: params.transportMode ?? "WALK",
           selectedType,
@@ -468,7 +483,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
             "추천 요청에 필요한 장소 좌표를 가져오지 못했습니다. 장소 상세 API 응답 또는 장소 저장 좌표를 확인해주세요.",
           );
         }
-if (!payload.currentPlanId) {
+        if (!payload.currentPlanId) {
           throw new Error(
             "추천 요청에 필요한 currentPlanId가 없습니다. 서버 tripPlaceId 전달을 확인해주세요.",
           );
@@ -482,7 +497,7 @@ if (!payload.currentPlanId) {
             "추천 요청에 필요한 currentLat/currentLng가 없습니다. 장소 상세 API 좌표 응답을 확인해주세요.",
           );
         }
-await streamRecommendations(payload, {
+        await streamRecommendations(payload, {
           onProgress: (message) => {
             if (cancelled) return;
 
@@ -513,17 +528,20 @@ await streamRecommendations(payload, {
 
             console.log("[AIAnalysisLoading] stream server error:", message);
             setProgress((prev) => Math.max(prev, 98));
-            setErrorMessage(message || "서버 오류가 발생했습니다. 다시 시도해주세요.");
+            setErrorMessage(
+              message || "서버 오류가 발생했습니다. 다시 시도해주세요.",
+            );
           },
 
           onDone: () => {
             if (cancelled) return;
 
             const receivedPlaces = receivedPlacesRef.current;
-if (receivedPlaces.length === 0) {
+            if (receivedPlaces.length === 0) {
               setProgress(100);
               setErrorMessage(
-                streamMessage || "조건에 맞는 장소를 찾지 못했습니다. 조건을 바꾸거나 다시 시도해주세요.",
+                streamMessage ||
+                  "조건에 맞는 장소를 찾지 못했습니다.\n\조건을 바꾸거나 다시 시도해주세요.",
               );
               return;
             }
@@ -737,9 +755,9 @@ if (receivedPlaces.length === 0) {
             {descriptionText}
           </Text>
 
-          {!errorMessage && placeCountText ? (
+          {!errorMessage && placeCountText ?
             <Text style={styles.placeCountText}>{placeCountText}</Text>
-          ) : null}
+          : null}
 
           {errorMessage ?
             <View style={styles.errorButtonRow}>
@@ -793,17 +811,17 @@ if (receivedPlaces.length === 0) {
                 errorMessage ? styles.errorTipCardLabel : null,
               ]}
             >
-              {errorMessage ? "CHECK" : "AI ANALYSIS"}
+              {errorMessage ? "TIP" : "AI ANALYSIS"}
             </Text>
           </View>
 
           <Text style={styles.tipCardTitle}>
-            {errorMessage ? "확인 필요" : currentStep.detailTitle}
+            {errorMessage ? "PLAN.B의 제안" : currentStep.detailTitle}
           </Text>
 
           <Text style={styles.tipCardDescription}>
             {errorMessage ?
-              "추천 요청에는 currentPlanId, currentLat, currentLng, radiusMinute, transportMode가 필요합니다. 좌표가 비어 있으면 장소 상세 API 응답을 먼저 확인하세요."
+              "이동 시간, 이동수단, 실내/실외 조건을 완화하면\n추천 결과가 나올 수 있어요."
             : currentStep.detailDescription}
           </Text>
         </View>
