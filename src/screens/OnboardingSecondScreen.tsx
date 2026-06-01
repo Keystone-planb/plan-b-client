@@ -1,235 +1,715 @@
+// src/screens/OnboardingSecondScreen.tsx
+
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-} from "react-native";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-const OnboardingSecondImage = require("../assets/onboarding-second.png");
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
-  navigation: any;
+  navigation: {
+    navigate: (screen: string) => void;
+    replace: (screen: string) => void;
+  };
 };
 
+const BLUE = "#2F5BEA";
+const TEXT = "#111827";
+const MUTED = "#667085";
+const BORDER = "#E4EAF3";
+
 export default function OnboardingSecondScreen({ navigation }: Props) {
-  const handleSkip = async () => {
-    await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.replace("Login");
-  };
-
-  const handleNext = async () => {
-    navigation.navigate("OnboardingThird");
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <View style={styles.screen}>
+      <PlanAPreview />
+
+      <View style={styles.dim} />
+
+      <TouchableOpacity
+        activeOpacity={1}
+        style={styles.touchLayer}
+        onPress={() => navigation.navigate("OnboardingThird")}
       >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.skipText}>건너뛰기</Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          style={styles.skipButton}
+          onPress={() => navigation.replace("Login")}
+        >
+          <Text style={styles.skipText}>건너뛰기</Text>
+        </TouchableOpacity>
+
+        <TransportFocusCard />
+
+        <View style={styles.tooltip}>
+          <View style={styles.tooltipArrow} />
+          <View style={styles.tooltipBody}>
+            <Text style={styles.tooltipText}>
+              이동수단을 선택해 일정 간 이동을 계산해드려요
+            </Text>
+          </View>
         </View>
 
-        <View style={styles.logoSection}>
-          <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.logoSubText}>더 스마트한 여행의 시작</Text>
+        <Text style={styles.touchText}>이동 동선까지 자동으로 관리해요</Text>
+
+        <View style={styles.dots}>
+          <View style={styles.dot} />
+          <View style={styles.activeDot} />
+          <View style={styles.dot} />
+          <View style={styles.dot} />
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+function PlanAPreview() {
+  return (
+    <View style={styles.preview}>
+      <View style={styles.mapArea}>
+        <View style={styles.roadA} />
+        <View style={styles.roadB} />
+        <View style={styles.roadC} />
+        <View style={styles.parkA} />
+        <View style={styles.parkB} />
+        <Text style={styles.fakeMapTextA}>중구</Text>
+        <Text style={styles.fakeMapTextB}>대전아쿠아리움</Text>
+        <Text style={styles.fakeMapTextC}>판암역</Text>
+        <Text style={styles.mapLabel}> Maps</Text>
+        <View style={styles.mapPin}>
+          <Ionicons name="location-sharp" size={34} color="#F43F5E" />
+        </View>
+      </View>
+
+      <View style={styles.sheet}>
+        <View style={styles.sheetHandleWrapper}>
+          <Text style={styles.sheetToggleText}>일정 접기</Text>
+          <Ionicons name="chevron-down" size={18} color="#94A3B8" />
         </View>
 
-        <View style={styles.centerSection}>
-          <View style={styles.illustrationWrapper}>
-            <Image
-              source={OnboardingSecondImage}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
+        <View style={styles.scheduleHeader}>
+          <Text style={styles.scheduleTitle}>일정</Text>
+        </View>
+
+        <View style={styles.roadmapList}>
+          <View style={styles.timelineGroup}>
+            <View style={styles.placeRow}>
+              <View style={styles.sidebarColumn}>
+                <View style={styles.blueDot} />
+                <View style={styles.blueLine} />
+              </View>
+
+              <View style={styles.cardContent}>
+                <PlaceCard name="감자바위골" />
+              </View>
+            </View>
+
+            <View style={styles.transportRow}>
+              <View style={styles.transportIconColumn}>
+                <Ionicons name="walk-outline" size={15} color="#94A3B8" />
+              </View>
+
+              <View style={styles.transportAxisColumn}>
+                <View style={styles.transportLineCover} />
+                <View style={styles.transportDashedLine} />
+              </View>
+
+              <View style={styles.transportCardDim}>
+                <TransportInner />
+              </View>
+            </View>
           </View>
 
-          <Text style={styles.title}>
-            예상치 못한 상황에도{"\n"}대안을 찾을 수 있어요
-          </Text>
+          <View style={styles.timelineGroup}>
+            <View style={styles.placeRow}>
+              <View style={styles.sidebarColumn}>
+                <View style={styles.blueDot} />
+              </View>
 
-          <Text style={styles.description}>
-            여행 중 문제가 생겨도{"\n"}Plan.B가 새로운 선택지를 제안해드려요
+              <View style={styles.cardContent}>
+                <PlaceCard name="빠도독감자탕 세종청사점" />
+              </View>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.addPlaceButton}>
+          <Ionicons name="add-circle-outline" size={18} color={BLUE} />
+          <Text style={styles.addPlaceButtonText}>장소 추가</Text>
+        </View>
+      </View>
+    </View>
+  );
+}
+
+function PlaceCard({ name }: { name: string }) {
+  return (
+    <View style={styles.placeCard}>
+      <View style={styles.placeTopRow}>
+        <View style={styles.placeTextGroup}>
+          <Text style={styles.placeName} numberOfLines={1}>
+            {name}
+          </Text>
+          <Text style={styles.placeTime}>시간을 설정해주세요</Text>
+        </View>
+
+        <View style={styles.placeIconRow}>
+          <Ionicons name="close" size={22} color="#FF6B6B" />
+          <Ionicons name="time-outline" size={22} color={BLUE} />
+        </View>
+      </View>
+
+      <View style={styles.memoBox}>
+        <View style={styles.memoLeft}>
+          <Ionicons name="document-text-outline" size={15} color="#94A3B8" />
+          <Text style={styles.memoText}>+ 메모 추가</Text>
+        </View>
+        <Ionicons name="chevron-forward" size={18} color="#94A3B8" />
+      </View>
+    </View>
+  );
+}
+
+function TransportInner() {
+  return (
+    <>
+      <View style={styles.transportHeader}>
+        <View style={styles.transportTextGroup}>
+          <Text style={styles.transportTitleWarning}>
+            ⚠ 이동수단을 선택해주세요
+          </Text>
+          <Text style={styles.transportDescriptionWarning}>
+            감자바위골 → 빠도독감자탕 세종청사점
           </Text>
         </View>
 
-        <View style={styles.footerSection}>
-          <View style={styles.pagination}>
-            <View style={styles.dot} />
-            <View style={styles.activeDot} />
-            <View style={styles.dot} />
-            <View style={styles.dotNoMargin} />
+        <Ionicons name="chevron-up" size={17} color="#CBD5E1" />
+      </View>
+
+      <View style={styles.transportPickerBody}>
+        <View style={styles.transportOptionRow}>
+          <View style={styles.transportOptionButton}>
+            <Ionicons name="walk-outline" size={15} color="#64748B" />
+            <Text style={styles.transportOptionText}>도보</Text>
           </View>
 
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.nextButtonText}>다음</Text>
-          </TouchableOpacity>
+          <View style={styles.transportOptionButton}>
+            <Ionicons name="train-outline" size={15} color="#64748B" />
+            <Text style={styles.transportOptionText}>대중교통</Text>
+          </View>
+
+          <View style={styles.transportOptionButton}>
+            <Ionicons name="car-outline" size={15} color="#64748B" />
+            <Text style={styles.transportOptionText}>자동차</Text>
+          </View>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+
+        <View style={styles.transportConfirmButton}>
+          <Text style={styles.transportConfirmText}>확인</Text>
+        </View>
+      </View>
+    </>
+  );
+}
+
+function TransportFocusCard() {
+  return (
+    <View style={styles.focusTransportCard}>
+      <TransportInner />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F6F8FC",
   },
-
-  container: {
+  preview: {
     flex: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: "#F6F8FC",
+  },
+  mapArea: {
+    height: 240,
+    backgroundColor: "#D8E6D2",
+    justifyContent: "flex-end",
+    paddingHorizontal: 18,
+    paddingBottom: 16,
   },
 
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 21,
-    paddingTop: 18,
-    paddingBottom: 48,
+  roadA: {
+    position: "absolute",
+    left: -40,
+    right: -40,
+    top: 95,
+    height: 18,
+    backgroundColor: "#F8FAFC",
+    transform: [{ rotate: "-12deg" }],
+    opacity: 0.9,
+  },
+  roadB: {
+    position: "absolute",
+    left: 120,
+    top: 20,
+    width: 18,
+    height: 260,
+    backgroundColor: "#F8FAFC",
+    transform: [{ rotate: "28deg" }],
+    opacity: 0.9,
+  },
+  roadC: {
+    position: "absolute",
+    left: -20,
+    right: -20,
+    top: 155,
+    height: 12,
+    backgroundColor: "#E2E8F0",
+    transform: [{ rotate: "8deg" }],
+    opacity: 0.9,
+  },
+  parkA: {
+    position: "absolute",
+    left: 0,
+    bottom: 0,
+    width: 160,
+    height: 110,
+    borderTopRightRadius: 80,
+    backgroundColor: "#BEE3B8",
+    opacity: 0.85,
+  },
+  parkB: {
+    position: "absolute",
+    right: -20,
+    top: 20,
+    width: 120,
+    height: 90,
+    borderBottomLeftRadius: 70,
+    backgroundColor: "#BEE3B8",
+    opacity: 0.85,
+  },
+  fakeMapTextA: {
+    position: "absolute",
+    left: 38,
+    top: 118,
+    color: "#64748B",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  fakeMapTextB: {
+    position: "absolute",
+    left: 92,
+    top: 145,
+    color: "#DB2777",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  fakeMapTextC: {
+    position: "absolute",
+    right: 32,
+    top: 74,
+    color: "#2563EB",
+    fontSize: 14,
+    fontWeight: "900",
   },
 
-  headerRow: {
-    alignItems: "flex-end",
-    marginBottom: 54,
-  },
-
-  skipButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-
-  skipText: {
-    color: "#8C9BB1",
-    fontSize: 16,
+  mapLabel: {
+    color: "rgba(0,0,0,0.62)",
+    fontSize: 19,
     fontWeight: "700",
   },
-
-  logoSection: {
-    alignItems: "center",
-    marginBottom: 78,
+  mapPin: {
+    position: "absolute",
+    top: 76,
+    left: "47%",
   },
-
-  logoText: {
-    color: "#1C2534",
-    fontSize: 50,
-    fontWeight: "900",
-    lineHeight: 58,
-    marginBottom: 8,
+  sheet: {
+    flex: 1,
+    marginTop: -22,
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 20,
+    paddingTop: 6,
   },
-
-  logoSubText: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  centerSection: {
-    alignItems: "center",
-    marginBottom: 84,
-  },
-
-  illustrationWrapper: {
-    width: 180,
-    height: 180,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 42,
-  },
-
-  illustrationImage: {
-    width: 180,
-    height: 180,
-  },
-
-  title: {
-    color: "#000000",
-    fontSize: 30,
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 40,
-    marginBottom: 24,
-  },
-
-  description: {
-    color: "#627187",
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-
-  footerSection: {
-    marginTop: "auto",
-  },
-
-  pagination: {
+  sheetHandleWrapper: {
+    alignSelf: "center",
+    minWidth: 124,
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 30,
+    gap: 4,
+    marginTop: -4,
+    marginBottom: 10,
   },
-
-  activeDot: {
-    width: 24,
-    height: 6,
+  sheetToggleText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+  scheduleHeader: {
+    marginBottom: 14,
+    paddingHorizontal: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  scheduleTitle: {
+    fontSize: 20,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  roadmapList: {
+    position: "relative",
+    width: "100%",
+  },
+  timelineGroup: {
+    width: "100%",
+    position: "relative",
+    zIndex: 2,
+  },
+  placeRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 14,
+  },
+  sidebarColumn: {
+    width: 34,
+    alignItems: "center",
+    position: "relative",
+    marginRight: 10,
+  },
+  blueDot: {
+    width: 12,
+    height: 12,
     borderRadius: 999,
-    backgroundColor: "#2158E8",
-    marginRight: 8,
+    borderWidth: 3,
+    borderColor: "#2563EB",
+    backgroundColor: "#FFFFFF",
+    marginTop: 18,
+    zIndex: 3,
+  },
+  blueLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 96,
+    backgroundColor: "#2563EB",
+    marginTop: 4,
+  },
+  cardContent: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 2,
+  },
+  placeCard: {
+    minHeight: 104,
+    opacity: 0.58,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.03,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 1,
+  },
+  placeTopRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+    gap: 10,
+  },
+  placeTextGroup: {
+    flex: 1,
+  },
+  placeName: {
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  placeTime: {
+    marginTop: 8,
+    color: "#94A3B8",
+    fontSize: 13,
+    fontWeight: "700",
+  },
+  placeIconRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  memoBox: {
+    marginTop: 12,
+    minHeight: 38,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  memoLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  memoText: {
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "800",
   },
 
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
-    marginRight: 8,
+  transportRow: {
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "stretch",
+    marginTop: -2,
+    marginBottom: 18,
   },
-
-  dotNoMargin: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
-  },
-
-  nextButton: {
+  transportIconColumn: {
+    width: 34,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2158E8",
+    marginRight: 10,
+  },
+  transportAxisColumn: {
+    width: 34,
+    alignItems: "center",
+    position: "relative",
+    marginLeft: -44,
+    marginRight: 10,
+  },
+  transportLineCover: {
+    position: "absolute",
+    top: -10,
+    bottom: -10,
+    width: 18,
+    backgroundColor: "#FFFFFF",
+    zIndex: 1,
+  },
+  transportDashedLine: {
+    flex: 1,
+    minHeight: 70,
+    borderLeftWidth: 2,
+    borderStyle: "dashed",
+    borderColor: "#CBD5E1",
+    zIndex: 2,
+  },
+  transportCardDim: {
+    flex: 1,
+    minHeight: 142,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: "#F59E0B",
+    backgroundColor: "#FFF7ED",
+    overflow: "hidden",
+  },
+  focusTransportCard: {
+    position: "absolute",
+    top: 470,
+    left: 64,
+    right: 22,
+    minHeight: 142,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: "#F59E0B",
+    backgroundColor: "#FFF7ED",
+    overflow: "hidden",
+    zIndex: 60,
+    shadowColor: "#000000",
+    shadowOpacity: 0.18,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 12,
+  },
+  transportHeader: {
+    minHeight: 58,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  transportTextGroup: {
+    flex: 1,
+    paddingRight: 10,
+  },
+  transportTitleWarning: {
+    fontSize: 13,
+    fontWeight: "800",
+    color: "#D97706",
+  },
+  transportDescriptionWarning: {
+    marginTop: 3,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#92400E",
+  },
+  transportPickerBody: {
+    borderTopWidth: 1,
+    borderTopColor: "#E2E8F0",
+    paddingHorizontal: 10,
+    paddingBottom: 10,
+  },
+  transportOptionRow: {
+    flexDirection: "row",
+    gap: 8,
+    paddingTop: 10,
+  },
+  transportOptionButton: {
+    flex: 1,
+    height: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#D9E2F2",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+  transportOptionText: {
+    fontSize: 12,
+    fontWeight: "800",
+    color: "#64748B",
+  },
+  transportConfirmButton: {
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: "#2563EB",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 10,
+  },
+  transportConfirmText: {
+    fontSize: 13,
+    fontWeight: "900",
+    color: "#FFFFFF",
+  },
+  addPlaceButton: {
+    marginTop: 10,
+    opacity: 0.45,
+    marginLeft: 43,
+    minHeight: 48,
     borderRadius: 14,
-    minHeight: 56,
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.3,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 10,
-    elevation: 10,
+    backgroundColor: "#ECF5FF",
+    borderWidth: 1,
+    borderColor: "#CFE3FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+  },
+  addPlaceButtonText: {
+    color: BLUE,
+    fontSize: 14,
+    fontWeight: "900",
   },
 
-  nextButtonText: {
+  dim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.62)",
+  },
+  touchLayer: {
+    flex: 1,
+  },
+  backButton: {
+    position: "absolute",
+    top: 54,
+    left: 22,
+    zIndex: 50,
+  },
+  backText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 42,
+    fontWeight: "900",
+    lineHeight: 42,
+  },
+  skipButton: {
+    position: "absolute",
+    top: 58,
+    right: 34,
+    zIndex: 80,
+  },
+  skipText: {
+    color: "#FFFFFF",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  tooltip: {
+    position: "absolute",
+    top: 620,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 40,
+  },
+  tooltipArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 18,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: BLUE,
+    marginBottom: -1,
+  },
+  tooltipBody: {
+    minWidth: 292,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: BLUE,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  tooltipText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  touchText: {
+    position: "absolute",
+    bottom: 112,
+    left: 0,
+    right: 0,
+    color: "#FFFFFF",
+    fontSize: 24,
+    fontWeight: "900",
+    textAlign: "center",
+    textShadowColor: "rgba(0,0,0,0.55)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 8,
+    zIndex: 80,
+  },
+  dots: {
+    position: "absolute",
+    bottom: 36,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 100,
+  },
+  activeDot: {
+    width: 54,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: BLUE,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
   },
 });

@@ -1,235 +1,138 @@
+// src/screens/OnboardingFourthScreen.tsx
+
 import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-} from "react-native";
-
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
-
-const OnboardingFourthImage = require("../assets/onboarding-fourth.png");
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
-  navigation: any;
+  navigation: {
+    replace: (screen: string) => void;
+  };
 };
 
+const BLUE = "#2F5BEA";
+const TEXT = "#111827";
+const MUTED = "#667085";
+
 export default function OnboardingFourthScreen({ navigation }: Props) {
-  const handleSkip = async () => {
-    await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  };
-
-  const handleStart = async () => {
-    await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.reset({
-      index: 0,
-      routes: [{ name: "Login" }],
-    });
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <View style={styles.screen}>
+      <View style={styles.center}>
+        <Text style={styles.logo}>Plan.B</Text>
+        <Text style={styles.subLogo}>더 스마트한 여행의 시작</Text>
+
+        <View style={styles.rocketCircle}>
+          <Text style={styles.rocket}>🚀</Text>
+        </View>
+
+        <View style={styles.tooltip}>
+          <View style={styles.tooltipArrow} />
+          <View style={styles.tooltipBody}>
+            <Text style={styles.tooltipText}>
+              Plan.B와 함께 새로운 여행을 시작해보세요!
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <TouchableOpacity
+        activeOpacity={0.85}
+        style={styles.startButton}
+        onPress={() => navigation.replace("Login")}
       >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.skipText}>건너뛰기</Text>
-          </TouchableOpacity>
-        </View>
-
-        <View style={styles.logoSection}>
-          <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.logoSubText}>더 스마트한 여행의 시작</Text>
-        </View>
-
-        <View style={styles.centerSection}>
-          <View style={styles.illustrationWrapper}>
-            <Image
-              source={OnboardingFourthImage}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
-          </View>
-
-          <Text style={styles.title}>
-            이제 더 스마트한 여행을{"\n"}시작해보세요
-          </Text>
-
-          <Text style={styles.description}>
-            Plan.B와 함께라면 여행 중 어떤 상황도{"\n"}더 유연하게 대처할 수
-            있어요
-          </Text>
-        </View>
-
-        <View style={styles.footerSection}>
-          <View style={styles.pagination}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.activeDotNoMargin} />
-          </View>
-
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleStart}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.nextButtonText}>시작하기</Text>
-          </TouchableOpacity>
-        </View>
-      </ScrollView>
-    </SafeAreaView>
+        <Text style={styles.startButtonText}>시작하기</Text>
+      </TouchableOpacity>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#5A5A5A",
   },
-
-  container: {
-    flex: 1,
-    backgroundColor: "#F7F9FB",
+  center: {
+    alignItems: "center",
+    paddingTop: 132,
   },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 21,
-    paddingTop: 18,
-    paddingBottom: 48,
+  logo: {
+    color: "#050505",
+    fontSize: 52,
+    fontWeight: "900",
+    letterSpacing: -1.5,
   },
-
-  headerRow: {
-    alignItems: "flex-end",
-    marginBottom: 54,
-  },
-
-  skipButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-
-  skipText: {
-    color: "#8C9BB1",
-    fontSize: 16,
+  subLogo: {
+    marginTop: 14,
+    color: "#FFFFFF",
+    fontSize: 20,
     fontWeight: "700",
   },
-
-  logoSection: {
-    alignItems: "center",
-    marginBottom: 78,
-  },
-
-  logoText: {
-    color: "#1C2534",
-    fontSize: 50,
-    fontWeight: "900",
-    lineHeight: 58,
-    marginBottom: 8,
-  },
-
-  logoSubText: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  centerSection: {
-    alignItems: "center",
-    marginBottom: 84,
-  },
-
-  illustrationWrapper: {
-    width: 180,
-    height: 180,
+  rocketCircle: {
+    marginTop: 78,
+    width: 176,
+    height: 176,
+    borderRadius: 88,
+    backgroundColor: "#4968B5",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 42,
-  },
-
-  illustrationImage: {
-    width: 180,
-    height: 180,
-  },
-
-  title: {
-    color: "#000000",
-    fontSize: 30,
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 40,
-    marginBottom: 24,
-  },
-
-  description: {
-    color: "#627187",
-    fontSize: 16,
-    fontWeight: "500",
-    textAlign: "center",
-    lineHeight: 24,
-  },
-
-  footerSection: {
-    marginTop: "auto",
-  },
-
-  pagination: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 30,
-  },
-
-  activeDotNoMargin: {
-    width: 24,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#2158E8",
-  },
-
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
-    marginRight: 8,
-  },
-
-  nextButton: {
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2158E8",
-    borderRadius: 14,
-    minHeight: 56,
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.3,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 10,
+    shadowColor: "#000000",
+    shadowOpacity: 0.16,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
     elevation: 10,
   },
-
-  nextButtonText: {
+  rocket: {
+    fontSize: 78,
+    transform: [{ rotate: "-18deg" }],
+  },
+  tooltip: {
+    marginTop: 48,
+    alignItems: "center",
+  },
+  tooltipArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 12,
+    borderRightWidth: 12,
+    borderBottomWidth: 18,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderBottomColor: BLUE,
+    marginBottom: -1,
+  },
+  tooltipBody: {
+    height: 48,
+    minWidth: 292,
+    borderRadius: 16,
+    backgroundColor: BLUE,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  tooltipText: {
     color: "#FFFFFF",
-    fontSize: 16,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  startButton: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    bottom: 44,
+    height: 64,
+    borderRadius: 18,
+    backgroundColor: BLUE,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: BLUE,
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 8,
+  },
+  startButtonText: {
+    color: "#FFFFFF",
+    fontSize: 23,
+    fontWeight: "900",
   },
 });

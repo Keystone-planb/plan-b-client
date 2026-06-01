@@ -1,234 +1,470 @@
-import React from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  ScrollView,
-  Image,
-} from "react-native";
+// src/screens/OnboardingThirdScreen.tsx
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { SafeAreaView } from "react-native-safe-area-context";
-const OnboardingThirdImage = require("../assets/onboarding-third.png");
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import Ionicons from "@expo/vector-icons/Ionicons";
 
 type Props = {
-  navigation: any;
+  navigation: {
+    navigate: (screen: string) => void;
+    replace: (screen: string) => void;
+  };
 };
 
+const BLUE = "#2F5BEA";
+const TEXT = "#111827";
+const MUTED = "#667085";
+const BG = "#F6F8FC";
+const BORDER = "#E4EAF3";
+
 export default function OnboardingThirdScreen({ navigation }: Props) {
-  const handleSkip = async () => {
-    await AsyncStorage.setItem("onboarding_seen", "true");
-    navigation.replace("Login");
-  };
-
-  const handleNext = async () => {
-    navigation.navigate("OnboardingFourth");
-  };
-
   return (
-    <SafeAreaView style={styles.safeArea}>
-      <ScrollView
-        style={styles.container}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        bounces={false}
+    <TouchableOpacity
+      activeOpacity={1}
+      style={styles.screen}
+      onPress={() => navigation.navigate("OnboardingFourth")}
+    >
+      <ResultBackground />
+      <View style={styles.dim} />
+
+      <TouchableOpacity
+        activeOpacity={0.8}
+        style={styles.skipButton}
+        onPress={() => navigation.replace("Login")}
       >
-        <View style={styles.headerRow}>
-          <TouchableOpacity
-            style={styles.skipButton}
-            onPress={handleSkip}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.skipText}>건너뛰기</Text>
-          </TouchableOpacity>
+        <Text style={styles.skipText}>건너뛰기</Text>
+      </TouchableOpacity>
+
+      <View style={styles.tooltip} pointerEvents="none">
+        <View style={styles.tooltipBody}>
+          <Text style={styles.tooltipText}>대안 리스트를 상세하게 보여드려요</Text>
+        </View>
+        <View style={styles.tooltipArrow} />
+      </View>
+
+      <View style={styles.focusCard} pointerEvents="none">
+        <ResultCard />
+      </View>
+
+      <View style={styles.dots} pointerEvents="none">
+        <View style={styles.dot} />
+        <View style={styles.dot} />
+        <View style={styles.activeDot} />
+        <View style={styles.dot} />
+      </View>
+    </TouchableOpacity>
+  );
+}
+
+function ResultBackground() {
+  return (
+    <View style={styles.bg}>
+      <View style={styles.header}>
+        <Text style={styles.backIcon}>‹</Text>
+        <Text style={styles.logo}>Plan.B</Text>
+        <Text style={styles.headerSkip}>건너뛰기</Text>
+      </View>
+
+      <Text style={styles.pageTitle}>AI 대안 추천</Text>
+      <Text style={styles.pageSub}>거리와 리뷰를 기반으로 추천된 top5예요</Text>
+
+      <Text style={styles.sectionTitle}>기존 일정</Text>
+      <View style={styles.originCard}>
+        <View>
+          <Text style={styles.originName}>강릉역</Text>
+          <Text style={styles.originSub}>사직공원</Text>
+          <Text style={styles.originDate}>◷ 2026.05.27 - 2026.05.30</Text>
+        </View>
+        <View style={styles.weatherBadge}>
+          <Text style={styles.weatherText}>☔ 비예보</Text>
+        </View>
+      </View>
+
+      <Text style={styles.recommendTitle}>추천 대안</Text>
+
+      <View style={styles.backgroundCard}>
+        <ResultCard />
+      </View>
+      <View style={[styles.backgroundCard, styles.backgroundCardDim]}>
+        <ResultCard />
+      </View>
+    </View>
+  );
+}
+
+function ResultCard() {
+  return (
+    <View style={styles.card}>
+      <View style={styles.cardTop}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>🎡</Text>
         </View>
 
-        <View style={styles.logoSection}>
-          <Text style={styles.logoText}>Plan.B</Text>
-          <Text style={styles.logoSubText}>더 스마트한 여행의 시작</Text>
-        </View>
-
-        <View style={styles.centerSection}>
-          <View style={styles.illustrationWrapper}>
-            <Image
-              source={OnboardingThirdImage}
-              style={styles.illustrationImage}
-              resizeMode="contain"
-            />
+        <View style={styles.cardContent}>
+          <View style={styles.nameRow}>
+            <Text style={styles.placeName}>에버랜드</Text>
+            <View style={styles.categoryBadge}>
+              <Text style={styles.categoryText}>아웃도어</Text>
+            </View>
           </View>
 
-          <Text style={styles.title}>
-            흩어진 여행 정보를{"\n"}한눈에 모아볼 수 있어요
-          </Text>
+          <Text style={styles.rating}>⭐ 4.58 (2,239)</Text>
 
-          <Text style={styles.description}>
-            다양한 여행 정보를 더 쉽고 빠르게{"\n"}비교하고 선택할 수 있어요
-          </Text>
-        </View>
-
-        <View style={styles.footerSection}>
-          <View style={styles.pagination}>
-            <View style={styles.dot} />
-            <View style={styles.dot} />
-            <View style={styles.activeDot} />
-            <View style={styles.dotNoMargin} />
+          <View style={styles.locationRow}>
+            <Ionicons name="location-outline" size={12} color="#8A98AA" />
+            <Text style={styles.locationText} numberOfLines={1}>
+              경기도 용인시 처인구 포곡읍 에버랜드로 199
+            </Text>
           </View>
-
-          <TouchableOpacity
-            style={styles.nextButton}
-            onPress={handleNext}
-            activeOpacity={0.85}
-          >
-            <Text style={styles.nextButtonText}>다음</Text>
-          </TouchableOpacity>
         </View>
-      </ScrollView>
-    </SafeAreaView>
+      </View>
+
+      <View style={styles.aiReviewBox}>
+        <View style={styles.reviewIcon}>
+          <Text style={styles.reviewIconText}>📊</Text>
+        </View>
+        <Text style={styles.reviewText} numberOfLines={2}>
+          아이들과 함께 가기 너무 좋아요! 구경거리도 많아서 좋아요
+        </Text>
+        <View style={styles.aiBadge}>
+          <Text style={styles.aiBadgeText}>AI</Text>
+        </View>
+      </View>
+
+      <View style={styles.detailButton}>
+        <Text style={styles.detailText}>자세히</Text>
+        <Ionicons name="chevron-down" size={13} color="#667085" />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  screen: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: BG,
   },
-
-  container: {
+  bg: {
     flex: 1,
-    backgroundColor: "#F7F9FB",
+    backgroundColor: BG,
+    paddingHorizontal: 20,
   },
-
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 21,
-    paddingTop: 18,
-    paddingBottom: 48,
-  },
-
-  headerRow: {
-    alignItems: "flex-end",
-    marginBottom: 54,
-  },
-
-  skipButton: {
-    paddingHorizontal: 6,
-    paddingVertical: 4,
-  },
-
-  skipText: {
-    color: "#8C9BB1",
-    fontSize: 16,
-    fontWeight: "700",
-  },
-
-  logoSection: {
-    alignItems: "center",
-    marginBottom: 78,
-  },
-
-  logoText: {
-    color: "#1C2534",
-    fontSize: 50,
-    fontWeight: "900",
-    lineHeight: 58,
-    marginBottom: 8,
-  },
-
-  logoSubText: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "500",
-  },
-
-  centerSection: {
-    alignItems: "center",
-    marginBottom: 84,
-  },
-
-  illustrationWrapper: {
-    width: 180,
-    height: 180,
+  header: {
+    marginTop: 56,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 42,
   },
-
-  illustrationImage: {
-    width: 180,
-    height: 180,
-  },
-
-  title: {
-    color: "#000000",
-    fontSize: 30,
-    fontWeight: "800",
-    textAlign: "center",
-    lineHeight: 40,
-    marginBottom: 24,
-  },
-
-  description: {
-    color: "#627187",
-    fontSize: 16,
+  backIcon: {
+    position: "absolute",
+    left: 0,
+    top: -2,
+    fontSize: 34,
     fontWeight: "500",
-    textAlign: "center",
-    lineHeight: 24,
+    color: "#667085",
   },
-
-  footerSection: {
-    marginTop: "auto",
+  logo: {
+    fontSize: 27,
+    fontWeight: "900",
+    color: "#111827",
   },
-
-  pagination: {
+  headerSkip: {
+    position: "absolute",
+    right: 0,
+    top: 9,
+    fontSize: 15,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  pageTitle: {
+    marginTop: 24,
+    fontSize: 17,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  pageSub: {
+    marginTop: 6,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#98A2B3",
+  },
+  sectionTitle: {
+    marginTop: 26,
+    fontSize: 14,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  originCard: {
+    marginTop: 10,
+    minHeight: 84,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: BORDER,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 30,
+    justifyContent: "space-between",
   },
-
-  activeDot: {
-    width: 24,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#2158E8",
-    marginRight: 8,
+  originName: {
+    fontSize: 14,
+    fontWeight: "900",
+    color: TEXT,
   },
-
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
-    marginRight: 8,
+  originSub: {
+    marginTop: 4,
+    fontSize: 11,
+    fontWeight: "700",
+    color: MUTED,
   },
-
-  dotNoMargin: {
-    width: 6,
-    height: 6,
-    borderRadius: 999,
-    backgroundColor: "#E1E7EF",
+  originDate: {
+    marginTop: 5,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#667085",
   },
-
-  nextButton: {
+  weatherBadge: {
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: "#2158E8",
-    borderRadius: 14,
-    minHeight: 56,
-    shadowColor: "#2158E8",
-    shadowOpacity: 0.3,
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowRadius: 10,
-    elevation: 10,
+    paddingHorizontal: 11,
+  },
+  weatherText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+  recommendTitle: {
+    marginTop: 22,
+    marginBottom: 10,
+    fontSize: 14,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  backgroundCard: {
+    opacity: 0.45,
+    marginBottom: 14,
+  },
+  backgroundCardDim: {
+    opacity: 0.28,
   },
 
-  nextButtonText: {
+  dim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.62)",
+  },
+  skipButton: {
+    position: "absolute",
+    top: 58,
+    right: 34,
+    zIndex: 90,
+  },
+  skipText: {
     color: "#FFFFFF",
-    fontSize: 16,
+    fontSize: 20,
+    fontWeight: "900",
+  },
+  tooltip: {
+    position: "absolute",
+    top: 296,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+    zIndex: 100,
+  },
+  tooltipBody: {
+    minWidth: 292,
+    height: 48,
+    borderRadius: 16,
+    backgroundColor: BLUE,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 18,
+  },
+  tooltipText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  tooltipArrow: {
+    width: 0,
+    height: 0,
+    borderLeftWidth: 10,
+    borderRightWidth: 10,
+    borderTopWidth: 16,
+    borderLeftColor: "transparent",
+    borderRightColor: "transparent",
+    borderTopColor: BLUE,
+    marginTop: -1,
+  },
+  focusCard: {
+    position: "absolute",
+    top: 350,
+    left: 20,
+    right: 20,
+    zIndex: 95,
+  },
+
+  card: {
+    borderRadius: 18,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6ECF5",
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 12,
+    shadowColor: "#000000",
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 10,
+  },
+  cardTop: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  avatar: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#FFD9F4",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: {
+    fontSize: 22,
+  },
+  cardContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  nameRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  placeName: {
+    fontSize: 15,
+    fontWeight: "900",
+    color: TEXT,
+  },
+  categoryBadge: {
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#F2F4F7",
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  categoryText: {
+    fontSize: 8,
+    fontWeight: "900",
+    color: "#667085",
+  },
+  rating: {
+    marginTop: 4,
+    fontSize: 12,
+    fontWeight: "900",
+    color: "#344054",
+  },
+  locationRow: {
+    marginTop: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  locationText: {
+    flex: 1,
+    fontSize: 10,
     fontWeight: "700",
+    color: "#475467",
+  },
+  aiReviewBox: {
+    position: "relative",
+    marginTop: 14,
+    marginLeft: 34,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#BFD7FF",
+    backgroundColor: "#F5FAFF",
+    minHeight: 54,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+  },
+  reviewIcon: {
+    width: 18,
+    alignItems: "center",
+  },
+  reviewIconText: {
+    fontSize: 12,
+  },
+  reviewText: {
+    flex: 1,
+    color: "#1D4ED8",
+    fontSize: 10,
+    fontWeight: "900",
+    lineHeight: 15,
+  },
+  aiBadge: {
+    position: "absolute",
+    top: -11,
+    right: -11,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#5B35D5",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  aiBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 8,
+    fontWeight: "900",
+  },
+  detailButton: {
+    marginTop: 12,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#F7F9FC",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 4,
+  },
+  detailText: {
+    color: "#667085",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  dots: {
+    position: "absolute",
+    bottom: 36,
+    left: 0,
+    right: 0,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    zIndex: 100,
+  },
+  activeDot: {
+    width: 54,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: BLUE,
+  },
+  dot: {
+    width: 12,
+    height: 12,
+    borderRadius: 999,
+    backgroundColor: "#FFFFFF",
   },
 });

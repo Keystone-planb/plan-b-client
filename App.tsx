@@ -417,17 +417,14 @@ export default function App() {
             name="OnboardingFirst"
             component={OnboardingFirstScreen}
           />
-
           <Stack.Screen
             name="OnboardingSecond"
             component={OnboardingSecondScreen}
           />
-
           <Stack.Screen
             name="OnboardingThird"
             component={OnboardingThirdScreen}
           />
-
           <Stack.Screen
             name="OnboardingFourth"
             component={OnboardingFourthScreen}
