@@ -34,6 +34,7 @@ import type { TripScheduleGap } from "../types/gapRecommendation";
 import { getPlaceDetail } from "../../api/places/place";
 import {
   deletePlanPlace,
+  getTripDay,
   getTripDetail,
   updatePlanSchedule,
 } from "../../api/schedules/server";
@@ -651,6 +652,50 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         lastTripDetailLoadKeyRef.current = loadKey;
 
         try {
+          const currentDay =
+            Number.isFinite(Number(selectedDayIndex)) ? selectedDayIndex + 1 : 1;
+
+          try {
+            const dayDetail = await getTripDay(resolvedTripId, currentDay);
+
+            const nextDay: ScheduleDay = {
+              day: dayDetail?.day ?? currentDay,
+              places: Array.isArray(dayDetail?.places) ? dayDetail.places : [],
+            };
+
+            setServerDays((prev) => {
+              const exists = prev.some((day) => Number(day.day) === Number(nextDay.day));
+
+              if (!exists) {
+                return [...prev, nextDay].sort(
+                  (a, b) => Number(a.day) - Number(b.day),
+                );
+              }
+
+              return prev.map((day) =>
+                Number(day.day) === Number(nextDay.day) ? nextDay : day,
+              );
+            });
+
+            if (__DEV__) {
+              console.log("[OngoingSchedule] getTripDay 부분 재조회 성공:", {
+                tripId: resolvedTripId,
+                day: currentDay,
+                placeCount: nextDay.places.length,
+              });
+            }
+
+            return;
+          } catch (dayError) {
+            if (__DEV__) {
+              console.log("[OngoingSchedule] getTripDay 실패, 전체 재조회 fallback:", {
+                tripId: resolvedTripId,
+                day: currentDay,
+                error: dayError,
+              });
+            }
+          }
+
           const detail = await getTripDetail(resolvedTripId);
 
           const itineraries =
@@ -670,7 +715,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       };
 
       loadTripDetail();
-    }, [resolvedTripId, route?.params?.refreshPlanAAt]),
+    }, [resolvedTripId, route?.params?.refreshPlanAAt, selectedDayIndex]),
   );
 
   const displayDays = useMemo(

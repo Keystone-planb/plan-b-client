@@ -428,3 +428,16 @@ export const addLocationToTripDay = async ({
 
   return response.data as AddTripLocationResponse;
 };
+
+export const getTripDay = async (tripId: number | string, day: number) => {
+  if (!tripId) {
+    throw new Error("tripId가 없습니다.");
+  }
+
+  if (!Number.isFinite(Number(day)) || Number(day) < 1) {
+    throw new Error("유효하지 않은 day 값입니다.");
+  }
+
+  const response = await apiClient.get(`/api/trips/${tripId}/days/${day}`);
+  return response.data;
+};
