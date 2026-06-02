@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import OngoingPlaceCard from "../components/ongoing/OngoingPlaceCard";
+import OngoingGapBetweenPlace from "../components/ongoing/OngoingGapBetweenPlace";
 import { buildAlternativeNavigationParams } from "../utils/ongoing/alternativeNavigation";
 import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
 import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
@@ -1264,184 +1265,26 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                   />
 
                   {nextPlaceForGap ?
-                    (() => {
-                      const pairKey = `${String(gapBeforePlanId ?? placeKey)}-${String(
-                        gapAfterPlanId ?? index + 1,
-                      )}`;
-
-                      const selectedTransportMode =
-                        transportModesByPair[pairKey] ??
-                        (place as TodayPlace & { transportMode?: TransportMode | null }).transportMode ??
-                        null;
-
-                      const selectedTransportOption = getTransportOption(
-                        selectedTransportMode,
-                      );
-
-                      const currentEndMinutes =
-                        getPlaceEndTimeValueForGap(place);
-                      const nextStartMinutes =
-                        getPlaceStartTimeValueForGap(nextPlaceForGap);
-
-                      const hasMoveSlot =
-                        Number.isFinite(currentEndMinutes) &&
-                        Number.isFinite(nextStartMinutes) &&
-                        nextStartMinutes > currentEndMinutes;
-
-                      const hasGapRecommendation =
-                        currentGapPlanPairs.length > 0;
-
-                      if (!hasMoveSlot && !hasGapRecommendation) return null;
-
-                      const isTransportExpanded =
-                        transportPickerTarget?.pairKey === pairKey;
-
-                      if (hasGapRecommendation) {
-                        return (
-                          <View style={localStyles.transportBetweenWrapper}>
-                            <View style={localStyles.transportIconColumn}>
-                              <View style={localStyles.transportSolidLineTop} />
-
-                              <Ionicons
-                                name={selectedTransportOption.icon}
-                                size={18}
-                                color="#94A3B8"
-                                style={localStyles.transportIcon}
-                              />
-
-                              <View style={localStyles.transportDotLine}>
-                                {Array.from({ length: 4 }).map((_, dotIndex) => (
-                                  <View
-                                    key={dotIndex}
-                                    style={localStyles.transportDot}
-                                  />
-                                ))}
-                              </View>
-
-                              <View style={localStyles.transportSolidLineBottom} />
-                            </View>
-
-                            <View style={localStyles.transportCardColumn}>
-                              <GapRecommendationCard
-                                tripId={resolvedTripId ?? scheduleId}
-                                allowedPlanPairs={currentGapPlanPairs}
-                              />
-                            </View>
-                          </View>
-                        );
-                      }
-
-                      return (
-                        <View style={localStyles.transportEmptyRow}>
-                          <Ionicons
-                            name={selectedTransportOption.icon}
-                            size={18}
-                            color="#94A3B8"
-                            style={localStyles.transportIconCompact}
-                          />
-
-                          <View style={localStyles.transportEmptyCardWrapper}>
-                            <View style={localStyles.transportAccordionCard}>
-                              <TouchableOpacity
-                                activeOpacity={0.85}
-                                style={localStyles.transportAccordionHeader}
-                                onPress={() =>
-                                  handleOpenTransportPicker({
-                                    pairKey,
-                                    beforePlaceName: place.name,
-                                    afterPlaceName: nextPlaceForGap.name,
-                                  })
-                                }
-                              >
-                                <View style={localStyles.transportAddTextGroup}>
-                                  <Text style={localStyles.transportAddTitle}>
-                                    {selectedTransportMode ?
-                                      `${selectedTransportOption.label} 이동`
-                                    : "이동수단 추가하기"}
-                                  </Text>
-
-                                  <Text style={localStyles.transportAddDescription}>
-                                    {selectedTransportMode ?
-                                      "장소 사이 이동수단이 설정되었어요"
-                                    : "이동수단을 추가해주세요"}
-                                  </Text>
-                                </View>
-
-                                <Ionicons
-                                  name={isTransportExpanded ? "chevron-up" : "chevron-down"}
-                                  size={18}
-                                  color="#CBD5E1"
-                                />
-                              </TouchableOpacity>
-
-                              {isTransportExpanded ?
-                                <View style={localStyles.transportAccordionBody}>
-                                  <View style={localStyles.transportInlineOptionRow}>
-                                    {TRANSPORT_OPTIONS.map((option) => {
-                                      const selected =
-                                        transportModesByPair[pairKey] === option.key;
-
-                                      return (
-                                        <TouchableOpacity
-                                          key={option.key}
-                                          activeOpacity={0.85}
-                                          style={[
-                                            localStyles.transportInlineOptionButton,
-                                            selected ?
-                                              localStyles.transportInlineOptionButtonSelected
-                                            : null,
-                                          ]}
-                                          onPress={() =>
-                                            handleSelectTransportMode(option.key)
-                                          }
-                                        >
-                                          <Text
-                                            style={[
-                                              localStyles.transportInlineOptionText,
-                                              selected ?
-                                                localStyles.transportInlineOptionTextSelected
-                                              : null,
-                                            ]}
-                                          >
-                                            {option.label}
-                                          </Text>
-                                        </TouchableOpacity>
-                                      );
-                                    })}
-                                  </View>
-
-                                  <TouchableOpacity
-                                    activeOpacity={0.85}
-                                    style={localStyles.transportInlineConfirmButton}
-                                    onPress={handleConfirmTransportMode}
-                                  >
-                                    <Text style={localStyles.transportInlineConfirmText}>
-                                      확인
-                                    </Text>
-                                  </TouchableOpacity>
-                                </View>
-                              : null}
-                            </View>
-                          </View>
-                        </View>
-                      );
-                    })()
-                  : null}
-
-                  {false && isSelectedDayToday ?
-                    <OngoingGapRecommendationSection
-                      styles={styles}
-                      navigation={navigation}
-                      scheduleId={scheduleId}
-                      resolvedTripId={resolvedTripId}
-                      tripName={tripName}
-                      startDate={startDate}
-                      endDate={endDate}
-                      location={location}
-                      transportMode={transportMode}
-                      transportLabel={transportLabel}
-                      selectedDayIndex={selectedDayIndex}
+                    <OngoingGapBetweenPlace
+                      place={place}
+                      nextPlace={nextPlaceForGap}
+                      index={index}
+                      placeKey={placeKey}
+                      gapBeforePlanId={gapBeforePlanId}
+                      gapAfterPlanId={gapAfterPlanId}
                       currentGapPlanPairs={currentGapPlanPairs}
+                      resolvedTripId={resolvedTripId}
+                      scheduleId={scheduleId}
+                      localStyles={localStyles}
+                      transportModesByPair={transportModesByPair}
+                      transportPickerTarget={transportPickerTarget}
+                      getTransportOption={getTransportOption}
+                      getPlaceEndTimeValueForGap={getPlaceEndTimeValueForGap}
+                      getPlaceStartTimeValueForGap={getPlaceStartTimeValueForGap}
+                      handleOpenTransportPicker={handleOpenTransportPicker}
+                      handleSelectTransportMode={handleSelectTransportMode}
+                      handleConfirmTransportMode={handleConfirmTransportMode}
+                      transportOptions={TRANSPORT_OPTIONS}
                     />
                   : null}
                 </React.Fragment>
