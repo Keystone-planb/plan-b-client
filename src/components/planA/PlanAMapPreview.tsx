@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useRef } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
@@ -38,7 +38,9 @@ export default function PlanAMapPreview({
   height = 220,
   mapInteractive = false,
 }: Props) {
-  const visiblePlaces = useMemo(() => {
+  const mapRef = useRef<MapView>(null);
+
+const visiblePlaces = useMemo(() => {
     return places
       .map((place) => {
         const latitude = toNumber(place.latitude);
@@ -85,6 +87,7 @@ export default function PlanAMapPreview({
   return (
     <View style={[styles.container, { height }]}>
       <MapView
+        ref={mapRef}
         key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
         provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         style={StyleSheet.absoluteFillObject}
@@ -105,7 +108,14 @@ export default function PlanAMapPreview({
             }}
             title={place.name ?? `장소 ${index + 1}`}
             description={place.address}
-          />
+            tracksViewChanges={true}
+          >
+            <View style={styles.markerBadge}>
+              <Text style={styles.markerBadgeText}>
+                {index + 1}
+              </Text>
+            </View>
+          </Marker>
         ))}
       </MapView>
     </View>
@@ -126,6 +136,23 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
     paddingBottom: 0,
+  },
+
+  markerBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#2158E8",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  markerBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
   emptyIconCircle: {

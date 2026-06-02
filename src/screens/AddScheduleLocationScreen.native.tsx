@@ -1084,17 +1084,40 @@ export default function AddScheduleLocationScreen({
           showsCompass={false}
           rotateEnabled={false}
         >
-          {selectedPlaces.map((place) => (
-            <Marker
-              key={`marker-${place.placeId}`}
-              coordinate={{
-                latitude: place.latitude ?? INITIAL_REGION.latitude,
-                longitude: place.longitude ?? INITIAL_REGION.longitude,
-              }}
-              title={place.name}
-              description={place.address}
-            />
-          ))}
+          {searchResults
+            .filter(
+              (place) =>
+                typeof place.latitude === "number" &&
+                typeof place.longitude === "number",
+            )
+            .map((place, index) => {
+              const placeId = String(place.placeId);
+              const isSelected = selectedPlaces.some(
+                (selectedPlace) => String(selectedPlace.placeId) === placeId,
+              );
+
+              return (
+                <Marker
+                  key={`search-marker-${placeId}`}
+                  coordinate={{
+                    latitude: place.latitude as number,
+                    longitude: place.longitude as number,
+                  }}
+                  title={place.name}
+                  description={place.address}
+                  tracksViewChanges={true}
+                >
+                  <View
+                    style={[
+                      styles.markerBadge,
+                      isSelected && styles.selectedMarkerBadge,
+                    ]}
+                  >
+                    <Text style={styles.markerBadgeText}>{index + 1}</Text>
+                  </View>
+                </Marker>
+              );
+            })}
         </MapView>
 
         <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
@@ -1176,7 +1199,24 @@ export default function AddScheduleLocationScreen({
                 isSelected={isSelected}
                 isDetailLoading={isDetailLoading}
                 isReviewLoading={isReviewLoading}
-                onDetailPress={() => handleTogglePlaceReview(place)}
+                onDetailPress={() => {
+                  if (
+                    typeof place.latitude === "number" &&
+                    typeof place.longitude === "number"
+                  ) {
+                    mapRef.current?.animateToRegion(
+                      {
+                        latitude: place.latitude,
+                        longitude: place.longitude,
+                        latitudeDelta: 0.014,
+                        longitudeDelta: 0.014,
+                      },
+                      350,
+                    );
+                  }
+
+                  handleTogglePlaceReview(place);
+                }}
                 onSelectPress={() =>
                   handleNext([
                     {
@@ -1239,6 +1279,29 @@ const styles = StyleSheet.create({
 
   map: {
     ...StyleSheet.absoluteFillObject,
+  },
+
+  markerBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#2158E8",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  markerBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  selectedMarkerBadge: {
+    backgroundColor: "#EF4444",
+    borderColor: "#FFFFFF",
+    transform: [{ scale: 1.12 }],
   },
 
   searchOverlay: {
