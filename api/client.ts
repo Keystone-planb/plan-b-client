@@ -174,6 +174,7 @@ apiClient.interceptors.response.use(
       url: originalRequest?.url,
       method: originalRequest?.method,
       message: error.message,
+      skipAuthHeader: shouldSkipAuthHeader(originalRequest?.url),
     });
 
     const originalUrl = String(originalRequest?.url ?? "");
@@ -188,10 +189,12 @@ apiClient.interceptors.response.use(
       originalUrl.includes("/api/users/signup") ||
       originalUrl.includes("/oauth2/authorization/");
 
+    const isSkipAuthHeaderRequest = shouldSkipAuthHeader(originalUrl);
     const shouldTryRefresh =
       !isOptionalAuthRequest &&
       !isAuthRequest &&
-      (error.response?.status === 401 || error.response?.status === 403) &&
+      !isSkipAuthHeaderRequest &&
+      error.response?.status === 401 &&
       originalRequest &&
       !originalRequest._retry;
 
