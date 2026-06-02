@@ -134,6 +134,8 @@ export default function ProfileEditScreen({ navigation }: Props) {
     return false;
   }, [currentPassword, isNicknameChanged, loading, newPassword, saving]);
 
+  const isLocalUser = (me?.provider ?? "").toLowerCase() === "local";
+
   const handleSave = async () => {
     if (saving) {
       return;
