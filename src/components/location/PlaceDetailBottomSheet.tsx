@@ -37,6 +37,7 @@ type Props = {
   businessHoursExpanded: boolean;
   isLoading: boolean;
   reanalyzeDisabled: boolean;
+  reanalyzeSuccessMessage?: string;
   aiSummary: string;
   reviews: DetailReview[];
   hasAnyRealDetailContent: boolean;
@@ -78,6 +79,7 @@ export default function PlaceDetailBottomSheet({
   businessHoursExpanded,
   isLoading,
   reanalyzeDisabled,
+  reanalyzeSuccessMessage,
   aiSummary,
   reviews,
   hasAnyRealDetailContent,
@@ -85,6 +87,10 @@ export default function PlaceDetailBottomSheet({
   onToggleBusinessHours,
   onReanalyze,
 }: Props) {
+  const isNoReviewNotice =
+    reanalyzeSuccessMessage?.includes("표시 가능한 리뷰를 찾지 못했습니다") ||
+    reanalyzeSuccessMessage?.includes("표시할 리뷰가 아직 없습니다.");
+
   return (
     <Modal
       visible={visible}
@@ -199,9 +205,38 @@ export default function PlaceDetailBottomSheet({
                   disabled={reanalyzeDisabled}
                   onPress={onReanalyze}
                 >
-                  <Ionicons name="refresh-outline" size={16} color="#2158E8" />
-                  <Text style={styles.reanalyzeButtonText}>재분석 요청</Text>
+                  {reanalyzeDisabled ? (
+                    <ActivityIndicator size="small" color="#2158E8" />
+                  ) : (
+                    <Ionicons name="refresh-outline" size={16} color="#2158E8" />
+                  )}
+                  <Text style={styles.reanalyzeButtonText}>
+                    {reanalyzeDisabled ? "분석 중..." : "재분석 요청"}
+                  </Text>
                 </TouchableOpacity>
+
+                {reanalyzeSuccessMessage ? (
+                  <View
+                    style={[
+                      styles.reanalyzeSuccessBox,
+                      isNoReviewNotice && styles.reanalyzeWarningBox,
+                    ]}
+                  >
+                    <Ionicons
+                      name={isNoReviewNotice ? "alert-circle" : "checkmark-circle"}
+                      size={15}
+                      color={isNoReviewNotice ? "#DC2626" : "#2563EB"}
+                    />
+                    <Text
+                      style={[
+                        styles.reanalyzeSuccessText,
+                        isNoReviewNotice && styles.reanalyzeWarningText,
+                      ]}
+                    >
+                      {reanalyzeSuccessMessage}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {aiSummary ?
                   <View style={styles.aiSummaryCard}>
@@ -439,6 +474,31 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 13,
     fontWeight: "800",
+  },
+  reanalyzeSuccessBox: {
+    minHeight: 34,
+    borderRadius: 10,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginBottom: 14,
+    paddingHorizontal: 10,
+  },
+  reanalyzeSuccessText: {
+    color: "#2563EB",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+  reanalyzeWarningBox: {
+    backgroundColor: "#FEF2F2",
+    borderColor: "#FECACA",
+  },
+  reanalyzeWarningText: {
+    color: "#DC2626",
   },
   aiSummaryCard: {
     position: "relative",

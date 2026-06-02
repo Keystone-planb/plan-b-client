@@ -34,6 +34,7 @@ import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { addTripLocation, createTrip } from "../../api/schedules/server";
 import SearchResultCard from "../components/location/SearchResultCard";
 import PlaceDetailBottomSheet from "../components/location/PlaceDetailBottomSheet";
+import { usePlaceReview } from "../hooks/location/usePlaceReview";
 import {
   createKeywordsFromReviews,
   createReviewSummaryFromReviews,
@@ -326,13 +327,6 @@ export default function AddScheduleLocationScreen({
     string | null
   >(null);
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
-  const [reviewLoadingPlaceId, setReviewLoadingPlaceId] = useState<
-    string | null
-  >(null);
-  const [expandedPlaceId, setExpandedPlaceId] = useState<string | null>(null);
-  const [placeReviewMap, setPlaceReviewMap] = useState<
-    Record<string, PlaceReviewInfo>
-  >({});
   const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
   const [businessHoursExpanded, setBusinessHoursExpanded] = useState(false);
 
@@ -398,7 +392,6 @@ export default function AddScheduleLocationScreen({
     try {
       setSearchLoading(true);
       setExpandedPlaceId(null);
-      setReviewLoadingPlaceId(null);
 
       const places = await searchPlaces(trimmedKeyword);
 
@@ -413,7 +406,6 @@ export default function AddScheduleLocationScreen({
 
       setSearchResults([]);
       setExpandedPlaceId(null);
-      setReviewLoadingPlaceId(null);
     } finally {
       setSearchLoading(false);
     }
@@ -514,201 +506,26 @@ export default function AddScheduleLocationScreen({
     );
   };
 
-  const handleTogglePlaceReview = async (place: PlaceSearchResult) => {
-    const placeKey = getReviewPlaceKey(place);
-
-    console.log("[AddScheduleLocation] review button clicked:", {
-      placeName: place.name,
-      placeId: place.placeId,
-      googlePlaceId: place.googlePlaceId,
-      placeKey,
-    });
-
-    if (reviewLoadingPlaceId) {
-      return;
-    }
-
-    if (expandedPlaceId === placeKey) {
-      setExpandedPlaceId(null);
-      return;
-    }
-
-    const detailLoadingStartedAt = Date.now();
-
-    // 폴링 설정: 백엔드 OpenAI 분석은 보통 5~30초 걸림
-    const MAX_POLL_ATTEMPTS = 6;
-    const POLL_INTERVAL_MS = 2000;
-
-    try {
-      setReviewLoadingPlaceId(placeKey);
-
-      let detail: any = null;
-      let summary: any = null;
-      let freshness: any = null;
-      let analysisCompleted = false;
-
-      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
-        const [detailResult, summaryResult, analysisStatusResult] =
-          await Promise.allSettled([
-            getPlaceDetail(placeKey),
-            getPlaceSummary(placeKey),
-            getPlaceAnalysisStatus(placeKey),
-          ]);
-
-        detail =
-          detailResult.status === "fulfilled" ? detailResult.value : detail;
-        summary =
-          summaryResult.status === "fulfilled" ? summaryResult.value : summary;
-        const analysisStatus =
-          analysisStatusResult.status === "fulfilled" ?
-            analysisStatusResult.value
-          : null;
-
-        const hasUsefulReview =
-          hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
-        const hasTags = hasAnalyzedTagsInDetail(detail);
-        const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
-
-        console.log("[AddScheduleLocation] analysis polling:", {
-          placeKey,
-          attempt: attempt + 1,
-          hasUsefulReview,
-          hasTags,
-          statusCompleted,
-          analysisStatus,
-        });
-
-        // AI 분석 완료 판정: 백엔드 status가 COMPLETED 이거나,
-        // detail에 space/type/mood 태그가 들어있고 AI summary 같은 리뷰 텍스트가 채워졌을 때.
-        if (statusCompleted || hasTags || hasUsefulReview) {
-          analysisCompleted = true;
-          break;
-        }
-
-        if (attempt < MAX_POLL_ATTEMPTS - 1) {
-          await wait(POLL_INTERVAL_MS);
-        }
-      }
-
-      console.log("[AddScheduleLocation] review response:", {
-        placeKey,
-        analysisCompleted,
-        detail,
-        summary,
-        freshness,
-      });
-
-      console.log("[AddScheduleLocation] review response keys:", {
-        detailKeys:
-          detail && typeof detail === "object" ?
-            Object.keys(detail as object)
-          : [],
-        summaryKeys:
-          summary && typeof summary === "object" ?
-            Object.keys(summary as object)
-          : [],
-        freshnessKeys:
-          freshness && typeof freshness === "object" ?
-            Object.keys(freshness as object)
-          : [],
-      });
-
-      console.log(
-        "[AddScheduleLocation] detail full json:",
-        JSON.stringify(detail, null, 2),
-      );
-
-      console.log(
-        "[AddScheduleLocation] summary full json:",
-        JSON.stringify(summary, null, 2),
-      );
-
-      // 분석이 끝나지 않았으면 모달을 띄우지 않는다.
-      if (!analysisCompleted) {
-        const elapsed = Date.now() - detailLoadingStartedAt;
-        if (elapsed < 1000) {
-          await wait(1000 - elapsed);
-        }
-
-        Alert.alert(
-          "분석 진행 중",
-          "리뷰 분석이 아직 완료되지 않았습니다. 잠시 후 다시 시도해주세요.",
-        );
-        return;
-      }
-
-      setPlaceReviewMap((prev) => {
-        const next = {
-          ...prev,
-          [placeKey]: {
-            detail,
-            summary,
-            freshness,
-          },
-        };
-
-        return next;
-      });
-
-      setReviewLoadingPlaceId(null);
-      setExpandedPlaceId(placeKey);
-    } catch (error) {
-      console.log("장소 상세 정보 조회 실패:", error);
-
-      const elapsed = Date.now() - detailLoadingStartedAt;
-      if (elapsed < 1000) {
-        await wait(1000 - elapsed);
-      }
-
-      Alert.alert(
-        "상세 정보 조회 실패",
-        "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
-      );
-    } finally {
-      setReviewLoadingPlaceId(null);
-    }
-  };
-
-
-
-  const handleReanalyzePlace = async (
-    place: PlaceSearchResult,
-  ) => {
-    const placeKey = getReviewPlaceKey(place);
-
-    try {
-      setReviewLoadingPlaceId(placeKey);
-
-      await reanalyzePlace(placeKey);
-
-      setPlaceReviewMap((prev) => {
-        const next = { ...prev };
-        delete next[placeKey];
-        return next;
-      });
-
-      setExpandedPlaceId(null);
-
-      await handleTogglePlaceReview(place);
-
-      Alert.alert(
-        "재분석 완료",
-        "최신 분석 결과로 갱신되었습니다.",
-      );
-    } catch (error) {
-      console.log(
-        "[AddScheduleLocation] reanalyze failed:",
-        error,
-      );
-
-      Alert.alert(
-        "재분석 실패",
-        "잠시 후 다시 시도해주세요.",
-      );
-    } finally {
-      setReviewLoadingPlaceId(null);
-    }
-  };
+  const {
+    expandedPlaceId,
+    setExpandedPlaceId,
+    reviewLoadingPlaceId,
+    placeReviewMap,
+    reanalyzeSuccessMessage,
+    handleTogglePlaceReview,
+    handleReanalyzePlace,
+  } = usePlaceReview<PlaceSearchResult>({
+    getReviewPlaceKey,
+    getPlaceDetail,
+    getPlaceSummary,
+    getPlaceAnalysisStatus,
+    reanalyzePlace,
+    hasUsefulReviewPayload,
+    hasAnalyzedTagsInDetail,
+    isAnalysisStatusCompleted,
+    unwrapApiData,
+    wait,
+  });
 
   const navigateToPlanAWithPlaces = ({
     targetScheduleId,
