@@ -24,6 +24,7 @@ import OngoingPlaceCard from "../components/ongoing/OngoingPlaceCard";
 import OngoingGapBetweenPlace from "../components/ongoing/OngoingGapBetweenPlace";
 import { buildAlternativeNavigationParams } from "../utils/ongoing/alternativeNavigation";
 import { loadOngoingTripDetail } from "../utils/ongoing/loadTripDetail";
+import { useOngoingTripReload } from "../hooks/ongoing/useOngoingTripReload";
 import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
 import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
 import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
@@ -651,17 +652,13 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
 
-  useFocusEffect(
-    useCallback(() => {
-      loadOngoingTripDetail({
-        resolvedTripId,
-        refreshPlanAAt: route?.params?.refreshPlanAAt,
-        selectedDayIndex,
-        lastTripDetailLoadKeyRef,
-        setServerDays,
-      });
-    }, [resolvedTripId, route?.params?.refreshPlanAAt, selectedDayIndex]),
-  );
+  useOngoingTripReload({
+    resolvedTripId,
+    refreshPlanAAt: route?.params?.refreshPlanAAt,
+    selectedDayIndex,
+    lastTripDetailLoadKeyRef,
+    setServerDays,
+  });
 
   const displayDays = useMemo(
     () => makeDisplayDaysByDateRange(startDate, endDate),
