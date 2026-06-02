@@ -3,6 +3,8 @@
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
+import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
+import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
 
 type Props = {
   navigation: {
@@ -26,14 +28,7 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
     >
       <ResultBackground />
       <View style={styles.dim} />
-
-      <TouchableOpacity
-        activeOpacity={0.8}
-        style={styles.skipButton}
-        onPress={() => navigation.replace("Login")}
-      >
-        <Text style={styles.skipText}>건너뛰기</Text>
-      </TouchableOpacity>
+        <OnboardingSkipButton onPress={() => navigation.replace("Login")} />
 
       <View style={styles.tooltip} pointerEvents="none">
         <View style={styles.tooltipBody}>
@@ -45,13 +40,7 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
       <View style={styles.focusCard} pointerEvents="none">
         <ResultCard />
       </View>
-
-      <View style={styles.dots} pointerEvents="none">
-        <View style={styles.dot} />
-        <View style={styles.dot} />
-        <View style={styles.activeDot} />
-        <View style={styles.dot} />
-      </View>
+      <OnboardingProgressDots activeIndex={2} />
     </TouchableOpacity>
   );
 }
@@ -256,17 +245,6 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: "rgba(0,0,0,0.62)",
   },
-  skipButton: {
-    position: "absolute",
-    top: 58,
-    right: 34,
-    zIndex: 90,
-  },
-  skipText: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "900",
-  },
   tooltip: {
     position: "absolute",
     top: 296,
@@ -444,27 +422,4 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  dots: {
-    position: "absolute",
-    bottom: 36,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    zIndex: 100,
-  },
-  activeDot: {
-    width: 54,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: BLUE,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
-  },
 });

@@ -2,6 +2,8 @@
 
 import React from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
+import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
 import MainScreen from "./MainScreen";
 
 type Props = {
@@ -30,13 +32,7 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
         style={styles.touchLayer}
         onPress={() => navigation.replace("OnboardingSecond")}
       >
-        <TouchableOpacity
-          activeOpacity={0.8}
-          style={styles.skipButton}
-          onPress={() => navigation.replace("Login")}
-        >
-          <Text style={styles.skipText}>건너뛰기</Text>
-        </TouchableOpacity>
+        <OnboardingSkipButton onPress={() => navigation.replace("Login")} />
 
         <FocusedWeatherModal />
 
@@ -50,13 +46,8 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
         </View>
 
         <Text style={styles.touchText}>날씨 걱정 없는 여행</Text>
+        <OnboardingProgressDots activeIndex={0} />
 
-        <View style={styles.dots}>
-          <View style={styles.activeDot} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-          <View style={styles.dot} />
-        </View>
       </TouchableOpacity>
     </View>
   );
@@ -119,17 +110,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
-  skipButton: {
-    position: "absolute",
-    top: 58,
-    right: 34,
-    zIndex: 80,
-  },
-  skipText: {
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "900",
-  },
 
   weatherModal: {
     position: "absolute",
@@ -307,28 +287,5 @@ const styles = StyleSheet.create({
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 8,
     zIndex: 80,
-  },
-  dots: {
-    position: "absolute",
-    bottom: 36,
-    left: 0,
-    right: 0,
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
-    gap: 12,
-    zIndex: 80,
-  },
-  activeDot: {
-    width: 54,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: BLUE,
-  },
-  dot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    backgroundColor: "#FFFFFF",
   },
 });
