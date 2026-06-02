@@ -22,7 +22,7 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
     <TouchableOpacity
       activeOpacity={1}
       style={styles.screen}
-      onPress={() => navigation.navigate("OnboardingFourth")}
+      onPress={() => navigation.replace("OnboardingFourth")}
     >
       <ResultBackground />
       <View style={styles.dim} />

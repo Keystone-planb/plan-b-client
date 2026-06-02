@@ -26,7 +26,7 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
       <TouchableOpacity
         activeOpacity={1}
         style={styles.touchLayer}
-        onPress={() => navigation.navigate("OnboardingThird")}
+        onPress={() => navigation.replace("OnboardingThird")}
       >
         <TouchableOpacity
           activeOpacity={0.8}
