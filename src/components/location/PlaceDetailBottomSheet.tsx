@@ -37,6 +37,7 @@ type Props = {
   businessHoursExpanded: boolean;
   isLoading: boolean;
   reanalyzeDisabled: boolean;
+  reanalyzeLoadingMessage?: string;
   reanalyzeSuccessMessage?: string;
   aiSummary: string;
   reviews: DetailReview[];
@@ -79,6 +80,7 @@ export default function PlaceDetailBottomSheet({
   businessHoursExpanded,
   isLoading,
   reanalyzeDisabled,
+  reanalyzeLoadingMessage,
   reanalyzeSuccessMessage,
   aiSummary,
   reviews,
@@ -211,7 +213,9 @@ export default function PlaceDetailBottomSheet({
                     <Ionicons name="refresh-outline" size={16} color="#2158E8" />
                   )}
                   <Text style={styles.reanalyzeButtonText}>
-                    {reanalyzeDisabled ? "분석 중..." : "재분석 요청"}
+                    {reanalyzeDisabled ?
+                      reanalyzeLoadingMessage || "분석 중..."
+                    : "재분석 요청"}
                   </Text>
                 </TouchableOpacity>
 

@@ -1,6 +1,6 @@
 // src/hooks/location/usePlaceReview.ts
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Alert } from "react-native";
 
 type PlaceLike = {
@@ -14,6 +14,14 @@ type PlaceReviewInfo = {
   summary: unknown;
   freshness: unknown;
 };
+
+const REANALYZE_MESSAGES = [
+  "최신 리뷰를 확인하고 있어요...",
+  "Google 리뷰를 분석하고 있어요...",
+  "Naver 리뷰를 분석하고 있어요...",
+  "장소 특징을 정리하고 있어요...",
+  "AI 요약을 생성하고 있어요...",
+];
 
 type UsePlaceReviewParams<TPlace extends PlaceLike> = {
   getReviewPlaceKey: (place: TPlace) => string;
@@ -48,6 +56,13 @@ export function usePlaceReview<TPlace extends PlaceLike>({
     Record<string, PlaceReviewInfo>
   >({});
   const [reanalyzeSuccessMessage, setReanalyzeSuccessMessage] = useState("");
+  const [reanalyzeLoadingPlaceId, setReanalyzeLoadingPlaceId] = useState<
+    string | null
+  >(null);
+  const [reanalyzeMessageIndex, setReanalyzeMessageIndex] = useState(0);
+  const reanalyzeMessageTimerRef = useRef<ReturnType<typeof setInterval> | null>(
+    null,
+  );
 
   const handleTogglePlaceReview = async (place: TPlace) => {
     const placeKey = getReviewPlaceKey(place);
@@ -59,7 +74,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       placeKey,
     });
 
-    if (reviewLoadingPlaceId) {
+    if (reviewLoadingPlaceId || reanalyzeLoadingPlaceId === placeKey) {
       return;
     }
 
@@ -195,6 +210,13 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
       );
     } finally {
+      if (reanalyzeMessageTimerRef.current) {
+        clearInterval(reanalyzeMessageTimerRef.current);
+        reanalyzeMessageTimerRef.current = null;
+      }
+
+      setReanalyzeLoadingPlaceId(null);
+      setReanalyzeMessageIndex(0);
       setReviewLoadingPlaceId(null);
     }
   };
@@ -202,18 +224,25 @@ export function usePlaceReview<TPlace extends PlaceLike>({
   const handleReanalyzePlace = async (place: TPlace) => {
     const placeKey = getReviewPlaceKey(place);
 
+    if (reanalyzeLoadingPlaceId === placeKey || reviewLoadingPlaceId === placeKey) {
+      return;
+    }
+
     try {
-      setReviewLoadingPlaceId(placeKey);
+      setReanalyzeLoadingPlaceId(placeKey);
+      setReanalyzeMessageIndex(0);
+
+      reanalyzeMessageTimerRef.current = setInterval(() => {
+        setReanalyzeMessageIndex(
+          (prev) => (prev + 1) % REANALYZE_MESSAGES.length,
+        );
+      }, 2000);
 
       await reanalyzePlace(placeKey);
 
       setReanalyzeSuccessMessage("");
 
-      setPlaceReviewMap((prev) => {
-        const next = { ...prev };
-        delete next[placeKey];
-        return next;
-      });
+      const previousReviewInfo = placeReviewMap[placeKey];
 
       setExpandedPlaceId(placeKey);
 
@@ -229,6 +258,13 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         hasUsefulReviewPayload(nextDetail) ||
         hasUsefulReviewPayload(nextSummary);
 
+      if (!hasUsefulReview && previousReviewInfo) {
+        setPlaceReviewMap((prev) => ({
+          ...prev,
+          [placeKey]: previousReviewInfo,
+        }));
+      }
+
       setReanalyzeSuccessMessage(
         hasUsefulReview ?
           "최신 리뷰 분석이 반영되었습니다."
@@ -243,6 +279,13 @@ export function usePlaceReview<TPlace extends PlaceLike>({
 
       Alert.alert("재분석 실패", "잠시 후 다시 시도해주세요.");
     } finally {
+      if (reanalyzeMessageTimerRef.current) {
+        clearInterval(reanalyzeMessageTimerRef.current);
+        reanalyzeMessageTimerRef.current = null;
+      }
+
+      setReanalyzeLoadingPlaceId(null);
+      setReanalyzeMessageIndex(0);
       setReviewLoadingPlaceId(null);
     }
   };
@@ -253,6 +296,11 @@ export function usePlaceReview<TPlace extends PlaceLike>({
     reviewLoadingPlaceId,
     placeReviewMap,
     reanalyzeSuccessMessage,
+    reanalyzeLoadingPlaceId,
+    reanalyzeLoadingMessage:
+      reanalyzeLoadingPlaceId ?
+        REANALYZE_MESSAGES[reanalyzeMessageIndex]
+      : "",
     handleTogglePlaceReview,
     handleReanalyzePlace,
   };

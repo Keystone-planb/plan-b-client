@@ -512,6 +512,8 @@ export default function AddScheduleLocationScreen({
     reviewLoadingPlaceId,
     placeReviewMap,
     reanalyzeSuccessMessage,
+    reanalyzeLoadingPlaceId,
+    reanalyzeLoadingMessage,
     handleTogglePlaceReview,
     handleReanalyzePlace,
   } = usePlaceReview<PlaceSearchResult>({
@@ -842,32 +844,33 @@ export default function AddScheduleLocationScreen({
       .filter(Boolean)
       .join("\n\n");
 
+    const googleReviewText =
+      isUsefulReviewText(googleAiReviewText) ? googleAiReviewText
+      : isUsefulReviewText(googleRawReviewText) ? googleRawReviewText
+      : "Google 리뷰 정보가 없습니다.";
+
+    const naverReviewText = getPlatformReviewText([
+      "naverReview",
+      "data.naverReview",
+      "result.naverReview",
+      "payload.naverReview",
+    ]);
+
     return [
       {
         id: "googleReview",
         platform: "Google",
         logoType: "google",
-        text:
-          (isUsefulReviewText(googleAiReviewText) ? googleAiReviewText : (
-            googleRawReviewText
-          )) || "리뷰 정보가 없습니다.",
+        text: truncateText(googleReviewText, REVIEW_TEXT_MAX_LENGTH),
       },
       {
         id: "naverReview",
         platform: "Naver",
         logoType: "naver",
-        text: (() => {
-          const naverReviewText = getPlatformReviewText([
-            "naverReview",
-            "data.naverReview",
-            "result.naverReview",
-            "payload.naverReview",
-          ]);
-
-          return isUsefulReviewText(naverReviewText) ?
-              truncateText(naverReviewText, REVIEW_TEXT_MAX_LENGTH)
-            : "Naver 리뷰 분석 중입니다.";
-        })(),
+        text:
+          isUsefulReviewText(naverReviewText) ?
+            truncateText(naverReviewText, REVIEW_TEXT_MAX_LENGTH)
+          : "Naver 리뷰 정보가 없습니다.",
       },
     ];
   }, [detailModalDetail, detailModalRawGoogleReviews, detailModalSummary]);
@@ -1247,7 +1250,7 @@ export default function AddScheduleLocationScreen({
         isLoading={
           reviewLoadingPlaceId === detailModalPlaceId && !detailModalReviewInfo
         }
-        reanalyzeDisabled={reviewLoadingPlaceId === detailModalPlaceId}
+        reanalyzeDisabled={reanalyzeLoadingPlaceId === detailModalPlaceId}
         aiSummary={detailModalAiSummary}
         reviews={detailModalReviews}
         hasAnyRealDetailContent={hasAnyRealDetailContent}
@@ -1335,7 +1338,9 @@ const styles = StyleSheet.create({
 
   searchInput: {
     flex: 1,
-    height: 51,
+    height: 52,
+    paddingVertical: 0,
+    textAlignVertical: "center",
     paddingTop: 1,
     color: "#263244",
     fontSize: 17,

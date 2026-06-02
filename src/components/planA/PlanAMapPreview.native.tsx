@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { Platform, StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, Region } from "react-native-maps";
+import MapView, { Marker, PROVIDER_GOOGLE, Region, Polyline} from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 
 type PlaceLike = {
@@ -99,6 +99,18 @@ const visiblePlaces = useMemo(() => {
         rotateEnabled={mapInteractive}
         pitchEnabled={mapInteractive}
       >
+        {visiblePlaces.length > 1 ? (
+          <Polyline
+            coordinates={visiblePlaces.map((place) => ({
+              latitude: place.latitude,
+              longitude: place.longitude,
+            }))}
+            strokeColor="#2158E8"
+            strokeWidth={3}
+            lineDashPattern={[8, 6]}
+          />
+        ) : null}
+
         {visiblePlaces.map((place, index) => (
           <Marker
             key={`${String(place.id ?? place.name ?? "place")}-${index}`}

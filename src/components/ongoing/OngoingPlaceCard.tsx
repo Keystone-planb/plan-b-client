@@ -13,6 +13,7 @@ type Props = {
   styles: any;
   getPlaceDisplayTime: (place: any) => string;
   handleAlternative: (place: any) => void;
+  onPress?: () => void;
 };
 
 const getMemoText = (memo: any) => {
@@ -30,6 +31,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
     styles,
     getPlaceDisplayTime,
     handleAlternative,
+    onPress,
   },
   ref,
 ) {
@@ -43,8 +45,11 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
   const hiddenCount = Math.max(visibleMemos.length - shownMemos.length, 0);
 
   return (
-    <View
-      ref={ref}
+    <TouchableOpacity
+      ref={ref as any}
+      activeOpacity={0.86}
+      disabled={!onPress}
+      onPress={onPress}
       style={[
         styles.todayCard,
         !isCurrentTripOngoing && styles.futureTodayCard,
@@ -159,7 +164,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
           ) : null}
         </View>
       </View>
-    </View>
+    </TouchableOpacity>
   );
 });
 

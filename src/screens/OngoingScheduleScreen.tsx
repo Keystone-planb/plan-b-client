@@ -21,6 +21,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
 import OngoingPlaceCard from "../components/ongoing/OngoingPlaceCard";
+import { buildAlternativeNavigationParams } from "../utils/ongoing/alternativeNavigation";
 import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
 import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
 import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
@@ -1081,37 +1082,19 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleAlternative = (place: TodayPlace) => {
-    const matchedResolvedPlace = resolvedMapPlaces.find((item) => {
-      const candidates = [
-        item.serverTripPlaceId,
-        item.tripPlaceId,
-        item.id,
-        item.placeId,
-        item.googlePlaceId,
-      ].map((value) => String(value ?? ""));
-
-      return [
-        place.serverTripPlaceId,
-        place.tripPlaceId,
-        place.id,
-        place.placeId,
-        place.googlePlaceId,
-      ]
-        .map((value) => String(value ?? ""))
-        .some((value) => value && candidates.includes(value));
+    const { serverPlanId, navigationParams } = buildAlternativeNavigationParams({
+      place,
+      resolvedMapPlaces,
+      scheduleId,
+      resolvedTripId,
+      tripName,
+      startDate,
+      endDate,
+      location,
+      transportMode,
+      transportLabel,
+      selectedDay: selectedDayIndex + 1,
     });
-
-    const targetPlaceForAlternative = {
-      ...place,
-      ...matchedResolvedPlace,
-      latitude: matchedResolvedPlace?.latitude ?? place.latitude,
-      longitude: matchedResolvedPlace?.longitude ?? place.longitude,
-    };
-
-    const serverPlanId =
-      targetPlaceForAlternative.serverTripPlaceId ??
-      targetPlaceForAlternative.tripPlaceId ??
-      targetPlaceForAlternative.id;
 
     if (!isValidServerPlanId(serverPlanId)) {
       Alert.alert(
@@ -1121,48 +1104,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       return;
     }
 
-    navigation.navigate("AlternativeSettings", {
-      scheduleId,
-      tripId: resolvedTripId,
-      serverTripId: resolvedTripId,
-      tripName,
-      startDate,
-      endDate,
-      location,
-      transportMode,
-      transportLabel,
-      currentPlanId: serverPlanId,
-      tripPlaceId: serverPlanId,
-      serverTripPlaceId: serverPlanId,
-      targetPlace: {
-        scheduleId,
-        tripId: resolvedTripId,
-        serverTripId: resolvedTripId,
-        day: selectedDayIndex + 1,
-        id: targetPlaceForAlternative.id,
-
-        // 서버 장소 ID
-        tripPlaceId: serverPlanId,
-        serverTripPlaceId: serverPlanId,
-
-        // Google Place ID
-        placeId:
-          targetPlaceForAlternative.placeId ??
-          targetPlaceForAlternative.googlePlaceId ??
-          String(targetPlaceForAlternative.id ?? ""),
-        googlePlaceId:
-          targetPlaceForAlternative.googlePlaceId ??
-          targetPlaceForAlternative.placeId ??
-          String(targetPlaceForAlternative.id ?? ""),
-
-        name: targetPlaceForAlternative.name,
-        address: targetPlaceForAlternative.address,
-        time: targetPlaceForAlternative.time,
-        latitude: targetPlaceForAlternative.latitude,
-        longitude: targetPlaceForAlternative.longitude,
-        category: targetPlaceForAlternative.category,
-      },
-    });
+    navigation.navigate("AlternativeSettings", navigationParams);
   };
 
   return (
