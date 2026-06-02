@@ -1,12 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -22,6 +20,7 @@ import { getPlaceDetail } from "../../api/places/place";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 import PlanATimePickerModal from "../components/planA/PlanATimePickerModal";
+import PlanAHeaderSection from "../components/planA/PlanAHeaderSection";
 import PlanAViewPlaceCardRow from "../components/planA/PlanAViewPlaceCardRow";
 import PlanAEditPlaceCardRow from "../components/planA/PlanAEditPlaceCardRow";
 
@@ -1020,88 +1019,26 @@ export default function PlanAScreen({ navigation, route }: Props) {
             scrollOffsetYRef.current = event.nativeEvent.contentOffset.y;
           }}
         >
-          <View style={styles.headerSection}>
-            <View style={styles.topHeaderRow}>
-              <TouchableOpacity
-                style={styles.backButton}
-                onPress={handleBack}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="chevron-back" size={26} color="#64748B" />
-              </TouchableOpacity>
+          <PlanAHeaderSection
+            schedule={schedule}
+            isEditMode={isEditMode}
+            saving={saving}
+            days={effectiveDayOptions}
+            selectedDay={selectedDay}
+            onBack={handleBack}
+            onUpdateTripName={handleUpdateTripName}
+            onChangeDay={handleChangeDay}
+            onSaveEdit={async () => {
+              const saved = await handleSavePlanA({
+                moveToMainAfterSave: false,
+              });
 
-              <View style={styles.headerInfo}>
-                {isEditMode ?
-                  <TextInput
-                    style={styles.planTitleInput}
-                    value={schedule.tripName}
-                    onChangeText={handleUpdateTripName}
-                    placeholder="일정 제목을 입력해주세요"
-                    placeholderTextColor="#94A3B8"
-                    maxLength={30}
-                    returnKeyType="done"
-                  />
-                : <Text style={styles.planTitle} numberOfLines={1}>
-                    {schedule.tripName}
-                  </Text>
-                }
-
-                <Text style={styles.planDate}>
-                  {formatTripDateRange(schedule.startDate, schedule.endDate)}
-                </Text>
-</View>
-
-              <View style={styles.headerActionRow}>
-                {isEditMode ?
-                  <TouchableOpacity
-                    style={[
-                      styles.editModeButton,
-                      isEditMode && styles.editModeButtonActive,
-                      saving && styles.headerIconDisabled,
-                    ]}
-                    activeOpacity={0.8}
-                    disabled={saving}
-                    onPress={async () => {
-                      const saved = await handleSavePlanA({
-                        moveToMainAfterSave: false,
-                      });
-
-                      if (saved) {
-                        setIsEditMode(false);
-                        setIsEditPreviewMode(false);
-                      }
-                    }}
-                  >
-                    {saving ?
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Ionicons
-                        name={isEditMode ? "checkmark" : "create-outline"}
-                        size={15}
-                        color={isEditMode ? "#FFFFFF" : "#2158E8"}
-                      />
-                    }
-
-                    <Text
-                      style={[
-                        styles.editModeButtonText,
-                        isEditMode && styles.editModeButtonTextActive,
-                      ]}
-                    >
-                      {saving ? "저장 중..." : isEditMode ? "완료" : "수정"}
-                    </Text>
-                  </TouchableOpacity>
-                : null}
-              </View>
-            </View>
-
-            <View style={styles.dayTabsWrapper}>
-              <PlanADayTabs
-                days={effectiveDayOptions}
-                selectedDay={selectedDay}
-                onChangeDay={handleChangeDay}
-              />
-            </View>
-          </View>
+              if (saved) {
+                setIsEditMode(false);
+                setIsEditPreviewMode(false);
+              }
+            }}
+          />
 
           <PlanAMapPreview
             places={sortPlacesByTime(resolvedMapPlaces)}
@@ -1284,50 +1221,6 @@ const styles = StyleSheet.create({
     backgroundColor: "#F4F7FC",
     paddingBottom: 130,
   },
-  headerSection: {
-    backgroundColor: "#F8FBFF",
-    paddingTop: 26,
-    paddingHorizontal: 20,
-    paddingBottom: 12,
-  },
-  topHeaderRow: {
-    minHeight: 86,
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
-  backButton: {
-    width: 32,
-    height: 40,
-    alignItems: "flex-start",
-    justifyContent: "center",
-    marginTop: 2,
-  },
-  headerInfo: { flex: 1, paddingLeft: 6, paddingRight: 8 },
-  planTitle: {
-    color: "#1C2534",
-    fontSize: 25,
-    fontWeight: "900",
-    letterSpacing: -0.7,
-    marginBottom: 7,
-  },
-  planTitleInput: {
-    minHeight: 38,
-    color: "#1C2534",
-    fontSize: 25,
-    fontWeight: "900",
-    letterSpacing: -0.7,
-    marginBottom: 7,
-    paddingVertical: 0,
-    paddingHorizontal: 0,
-    borderBottomWidth: 1,
-    borderBottomColor: "#CFE3FF",
-  },
-  planDate: {
-    color: "#627187",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
   transportButtonRow: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1356,13 +1249,6 @@ const styles = StyleSheet.create({
   planTransportActive: {
     color: "#FFFFFF",
   },
-  headerActionRow: {
-    minWidth: 92,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    paddingTop: 6,
-  },
   headerIconButton: {
     width: 28,
     height: 28,
@@ -1370,46 +1256,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  editModeButton: {
-    minHeight: 38,
-    borderRadius: 999,
-    backgroundColor: "#E7F0FF",
-    borderWidth: 1,
-    borderColor: "#CFE3FF",
-    paddingHorizontal: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-  },
 
-  editModeButtonActive: {
-    backgroundColor: "#2158E8",
-    borderColor: "#2158E8",
-  },
 
-  editModeButtonText: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
-  },
 
-  editModeButtonTextActive: {
-    color: "#FFFFFF",
-  },
-  headerIconDisabled: { opacity: 0.55 },
-  loadingText: {
-    flex: 1,
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "800",
-  },
-  dayTabsWrapper: {
-    width: "100%",
-    alignItems: "flex-start",
-    justifyContent: "center",
-    marginTop: 18,
-  },
   sheet: {
     minHeight: 430,
     marginTop: -1,
