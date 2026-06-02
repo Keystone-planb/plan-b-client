@@ -264,12 +264,34 @@ apiClient.interceptors.response.use(
           responseStatus: error.response?.status,
         });
 
-        console.log("[apiClient] clearing tokens after refresh failure:", {
-          originalUrl: originalRequest?.url,
-          reason: "refresh_failed",
-        });
+        const refreshResponseStatus =
+          refreshError &&
+          typeof refreshError === "object" &&
+          "response" in refreshError &&
+          refreshError.response &&
+          typeof refreshError.response === "object" &&
+          "status" in refreshError.response ?
+            Number(refreshError.response.status)
+          : undefined;
 
-        await clearStoredAuth();
+        const shouldClearAuth =
+          refreshResponseStatus === 401 || refreshResponseStatus === 403;
+
+        if (shouldClearAuth) {
+          console.log("[apiClient] clearing tokens after refresh failure:", {
+            originalUrl: originalRequest?.url,
+            reason: "refresh_failed",
+            refreshResponseStatus,
+          });
+
+          await clearStoredAuth();
+        } else {
+          console.log("[apiClient] keep tokens after refresh failure:", {
+            originalUrl: originalRequest?.url,
+            reason: "refresh_failed_but_not_auth_invalid",
+            refreshResponseStatus,
+          });
+        }
 
         return Promise.reject(refreshError);
       }
