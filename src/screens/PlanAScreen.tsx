@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Platform,
   ScrollView,
   StyleSheet,
@@ -22,6 +21,7 @@ import PlanAMapPreview from "../components/planA/PlanAMapPreview";
 import { getPlaceDetail } from "../../api/places/place";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
+import PlanATimePickerModal from "../components/planA/PlanATimePickerModal";
 
 import {
   DayOption,
@@ -1384,209 +1384,21 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
       </View>
 
-      <Modal
+      <PlanATimePickerModal
         visible={Boolean(timePickerPlace)}
-        transparent
-        animationType="fade"
-        onRequestClose={closeTimePicker}
-      >
-        <View style={styles.timeModalBackdrop}>
-          <View style={styles.timeModalCard}>
-            <View style={styles.timeModalHeader}>
-              <Text style={styles.timeModalTitle}>방문 시간 설정</Text>
-
-              <TouchableOpacity
-                style={styles.timeModalCloseButton}
-                activeOpacity={0.75}
-                onPress={closeTimePicker}
-              >
-                <Ionicons name="close" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.timeModalPlaceName} numberOfLines={1}>
-              {timePickerPlace?.name ?? "장소"}
-            </Text>
-
-            <View style={styles.timeTargetTabs}>
-              <TouchableOpacity
-                style={[
-                  styles.timeTargetTab,
-                  timePickerTarget === "visitTime" &&
-                    styles.timeTargetTabActive,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => handleSwitchTimeTarget("visitTime")}
-              >
-                <Text
-                  style={[
-                    styles.timeTargetTabText,
-                    timePickerTarget === "visitTime" &&
-                      styles.timeTargetTabTextActive,
-                  ]}
-                >
-                  시작 시간
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.timeTargetTab,
-                  timePickerTarget === "endTime" && styles.timeTargetTabActive,
-                ]}
-                activeOpacity={0.8}
-                onPress={() => handleSwitchTimeTarget("endTime")}
-              >
-                <Text
-                  style={[
-                    styles.timeTargetTabText,
-                    timePickerTarget === "endTime" &&
-                      styles.timeTargetTabTextActive,
-                  ]}
-                >
-                  종료 시간
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.timePickerPreview}>
-              <View
-                style={[
-                  styles.timePickerSummaryCard,
-                  timePickerTarget === "visitTime" &&
-                    styles.timePickerSummaryCardActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.timePickerSummaryLabel,
-                    timePickerTarget === "visitTime" &&
-                      styles.timePickerSummaryLabelActive,
-                  ]}
-                >
-                  시작 시간
-                </Text>
-
-                <Text
-                  style={[
-                    styles.timePickerSummaryValue,
-                    timePickerTarget === "visitTime" &&
-                      styles.timePickerSummaryValueActive,
-                  ]}
-                >
-                  {timePickerTarget === "visitTime"
-                    ? timePickerPreviewText
-                    : timePickerPlace
-                      ? getPlaceVisitTime(timePickerPlace)
-                      : "00:00"}
-                </Text>
-              </View>
-
-              <View
-                style={[
-                  styles.timePickerSummaryCard,
-                  timePickerTarget === "endTime" &&
-                    styles.timePickerSummaryCardActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.timePickerSummaryLabel,
-                    timePickerTarget === "endTime" &&
-                      styles.timePickerSummaryLabelActive,
-                  ]}
-                >
-                  종료 시간
-                </Text>
-
-                <Text
-                  style={[
-                    styles.timePickerSummaryValue,
-                    timePickerTarget === "endTime" &&
-                      styles.timePickerSummaryValueActive,
-                  ]}
-                >
-                  {timePickerTarget === "endTime"
-                    ? timePickerPreviewText
-                    : timePickerPlace
-                      ? getPlaceEndTime(timePickerPlace)
-                      : "00:00"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.timePickerControls}>
-              <View style={styles.timePickerColumn}>
-                <TouchableOpacity
-                  style={styles.timePickerArrow}
-                  activeOpacity={0.75}
-                  onPress={() => setTimePickerHour((prev) => (prev <= 0 ? 23 : prev - 1))}
-                >
-                  <Ionicons name="chevron-up" size={22} color="#64748B" />
-                </TouchableOpacity>
-
-                <View style={styles.timePickerValueBox}>
-                  <Text style={styles.timePickerValueText}>
-                    {padTimeUnit(timePickerHour)}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.timePickerArrow}
-                  activeOpacity={0.75}
-                  onPress={() => setTimePickerHour((prev) => (prev >= 23 ? 0 : prev + 1))}
-                >
-                  <Ionicons name="chevron-down" size={22} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.timePickerColon}>:</Text>
-
-              <View style={styles.timePickerColumn}>
-                <TouchableOpacity
-                  style={styles.timePickerArrow}
-                  activeOpacity={0.75}
-                  onPress={() => setTimePickerMinute((prev) => (prev <= 0 ? 55 : prev - 5))}
-                >
-                  <Ionicons name="chevron-up" size={22} color="#64748B" />
-                </TouchableOpacity>
-
-                <View style={styles.timePickerValueBox}>
-                  <Text style={styles.timePickerValueText}>
-                    {padTimeUnit(timePickerMinute)}
-                  </Text>
-                </View>
-
-                <TouchableOpacity
-                  style={styles.timePickerArrow}
-                  activeOpacity={0.75}
-                  onPress={() => setTimePickerMinute((prev) => (prev >= 55 ? 0 : prev + 5))}
-                >
-                  <Ionicons name="chevron-down" size={22} color="#64748B" />
-                </TouchableOpacity>
-              </View>
-            </View>
-
-            <View style={styles.timeModalButtonRow}>
-              <TouchableOpacity
-                style={styles.timeModalCancelButton}
-                activeOpacity={0.85}
-                onPress={closeTimePicker}
-              >
-                <Text style={styles.timeModalCancelText}>취소</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.timeModalSaveButton}
-                activeOpacity={0.85}
-                onPress={handleSaveTimePicker}
-              >
-                <Text style={styles.timeModalSaveText}>저장</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        place={timePickerPlace}
+        target={timePickerTarget}
+        previewText={timePickerPreviewText}
+        hourText={padTimeUnit(timePickerHour)}
+        minuteText={padTimeUnit(timePickerMinute)}
+        onClose={closeTimePicker}
+        onSwitchTarget={handleSwitchTimeTarget}
+        onDecreaseHour={decreaseHour}
+        onIncreaseHour={increaseHour}
+        onDecreaseMinute={decreaseMinute}
+        onIncreaseMinute={increaseMinute}
+        onSave={handleSaveTimePicker}
+      />
     </SafeAreaView>
   );
 }
@@ -1998,176 +1810,14 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  timeModalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.5)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 24,
-  },
-  timeModalCard: {
-    width: "100%",
-    maxWidth: 340,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 22,
-    paddingTop: 20,
-    paddingBottom: 18,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.22,
-    shadowRadius: 24,
-    elevation: 24,
-  },
-  timeModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 10,
-  },
-  timeModalTitle: { color: "#1E293B", fontSize: 20, fontWeight: "900" },
-  timeModalCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeModalPlaceName: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "800",
-    marginBottom: 14,
-  },
-  timeTargetTabs: {
-    height: 42,
-    borderRadius: 13,
-    backgroundColor: "#F1F5F9",
-    padding: 4,
-    flexDirection: "row",
-    marginBottom: 14,
-  },
-  timeTargetTab: {
-    flex: 1,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeTargetTabActive: { backgroundColor: "#2158E8" },
-  timeTargetTabText: {
-    color: "#64748B",
-    fontSize: 13,
-    fontWeight: "900",
-  },
-  timeTargetTabTextActive: { color: "#FFFFFF" },
-  timePickerPreview: {
-    flexDirection: "row",
-    gap: 10,
-    marginBottom: 18,
-  },
 
-  timePickerSummaryCard: {
-    flex: 1,
-    minHeight: 72,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    justifyContent: "center",
-  },
 
-  timePickerSummaryCardActive: {
-    backgroundColor: "#EEF4FF",
-    borderColor: "#2158E8",
-  },
 
-  timePickerSummaryLabel: {
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "800",
-    marginBottom: 6,
-  },
 
-  timePickerSummaryLabelActive: {
-    color: "#2158E8",
-  },
 
-  timePickerSummaryValue: {
-    color: "#111827",
-    fontSize: 24,
-    fontWeight: "900",
-  },
 
-  timePickerSummaryValueActive: {
-    color: "#2158E8",
-  },
-  timePickerControls: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 10,
-    marginBottom: 20,
-  },
-  timePickerColumn: { alignItems: "center", gap: 8 },
-  timePickerArrow: {
-    width: 54,
-    height: 36,
-    borderRadius: 10,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timePickerValueBox: {
-    width: 54,
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timePickerValueText: { color: "#111827", fontSize: 18, fontWeight: "900" },
-  timePickerColon: {
-    color: "#64748B",
-    fontSize: 24,
-    fontWeight: "900",
-    marginTop: 2,
-  },
-  timeModalCancelText: { color: "#64748B", fontSize: 14, fontWeight: "900" },
-  timeModalButtonRow: {
-    flexDirection: "row",
-    gap: 10,
-    marginTop: 18,
-  },
 
-  timeModalCancelButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 16,
-    backgroundColor: "#E2E8F0",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  timeModalSaveButton: {
-    flex: 1,
-    height: 48,
-    borderRadius: 14,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timeModalSaveText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
-
-  editTimelineGroup: {
-    width: "100%",
-    position: "relative",
-    zIndex: 2,
-  },
 
   editPlaceRow: {
     width: "100%",
@@ -2442,6 +2092,12 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "900",
     color: "#FFFFFF",
+  },
+
+  editTimelineGroup: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
   },
 
   viewTimelineGroup: {
