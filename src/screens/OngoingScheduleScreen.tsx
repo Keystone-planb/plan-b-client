@@ -597,6 +597,23 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     initialSelectedDayIndex,
   );
 
+  useEffect(() => {
+    setSelectedDayIndex(initialSelectedDayIndex);
+
+    if (__DEV__) {
+      console.log("[OngoingSchedule] selectedDay 동기화:", {
+        initialSelectedDayIndex,
+        selectedDay: route?.params?.selectedDay,
+        selectedDayIndex: route?.params?.selectedDayIndex,
+      });
+    }
+  }, [
+    initialSelectedDayIndex,
+    route?.params?.selectedDay,
+    route?.params?.selectedDayIndex,
+  ]);
+
+
   const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
   const [deletedPlaceKeysByDay, setDeletedPlaceKeysByDay] = useState<
     Record<number, string[]>

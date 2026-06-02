@@ -663,8 +663,37 @@ const normalizeServerTripDetailToSchedule = ({
           const grouped = new Map<number, PlaceItem[]>();
 
           flatPlaces.forEach((place, placeIndex) => {
-            const day =
-              getServerNumberByPaths(place, ["day", "dayNumber"]) ?? 1;
+            const rawDay = getServerNumberByPaths(place, [
+              "day",
+              "dayNumber",
+              "itineraryDay",
+              "tripDay",
+              "scheduleDay",
+              "dayIndex",
+              "itinerary.day",
+              "itinerary.dayNumber",
+            ]);
+
+            const day = rawDay ?? 1;
+
+            if (__DEV__) {
+              console.log("[PlanA Day Debug] flat place day mapping:", {
+                rawDay,
+                resolvedDay: day,
+                placeIndex,
+                placeName:
+                  getServerValueByPath(place, "name") ??
+                  getServerValueByPath(place, "placeName"),
+                placeId:
+                  getServerValueByPath(place, "placeId") ??
+                  getServerValueByPath(place, "googlePlaceId"),
+                rawKeys:
+                  place && typeof place === "object" ?
+                    Object.keys(place as Record<string, unknown>)
+                  : [],
+              });
+            }
+
             const normalizedPlace = normalizeServerPlaceForPlanA(
               place,
               placeIndex,
