@@ -22,6 +22,7 @@ import { getPlaceDetail } from "../../api/places/place";
 import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
 import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
 import PlanATimePickerModal from "../components/planA/PlanATimePickerModal";
+import PlanAViewPlaceCardRow from "../components/planA/PlanAViewPlaceCardRow";
 
 import {
   DayOption,
@@ -926,84 +927,34 @@ export default function PlanAScreen({ navigation, route }: Props) {
   };
 
   const renderPlaceCard = (place: PlaceItem, index: number) => {
-    const displayTime = getPlaceDisplayTime(place);
     const sortedPlaces = sortPlacesByTime(currentPlaces);
     const nextPlace = sortedPlaces[index + 1];
     const isLast = index >= sortedPlaces.length - 1;
-    const pairKey = `${String(getPlacePlanId(place))}-${String(nextPlace ? getPlacePlanId(nextPlace) : index + 1)}`;
     const selectedTransportMode =
       nextPlace ? getPairTransportMode(place, nextPlace, index) : null;
-    const selectedTransportLabel =
-      selectedTransportMode ? getTransportLabel(selectedTransportMode) : null;
 
     return (
-      <View key={place.id} style={styles.viewTimelineGroup}>
-        <View style={styles.viewPlaceRow}>
-          <View style={styles.viewSidebarColumn}>
-            <View style={styles.viewBlueDot} />
-            {!isLast ? <View style={styles.viewBlueLine} /> : null}
-          </View>
-
-          <View style={styles.viewPlaceCardContent}>
-            <PlanAPlaceCard
-              place={place}
-              index={index}
-              memoDraft={memoDrafts[place.id] ?? ""}
-              editingMemo={editingMemo}
-              editingMemoText={editingMemoText}
-              onDeletePlace={handleDeletePlace}
-              onQuickEditTime={(place) => openTimePicker(place, "visitTime")}
-              onChangeMemoDraft={handleChangeMemoDraft}
-              onAddMemo={handleAddMemo}
-              onClearMemo={handleClearMemo}
-              onStartEditMemo={handleStartEditMemo}
-              onCancelEditMemo={handleCancelEditMemo}
-              onSaveEditMemo={handleSaveEditMemo}
-              onDeleteMemo={handleDeleteMemo}
-              onChangeEditingMemoText={setEditingMemoText}
-            />
-          </View>
-        </View>
-
-        {!isLast ?
-          <View style={styles.viewTransportRow}>
-            <View style={styles.viewTransportIconColumn}>
-              <Ionicons
-                name={
-                  selectedTransportMode === "TRANSIT" ? "train-outline"
-                  : selectedTransportMode === "CAR" ? "car-outline"
-                  : "walk-outline"
-                }
-                size={15}
-                color="#94A3B8"
-              />
-            </View>
-
-            <View style={styles.viewTransportAxisColumn}>
-              <View style={styles.viewTransportLineCover} />
-              <View style={styles.viewTransportDashedLine} />
-            </View>
-
-            <View style={styles.viewTransportCard}>
-              <View style={styles.viewTransportHeader}>
-                <View style={styles.viewTransportTextGroup}>
-                  <Text style={styles.viewTransportTitle}>
-                    {selectedTransportLabel ?
-                      `${selectedTransportLabel}(으)로 이동`
-                    : "이동수단 미설정"}
-                  </Text>
-
-                  <Text style={styles.viewTransportDescription}>
-                    {selectedTransportLabel ?
-                      `${place.endTime ?? place.visitTime ?? ""} - ${nextPlace?.visitTime ?? ""}`
-                    : "수정 화면에서 이동수단을 설정할 수 있어요"}
-                  </Text>
-                </View>
-              </View>
-            </View>
-          </View>
-        : null}
-      </View>
+      <PlanAViewPlaceCardRow
+        key={place.id}
+        place={place}
+        index={index}
+        isLast={isLast}
+        nextPlace={nextPlace}
+        selectedTransportMode={selectedTransportMode}
+        memoDraft={memoDrafts[place.id] ?? ""}
+        editingMemo={editingMemo}
+        editingMemoText={editingMemoText}
+        onDeletePlace={handleDeletePlace}
+        onQuickEditTime={(place) => openTimePicker(place, "visitTime")}
+        onChangeMemoDraft={handleChangeMemoDraft}
+        onAddMemo={handleAddMemo}
+        onClearMemo={handleClearMemo}
+        onStartEditMemo={handleStartEditMemo}
+        onCancelEditMemo={handleCancelEditMemo}
+        onSaveEditMemo={handleSaveEditMemo}
+        onDeleteMemo={handleDeleteMemo}
+        onChangeEditingMemoText={setEditingMemoText}
+      />
     );
   };
 
@@ -2100,132 +2051,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
 
-  viewTimelineGroup: {
-    width: "100%",
-    position: "relative",
-    zIndex: 2,
-  },
 
-  viewPlaceRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 14,
-  },
 
-  viewSidebarColumn: {
-    width: 34,
-    alignItems: "center",
-    position: "relative",
-    marginRight: 10,
-  },
 
-  viewBlueDot: {
-    width: 12,
-    height: 12,
-    borderRadius: 999,
-    borderWidth: 3,
-    borderColor: "#2563EB",
-    backgroundColor: "#FFFFFF",
-    marginTop: 31,
-    zIndex: 3,
-  },
 
-  viewBlueLine: {
-    width: 2,
-    flex: 1,
-    minHeight: 72,
-    backgroundColor: "#2563EB",
-    marginTop: 4,
-  },
 
-  viewPlaceCardContent: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 2,
-  },
 
-  viewTransportRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "stretch",
-    marginTop: -2,
-    marginBottom: 14,
-    position: "relative",
-  },
 
-  viewTransportIconColumn: {
-    position: "absolute",
-    left: -10,
-    top: 0,
-    bottom: 0,
-    width: 34,
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 4,
-  },
 
-  viewTransportAxisColumn: {
-    width: 34,
-    alignItems: "center",
-    position: "relative",
-    marginRight: 10,
-  },
 
-  viewTransportLineCover: {
-    position: "absolute",
-    top: -10,
-    bottom: -10,
-    width: 18,
-    backgroundColor: "#FFFFFF",
-    zIndex: 1,
-  },
 
-  viewTransportDashedLine: {
-    flex: 1,
-    minHeight: 54,
-    borderLeftWidth: 2,
-    borderStyle: "dashed",
-    borderColor: "#CBD5E1",
-    zIndex: 2,
-  },
 
-  viewTransportCard: {
-    flex: 1,
-    minHeight: 58,
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    overflow: "hidden",
-  },
 
-  viewTransportTitle: {
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#64748B",
-  },
 
-  viewTransportDescription: {
-    marginTop: 3,
-    fontSize: 11,
-    fontWeight: "600",
-    color: "#94A3B8",
-  },
 
-  viewTransportHeader: {
-    minHeight: 58,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
 
-  viewTransportTextGroup: {
-    flex: 1,
-    paddingRight: 10,
-  },
 
   viewTransportPickerBody: {
     borderTopWidth: 1,
