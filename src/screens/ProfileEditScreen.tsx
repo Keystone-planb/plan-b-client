@@ -299,52 +299,43 @@ export default function ProfileEditScreen({ navigation }: Props) {
                 </View>
               </View>
 
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>비밀번호 변경</Text>
+              {isLocalUser && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>비밀번호 변경</Text>
 
-                <Text style={styles.sectionDescription}>
-                  비밀번호를 변경하지 않으려면 아래 항목은 비워두세요.
-                </Text>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>현재 비밀번호</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={currentPassword}
-                    onChangeText={setCurrentPassword}
-                    placeholder="현재 비밀번호"
-                    placeholderTextColor="#A9B6C8"
-                    secureTextEntry
-                    autoCapitalize="none"
-                    returnKeyType="next"
-                  />
-                </View>
-
-                <View style={styles.inputGroup}>
-                  <Text style={styles.inputLabel}>새 비밀번호</Text>
-                  <TextInput
-                    style={styles.input}
-                    value={newPassword}
-                    onChangeText={setNewPassword}
-                    placeholder="새 비밀번호"
-                    placeholderTextColor="#A9B6C8"
-                    secureTextEntry
-                    autoCapitalize="none"
-                    returnKeyType="done"
-                  />
-                </View>
-
-                <View style={styles.noticeBox}>
-                  <Ionicons
-                    name="information-circle-outline"
-                    size={17}
-                    color="#64748B"
-                  />
-                  <Text style={styles.noticeText}>
-                    소셜 로그인 계정은 서버 정책에 따라 비밀번호 변경이 제한될 수 있습니다.
+                  <Text style={styles.sectionDescription}>
+                    비밀번호를 변경하지 않으려면 아래 항목은 비워두세요.
                   </Text>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>현재 비밀번호</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={currentPassword}
+                      onChangeText={setCurrentPassword}
+                      placeholder="현재 비밀번호"
+                      placeholderTextColor="#A9B6C8"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      returnKeyType="next"
+                    />
+                  </View>
+
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.inputLabel}>새 비밀번호</Text>
+                    <TextInput
+                      style={styles.input}
+                      value={newPassword}
+                      onChangeText={setNewPassword}
+                      placeholder="새 비밀번호"
+                      placeholderTextColor="#A9B6C8"
+                      secureTextEntry
+                      autoCapitalize="none"
+                      returnKeyType="done"
+                    />
+                  </View>
                 </View>
-              </View>
+              )}
 
               <TouchableOpacity
                 style={[styles.saveButton, !canSubmit && styles.disabledSaveButton]}
