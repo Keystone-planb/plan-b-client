@@ -31,6 +31,23 @@ import {
 } from "../types/planA";
 import { TravelSchedule } from "../types/schedule";
 import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
+import {
+  addOneHourToDisplayTime,
+  formatPickerTimeValue,
+  formatTripDateRange,
+  getBottomTabIconName,
+  getCurrentTripDay,
+  getMissingTimePlaceNames,
+  getPlaceDisplayTime,
+  getPlaceEndTime,
+  getPlaceVisitTime,
+  getTransportLabel,
+  isValidVisitTimeRange,
+  makeDayOptions,
+  parsePickerTimeValue,
+  pickCoordinate,
+  sortPlacesByTime,
+} from "../utils/planA/planAScreenUtils";
 
 import {
   getTripTransportMode,
@@ -41,6 +58,37 @@ import {
 } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
+
+type BottomTabName = "PlanX" | "Home" | "Profile";
+
+type TimePickerTarget =
+  | "visitTime"
+  | "endTime"
+  | "transportStartTime"
+  | "transportEndTime";
+
+const EDIT_TRANSPORT_OPTIONS: Array<{
+  key: TransportMode;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}> = [
+  {
+    key: "WALK",
+    label: "도보",
+    icon: "walk-outline",
+  },
+  {
+    key: "TRANSIT",
+    label: "대중교통",
+    icon: "train-outline",
+  },
+  {
+    key: "CAR",
+    label: "자동차",
+    icon: "car-outline",
+  },
+];
+
 
 type Props = {
   navigation: any;
@@ -73,321 +121,6 @@ type Props = {
       };
     };
   };
-};
-
-const toCoordinateNumber = (value: unknown) => {
-  if (typeof value === "number") return Number.isFinite(value) ? value : null;
-
-  if (typeof value === "string") {
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : null;
-  }
-
-  return null;
-};
-
-const pickCoordinate = (source: Record<string, any>, keys: string[]) => {
-  for (const key of keys) {
-    const value = key
-      .split(".")
-      .reduce<any>((acc, part) => acc?.[part], source);
-    const parsed = toCoordinateNumber(value);
-
-    if (parsed !== null) return parsed;
-  }
-
-  return null;
-};
-
-type BottomTabName = "PlanX" | "Home" | "Profile";
-type IconName = keyof typeof Ionicons.glyphMap;
-type TimePickerTarget = "visitTime" | "endTime";
-
-const DEFAULT_DAY_OPTIONS: DayOption[] = [
-  { id: 1, label: "Day 1" },
-  { id: 2, label: "Day 2" },
-  { id: 3, label: "Day 3" },
-];
-
-const BOTTOM_TABS: BottomTabName[] = ["PlanX", "Home", "Profile"];
-
-const EDIT_TRANSPORT_OPTIONS: Array<{
-  key: TransportMode;
-  label: string;
-  icon: keyof typeof Ionicons.glyphMap;
-}> = [
-  { key: "WALK", label: "도보", icon: "walk-outline" },
-  { key: "TRANSIT", label: "대중교통", icon: "train-outline" },
-  { key: "CAR", label: "자동차", icon: "car-outline" },
-];
-
-const getTransportLabel = (mode: TransportMode) => {
-  switch (mode) {
-    case "TRANSIT":
-      return "대중교통";
-    case "CAR":
-      return "자동차";
-    case "WALK":
-    default:
-      return "도보";
-  }
-};
-
-const getSortTimeValue = (time?: string | null) => {
-  if (!time) return Number.MAX_SAFE_INTEGER;
-
-  const normalized = time.trim();
-  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
-
-  if (!match) return Number.MAX_SAFE_INTEGER;
-
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const period = match[3]?.toUpperCase();
-
-  if (period === "PM" && hour < 12) hour += 12;
-  if (period === "AM" && hour === 12) hour = 0;
-
-  return hour * 60 + minute;
-};
-
-const sortPlacesByTime = <
-  T extends { time?: string | null; visitTime?: string | null; order?: number },
->(
-  places: T[],
-) => {
-  return [...places].sort((a, b) => {
-    const aTime = getSortTimeValue(a.visitTime ?? a.time);
-    const bTime = getSortTimeValue(b.visitTime ?? b.time);
-
-    if (aTime !== bTime) return aTime - bTime;
-
-    return (a.order ?? 0) - (b.order ?? 0);
-  });
-};
-
-const getTripDayCount = (startDate?: string, endDate?: string) => {
-  if (!startDate || !endDate) return DEFAULT_DAY_OPTIONS.length;
-
-  const start = new Date(startDate.replace(/\./g, "-"));
-  const end = new Date(endDate.replace(/\./g, "-"));
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return DEFAULT_DAY_OPTIONS.length;
-  }
-
-  const diffMs = end.getTime() - start.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
-
-  return Math.max(DEFAULT_DAY_OPTIONS.length, diffDays);
-};
-
-const getCurrentTripDay = (startDate?: string, endDate?: string) => {
-  const dayCount = getTripDayCount(startDate, endDate);
-
-  if (!startDate || !endDate) {
-    return 1;
-  }
-
-  const start = new Date(startDate.replace(/\./g, "-"));
-  const today = new Date();
-
-  if (Number.isNaN(start.getTime())) {
-    return 1;
-  }
-
-  start.setHours(0, 0, 0, 0);
-  today.setHours(0, 0, 0, 0);
-
-  const diffDays = Math.floor(
-    (today.getTime() - start.getTime()) / (1000 * 60 * 60 * 24),
-  );
-
-  if (diffDays < 0) {
-    return 1;
-  }
-
-  if (diffDays >= dayCount) {
-    return dayCount;
-  }
-
-  return diffDays + 1;
-};
-
-const makeDayOptions = (startDate?: string, endDate?: string): DayOption[] => {
-  const dayCount = getTripDayCount(startDate, endDate);
-
-  return Array.from({ length: dayCount }, (_, index) => ({
-    id: index + 1,
-    label: `Day ${index + 1}`,
-  }));
-};
-
-const formatDisplayDate = (value: string) => {
-  if (!value) return "";
-  return value.replace(/-/g, ".");
-};
-
-const formatTripDateRange = (startDate?: string, endDate?: string) => {
-  if (!startDate || !endDate) return "";
-
-  const start = new Date(startDate.replace(/\./g, "-"));
-  const end = new Date(endDate.replace(/\./g, "-"));
-
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    return `${formatDisplayDate(startDate)} - ${formatDisplayDate(endDate)}`;
-  }
-
-  const dayCount = Math.max(
-    1,
-    Math.floor((end.getTime() - start.getTime()) / 86400000) + 1,
-  );
-
-  return `${start.getFullYear()}년 ${start.getMonth() + 1}월 ${start.getDate()}일 ~ ${end.getMonth() + 1}월 ${end.getDate()}일 · ${dayCount}일`;
-};
-
-const normalizeTimeText = (value?: string | null) => {
-  const trimmed = value?.trim();
-  return trimmed ? trimmed : "";
-};
-
-const parseLegacyDisplayTime = (time?: string | null) => {
-  const normalized = normalizeTimeText(time);
-
-  if (!normalized || normalized === "시간 미정") {
-    return {
-      visitTime: "",
-      endTime: "",
-    };
-  }
-
-  const [start, end] = normalized.split(/\s*-\s*/);
-
-  return {
-    visitTime: normalizeTimeText(start),
-    endTime: normalizeTimeText(end),
-  };
-};
-
-const getPlaceVisitTime = (place: PlaceItem) => {
-  return (
-    normalizeTimeText(place.visitTime) ||
-    parseLegacyDisplayTime(place.time).visitTime
-  );
-};
-
-const getPlaceEndTime = (place: PlaceItem) => {
-  return (
-    normalizeTimeText(place.endTime) ||
-    parseLegacyDisplayTime(place.time).endTime
-  );
-};
-
-const getPlaceDisplayTime = (place: PlaceItem) => {
-  const visitTime = getPlaceVisitTime(place);
-  const endTime = getPlaceEndTime(place);
-
-  if (visitTime && endTime) return `${visitTime} - ${endTime}`;
-  if (visitTime) return visitTime;
-  if (endTime) return endTime;
-  if (place.time?.trim()) return place.time;
-
-  return "";
-};
-
-const parsePickerTimeValue = (value: string) => {
-  const match = value.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-
-  if (!match) {
-    return null;
-  }
-
-  return {
-    hour: Number(match[1]),
-    minute: Number(match[2]),
-    period: match[3].toUpperCase() as "AM" | "PM",
-  };
-};
-
-const formatPickerTimeValue = (
-  hour: number,
-  minute: number,
-  period: "AM" | "PM",
-) => {
-  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(
-    2,
-    "0",
-  )} ${period}`;
-};
-
-const parseTimeToMinutes = (value?: string | null) => {
-  const normalized = String(value ?? "").trim();
-  const match = normalized.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)?$/i);
-
-  if (!match) return null;
-
-  let hour = Number(match[1]);
-  const minute = Number(match[2]);
-  const period = match[3]?.toUpperCase();
-
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
-
-  if (period === "PM" && hour < 12) hour += 12;
-  if (period === "AM" && hour === 12) hour = 0;
-
-  return hour * 60 + minute;
-};
-
-const isValidVisitTimeRange = (
-  visitTime?: string | null,
-  endTime?: string | null,
-) => {
-  const visitMinutes = parseTimeToMinutes(visitTime);
-  const endMinutes = parseTimeToMinutes(endTime);
-
-  if (visitMinutes === null || endMinutes === null) return true;
-
-  return visitMinutes < endMinutes;
-};
-
-const addOneHourToDisplayTime = (value: string) => {
-  const parsed = parsePickerTimeValue(value);
-
-  if (!parsed) {
-    return "";
-  }
-
-  let nextHour = parsed.hour + 1;
-  let nextPeriod = parsed.period;
-
-  if (nextHour === 12) {
-    nextPeriod = parsed.period === "AM" ? "PM" : "AM";
-  }
-
-  if (nextHour > 12) {
-    nextHour = 1;
-  }
-
-  return formatPickerTimeValue(nextHour, parsed.minute, nextPeriod);
-};
-
-const getMissingTimePlaceNames = (schedule: TravelSchedule) => {
-  return schedule.days
-    .flatMap((day) => day.places)
-    .filter((place) => {
-      return !getPlaceVisitTime(place) || !getPlaceEndTime(place);
-    })
-    .map((place) => place.name)
-    .filter(Boolean);
-};
-
-const getBottomTabIconName = (
-  tabName: BottomTabName,
-  focused: boolean,
-): IconName => {
-  if (tabName === "PlanX") return focused ? "time" : "time-outline";
-  if (tabName === "Home") return focused ? "home" : "home-outline";
-  return focused ? "person" : "person-outline";
 };
 
 export default function PlanAScreen({ navigation, route }: Props) {
