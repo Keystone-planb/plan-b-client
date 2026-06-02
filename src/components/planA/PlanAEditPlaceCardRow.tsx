@@ -243,9 +243,7 @@ export default function PlanAEditPlaceCardRow({
 
 const styles = StyleSheet.create({
   editTimelineGroup: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
+    width: "100%",
   },
   editPlaceRow: {
     width: "100%",
