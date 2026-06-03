@@ -1329,8 +1329,30 @@ export default function MainScreen({ navigation }: Props) {
 
     const currentSchedule = activeSchedules.find(isOngoingSchedule) ?? null;
 
-    const nextSchedule =
-      activeSchedules.find((schedule) => !isOngoingSchedule(schedule)) ?? null;
+    // 같은 여행(이름+기간)이 여러 개로 나뉘어 들어오는 경우, 하나로 묶어
+    // 그중 장소가 가장 많은(가장 완성된) 항목을 대표로 보여준다.
+    const nextScheduleGroups = new Map<string, StoredSchedule>();
+
+    activeSchedules
+      .filter((schedule) => !isOngoingSchedule(schedule))
+      .forEach((schedule) => {
+        const groupKey = [
+          getScheduleTitle(schedule),
+          schedule.startDate ?? "",
+          schedule.endDate ?? "",
+        ].join("|");
+
+        const existing = nextScheduleGroups.get(groupKey);
+
+        if (!existing || getPlaceCount(schedule) > getPlaceCount(existing)) {
+          nextScheduleGroups.set(groupKey, schedule);
+        }
+      });
+
+    const nextSchedules = Array.from(nextScheduleGroups.values()).sort(
+      sortSchedulesByStartDate,
+    );
+    const nextSchedule = nextSchedules[0] ?? null;
 
     const currentFirstPlaceName =
       currentSchedule ? getCurrentPlaceName(currentSchedule) : "";
@@ -1582,54 +1604,6 @@ export default function MainScreen({ navigation }: Props) {
           }
         </View>
 
-        <View style={styles.nextTripSection}>
-          <Text style={styles.homeSectionTitle}>다음 여행</Text>
-
-          {nextSchedule ?
-            <TouchableOpacity
-              style={styles.nextTripCard}
-              activeOpacity={0.86}
-              onPress={() => handleOpenSchedule(nextSchedule)}
-            >
-              <View style={styles.nextTripThumb}>
-                <Text style={styles.nextTripEmoji}>🏝️</Text>
-              </View>
-
-              <View style={styles.nextTripInfo}>
-                <Text style={styles.nextTripTitle} numberOfLines={1}>
-                  {getScheduleTitle(nextSchedule)}
-                </Text>
-
-                <View style={styles.nextTripMetaRow}>
-                  <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
-                  <Text style={styles.nextTripMetaText}>
-                    {getScheduleDate(nextSchedule)}
-                  </Text>
-                </View>
-
-                <View style={styles.nextTripMetaRow}>
-                  <Ionicons name="location-outline" size={15} color="#94A3B8" />
-                  <Text style={styles.nextTripMetaText}>
-                    {getScheduleLocation(nextSchedule)} ·{" "}
-                    {getPlaceCount(nextSchedule)}개 장소
-                  </Text>
-                </View>
-              </View>
-
-              <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
-            </TouchableOpacity>
-          : <View style={styles.emptyNextTripCard}>
-              <Text style={styles.emptyNextTripTitle}>
-                예정된 다음 여행이 없어요
-              </Text>
-
-              <Text style={styles.emptyNextTripDescription}>
-                새로운 여행 일정을 추가해보세요.
-              </Text>
-            </View>
-          }
-        </View>
-
         <TouchableOpacity
           style={styles.newScheduleCardButton}
           activeOpacity={0.86}
@@ -1648,6 +1622,67 @@ export default function MainScreen({ navigation }: Props) {
 
           <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
         </TouchableOpacity>
+
+        <View style={styles.nextTripSection}>
+          <Text style={styles.homeSectionTitle}>다음 여행</Text>
+
+          {nextSchedules.length > 0 ?
+            nextSchedules.map((schedule) => (
+              <TouchableOpacity
+                key={String(
+                  schedule.id ?? schedule.tripId ?? schedule.serverTripId,
+                )}
+                style={[styles.nextTripCard, { marginBottom: 12 }]}
+                activeOpacity={0.86}
+                onPress={() => handleOpenSchedule(schedule)}
+              >
+                <View style={styles.nextTripThumb}>
+                  <Text style={styles.nextTripEmoji}>🏝️</Text>
+                </View>
+
+                <View style={styles.nextTripInfo}>
+                  <Text style={styles.nextTripTitle} numberOfLines={1}>
+                    {getScheduleTitle(schedule)}
+                  </Text>
+
+                  <View style={styles.nextTripMetaRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.nextTripMetaText}>
+                      {getScheduleDate(schedule)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.nextTripMetaRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={15}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.nextTripMetaText}>
+                      {getScheduleLocation(schedule)} ·{" "}
+                      {getPlaceCount(schedule)}개 장소
+                    </Text>
+                  </View>
+                </View>
+
+                <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+              </TouchableOpacity>
+            ))
+          : <View style={styles.emptyNextTripCard}>
+              <Text style={styles.emptyNextTripTitle}>
+                예정된 다음 여행이 없어요
+              </Text>
+
+              <Text style={styles.emptyNextTripDescription}>
+                새로운 여행 일정을 추가해보세요.
+              </Text>
+            </View>
+          }
+        </View>
       </ScrollView>
     );
   };
@@ -1810,7 +1845,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 22,
-    marginBottom: 28,
+    marginBottom: 16,
     shadowColor: "#74B8FF",
     shadowOffset: {
       width: 0,
@@ -1990,7 +2025,7 @@ const styles = StyleSheet.create({
 
   newScheduleCardButton: {
     minHeight: 76,
-    marginTop: 18,
+    marginBottom: 16,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,

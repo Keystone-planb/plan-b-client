@@ -17,6 +17,7 @@ type Props = {
 
   onDetailPress: () => void;
   onSelectPress: () => void;
+  onCardPress?: () => void;
 };
 
 export default function SearchResultCard({
@@ -27,6 +28,7 @@ export default function SearchResultCard({
   isReviewLoading,
   onDetailPress,
   onSelectPress,
+  onCardPress,
 }: Props) {
   return (
     <View
@@ -36,18 +38,26 @@ export default function SearchResultCard({
         isSelected && styles.selectedPlaceCard,
       ]}
     >
-      <Text style={styles.placeName}>{place.name}</Text>
+      {/* 카드 본문(이름/주소/별점)을 탭하면 지도를 해당 장소로 이동시킨다.
+          상세/선택 버튼은 자체 onPress가 있어 영향받지 않는다. */}
+      <TouchableOpacity
+        activeOpacity={0.7}
+        disabled={isPreview || !onCardPress}
+        onPress={onCardPress}
+      >
+        <Text style={styles.placeName}>{place.name}</Text>
 
-      <Text style={styles.placeAddress}>{place.address}</Text>
+        <Text style={styles.placeAddress}>{place.address}</Text>
 
-      {!isPreview && typeof place.rating === "number" && (
-        <View style={styles.ratingRow}>
-          <Ionicons name="star" size={13} color="#FACC15" />
-          <Text style={styles.ratingText}>
-            {place.rating.toFixed(1)}
-          </Text>
-        </View>
-      )}
+        {!isPreview && typeof place.rating === "number" && (
+          <View style={styles.ratingRow}>
+            <Ionicons name="star" size={13} color="#FACC15" />
+            <Text style={styles.ratingText}>
+              {place.rating.toFixed(1)}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
 
       <TouchableOpacity
         style={[

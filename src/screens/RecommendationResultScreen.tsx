@@ -817,6 +817,8 @@ export default function RecommendationResultScreen({
           selectedPlaces: undefined,
           refreshPlanAAt: Date.now(),
           replacedTripPlaceId: usedCurrentPlanId,
+          // 대안찾기로 진입해도 수정 페이지(시간/이동수단 편집 + 저장)와 동일하게 열리도록 한다.
+          isEditMode: true,
         };
 
         navigation.replace("PlanA", planAParams as any);

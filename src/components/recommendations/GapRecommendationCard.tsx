@@ -201,7 +201,9 @@ export default function GapRecommendationCard({
 
       const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-return allowedPairKeys.has(gapKey);
+        // 추천 가능 시간(availableMinutes)이 60분 이상인 구간만 추천 카드 대상으로 한다.
+        const usableMinutes = gap.availableMinutes ?? gap.gapMinutes;
+        return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
       });
       applyGaps(currentScreenGaps);
     };
@@ -324,20 +326,9 @@ return allowedPairKeys.has(gapKey);
     status !== "error";
 
   if (shouldHideCard) {
-    return (
-      <View style={styles.emptyCard}>
-        <View style={styles.emptyCardIconCircle}>
-          <Ionicons name="sparkles-outline" size={20} color="#94A3B8" />
-        </View>
-
-        <View style={styles.emptyCardTextGroup}>
-          <Text style={styles.emptyCardTitle}>추천 가능한 빈 시간이 없어요</Text>
-          <Text style={styles.emptyCardSubText}>
-            다른 장소를 추가하거나 이동 시간을 늘려보세요
-          </Text>
-        </View>
-      </View>
-    );
+    // 추천 가능 시간이 60분 미만이라 추천할 구간이 없으면 카드를 표시하지 않는다.
+    // (일정 사이 공백/이동 구간은 상위 컴포넌트에서 그대로 유지됨)
+    return null;
   }
 
   return (

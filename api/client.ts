@@ -194,7 +194,9 @@ apiClient.interceptors.response.use(
       !isOptionalAuthRequest &&
       !isAuthRequest &&
       !isSkipAuthHeaderRequest &&
-      error.response?.status === 401 &&
+      // 백엔드(Spring Security)가 만료/무효 토큰에 401 대신 403을 반환하는 경우가 있어
+      // 403도 토큰 갱신 대상에 포함한다. (refresh가 성공하면 재요청, 실패 시에만 처리)
+      (error.response?.status === 401 || error.response?.status === 403) &&
       originalRequest &&
       !originalRequest._retry;
 
