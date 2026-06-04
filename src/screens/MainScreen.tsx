@@ -17,6 +17,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import RadialBackground from "../components/RadialBackground";
 import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
 import { removePlanASchedule } from "../api/schedules/planAStorage";
+import { getPlaceDetail } from "../../api/places/place";
 import {
   deleteTrip,
   getTripDetail,
@@ -386,6 +387,13 @@ const getMainCurrentPlaceDayIndex = (schedule?: StoredSchedule) => {
 };
 
 const getPlaceCount = (schedule?: StoredSchedule) => {
+  // 서버 목록 응답의 placeCount가 있으면 그대로 사용(홈에서 상세 호출 없이 빠르게 표시).
+  const summaryPlaceCount = (schedule as { placeCount?: number } | undefined)
+    ?.placeCount;
+  if (typeof summaryPlaceCount === "number") {
+    return summaryPlaceCount;
+  }
+
   const days = Array.isArray(schedule?.days) ? schedule?.days : [];
 
   return days.reduce<number>((count, day) => {
@@ -522,7 +530,10 @@ const convertTripSummaryToStoredSchedule = (
     updatedAt: trip.endDate,
     createdAt: trip.startDate,
     days: [],
-  };
+    // 목록 응답의 카운트(상세 호출 없이 홈에서 바로 사용)
+    placeCount: trip.placeCount,
+    itineraryCount: trip.itineraryCount,
+  } as StoredSchedule;
 };
 
 const getFirstPlaceNameFromDays = (days?: unknown[]) => {
@@ -591,6 +602,14 @@ const enrichDaysWithServerTripPlaceIds = async (
   const serverItineraries = detail.itineraries ?? [];
 
   if (__DEV__) {
+    console.log("[Main] 서버 상세 조회 성공:", {
+      tripId: detail.tripId,
+      itineraryCount: serverItineraries.length,
+      placeCount: serverItineraries.reduce(
+        (count, itinerary) => count + itinerary.places.length,
+        0,
+      ),
+    });
   }
 
   if (serverItineraries.length === 0) {
@@ -824,9 +843,15 @@ export default function MainScreen({ navigation }: Props) {
           .map(convertTripSummaryToStoredSchedule)
           .sort(sortMainTrips);
 
+        // 홈 화면 속도 개선: 모든 여행마다 GET /api/trips/{id}를 호출하지 않는다.
+        // 목록 응답의 placeCount/itineraryCount를 그대로 쓰고,
+        // 현재 장소 표시가 필요한 "진행중" 여행만 상세를 보강한다.
         serverSchedules = await Promise.all(
           serverSchedules.map(async (schedule) => {
-            return hydrateMainScheduleWithDetail(schedule);
+            if (isOngoingSchedule(schedule)) {
+              return hydrateMainScheduleWithDetail(schedule);
+            }
+            return schedule;
           }),
         );
 
@@ -939,7 +964,7 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
-  const handleOpenNotificationRecommendation = (
+  const handleOpenNotificationRecommendation = async (
     notification: WeatherNotification,
   ) => {
     const rawNotification = notification as any;
@@ -986,6 +1011,7 @@ export default function MainScreen({ navigation }: Props) {
         source: "weather-notification",
         fromWeatherNotification: true,
         notificationId,
+        day: Number(rawNotification.day) > 0 ? Number(rawNotification.day) : undefined,
         placesJson: JSON.stringify(alternatives),
         currentPlanId: Number(
           originalPlace?.tripPlaceId ??
@@ -1056,22 +1082,71 @@ export default function MainScreen({ navigation }: Props) {
         ),
       );
 
-    const currentLat =
+    let currentLat =
       rawNotification.currentLat ??
       rawNotification.latitude ??
       rawNotification.lat ??
       rawNotification.placeLatitude ??
       affectedPlace?.latitude;
 
-    const currentLng =
+    let currentLng =
       rawNotification.currentLng ??
       rawNotification.longitude ??
       rawNotification.lng ??
       rawNotification.placeLongitude ??
       affectedPlace?.longitude;
 
+    // 좌표가 없으면 상세조회(getPlaceDetail)로 보강한다.
     if (currentLat == null || currentLng == null) {
-      Alert.alert("대안 추천 불가", "현재 장소의 위도/경도 정보가 없습니다.");
+      const detailId =
+        originalPlace?.googlePlaceId ??
+        originalPlace?.placeId ??
+        affectedPlace?.googlePlaceId ??
+        affectedPlace?.placeId;
+
+      if (detailId) {
+        try {
+          const detail: any = await getPlaceDetail(String(detailId));
+          currentLat = currentLat ?? detail?.latitude ?? detail?.lat;
+          currentLng = currentLng ?? detail?.longitude ?? detail?.lng;
+        } catch (error) {
+          console.log("[Main] 대안추천 좌표 보강 실패:", error);
+        }
+      }
+    }
+
+    if (currentLat == null || currentLng == null) {
+      // 좌표가 없어 근처 실내 대안을 추천할 수 없는 경우 → 일정 조정을 안내한다.
+      const notifDay =
+        Number(rawNotification.day) > 0 ? Number(rawNotification.day) : undefined;
+
+      Alert.alert(
+        "실내 대안을 찾지 못했어요",
+        "이 시간대 근처에 추천할 실내 장소가 없어요. 일정을 조정하시겠어요?",
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "일정 조정",
+            onPress: () => {
+              navigation.navigate("PlanA", {
+                scheduleId: getScheduleId(baseSchedule ?? {}),
+                tripId: Number(tripId),
+                serverTripId: Number(tripId),
+                tripName: getScheduleTitle(baseSchedule ?? {}),
+                startDate: baseSchedule?.startDate,
+                endDate: baseSchedule?.endDate,
+                location: baseSchedule?.location,
+                day: notifDay,
+                selectedDay: notifDay,
+                isEditMode: true,
+                refreshPlanAAt: Date.now(),
+                // 저장(시간/장소 수정) 완료 시 이 날씨 알림을 삭제하기 위해 전달
+                dismissNotificationId: notificationId,
+              } as any);
+            },
+          },
+        ],
+      );
       return;
     }
 
@@ -1119,6 +1194,7 @@ export default function MainScreen({ navigation }: Props) {
         "날씨 변화로 인해 기존 일정 대신 방문하기 좋은 대안 장소를 추천해주세요.",
     };
 
+    console.log("[Main] 날씨 알림 AI 대안 추천 payload:", nextParams);
 
     navigation.navigate("AIAnalysisLoading", nextParams);
   };
@@ -1320,8 +1396,30 @@ export default function MainScreen({ navigation }: Props) {
 
     const currentSchedule = activeSchedules.find(isOngoingSchedule) ?? null;
 
-    const nextSchedule =
-      activeSchedules.find((schedule) => !isOngoingSchedule(schedule)) ?? null;
+    // 같은 여행(이름+기간)이 여러 개로 나뉘어 들어오는 경우, 하나로 묶어
+    // 그중 장소가 가장 많은(가장 완성된) 항목을 대표로 보여준다.
+    const nextScheduleGroups = new Map<string, StoredSchedule>();
+
+    activeSchedules
+      .filter((schedule) => !isOngoingSchedule(schedule))
+      .forEach((schedule) => {
+        const groupKey = [
+          getScheduleTitle(schedule),
+          schedule.startDate ?? "",
+          schedule.endDate ?? "",
+        ].join("|");
+
+        const existing = nextScheduleGroups.get(groupKey);
+
+        if (!existing || getPlaceCount(schedule) > getPlaceCount(existing)) {
+          nextScheduleGroups.set(groupKey, schedule);
+        }
+      });
+
+    const nextSchedules = Array.from(nextScheduleGroups.values()).sort(
+      sortSchedulesByStartDate,
+    );
+    const nextSchedule = nextSchedules[0] ?? null;
 
     const currentFirstPlaceName =
       currentSchedule ? getCurrentPlaceName(currentSchedule) : "";
@@ -1459,10 +1557,7 @@ export default function MainScreen({ navigation }: Props) {
         : notifications.length > 0 && activeNotification ?
           <View style={styles.notificationSection}>
             <WeatherNotificationCard
-              key={String(
-                (activeNotification as any).notificationId ??
-                  (activeNotification as any).id,
-              )}
+              key="weather-notification-card"
               notification={buildDisplayNotification(activeNotification)}
               onPressRecommend={handleOpenNotificationRecommendation}
               onDismiss={handleDismissNotification}
@@ -1573,54 +1668,6 @@ export default function MainScreen({ navigation }: Props) {
           }
         </View>
 
-        <View style={styles.nextTripSection}>
-          <Text style={styles.homeSectionTitle}>다음 여행</Text>
-
-          {nextSchedule ?
-            <TouchableOpacity
-              style={styles.nextTripCard}
-              activeOpacity={0.86}
-              onPress={() => handleOpenSchedule(nextSchedule)}
-            >
-              <View style={styles.nextTripThumb}>
-                <Text style={styles.nextTripEmoji}>🏝️</Text>
-              </View>
-
-              <View style={styles.nextTripInfo}>
-                <Text style={styles.nextTripTitle} numberOfLines={1}>
-                  {getScheduleTitle(nextSchedule)}
-                </Text>
-
-                <View style={styles.nextTripMetaRow}>
-                  <Ionicons name="calendar-outline" size={15} color="#94A3B8" />
-                  <Text style={styles.nextTripMetaText}>
-                    {getScheduleDate(nextSchedule)}
-                  </Text>
-                </View>
-
-                <View style={styles.nextTripMetaRow}>
-                  <Ionicons name="location-outline" size={15} color="#94A3B8" />
-                  <Text style={styles.nextTripMetaText}>
-                    {getScheduleLocation(nextSchedule)} ·{" "}
-                    {getPlaceCount(nextSchedule)}개 장소
-                  </Text>
-                </View>
-              </View>
-
-              <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
-            </TouchableOpacity>
-          : <View style={styles.emptyNextTripCard}>
-              <Text style={styles.emptyNextTripTitle}>
-                예정된 다음 여행이 없어요
-              </Text>
-
-              <Text style={styles.emptyNextTripDescription}>
-                새로운 여행 일정을 추가해보세요.
-              </Text>
-            </View>
-          }
-        </View>
-
         <TouchableOpacity
           style={styles.newScheduleCardButton}
           activeOpacity={0.86}
@@ -1639,6 +1686,66 @@ export default function MainScreen({ navigation }: Props) {
 
           <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
         </TouchableOpacity>
+
+        <View style={styles.nextTripSection}>
+          <Text style={styles.homeSectionTitle}>다음 여행</Text>
+
+          {nextSchedules.length > 0 ?
+            nextSchedules.map((schedule) => (
+              <TouchableOpacity
+                key={String(
+                  schedule.id ?? schedule.tripId ?? schedule.serverTripId,
+                )}
+                style={[styles.nextTripCard, { marginBottom: 12 }]}
+                activeOpacity={0.86}
+                onPress={() => handleOpenSchedule(schedule)}
+              >
+                <View style={styles.nextTripThumb}>
+                  <Text style={styles.nextTripEmoji}>🏝️</Text>
+                </View>
+
+                <View style={styles.nextTripInfo}>
+                  <Text style={styles.nextTripTitle} numberOfLines={1}>
+                    {getScheduleTitle(schedule)}
+                  </Text>
+
+                  <View style={styles.nextTripMetaRow}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={15}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.nextTripMetaText}>
+                      {getScheduleDate(schedule)}
+                    </Text>
+                  </View>
+
+                  <View style={styles.nextTripMetaRow}>
+                    <Ionicons
+                      name="location-outline"
+                      size={15}
+                      color="#94A3B8"
+                    />
+                    <Text style={styles.nextTripMetaText}>
+                      {getPlaceCount(schedule)}개 장소
+                    </Text>
+                  </View>
+                </View>
+
+                <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+              </TouchableOpacity>
+            ))
+          : <View style={styles.emptyNextTripCard}>
+              <Text style={styles.emptyNextTripTitle}>
+                예정된 다음 여행이 없어요
+              </Text>
+
+              <Text style={styles.emptyNextTripDescription}>
+                새로운 여행 일정을 추가해보세요.
+              </Text>
+            </View>
+          }
+        </View>
       </ScrollView>
     );
   };
@@ -1801,7 +1908,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 22,
-    marginBottom: 28,
+    marginBottom: 16,
     shadowColor: "#74B8FF",
     shadowOffset: {
       width: 0,
@@ -1981,7 +2088,7 @@ const styles = StyleSheet.create({
 
   newScheduleCardButton: {
     minHeight: 76,
-    marginTop: 18,
+    marginBottom: 16,
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
