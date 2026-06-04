@@ -20,7 +20,11 @@ const BORDER = "#E4EAF3";
 
 export default function OnboardingSecondScreen({ navigation }: Props) {
   return (
-    <View style={styles.screen}>
+    <TouchableOpacity
+      style={styles.screen}
+      activeOpacity={1}
+      onPress={() => navigation.replace("OnboardingThird")}
+    >
       <PlanAPreview />
 
       <View style={styles.dim} />
@@ -47,7 +51,7 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
         <OnboardingProgressDots activeIndex={1} />
 
       </TouchableOpacity>
-    </View>
+    </TouchableOpacity>
   );
 }
 

@@ -85,7 +85,7 @@ const visiblePlaces = useMemo(() => {
         ref={mapRef}
         key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
         provider={PROVIDER_GOOGLE}
-        style={StyleSheet.absoluteFillObject}
+        style={styles.map}
         initialRegion={initialRegion}
         loadingEnabled
         moveOnMarkerPress={false}
@@ -130,6 +130,13 @@ const styles = StyleSheet.create({
     width: "100%",
     overflow: "hidden",
     backgroundColor: "#E2E8F0",
+  },
+
+  // Android react-native-maps는 absoluteFillObject(stretch) 높이를 0으로 측정하는 버그가 있어
+  // 고정 높이 컨테이너 안에서 flex:1로 높이를 채운다.
+  map: {
+    flex: 1,
+    width: "100%",
   },
 
   emptyContainer: {

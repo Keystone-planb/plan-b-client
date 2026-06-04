@@ -21,6 +21,14 @@ type Props = {
   navigation: any;
 };
 
+const MOOD_LABELS: Record<string, string> = {
+  HEALING: "힐링",
+  ACTIVE: "액티브",
+  TRENDY: "트렌디",
+  CLASSIC: "클래식",
+  LOCAL: "로컬",
+};
+
 export default function ProfileScreen({ navigation }: Props) {
   const [preferenceSummary, setPreferenceSummary] =
     useState<PreferenceSummary | null>(null);
@@ -158,26 +166,24 @@ export default function ProfileScreen({ navigation }: Props) {
           <Ionicons name="chevron-forward" size={22} color="#B8C4D5" />
         </TouchableOpacity>
 
-        {preferenceSummary ?
-          <View style={styles.preferenceCard}>
-            <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
+        <View style={styles.preferenceCard}>
+          <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
 
-            <Text style={styles.preferenceDescription}>
-              {preferenceSummary.summary ||
-                "아직 충분한 취향 데이터가 없어요. 장소를 선택하면 더 정확해져요."}
+          {me?.preferredMoods && me.preferredMoods.length > 0 ?
+            <View style={styles.preferenceKeywordRow}>
+              {me.preferredMoods.map((mood) => (
+                <View key={mood} style={styles.preferenceKeyword}>
+                  <Text style={styles.preferenceKeywordText}>
+                    {MOOD_LABELS[mood] ?? mood}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          : <Text style={styles.preferenceDescription}>
+              아직 여행 이력이 없어요. 여행을 만들고 스타일을 선택하면 표시돼요.
             </Text>
-
-            {preferenceSummary.keywords?.length ?
-              <View style={styles.preferenceKeywordRow}>
-                {preferenceSummary.keywords.slice(0, 3).map((keyword) => (
-                  <View key={keyword} style={styles.preferenceKeyword}>
-                    <Text style={styles.preferenceKeywordText}>{keyword}</Text>
-                  </View>
-                ))}
-              </View>
-            : null}
-          </View>
-        : null}
+          }
+        </View>
 
         <View style={styles.settingCard}>
           <Text style={styles.sectionTitle}>설정</Text>

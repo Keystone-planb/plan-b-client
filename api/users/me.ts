@@ -9,6 +9,7 @@ export interface MeResponse {
   email: string;
   nickname: string;
   provider?: string;
+  preferredMoods?: string[];
 }
 
 interface MeErrorResponse {
