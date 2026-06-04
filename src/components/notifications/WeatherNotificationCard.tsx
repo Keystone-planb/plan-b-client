@@ -1,5 +1,15 @@
 import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Animated,
+  Dimensions,
+  PanResponder,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+const SCREEN_WIDTH = Dimensions.get("window").width;
 import { Ionicons } from "@expo/vector-icons";
 
 import type { WeatherNotification } from "../../types/notification";
@@ -176,8 +186,64 @@ export default function WeatherNotificationCard({
   const safeTotalCount = Math.max(1, totalCount);
   const timeRange = formatTimeRange(notification);
   const hasTime = Boolean(timeRange);
+
+  // 좌우 드래그(스와이프)로 알림을 넘기고, 카드가 밀려 나가고 들어오는 애니메이션을 준다.
+  const translateX = React.useRef(new Animated.Value(0)).current;
+  const onNextRef = React.useRef(onNext);
+  const onPrevRef = React.useRef(onPrev);
+  onNextRef.current = onNext;
+  onPrevRef.current = onPrev;
+
+  const canSwipe = safeTotalCount > 1;
+
+  const animateSwipe = (direction: -1 | 1, action?: () => void) => {
+    // 현재 카드를 화면 밖으로 밀어낸 뒤, 내용 교체 → 반대편에서 슬라이드 인.
+    Animated.timing(translateX, {
+      toValue: direction * SCREEN_WIDTH,
+      duration: 180,
+      useNativeDriver: true,
+    }).start(() => {
+      action?.();
+      translateX.setValue(-direction * SCREEN_WIDTH);
+      Animated.spring(translateX, {
+        toValue: 0,
+        useNativeDriver: true,
+        bounciness: 6,
+        speed: 14,
+      }).start();
+    });
+  };
+
+  const panResponder = React.useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_evt, gesture) =>
+        Math.abs(gesture.dx) > 12 &&
+        Math.abs(gesture.dx) > Math.abs(gesture.dy),
+      onPanResponderMove: (_evt, gesture) => {
+        translateX.setValue(gesture.dx);
+      },
+      onPanResponderRelease: (_evt, gesture) => {
+        if (gesture.dx <= -40 && onNextRef.current) {
+          animateSwipe(-1, () => onNextRef.current?.());
+        } else if (gesture.dx >= 40 && onPrevRef.current) {
+          animateSwipe(1, () => onPrevRef.current?.());
+        } else {
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            bounciness: 6,
+            speed: 14,
+          }).start();
+        }
+      },
+    }),
+  ).current;
+
   return (
-    <View style={styles.card}>
+    <Animated.View
+      style={[styles.card, { transform: [{ translateX }] }]}
+      {...(canSwipe ? panResponder.panHandlers : {})}
+    >
       <View style={styles.headerRow}>
         <View style={styles.headerTitleBox}>
           <Ionicons name="alert-circle-outline" size={14} color="#FF5A5F" />
@@ -251,7 +317,12 @@ export default function WeatherNotificationCard({
             <TouchableOpacity
               key={`weather-dot-${index}`}
               activeOpacity={0.75}
-              onPress={() => onChangeIndex?.(index)}
+              onPress={() => {
+                if (index === currentIndex) return;
+                animateSwipe(index > currentIndex ? -1 : 1, () =>
+                  onChangeIndex?.(index),
+                );
+              }}
               style={[
                 styles.paginationDot,
                 index === currentIndex && styles.activePaginationDot,
@@ -261,7 +332,7 @@ export default function WeatherNotificationCard({
 
         </View>
       ) : null}
-    </View>
+    </Animated.View>
   );
 }
 

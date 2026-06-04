@@ -54,6 +54,7 @@ import {
   getTripTransportMode,
   updateTripTransportMode,
 } from "../../api/schedules/transportMode";
+import { dismissNotification } from "../../api/notifications/notifications";
 import {
   updatePlanSchedule,
 } from "../../api/schedules/server";
@@ -109,6 +110,7 @@ type Props = {
       selectedPlace?: SelectedPlaceParam;
       selectedPlaces?: SelectedPlacesParam;
       isEditMode?: boolean;
+      dismissNotificationId?: string | number;
       returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
       gapSelectedPlace?: {
         id?: string;
@@ -293,6 +295,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     location,
     scheduleId,
     serverTripId: resolvedTripId,
+    // refreshPlanAAt가 바뀌면(예: 날씨 대안 교체 직후) draft 캐시를 건너뛰고 서버 최신본을 다시 불러온다.
+    reloadKey: route?.params?.refreshPlanAAt,
   });
 
   const effectiveDayOptions = makeDayOptions(
@@ -652,6 +656,17 @@ export default function PlanAScreen({ navigation, route }: Props) {
         tripName: savedSchedule.tripName,
         moveToMainAfterSave,
       });
+
+      // 날씨 알림 "일정 조정"으로 진입한 경우, 저장(시간/장소 수정) 완료 시 해당 알림 삭제
+      const dismissNotificationId = route?.params?.dismissNotificationId;
+      if (dismissNotificationId) {
+        try {
+          await dismissNotification(dismissNotificationId);
+          console.log("[PlanA] 날씨 알림 삭제 완료:", { dismissNotificationId });
+        } catch (dismissError) {
+          console.log("[PlanA] 날씨 알림 삭제 실패:", dismissError);
+        }
+      }
 
       if (Platform.OS === "web") {
         const browserWindow = globalThis as typeof globalThis & {

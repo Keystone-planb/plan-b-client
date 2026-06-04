@@ -30,6 +30,8 @@ export interface TripSummary {
   startDate: string;
   endDate: string;
   status?: "UPCOMING" | "ONGOING" | "PAST" | string;
+  itineraryCount?: number;
+  placeCount?: number;
 }
 
 export interface TripResponse {

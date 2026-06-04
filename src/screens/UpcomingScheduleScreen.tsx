@@ -41,7 +41,7 @@ const getTransportIconName = (mode?: string | null) => {
 
 import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
 import { getPlaceDetail } from "../../api/places/place";
-import { getTripDetail } from "../../api/schedules/server";
+import { addTripLocation, getTripDetail } from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -969,6 +969,49 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
     });
   };
 
+  // 빈 시간 추천에서 장소 선택 → 해당 날짜에 추가 후 수정 페이지(PlanA)로 이동
+  const handleSelectGapPlace = async (place: any, gap: any) => {
+    const day = Number(gap?.day) > 0 ? Number(gap.day) : selectedDayIndex + 1;
+    const targetTripId = resolvedTripId ?? scheduleId;
+
+    if (!targetTripId) return;
+
+    try {
+      await addTripLocation(targetTripId, day, {
+        place_id: String(place.googlePlaceId ?? place.placeId),
+        name: place.name,
+        category: place.category,
+        visitTime: place.suggestedVisitTime ?? null,
+        endTime: place.suggestedEndTime ?? null,
+        memo: null,
+      });
+    } catch (error) {
+      console.log("[Upcoming] 갭 추천 장소 추가 실패:", error);
+      Alert.alert(
+        "추가 실패",
+        "장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+      return;
+    }
+
+    navigation.navigate("PlanA", {
+      scheduleId,
+      tripId: resolvedTripId,
+      serverTripId: resolvedTripId,
+      tripName,
+      startDate,
+      endDate,
+      location,
+      transportMode,
+      transportLabel,
+      day,
+      selectedDay: day,
+      isEditMode: true,
+      returnScreen: "UpcomingSchedule",
+      refreshPlanAAt: Date.now(),
+    });
+  };
+
   const handleAlternative = (place: TodayPlace) => {
     const matchedResolvedPlace = resolvedMapPlaces.find((item) => {
       const candidates = [
@@ -1263,6 +1306,7 @@ const placeKey = getEditablePlaceKey(place, index);
                                     : <GapRecommendationCard
                                         tripId={resolvedTripId ?? scheduleId}
                                         allowedPlanPairs={currentGapPlanPairs}
+                                        onSelectPlace={handleSelectGapPlace}
                                       />
                                     }
                                   </View>
@@ -1329,6 +1373,7 @@ const placeKey = getEditablePlaceKey(place, index);
                                     : <GapRecommendationCard
                                         tripId={resolvedTripId ?? scheduleId}
                                         allowedPlanPairs={currentGapPlanPairs}
+                                        onSelectPlace={handleSelectGapPlace}
                                       />
                                     }
                                   </View>

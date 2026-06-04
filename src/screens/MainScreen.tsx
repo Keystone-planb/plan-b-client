@@ -17,6 +17,7 @@ import { Swipeable } from "react-native-gesture-handler";
 import RadialBackground from "../components/RadialBackground";
 import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
 import { removePlanASchedule } from "../api/schedules/planAStorage";
+import { getPlaceDetail } from "../../api/places/place";
 import {
   deleteTrip,
   getTripDetail,
@@ -386,6 +387,13 @@ const getMainCurrentPlaceDayIndex = (schedule?: StoredSchedule) => {
 };
 
 const getPlaceCount = (schedule?: StoredSchedule) => {
+  // 서버 목록 응답의 placeCount가 있으면 그대로 사용(홈에서 상세 호출 없이 빠르게 표시).
+  const summaryPlaceCount = (schedule as { placeCount?: number } | undefined)
+    ?.placeCount;
+  if (typeof summaryPlaceCount === "number") {
+    return summaryPlaceCount;
+  }
+
   const days = Array.isArray(schedule?.days) ? schedule?.days : [];
 
   return days.reduce<number>((count, day) => {
@@ -522,7 +530,10 @@ const convertTripSummaryToStoredSchedule = (
     updatedAt: trip.endDate,
     createdAt: trip.startDate,
     days: [],
-  };
+    // 목록 응답의 카운트(상세 호출 없이 홈에서 바로 사용)
+    placeCount: trip.placeCount,
+    itineraryCount: trip.itineraryCount,
+  } as StoredSchedule;
 };
 
 const getFirstPlaceNameFromDays = (days?: unknown[]) => {
@@ -832,9 +843,15 @@ export default function MainScreen({ navigation }: Props) {
           .map(convertTripSummaryToStoredSchedule)
           .sort(sortMainTrips);
 
+        // 홈 화면 속도 개선: 모든 여행마다 GET /api/trips/{id}를 호출하지 않는다.
+        // 목록 응답의 placeCount/itineraryCount를 그대로 쓰고,
+        // 현재 장소 표시가 필요한 "진행중" 여행만 상세를 보강한다.
         serverSchedules = await Promise.all(
           serverSchedules.map(async (schedule) => {
-            return hydrateMainScheduleWithDetail(schedule);
+            if (isOngoingSchedule(schedule)) {
+              return hydrateMainScheduleWithDetail(schedule);
+            }
+            return schedule;
           }),
         );
 
@@ -947,7 +964,7 @@ export default function MainScreen({ navigation }: Props) {
     }
   };
 
-  const handleOpenNotificationRecommendation = (
+  const handleOpenNotificationRecommendation = async (
     notification: WeatherNotification,
   ) => {
     const rawNotification = notification as any;
@@ -994,6 +1011,7 @@ export default function MainScreen({ navigation }: Props) {
         source: "weather-notification",
         fromWeatherNotification: true,
         notificationId,
+        day: Number(rawNotification.day) > 0 ? Number(rawNotification.day) : undefined,
         placesJson: JSON.stringify(alternatives),
         currentPlanId: Number(
           originalPlace?.tripPlaceId ??
@@ -1064,22 +1082,71 @@ export default function MainScreen({ navigation }: Props) {
         ),
       );
 
-    const currentLat =
+    let currentLat =
       rawNotification.currentLat ??
       rawNotification.latitude ??
       rawNotification.lat ??
       rawNotification.placeLatitude ??
       affectedPlace?.latitude;
 
-    const currentLng =
+    let currentLng =
       rawNotification.currentLng ??
       rawNotification.longitude ??
       rawNotification.lng ??
       rawNotification.placeLongitude ??
       affectedPlace?.longitude;
 
+    // 좌표가 없으면 상세조회(getPlaceDetail)로 보강한다.
     if (currentLat == null || currentLng == null) {
-      Alert.alert("대안 추천 불가", "현재 장소의 위도/경도 정보가 없습니다.");
+      const detailId =
+        originalPlace?.googlePlaceId ??
+        originalPlace?.placeId ??
+        affectedPlace?.googlePlaceId ??
+        affectedPlace?.placeId;
+
+      if (detailId) {
+        try {
+          const detail: any = await getPlaceDetail(String(detailId));
+          currentLat = currentLat ?? detail?.latitude ?? detail?.lat;
+          currentLng = currentLng ?? detail?.longitude ?? detail?.lng;
+        } catch (error) {
+          console.log("[Main] 대안추천 좌표 보강 실패:", error);
+        }
+      }
+    }
+
+    if (currentLat == null || currentLng == null) {
+      // 좌표가 없어 근처 실내 대안을 추천할 수 없는 경우 → 일정 조정을 안내한다.
+      const notifDay =
+        Number(rawNotification.day) > 0 ? Number(rawNotification.day) : undefined;
+
+      Alert.alert(
+        "실내 대안을 찾지 못했어요",
+        "이 시간대 근처에 추천할 실내 장소가 없어요. 일정을 조정하시겠어요?",
+        [
+          { text: "취소", style: "cancel" },
+          {
+            text: "일정 조정",
+            onPress: () => {
+              navigation.navigate("PlanA", {
+                scheduleId: getScheduleId(baseSchedule ?? {}),
+                tripId: Number(tripId),
+                serverTripId: Number(tripId),
+                tripName: getScheduleTitle(baseSchedule ?? {}),
+                startDate: baseSchedule?.startDate,
+                endDate: baseSchedule?.endDate,
+                location: baseSchedule?.location,
+                day: notifDay,
+                selectedDay: notifDay,
+                isEditMode: true,
+                refreshPlanAAt: Date.now(),
+                // 저장(시간/장소 수정) 완료 시 이 날씨 알림을 삭제하기 위해 전달
+                dismissNotificationId: notificationId,
+              } as any);
+            },
+          },
+        ],
+      );
       return;
     }
 
@@ -1490,10 +1557,7 @@ export default function MainScreen({ navigation }: Props) {
         : notifications.length > 0 && activeNotification ?
           <View style={styles.notificationSection}>
             <WeatherNotificationCard
-              key={String(
-                (activeNotification as any).notificationId ??
-                  (activeNotification as any).id,
-              )}
+              key="weather-notification-card"
               notification={buildDisplayNotification(activeNotification)}
               onPressRecommend={handleOpenNotificationRecommendation}
               onDismiss={handleDismissNotification}
@@ -1663,7 +1727,6 @@ export default function MainScreen({ navigation }: Props) {
                       color="#94A3B8"
                     />
                     <Text style={styles.nextTripMetaText}>
-                      {getScheduleLocation(schedule)} ·{" "}
                       {getPlaceCount(schedule)}개 장소
                     </Text>
                   </View>

@@ -1,6 +1,7 @@
 import "react-native-gesture-handler";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { onAuthExpired } from "./src/utils/authEvents";
 import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -356,6 +357,25 @@ export default function App() {
     };
 
     bootstrapAuth();
+  }, []);
+
+  // 세션 만료(토큰 정리) 시 로그인 화면으로 보낸다. 실패 버스트 중복 방지를 위해 ref로 가드.
+  const authExpiryHandledRef = useRef(false);
+  useEffect(() => {
+    const unsubscribe = onAuthExpired(() => {
+      if (authExpiryHandledRef.current) return;
+      authExpiryHandledRef.current = true;
+
+      setInitialRoute("Login");
+      setNavigationSessionKey((prev) => prev + 1);
+
+      // 잠시 후 가드 해제(이후 재로그인 → 또 만료 시 다시 동작하도록)
+      setTimeout(() => {
+        authExpiryHandledRef.current = false;
+      }, 3000);
+    });
+
+    return unsubscribe;
   }, []);
 
   useEffect(() => {

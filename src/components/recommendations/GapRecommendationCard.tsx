@@ -25,21 +25,25 @@ type AllowedGapPlanPair = {
 
 const EMPTY_ALLOWED_PLAN_PAIRS: AllowedGapPlanPair[] = [];
 
-const tripGapsCache = new Map<string, TripScheduleGap[]>();
+// 일정이 바뀌면(대안 교체 등) 갭도 달라지므로, 캐시를 영구 보관하지 않고 짧은 TTL을 둔다.
+const TRIP_GAPS_CACHE_TTL_MS = 20000;
+const tripGapsCache = new Map<string, { data: TripScheduleGap[]; time: number }>();
 const tripGapsPromiseCache = new Map<string, Promise<TripScheduleGap[]>>();
 
 const getCachedTripGaps = async (tripId: number | string) => {
   const cacheKey = String(tripId);
 
   const cached = tripGapsCache.get(cacheKey);
-  if (cached) return cached;
+  if (cached && Date.now() - cached.time < TRIP_GAPS_CACHE_TTL_MS) {
+    return cached.data;
+  }
 
   const pending = tripGapsPromiseCache.get(cacheKey);
   if (pending) return pending;
 
   const promise = getTripGaps(tripId)
     .then((gaps) => {
-      tripGapsCache.set(cacheKey, gaps);
+      tripGapsCache.set(cacheKey, { data: gaps, time: Date.now() });
       return gaps;
     })
     .finally(() => {

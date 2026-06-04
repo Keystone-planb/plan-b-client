@@ -251,20 +251,16 @@ const hasUsefulReviewPayload = (payload: unknown) => {
 
   const target = payload as Record<string, any>;
 
+  // AI가 생성한 요약 필드(reviewSummary/aiSummary)만 "분석 완료" 신호로 본다.
+  // googleReview/naverReview에는 원문이 그대로 들어올 수 있어 판정에서 제외한다.
   return [
     target.reviewSummary,
     target.aiSummary,
     target.summary,
-    target.googleReview,
-    target.naverReview,
     target.data?.reviewSummary,
     target.data?.aiSummary,
-    target.data?.googleReview,
-    target.data?.naverReview,
     target.result?.reviewSummary,
     target.result?.aiSummary,
-    target.result?.googleReview,
-    target.result?.naverReview,
   ].some(isUsefulReviewText);
 };
 

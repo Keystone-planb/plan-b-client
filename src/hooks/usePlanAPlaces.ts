@@ -1093,7 +1093,7 @@ export function usePlanAPlaces({
     };
 
     loadSavedSchedule();
-  }, [scheduleId, initialSchedule]);
+  }, [scheduleId, initialSchedule, reloadKey]);
 
   const updateScheduleInfo = (payload: UpdateScheduleInfoPayload) => {
     setScheduleSafely((prev) => ({
