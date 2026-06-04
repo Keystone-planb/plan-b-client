@@ -399,10 +399,6 @@ export default function AlternativeSettingsScreen({
           </View>
 
           <View style={styles.toggleCard}>
-            <View style={styles.toggleTextBox}></View>
-          </View>
-
-          <View style={styles.toggleCard}>
             <View style={styles.toggleTextBox}>
               <Text style={styles.toggleTitle}>카테고리 변경</Text>
               <Text style={styles.toggleSubtitle}>

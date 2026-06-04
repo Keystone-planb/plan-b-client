@@ -19,6 +19,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
+import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import {
   getAnalyzedPlaceDetail,
   getPlaceSummary,
@@ -103,6 +104,8 @@ type RootStackParamList = {
     source?: "weather-notification" | string;
     fromWeatherNotification?: boolean;
     notificationId?: string | number;
+    day?: number;
+    selectedDay?: number;
     fromAIAnalysis?: boolean;
     hasError?: boolean;
     title?: string;
@@ -629,6 +632,14 @@ export default function RecommendationResultScreen({
       try {
         setSubmittingPlaceId(placeId);
 
+        console.log(
+          "[RecommendationResult] weather notification replace request:",
+          {
+            notificationId,
+            newGooglePlaceId,
+            newPlaceName,
+          },
+        );
 
         const updatedTripPlace = await replaceNotificationPlace(
           notificationId,
@@ -650,22 +661,37 @@ export default function RecommendationResultScreen({
 
         setSelectedPlaceId(placeId);
 
+        // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비워 새로 계산되게 한다.
+        clearTripGapCache(params.tripId ?? params.serverTripId);
+
         Alert.alert(
           "장소 선택 완료",
-          "진행중인 일정에 대안 장소를 반영했습니다.",
+          "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
           [
             {
               text: "확인",
               onPress: () => {
-                navigation.replace("Main", {
-                  refreshMainAt: Date.now(),
-                  replacedTripId: params.tripId ?? params.serverTripId,
-                  replacedTripPlaceId:
-                    updatedTripPlace?.tripPlaceId ??
-                    updatedTripPlace?.id ??
-                    params.currentPlanId ??
-                    params.tripPlaceId,
-                });
+                const replacedDay =
+                  Number((updatedTripPlace as { day?: number | string })?.day) >
+                  0
+                    ? Number((updatedTripPlace as { day?: number }).day)
+                    : (params.day ?? params.selectedDay);
+
+                navigation.replace("PlanA", {
+                  scheduleId: params.scheduleId,
+                  tripId: params.tripId,
+                  serverTripId: params.serverTripId ?? params.tripId,
+                  tripName: params.tripName,
+                  startDate: params.startDate,
+                  endDate: params.endDate,
+                  location: params.location,
+                  transportMode: params.transportMode,
+                  transportLabel: params.transportMode,
+                  day: replacedDay,
+                  selectedDay: replacedDay,
+                  isEditMode: true,
+                  refreshPlanAAt: Date.now(),
+                } as any);
               },
             },
           ],
@@ -723,6 +749,11 @@ export default function RecommendationResultScreen({
 
       for (const candidatePlanId of currentPlanIdCandidates) {
         try {
+          console.log("[RecommendationResult] replace request:", {
+            candidatePlanId,
+            newGooglePlaceId,
+            newPlaceName,
+          });
 
           replaceResult = await replacePlanPlace(candidatePlanId, {
             newGooglePlaceId,
@@ -757,6 +788,9 @@ export default function RecommendationResultScreen({
       });
 
       setSelectedPlaceId(placeId);
+
+      // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비운다.
+      clearTripGapCache(params.tripId ?? params.serverTripId);
 
       await updateStoredPlanAAfterReplace({
         scheduleId: params.scheduleId,
@@ -804,6 +838,8 @@ export default function RecommendationResultScreen({
           selectedPlaces: undefined,
           refreshPlanAAt: Date.now(),
           replacedTripPlaceId: usedCurrentPlanId,
+          // 대안찾기로 진입해도 수정 페이지(시간/이동수단 편집 + 저장)와 동일하게 열리도록 한다.
+          isEditMode: true,
         };
 
         navigation.replace("PlanA", planAParams as any);
