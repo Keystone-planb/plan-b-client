@@ -27,7 +27,11 @@ export const loadOngoingTripDetail = async ({
   if (!resolvedTripId) return;
 
   const refreshKey = String(refreshPlanAAt ?? "");
-  const loadKey = `${String(resolvedTripId)}:${refreshKey}`;
+  // 선택한 날짜(day)별로 따로 조회해야 하므로 loadKey에 selectedDayIndex를 포함한다.
+  // (이게 없으면 1일차↔2일차 전환이 "중복 호출"로 막혀 새 날짜가 비어 보임)
+  const loadKey = `${String(resolvedTripId)}:${refreshKey}:${String(
+    selectedDayIndex,
+  )}`;
 
   if (lastTripDetailLoadKeyRef.current === loadKey) {
     if (__DEV__) {
@@ -71,6 +75,11 @@ export const loadOngoingTripDetail = async ({
       });
 
       if (__DEV__) {
+        console.log("[OngoingSchedule] getTripDay 부분 재조회 성공:", {
+          tripId: resolvedTripId,
+          day: currentDay,
+          placeCount: nextDay.places.length,
+        });
       }
 
       return;
