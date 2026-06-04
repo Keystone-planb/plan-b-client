@@ -54,6 +54,7 @@ import {
   getTripTransportMode,
   updateTripTransportMode,
 } from "../../api/schedules/transportMode";
+import { dismissNotification } from "../../api/notifications/notifications";
 import {
   updatePlanSchedule,
 } from "../../api/schedules/server";
@@ -109,7 +110,9 @@ type Props = {
       selectedPlace?: SelectedPlaceParam;
       selectedPlaces?: SelectedPlacesParam;
       isEditMode?: boolean;
+      dismissNotificationId?: string | number;
       returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
+      refreshPlanAAt?: number;
       gapSelectedPlace?: {
         id?: string;
         placeId?: string;
@@ -293,6 +296,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     location,
     scheduleId,
     serverTripId: resolvedTripId,
+    // refreshPlanAAt가 바뀌면(예: 날씨 대안 교체 직후) draft 캐시를 건너뛰고 서버 최신본을 다시 불러온다.
+    reloadKey: route?.params?.refreshPlanAAt,
   });
 
   const effectiveDayOptions = makeDayOptions(
@@ -303,7 +308,22 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
 
   useEffect(() => {
-    
+    console.log("[QA transport] screen=PlanA loaded schedule", {
+      scheduleId: schedule.id,
+      tripId: schedule.serverTripId ?? resolvedTripId,
+      selectedDay,
+      places: schedule.days.flatMap((day) =>
+        day.places.map((place: any) => ({
+          day: day.day,
+          id: place.id,
+          tripPlaceId: place.tripPlaceId,
+          serverTripPlaceId: place.serverTripPlaceId,
+          name: place.name,
+          transportMode: place.transportMode,
+        })),
+      ),
+    });
+
     const nextModesByPair: Record<string, TransportMode> = {};
 
     schedule.days.forEach((day) => {
@@ -584,6 +604,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
         await updatePlanSchedule(planId, { transportMode });
 
+        console.log("[PlanA 이동수단 저장 성공]", {
+          planId,
+          transportMode,
+        });
       }),
     );
   };
@@ -627,6 +651,23 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
       const savedSchedule = await handleSaveSchedule();
 
+      console.log("[PlanA] 저장 완료:", {
+        scheduleId: savedSchedule.id,
+        tripId: savedSchedule.serverTripId,
+        tripName: savedSchedule.tripName,
+        moveToMainAfterSave,
+      });
+
+      // 날씨 알림 "일정 조정"으로 진입한 경우, 저장(시간/장소 수정) 완료 시 해당 알림 삭제
+      const dismissNotificationId = route?.params?.dismissNotificationId;
+      if (dismissNotificationId) {
+        try {
+          await dismissNotification(dismissNotificationId);
+          console.log("[PlanA] 날씨 알림 삭제 완료:", { dismissNotificationId });
+        } catch (dismissError) {
+          console.log("[PlanA] 날씨 알림 삭제 실패:", dismissError);
+        }
+      }
 
       if (Platform.OS === "web") {
         const browserWindow = globalThis as typeof globalThis & {
