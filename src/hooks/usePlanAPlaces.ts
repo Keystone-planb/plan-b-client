@@ -1026,22 +1026,23 @@ export function usePlanAPlaces({
                       place.id,
                     );
 
-                  const preservedTransportMode =
-                    transportModeMap.get(key);
+                  const localTransportMode = transportModeMap.get(key);
+                  const serverTransportMode = (place as any).transportMode;
 
-                  const normalizedTransportMode =
-                    preservedTransportMode === "WALK" ||
-                    preservedTransportMode === "TRANSIT" ||
-                    preservedTransportMode === "CAR"
-                      ? preservedTransportMode
-                      : undefined;
+                  const isValid = (v: unknown) =>
+                    v === "WALK" || v === "TRANSIT" || v === "CAR";
 
-                  return preservedTransportMode ?
-                    {
-                      ...place,
-                      transportMode: normalizedTransportMode,
-                    }
-                  : place;
+                  // 서버 값이 최신(방금 저장한 이동수단)이므로 서버를 우선하고,
+                  // 서버에 값이 없을 때만 로컬 저장본으로 보강한다.
+                  const chosenTransportMode =
+                    isValid(serverTransportMode) ? serverTransportMode
+                    : isValid(localTransportMode) ? localTransportMode
+                    : (place as any).transportMode;
+
+                  return {
+                    ...place,
+                    transportMode: chosenTransportMode,
+                  };
                 }),
               }));
 

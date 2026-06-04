@@ -1003,6 +1003,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
       isEditMode: true,
+      // 수정 진입 시 서버 최신본(이동수단 등)을 다시 불러오도록 draft 캐시를 건너뛴다.
+      refreshPlanAAt: Date.now(),
     });
   };
 

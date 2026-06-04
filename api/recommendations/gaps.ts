@@ -58,6 +58,7 @@ type GapSseEvent =
   | { type: "progress"; message: string; total?: number }
   | { type: "place"; place: RecommendedPlace }
   | { type: "warning"; message: string }
+  | { type: "error"; message: string }
   | { type: "done" };
 
 const parseSseChunk = (chunk: string): {
@@ -134,6 +135,17 @@ const parseSseChunk = (chunk: string): {
             typeof parsed === "string"
               ? parsed
               : parsed.message ?? "조건에 맞는 추천 장소가 없습니다.",
+        });
+        continue;
+      }
+
+      if (eventName === "error") {
+        events.push({
+          type: "error",
+          message:
+            typeof parsed === "string"
+              ? parsed
+              : parsed.message ?? "추천 처리 중 오류가 발생했습니다.",
         });
       }
     } catch (error) {
@@ -249,6 +261,18 @@ pendingSseBuffer += buffer;
         if (event.type === "place") {
           receivedPlaceCount += 1;
           handlers.onPlace?.(event.place);
+        }
+
+        if (event.type === "warning") {
+          handlers.onWarning?.(event.message);
+        }
+
+        if (event.type === "error") {
+          // 서버가 보낸 error 이벤트: 로딩 종료 + 메시지 전달. 이후 done은 오지 않음.
+          doneCalled = true;
+          handlers.onError?.(new Error(event.message));
+          xhr.abort();
+          return;
         }
 
         if (event.type === "done") {

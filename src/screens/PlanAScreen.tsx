@@ -504,16 +504,40 @@ export default function PlanAScreen({ navigation, route }: Props) {
           text: "나가기",
           style: "destructive",
           onPress: () => {
+            // 저장 없이 "수정 버튼을 누른 그 화면"으로 복귀한다.
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+
+            // 스택에 이전 화면이 없으면 들어온 화면(returnScreen)으로 복귀, 없으면 Main.
+            const returnScreen = route?.params?.returnScreen;
+            const fallbackParams = {
+              scheduleId,
+              tripId: resolvedTripId,
+              serverTripId: resolvedTripId,
+              tripName,
+              startDate,
+              endDate,
+              location,
+              selectedDay,
+              day: selectedDay,
+            };
+
+            if (
+              returnScreen === "OngoingSchedule" ||
+              returnScreen === "UpcomingSchedule"
+            ) {
+              navigation.reset({
+                index: 0,
+                routes: [{ name: returnScreen, params: fallbackParams }],
+              });
+              return;
+            }
+
             navigation.reset({
               index: 0,
-              routes: [
-                {
-                  name: "Main",
-                  params: {
-                    refreshSchedules: true,
-                  },
-                },
-              ],
+              routes: [{ name: "Main", params: { refreshSchedules: true } }],
             });
           },
         },
