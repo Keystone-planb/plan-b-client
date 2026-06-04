@@ -177,6 +177,11 @@ export default function ProfileEditScreen({ navigation }: Props) {
         : {}),
       };
 
+      console.log("[ProfileEdit updateMyProfile request]", {
+        hasNickname: Boolean(request.nickname),
+        hasCurrentPassword: Boolean(request.currentPassword),
+        hasNewPassword: Boolean(request.newPassword),
+      });
 
       const response = await updateMyProfile(request);
 

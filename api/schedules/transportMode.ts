@@ -16,6 +16,11 @@ export const getTripTransportMode = async (
       },
     );
 
+    console.log("[transport-mode/get] response:", {
+      status: response.status,
+      data: response.data,
+      tripId,
+    });
 
     return isTransportMode(response.data) ? response.data : null;
   } catch (error) {
@@ -39,6 +44,11 @@ export const updateTripTransportMode = async (
       },
     );
 
+    console.log("[transport-mode/update] response:", {
+      status: response.status,
+      tripId,
+      mode,
+    });
 
     return true;
   } catch (error) {

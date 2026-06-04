@@ -157,6 +157,9 @@ export default function PlanXScreen({ navigation }: Props) {
 
       const serverTrips = await getTrips("PAST");
 
+      console.log("[PlanX] getTrips PAST response:", {
+        count: serverTrips.length,
+      });
 
       const baseTrips = serverTrips
         .filter((trip) => trip.startDate && trip.endDate)
@@ -248,6 +251,9 @@ export default function PlanXScreen({ navigation }: Props) {
 
       console.log("[PlanX] sync after delete");
 
+      console.log("[PlanX] deleteTrip 성공:", {
+        tripId: trip.tripId,
+      });
 
       setTrips((prev) =>
         prev.filter((item) => String(item.tripId) !== String(trip.tripId)),
