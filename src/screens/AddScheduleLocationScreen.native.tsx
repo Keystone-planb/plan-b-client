@@ -91,7 +91,12 @@ const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
   const seen = new Set<string>();
 
   return places.filter((place) => {
-    const key = String(place.googlePlaceId ?? place.placeId);
+    const keySource = place.googlePlaceId ?? place.placeId;
+    if (!keySource) {
+      return false;
+    }
+
+    const key = String(keySource);
 
     if (seen.has(key)) {
       return false;
@@ -112,7 +117,8 @@ const INITIAL_REGION = {
 const REVIEW_TEXT_MAX_LENGTH = 80;
 
 const getReviewPlaceKey = (place: PlaceSearchResult) => {
-  return String(place.googlePlaceId ?? place.placeId);
+  const keySource = place.googlePlaceId ?? place.placeId;
+  return keySource ? String(keySource) : "";
 };
 
 const unwrapApiData = (source: unknown) => {
@@ -473,7 +479,16 @@ export default function AddScheduleLocationScreen({
 
   const handlePlaceDetail = async (place: PlaceSearchResult) => {
     const placeId = String(place.placeId);
-    const googlePlaceId = String(place.googlePlaceId ?? place.placeId);
+    const googlePlaceIdSource = place.googlePlaceId ?? place.placeId;
+    if (!googlePlaceIdSource) {
+      Alert.alert(
+        "상세 정보 조회 실패",
+        "장소 식별값이 없어 상세 정보를 불러올 수 없어요.",
+      );
+      return;
+    }
+
+    const googlePlaceId = String(googlePlaceIdSource);
     const hasSearchCoordinate =
       typeof place.latitude === "number" && typeof place.longitude === "number";
 
