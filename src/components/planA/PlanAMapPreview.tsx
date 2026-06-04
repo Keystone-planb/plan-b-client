@@ -1,6 +1,6 @@
 import React, { useMemo, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
-import MapView, { Marker, PROVIDER_GOOGLE, Region, Polyline} from "react-native-maps";
+import MapView, { Marker, Region, Polyline } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 
 type PlaceLike = {
@@ -89,7 +89,6 @@ const visiblePlaces = useMemo(() => {
       <MapView
         ref={mapRef}
         key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
-        provider={PROVIDER_GOOGLE}
         style={styles.map}
         initialRegion={initialRegion}
         loadingEnabled
