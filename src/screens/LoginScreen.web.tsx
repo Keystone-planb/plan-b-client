@@ -133,6 +133,8 @@ export default function LoginScreen({ navigation }: any) {
       const { authUrl, redirectUri } = createSocialAuthUrl(provider);
 
       if (__DEV__) {
+        console.log(`[${provider} OAuth Web] authUrl:`, authUrl);
+        console.log(`[${provider} OAuth Web] redirectUri:`, redirectUri);
       }
 
       setSocialLoadingProvider(provider);
