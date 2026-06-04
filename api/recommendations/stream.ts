@@ -129,11 +129,6 @@ const parseSseBlock = (block: string): RecommendationStreamEvent | null => {
       return { type: "done" };
     }
   } catch (error) {
-    console.log("[recommendations/stream] SSE parse failed:", {
-      block,
-      dataText,
-      error,
-    });
   }
 
   return null;
@@ -570,11 +565,6 @@ if (Platform.OS === "web") {
         handlers,
       });
     } catch (firstError) {
-      console.log(
-        "[recommendations/stream] xhr retry after failure:",
-        firstError,
-      );
-
       await streamRecommendationsWithXHR({
         url,
         accessToken,

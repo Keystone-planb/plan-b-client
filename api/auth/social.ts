@@ -104,12 +104,6 @@ export const createSocialAuthUrl = (
   const authUrl = `${baseUrl}${path}?redirect_uri=${querySafeRedirectUri}`;
 
   if (__DEV__) {
-    console.log("[SocialAuth] provider:", provider);
-    console.log("[SocialAuth] baseUrl:", baseUrl);
-    console.log("[SocialAuth] redirectUri:", redirectUri);
-    console.log("[SocialAuth] encodedRedirectUri:", encodedRedirectUri);
-    console.log("[SocialAuth] querySafeRedirectUri:", querySafeRedirectUri);
-    console.log("[SocialAuth] authUrl:", authUrl);
   }
 
   return {

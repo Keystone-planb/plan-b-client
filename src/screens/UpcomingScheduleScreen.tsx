@@ -871,14 +871,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   const handleSelectTransportMode = (mode: TransportMode) => {
     if (!transportPickerTarget?.pairKey) return;
 
-    console.log("[QA transport] screen=Upcoming select", {
-      pairKey: transportPickerTarget.pairKey,
-      mode,
-      day: selectedDayIndex + 1,
-      beforePlaceName: transportPickerTarget.beforePlaceName,
-      afterPlaceName: transportPickerTarget.afterPlaceName,
-    });
-
+    
     setTransportModesByPair((prev) => ({
       ...prev,
       [transportPickerTarget.pairKey]: mode,
@@ -932,26 +925,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleEdit = () => {
-    console.log("[QA transport] screen=Upcoming navigate PlanA", {
-      tripId: resolvedTripId,
-      day: selectedDayIndex + 1,
-      transportModesByPair,
-      places: places.map((place: any) => ({
-        id: place.id,
-        tripPlaceId: place.tripPlaceId,
-        serverTripPlaceId: place.serverTripPlaceId,
-        name: place.name,
-        transportMode: place.transportMode,
-      })),
-      editedPlaces: editedPlacesByDay[selectedDayIndex + 1]?.map((place: any) => ({
-        id: place.id,
-        tripPlaceId: place.tripPlaceId,
-        serverTripPlaceId: place.serverTripPlaceId,
-        name: place.name,
-        transportMode: place.transportMode,
-      })),
-    });
-
+    
     navigation.navigate("PlanA", {
       scheduleId,
       tripId: resolvedTripId,

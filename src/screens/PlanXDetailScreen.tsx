@@ -125,11 +125,6 @@ export default function PlanXDetailScreen({ navigation, route }: Props) {
           return;
         }
 
-        console.log("[PlanXDetail] 여행 상세 조회 완료:", {
-          tripId: detail.tripId,
-          title: detail.title,
-          itineraryCount: detail.itineraries.length,
-        });
 
         setTripDetail(detail);
       } catch (error) {

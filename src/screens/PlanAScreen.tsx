@@ -303,22 +303,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
 
   useEffect(() => {
-    console.log("[QA transport] screen=PlanA loaded schedule", {
-      scheduleId: schedule.id,
-      tripId: schedule.serverTripId ?? resolvedTripId,
-      selectedDay,
-      places: schedule.days.flatMap((day) =>
-        day.places.map((place: any) => ({
-          day: day.day,
-          id: place.id,
-          tripPlaceId: place.tripPlaceId,
-          serverTripPlaceId: place.serverTripPlaceId,
-          name: place.name,
-          transportMode: place.transportMode,
-        })),
-      ),
-    });
-
+    
     const nextModesByPair: Record<string, TransportMode> = {};
 
     schedule.days.forEach((day) => {
@@ -599,10 +584,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
         await updatePlanSchedule(planId, { transportMode });
 
-        console.log("[PlanA 이동수단 저장 성공]", {
-          planId,
-          transportMode,
-        });
       }),
     );
   };
@@ -646,12 +627,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
       const savedSchedule = await handleSaveSchedule();
 
-      console.log("[PlanA] 저장 완료:", {
-        scheduleId: savedSchedule.id,
-        tripId: savedSchedule.serverTripId,
-        tripName: savedSchedule.tripName,
-        moveToMainAfterSave,
-      });
 
       if (Platform.OS === "web") {
         const browserWindow = globalThis as typeof globalThis & {

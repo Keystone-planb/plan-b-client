@@ -805,13 +805,6 @@ export default function AddScheduleLocationScreen({
           }
         }
 
-        console.log("[AddScheduleLocation] 서버 일정/장소 저장 완료:", {
-          serverTripId,
-          selectedDay,
-          count: placesToSubmit.length,
-          serverPlaceMap,
-          placeNames: placesToSubmit.map((place) => place.name),
-        });
       } catch (serverError) {
         console.log(
           "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",

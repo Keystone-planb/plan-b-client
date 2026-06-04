@@ -71,11 +71,6 @@ export const loadOngoingTripDetail = async ({
       });
 
       if (__DEV__) {
-        console.log("[OngoingSchedule] getTripDay 부분 재조회 성공:", {
-          tripId: resolvedTripId,
-          day: currentDay,
-          placeCount: nextDay.places.length,
-        });
       }
 
       return;

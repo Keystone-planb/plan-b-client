@@ -50,11 +50,6 @@ export const savePlanASchedule = async (schedule: TravelSchedule) => {
     [PLAN_A_SCHEDULE_IDS_KEY, JSON.stringify(nextIds)],
   ]);
 
-  console.log("[PlanAStorage 저장 완료]", {
-    scheduleId: schedule.id,
-    storageKey,
-    tripName: schedule.tripName,
-  });
 
   return schedule;
 };

@@ -584,14 +584,6 @@ export default function AddScheduleLocationScreen({
         }
       }
 
-      console.log("[AddScheduleLocation] place review response:", {
-        file: "AddScheduleLocationScreen.tsx",
-        placeId,
-        analysisCompleted,
-        detail,
-        summary,
-        freshness,
-      });
 
       if (!analysisCompleted) {
         const elapsed = Date.now() - detailLoadingStartedAt;

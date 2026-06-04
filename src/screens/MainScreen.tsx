@@ -591,14 +591,6 @@ const enrichDaysWithServerTripPlaceIds = async (
   const serverItineraries = detail.itineraries ?? [];
 
   if (__DEV__) {
-    console.log("[Main] 서버 상세 조회 성공:", {
-      tripId: detail.tripId,
-      itineraryCount: serverItineraries.length,
-      placeCount: serverItineraries.reduce(
-        (count, itinerary) => count + itinerary.places.length,
-        0,
-      ),
-    });
   }
 
   if (serverItineraries.length === 0) {
@@ -1127,7 +1119,6 @@ export default function MainScreen({ navigation }: Props) {
         "날씨 변화로 인해 기존 일정 대신 방문하기 좋은 대안 장소를 추천해주세요.",
     };
 
-    console.log("[Main] 날씨 알림 AI 대안 추천 payload:", nextParams);
 
     navigation.navigate("AIAnalysisLoading", nextParams);
   };

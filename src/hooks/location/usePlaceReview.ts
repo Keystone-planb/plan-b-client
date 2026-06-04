@@ -138,13 +138,6 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         }
       }
 
-      console.log("[AddScheduleLocation] review response:", {
-        placeKey,
-        analysisCompleted,
-        detail,
-        summary,
-        freshness,
-      });
 
       console.log("[AddScheduleLocation] review response keys:", {
         detailKeys:

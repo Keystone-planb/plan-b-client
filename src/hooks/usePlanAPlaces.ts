@@ -677,22 +677,7 @@ const normalizeServerTripDetailToSchedule = ({
             const day = rawDay ?? 1;
 
             if (__DEV__) {
-              console.log("[PlanA Day Debug] flat place day mapping:", {
-                rawDay,
-                resolvedDay: day,
-                placeIndex,
-                placeName:
-                  getServerValueByPath(place, "name") ??
-                  getServerValueByPath(place, "placeName"),
-                placeId:
-                  getServerValueByPath(place, "placeId") ??
-                  getServerValueByPath(place, "googlePlaceId"),
-                rawKeys:
-                  place && typeof place === "object" ?
-                    Object.keys(place as Record<string, unknown>)
-                  : [],
-              });
-            }
+                          }
 
             const normalizedPlace = normalizeServerPlaceForPlanA(
               place,
@@ -1617,13 +1602,7 @@ export function usePlanAPlaces({
       const createdLocations: CreatedLocationWithDay[] = [];
 
       for (const item of locationRequests) {
-        console.log("[QA_DUPLICATE] PlanA before addLocationToTripDay:", {
-          tripId: refreshedTripId,
-          day: item.day,
-          placeId: item.payload.place_id,
-          name: item.payload.name,
-        });
-
+        
         const createdLocation = await addLocationToTripDay({
           tripId: refreshedTripId,
           day: item.day,
@@ -1660,22 +1639,6 @@ export function usePlanAPlaces({
       setLoadedSavedSchedule(true);
       setSaveSuccessMessage("Plan.A 변경사항이 서버와 로컬에 저장되었습니다.");
 
-      console.log("[PlanA 서버/로컬 저장 완료]", {
-        scheduleId: scheduleToSave.id,
-        serverTripId: scheduleToSave.serverTripId,
-        places: scheduleToSave.days.flatMap((day) =>
-          day.places.map((place) => ({
-            day: day.day,
-            name: place.name,
-            placeId: place.placeId,
-            googlePlaceId: place.googlePlaceId,
-            tripPlaceId: place.tripPlaceId,
-            serverTripPlaceId: place.serverTripPlaceId,
-            visitTime: place.visitTime,
-            endTime: place.endTime,
-          })),
-        ),
-      });
 
       clearCachedDraftSchedule(scheduleBase.id);
 
