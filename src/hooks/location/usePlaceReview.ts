@@ -138,6 +138,66 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         }
       }
 
+      // 백엔드가 fallback(space=MIX 등)으로 COMPLETE를 반환하지만 리뷰 요약(reviewData)이
+      // 비어 있는 경우가 있다. 이때는 자동으로 1회 재분석 후 다시 조회해 제대로 된 리뷰를 채운다.
+      const usefulReviewReady =
+        hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
+
+      if (analysisCompleted && !usefulReviewReady) {
+        try {
+          setReanalyzeLoadingPlaceId(placeKey);
+          setReanalyzeMessageIndex(0);
+          reanalyzeMessageTimerRef.current = setInterval(() => {
+            setReanalyzeMessageIndex(
+              (prev) => (prev + 1) % REANALYZE_MESSAGES.length,
+            );
+          }, 2000);
+
+          await reanalyzePlace(placeKey);
+
+          for (let retry = 0; retry < MAX_POLL_ATTEMPTS; retry += 1) {
+            const [detailRetry, summaryRetry] = await Promise.allSettled([
+              getPlaceDetail(placeKey),
+              getPlaceSummary(placeKey),
+            ]);
+
+            if (detailRetry.status === "fulfilled") detail = detailRetry.value;
+            if (summaryRetry.status === "fulfilled")
+              summary = summaryRetry.value;
+
+            if (
+              hasUsefulReviewPayload(summary) ||
+              hasUsefulReviewPayload(detail)
+            ) {
+              break;
+            }
+
+            if (retry < MAX_POLL_ATTEMPTS - 1) {
+              await wait(POLL_INTERVAL_MS);
+            }
+          }
+        } catch (reanalyzeError) {
+          console.log(
+            "[AddScheduleLocation] 자동 재분석 실패:",
+            reanalyzeError,
+          );
+        } finally {
+          if (reanalyzeMessageTimerRef.current) {
+            clearInterval(reanalyzeMessageTimerRef.current);
+            reanalyzeMessageTimerRef.current = null;
+          }
+          setReanalyzeLoadingPlaceId(null);
+          setReanalyzeMessageIndex(0);
+        }
+      }
+
+      console.log("[AddScheduleLocation] review response:", {
+        placeKey,
+        analysisCompleted,
+        detail,
+        summary,
+        freshness,
+      });
 
       console.log("[AddScheduleLocation] review response keys:", {
         detailKeys:

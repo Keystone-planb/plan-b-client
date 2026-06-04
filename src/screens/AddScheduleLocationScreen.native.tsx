@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
-  Platform,
   ScrollView,
   StyleSheet,
   Text,
@@ -252,20 +251,16 @@ const hasUsefulReviewPayload = (payload: unknown) => {
 
   const target = payload as Record<string, any>;
 
+  // AI가 생성한 요약 필드(reviewSummary/aiSummary)만 "분석 완료" 신호로 본다.
+  // googleReview/naverReview에는 원문이 그대로 들어올 수 있어 판정에서 제외한다.
   return [
     target.reviewSummary,
     target.aiSummary,
     target.summary,
-    target.googleReview,
-    target.naverReview,
     target.data?.reviewSummary,
     target.data?.aiSummary,
-    target.data?.googleReview,
-    target.data?.naverReview,
     target.result?.reviewSummary,
     target.result?.aiSummary,
-    target.result?.googleReview,
-    target.result?.naverReview,
   ].some(isUsefulReviewText);
 };
 
@@ -327,6 +322,10 @@ export default function AddScheduleLocationScreen({
     string | null
   >(null);
   const [searchResults, setSearchResults] = useState<PlaceSearchResult[]>([]);
+  const [focusedCoord, setFocusedCoord] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
   const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
   const [businessHoursExpanded, setBusinessHoursExpanded] = useState(false);
 
@@ -359,6 +358,57 @@ export default function AddScheduleLocationScreen({
       },
       350,
     );
+  };
+
+  // 검색 결과에는 좌표가 없으므로, 좌표가 없으면 상세조회(getPlaceDetail)로 가져와 지도를 이동한다.
+  // getPlaceDetail은 내부 캐시가 있어 같은 장소 재조회 시 추가 네트워크 호출이 없다.
+  const focusMapOnPlace = async (place: {
+    placeId?: string | number;
+    googlePlaceId?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  }) => {
+    const moveTo = (latitude: number, longitude: number) => {
+      setFocusedCoord({ latitude, longitude });
+      mapRef.current?.animateToRegion(
+        {
+          latitude,
+          longitude,
+          latitudeDelta: 0.014,
+          longitudeDelta: 0.014,
+        },
+        350,
+      );
+    };
+
+    if (
+      typeof place.latitude === "number" &&
+      typeof place.longitude === "number"
+    ) {
+      moveTo(place.latitude, place.longitude);
+      return;
+    }
+
+    const detailId = place.googlePlaceId ?? place.placeId;
+    if (!detailId) return;
+
+    try {
+      const detail = await getPlaceDetail(detailId);
+      const lat =
+        typeof detail.latitude === "number" ? detail.latitude : detail.lat;
+      const lng =
+        typeof detail.longitude === "number" ? detail.longitude : detail.lng;
+
+      if (typeof lat === "number" && typeof lng === "number") {
+        moveTo(lat, lng);
+      } else if (__DEV__) {
+        console.log("[MAP MOVE] detail에 좌표 없음:", { detailId, lat, lng });
+      }
+    } catch (error) {
+      if (__DEV__) {
+        console.log("[MAP MOVE] getPlaceDetail 실패:", error);
+      }
+    }
   };
 
   const toggleSelectedPlace = (place: SelectedPlace) => {
@@ -401,6 +451,11 @@ export default function AddScheduleLocationScreen({
 
       setSearchResults(places);
       Keyboard.dismiss();
+
+      // 검색 후 가장 위에 뜨는 장소로 지도를 자동 이동한다(좌표는 상세조회로 보강).
+      if (places[0]) {
+        focusMapOnPlace(places[0]);
+      }
     } catch (error) {
       console.log("[AddScheduleLocation] searchPlaces failed:", error);
 
@@ -610,7 +665,11 @@ export default function AddScheduleLocationScreen({
       if (!key) return true;
 
       if (duplicatePlaceIds.has(key)) {
-        
+        console.log("[QA_DUPLICATE] blocked duplicate submit:", {
+          placeId: key,
+          name: place.name,
+        });
+
         return false;
       }
 
@@ -659,7 +718,15 @@ export default function AddScheduleLocationScreen({
 
         if (targetServerTripId) {
           for (const place of filteredPlacesToSubmit) {
-            
+            console.log("[QA_DUPLICATE] before addTripLocation:", {
+              file: "AddScheduleLocationScreen.native.tsx",
+              tripId: targetServerTripId,
+              selectedDay,
+              placeId: place.placeId,
+              googlePlaceId: place.googlePlaceId,
+              name: place.name,
+            });
+
             const response = await addTripLocation(
               targetServerTripId,
               selectedDay,
@@ -674,13 +741,28 @@ export default function AddScheduleLocationScreen({
               },
             );
 
-            
+            console.log("[QA_DUPLICATE] after addTripLocation:", {
+              file: "AddScheduleLocationScreen.native.tsx",
+              tripPlaceId: response.tripPlaceId,
+              placeId: place.placeId,
+              googlePlaceId: place.googlePlaceId,
+              name: place.name,
+            });
+
             serverPlaceMap[place.placeId] = {
               tripPlaceId: response.tripPlaceId,
             };
           }
         }
 
+        console.log("[AddScheduleLocation] 서버 일정/장소 저장 완료:", {
+          targetTripId,
+          targetServerTripId,
+          selectedDay,
+          count: placesToSubmit.length,
+          serverPlaceMap,
+          placesToNavigate: placesToSubmit,
+        });
       } catch (serverError) {
         console.log(
           "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",
@@ -1053,7 +1135,7 @@ export default function AddScheduleLocationScreen({
         <MapView
           ref={mapRef}
           style={styles.map}
-          provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
+          provider={PROVIDER_GOOGLE}
           initialRegion={INITIAL_REGION}
           showsUserLocation
           showsMyLocationButton={false}
@@ -1094,6 +1176,14 @@ export default function AddScheduleLocationScreen({
                 </Marker>
               );
             })}
+
+          {focusedCoord ? (
+            <Marker
+              key="focused-place-marker"
+              coordinate={focusedCoord}
+              tracksViewChanges={false}
+            />
+          ) : null}
         </MapView>
 
         <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
@@ -1175,6 +1265,7 @@ export default function AddScheduleLocationScreen({
                 isSelected={isSelected}
                 isDetailLoading={isDetailLoading}
                 isReviewLoading={isReviewLoading}
+                onCardPress={() => focusMapOnPlace(place)}
                 onDetailPress={() => {
                   if (
                     typeof place.latitude === "number" &&
@@ -1253,8 +1344,14 @@ const styles = StyleSheet.create({
     position: "relative",
   },
 
+  // 지도 위에 검색바 오버레이(절대배치)가 떠 있으므로 지도도 절대배치 레이어로 유지하되,
+  // Android에서 stretch(bottom:0) 높이가 0으로 측정되는 버그를 피하려고 명시적 height를 준다.
   map: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 335,
   },
 
   markerBadge: {
