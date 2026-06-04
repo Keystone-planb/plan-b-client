@@ -978,9 +978,18 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
 
     if (!targetTripId) return;
 
+    const placeId = place?.googlePlaceId ?? place?.placeId;
+    if (!placeId) {
+      Alert.alert(
+        "추가 실패",
+        "장소 식별값이 없어 일정에 추가할 수 없어요.",
+      );
+      return;
+    }
+
     try {
       await addTripLocation(targetTripId, day, {
-        place_id: String(place.googlePlaceId ?? place.placeId),
+        place_id: String(placeId),
         name: place.name,
         category: place.category,
         visitTime: place.suggestedVisitTime ?? null,

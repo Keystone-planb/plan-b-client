@@ -1321,8 +1321,6 @@ export function usePlanAPlaces({
         endTime: toServerTimeText(nextEndTime),
       }).then(() => {
         clearTripGapCache(scheduleRef.current.serverTripId);
-      }).then(() => {
-        clearTripGapCache(scheduleRef.current.serverTripId);
       }).catch((error) => {
         console.log("[PlanA 시간 변경 서버 반영 실패]", {
           placeId,

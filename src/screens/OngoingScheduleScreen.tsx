@@ -1017,9 +1017,18 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
     if (!targetTripId) return;
 
+    const placeId = place?.googlePlaceId ?? place?.placeId;
+    if (!placeId) {
+      Alert.alert(
+        "추가 실패",
+        "장소 식별값이 없어 일정에 추가할 수 없어요.",
+      );
+      return;
+    }
+
     try {
       await addTripLocation(targetTripId, day, {
-        place_id: String(place.googlePlaceId ?? place.placeId),
+        place_id: String(placeId),
         name: place.name,
         category: place.category,
         // 빈시간 추천 place 이벤트가 제안한 시각(이전 일정 종료~다음 일정 시작)을 그대로 사용
