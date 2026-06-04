@@ -629,14 +629,6 @@ export default function RecommendationResultScreen({
       try {
         setSubmittingPlaceId(placeId);
 
-        console.log(
-          "[RecommendationResult] weather notification replace request:",
-          {
-            notificationId,
-            newGooglePlaceId,
-            newPlaceName,
-          },
-        );
 
         const updatedTripPlace = await replaceNotificationPlace(
           notificationId,
@@ -731,11 +723,6 @@ export default function RecommendationResultScreen({
 
       for (const candidatePlanId of currentPlanIdCandidates) {
         try {
-          console.log("[RecommendationResult] replace request:", {
-            candidatePlanId,
-            newGooglePlaceId,
-            newPlaceName,
-          });
 
           replaceResult = await replacePlanPlace(candidatePlanId, {
             newGooglePlaceId,

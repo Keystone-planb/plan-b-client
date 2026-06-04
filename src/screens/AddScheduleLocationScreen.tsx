@@ -278,9 +278,6 @@ export default function AddScheduleLocationScreen({
     });
   };
 
-  console.log("[AddScheduleLocation] route params:", {
-    hasParams: Boolean(route?.params),
-  });
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -667,14 +664,6 @@ export default function AddScheduleLocationScreen({
 
         if (serverTripId) {
           for (const place of placesToSubmit) {
-            console.log("[addTripLocation request]", {
-              tripId: serverTripId,
-              day: selectedDay,
-              body: {
-                place_id: place.googlePlaceId ?? place.placeId,
-                name: place.name,
-              },
-            });
 
             const locationResponse = await addTripLocation(
               serverTripId,
