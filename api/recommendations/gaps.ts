@@ -137,6 +137,11 @@ const parseSseChunk = (chunk: string): {
         });
       }
     } catch (error) {
+      console.log("[gap recommendations/stream] SSE parse failed:", {
+        eventName,
+        dataText,
+        error,
+      });
     }
   }
 
@@ -302,6 +307,11 @@ receivedLength = 0;
         }
       }
 
+      console.log("[gap recommendations/stream] xhr error:", {
+        status: xhr.status,
+        responseText: xhr.responseText,
+        doneCalled,
+      });
 
       if (doneCalled) {
         return;
@@ -313,6 +323,9 @@ receivedLength = 0;
     };
 
     xhr.ontimeout = () => {
+      console.log("[gap recommendations/stream] xhr timeout:", {
+        timeout: xhr.timeout,
+      });
 
       handlers.onError?.(new Error("갭 추천 응답 시간이 초과되었습니다."));
     };
@@ -323,6 +336,12 @@ receivedLength = 0;
   try {
     sendRequest(accessToken);
   } catch (error: any) {
+    console.log("[gap recommendations/stream] xhr request failed:", {
+      tripId,
+      payload,
+      name: error?.name,
+      message: error?.message,
+    });
 
     handlers.onError?.(error);
   }

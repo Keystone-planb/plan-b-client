@@ -38,6 +38,7 @@ type Props = {
   handleSelectTransportMode: (mode: any) => void;
   handleConfirmTransportMode: () => void;
   transportOptions: { key: any; label: string }[];
+  onSelectGapPlace?: (place: any, gap: any) => void;
 };
 
 export default function OngoingGapBetweenPlace({
@@ -60,6 +61,7 @@ export default function OngoingGapBetweenPlace({
   handleSelectTransportMode,
   handleConfirmTransportMode,
   transportOptions,
+  onSelectGapPlace,
 }: Props) {
   const pairKey = `${String(gapBeforePlanId ?? placeKey)}-${String(
     gapAfterPlanId ?? index + 1,
@@ -110,6 +112,7 @@ export default function OngoingGapBetweenPlace({
           <GapRecommendationCard
             tripId={resolvedTripId ?? scheduleId}
             allowedPlanPairs={currentGapPlanPairs}
+            onSelectPlace={onSelectGapPlace}
           />
         </View>
       </View>

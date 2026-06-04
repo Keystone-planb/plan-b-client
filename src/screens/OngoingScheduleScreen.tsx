@@ -37,6 +37,7 @@ import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
 import type { TripScheduleGap } from "../types/gapRecommendation";
 import { getPlaceDetail } from "../../api/places/place";
 import {
+  addTripLocation,
   deletePlanPlace,
   getTripDay,
   getTripDetail,
@@ -908,7 +909,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   const handleSelectTransportMode = (mode: TransportMode) => {
     if (!transportPickerTarget?.pairKey) return;
 
-    
+    console.log("[QA transport] screen=Ongoing select", {
+      pairKey: transportPickerTarget.pairKey,
+      mode,
+      day: selectedDayIndex + 1,
+      beforePlaceName: transportPickerTarget.beforePlaceName,
+      afterPlaceName: transportPickerTarget.afterPlaceName,
+    });
+
     setTransportModesByPair((prev) => ({
       ...prev,
       [transportPickerTarget.pairKey]: mode,
@@ -962,7 +970,26 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   };
 
   const handleEdit = () => {
-    
+    console.log("[QA transport] screen=Ongoing navigate PlanA", {
+      tripId: resolvedTripId,
+      day: selectedDayIndex + 1,
+      transportModesByPair,
+      places: places.map((place: any) => ({
+        id: place.id,
+        tripPlaceId: place.tripPlaceId,
+        serverTripPlaceId: place.serverTripPlaceId,
+        name: place.name,
+        transportMode: place.transportMode,
+      })),
+      editedPlaces: editedPlacesByDay[selectedDayIndex + 1]?.map((place: any) => ({
+        id: place.id,
+        tripPlaceId: place.tripPlaceId,
+        serverTripPlaceId: place.serverTripPlaceId,
+        name: place.name,
+        transportMode: place.transportMode,
+      })),
+    });
+
     navigation.navigate("PlanA", {
       scheduleId,
       tripId: resolvedTripId,
@@ -976,6 +1003,51 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
       isEditMode: true,
+    });
+  };
+
+  // 빈 시간 추천에서 장소를 선택하면, 해당 날짜에 장소를 추가한 뒤
+  // 수정 페이지(PlanA, 시간/이동수단 편집)로 이동한다.
+  const handleSelectGapPlace = async (place: any, gap: any) => {
+    const day =
+      Number(gap?.day) > 0 ? Number(gap.day) : selectedDayIndex + 1;
+    const targetTripId = resolvedTripId ?? scheduleId;
+
+    if (!targetTripId) return;
+
+    try {
+      await addTripLocation(targetTripId, day, {
+        place_id: String(place.googlePlaceId ?? place.placeId),
+        name: place.name,
+        category: place.category,
+        // 빈시간 추천 place 이벤트가 제안한 시각(이전 일정 종료~다음 일정 시작)을 그대로 사용
+        visitTime: place.suggestedVisitTime ?? null,
+        endTime: place.suggestedEndTime ?? null,
+        memo: null,
+      });
+    } catch (error) {
+      console.log("[Ongoing] 갭 추천 장소 추가 실패:", error);
+      Alert.alert(
+        "추가 실패",
+        "장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해주세요.",
+      );
+      return;
+    }
+
+    navigation.navigate("PlanA", {
+      scheduleId,
+      tripId: resolvedTripId,
+      serverTripId: resolvedTripId,
+      tripName,
+      startDate,
+      endDate,
+      location,
+      transportMode,
+      transportLabel,
+      day,
+      selectedDay: day,
+      isEditMode: true,
+      refreshPlanAAt: Date.now(),
     });
   };
 
@@ -1182,6 +1254,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       handleSelectTransportMode={handleSelectTransportMode}
                       handleConfirmTransportMode={handleConfirmTransportMode}
                       transportOptions={TRANSPORT_OPTIONS}
+                      onSelectGapPlace={handleSelectGapPlace}
                     />
                   : null}
                 </React.Fragment>
