@@ -289,8 +289,13 @@ export default function GapRecommendationCard({
           console.log("[GapRecommendationCard] stream failed:", error);
 
           setStatus("error");
+          // 서버가 보낸 error 이벤트 메시지(예: "이미 추천이 진행 중입니다")를 그대로 노출
+          const serverMessage =
+            error instanceof Error ? error.message : "";
           setMessage(
-            "추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+            serverMessage && !serverMessage.includes("완료되기 전에 종료")
+              ? serverMessage
+              : "추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
           );
         },
       });
