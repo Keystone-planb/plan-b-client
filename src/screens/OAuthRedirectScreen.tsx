@@ -24,9 +24,10 @@ import {
 
 type Props = {
   navigation: any;
+  route?: any;
 };
 
-export default function OAuthRedirectScreen({ navigation }: Props) {
+export default function OAuthRedirectScreen({ navigation, route }: Props) {
   const handledRef = useRef(false);
 
   const moveToMain = () => {
@@ -93,38 +94,42 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
     return true;
   };
 
-  const handleUrl = async (url: string | null) => {
-    if (!url || handledRef.current) return;
+  // url로 oauth 결과를 처리했으면 true, 처리할 게 없으면 false를 반환한다.
+  const handleUrl = async (url: string | null): Promise<boolean> => {
+    if (!url || handledRef.current) return false;
+
+    const isSuccess = isOAuthSuccessUrl(url);
+    const isFailure = isOAuthFailureUrl(url);
+
+    if (__DEV__) {
+      console.log("[OAuthRedirect] received url:", { isSuccess, isFailure });
+    }
+
+    // oauth 리다이렉트가 아닌 url(앱 실행 url 등)은 처리하지 않는다.
+    if (!isSuccess && !isFailure) {
+      return false;
+    }
 
     handledRef.current = true;
 
-    if (__DEV__) {
-      console.log("[OAuthRedirect] received url:", { isSuccess: isOAuthSuccessUrl(url), isFailure: isOAuthFailureUrl(url) });
-    }
-
     try {
-      if (isOAuthFailureUrl(url)) {
+      if (isFailure) {
         const message = getOAuthFailureMessage(url);
         Alert.alert("로그인 실패", message);
         moveToLogin();
-        return;
+        return true;
       }
 
-      if (isOAuthSuccessUrl(url)) {
-        const handledByTokenExchange = await handleSocialTokenRedirect(url);
+      const handledByTokenExchange = await handleSocialTokenRedirect(url);
 
-        if (handledByTokenExchange) {
-          moveToMain();
-          return;
-        }
-
-        await handleOAuthSuccessUrl(url);
+      if (handledByTokenExchange) {
         moveToMain();
-        return;
+        return true;
       }
 
-      Alert.alert("로그인 실패", "알 수 없는 소셜 로그인 응답입니다.");
-      moveToLogin();
+      await handleOAuthSuccessUrl(url);
+      moveToMain();
+      return true;
     } catch (error) {
       const message =
         error instanceof Error ?
@@ -133,18 +138,40 @@ export default function OAuthRedirectScreen({ navigation }: Props) {
 
       Alert.alert("로그인 실패", message);
       moveToLogin();
+      return true;
     }
+  };
+
+  // url에서 결과를 못 얻은 경우(예: WebBrowser 플로우에서 LoginScreen이 이미 로그인을
+  // 처리했고, 딥링크로 이 화면만 떴을 때) 라우트 파라미터(result)로 화면을 전환해
+  // 스피너에 멈추지 않도록 한다.
+  const resolveByRouteParam = () => {
+    if (handledRef.current) return;
+    handledRef.current = true;
+
+    const result = route?.params?.result;
+
+    if (result === "failure") {
+      Alert.alert("로그인 실패", "소셜 로그인에 실패했습니다.");
+      moveToLogin();
+      return;
+    }
+
+    // success 또는 파라미터 없음 → 메인으로 이동(실제 로그인은 이미 처리됨)
+    moveToMain();
   };
 
   useEffect(() => {
     const run = async () => {
       if (Platform.OS === "web" && typeof window !== "undefined") {
-        await handleUrl(window.location.href);
+        const handled = await handleUrl(window.location.href);
+        if (!handled) resolveByRouteParam();
         return;
       }
 
       const initialUrl = await Linking.getInitialURL();
-      await handleUrl(initialUrl);
+      const handled = await handleUrl(initialUrl);
+      if (!handled) resolveByRouteParam();
     };
 
     run();
