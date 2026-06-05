@@ -23,6 +23,7 @@ import { Ionicons } from "@expo/vector-icons";
 import OngoingPlaceCard from "../components/ongoing/OngoingPlaceCard";
 import OngoingGapBetweenPlace from "../components/ongoing/OngoingGapBetweenPlace";
 import { buildAlternativeNavigationParams } from "../utils/ongoing/alternativeNavigation";
+import { trackEvent, AMP } from "../utils/amplitude";
 import { loadOngoingTripDetail } from "../utils/ongoing/loadTripDetail";
 import { useOngoingTripReload } from "../hooks/ongoing/useOngoingTripReload";
 import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
@@ -619,6 +620,17 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
   ]);
 
 
+  // ─── Amplitude: schedule_viewed ─────────────────────────────────────────
+  useFocusEffect(
+    useCallback(() => {
+      trackEvent(AMP.SCHEDULE_VIEWED, {
+        trip_id: resolvedTripId ? String(resolvedTripId) : undefined,
+        schedule_type: "ongoing",
+        trip_day: initialSelectedDayIndex + 1,
+      });
+    }, [resolvedTripId, initialSelectedDayIndex]),
+  );
+
   const [isSheetCollapsed, setIsSheetCollapsed] = useState(false);
   const [deletedPlaceKeysByDay, setDeletedPlaceKeysByDay] = useState<
     Record<number, string[]>
@@ -1013,6 +1025,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       return;
     }
 
+    trackEvent(AMP.GAP_PLACE_SELECTED, {
+      trip_id: String(targetTripId),
+      trip_day: day,
+      place_id: String(placeId),
+      place_name: place.name ?? "",
+      detour_minutes: place.detourMinutes ?? null,
+    });
+
     navigation.navigate("PlanA", {
       scheduleId,
       tripId: resolvedTripId,
@@ -1052,6 +1072,15 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       );
       return;
     }
+
+    trackEvent(AMP.SOS_TRIGGERED, {
+      plan_id: String(serverPlanId),
+      situation_type: "manual",
+      place_name: place.name ?? "",
+      place_category: place.category ?? "",
+      trip_id: resolvedTripId ? String(resolvedTripId) : undefined,
+      trip_day: selectedDayIndex + 1,
+    });
 
     navigation.navigate("AlternativeSettings", navigationParams);
   };

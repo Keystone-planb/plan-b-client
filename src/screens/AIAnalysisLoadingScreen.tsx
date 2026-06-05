@@ -15,6 +15,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import { streamRecommendations } from "../../api/recommendations/stream";
+import { trackEvent, AMP } from "../utils/amplitude";
 import type {
   PlaceSpace,
   PlaceType,
@@ -299,6 +300,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const receivedPlacesRef = useRef<RecommendedPlace[]>([]);
   const navigatedRef = useRef(false);
   const lastActivityAtRef = useRef(Date.now());
+  const requestStartAtRef = useRef(Date.now()); // latency_ms 측정용
 
   const floatValue = useMemo(() => new Animated.Value(0), []);
   const pulseValue = useMemo(() => new Animated.Value(0), []);
@@ -332,6 +334,28 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     if (navigatedRef.current) return;
 
     navigatedRef.current = true;
+
+    const latencyMs = Date.now() - requestStartAtRef.current;
+
+    if (places.length === 0) {
+      // 추천 결과 0개 — AI 실패 또는 조건 불일치
+      trackEvent(AMP.SOS_RESULT_EMPTY, {
+        trip_id: params.tripId ? String(params.tripId) : undefined,
+        plan_id: String(params.currentPlanId ?? params.tripPlaceId ?? ""),
+        transport_mode: params.transportMode,
+        radius_minute: params.moveTime,
+        recommendation_type: params.recommendationType ?? "PLACE",
+        latency_ms: latencyMs,
+      });
+    }
+
+    trackEvent(AMP.ALTERNATIVES_SHOWN, {
+      count: places.length,
+      latency_ms: latencyMs,
+      recommendation_type: params.recommendationType ?? "PLACE",
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      plan_id: String(params.currentPlanId ?? params.tripPlaceId ?? ""),
+    });
 
     navigation.replace("RecommendationResult", {
       ...params,

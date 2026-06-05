@@ -32,6 +32,7 @@ import {
 } from "../../api/places/place";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { addTripLocation, createTrip } from "../../api/schedules/server";
+import { trackEvent, AMP } from "../utils/amplitude";
 import SearchResultCard from "../components/location/SearchResultCard";
 import PlaceDetailBottomSheet from "../components/location/PlaceDetailBottomSheet";
 import { usePlaceReview } from "../hooks/location/usePlaceReview";
@@ -730,6 +731,20 @@ export default function AddScheduleLocationScreen({
 
           targetTripId = tripResponse.tripId;
           targetServerTripId = tripResponse.tripId;
+
+          // 새 여행 생성 완료
+          const start = new Date(startDate.replace(/\./g, "-"));
+          const end = new Date(endDate.replace(/\./g, "-"));
+          const durationDays = Math.max(
+            1,
+            Math.floor((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1,
+          );
+          trackEvent(AMP.TRIP_CREATED, {
+            trip_id: String(tripResponse.tripId),
+            destination: existingLocation || nextLocation || "",
+            duration_days: durationDays,
+            transport_mode: transportMode ?? "WALK",
+          });
         }
 
         if (targetServerTripId) {
@@ -768,6 +783,16 @@ export default function AddScheduleLocationScreen({
             serverPlaceMap[place.placeId] = {
               tripPlaceId: response.tripPlaceId,
             };
+
+            // 장소 추가 이벤트
+            trackEvent(AMP.PLACE_ADDED, {
+              trip_id: String(targetServerTripId),
+              trip_day: selectedDay,
+              place_id: place.googlePlaceId ?? place.placeId,
+              place_name: place.name,
+              place_category: place.category ?? "",
+              source: "search",
+            });
           }
         }
 

@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Alert } from "react-native";
+import { trackEvent, AMP } from "../../utils/amplitude";
 
 type PlaceLike = {
   name?: string;
@@ -82,6 +83,15 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       setExpandedPlaceId(null);
       return;
     }
+
+    // 상세 정보 보기 — 처음 열 때만 이벤트 발사
+    trackEvent(AMP.REVIEW_CARD_OPENED, {
+      place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
+      place_name: place.name ?? "",
+      sources_count: 2, // Google + Naver
+      summary_shown: false, // 로딩 전이므로 false, 실제 노출은 로드 후
+      analysis_blocked: false,
+    });
 
     const detailLoadingStartedAt = Date.now();
 

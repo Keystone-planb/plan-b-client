@@ -41,6 +41,7 @@ import {
   isOAuthSuccessUrl,
   saveOAuthTokens,
 } from "../utils/authToken";
+import { setAmplitudeUser } from "../utils/amplitude";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -116,6 +117,11 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLoginSuccess = async (result: LoginResult) => {
     await saveTokens(result);
+
+    // Amplitude 유저 식별 (이벤트 연결용, 로그인 이벤트는 제거)
+    const userId = result.user_id ?? result.userId;
+    if (userId) setAmplitudeUser(String(userId));
+
     moveToMain();
   };
 
@@ -164,7 +170,7 @@ export default function LoginScreen({ navigation }: any) {
     }
 
     const result = await requestSocialTokenLogin(provider, oauthToken);
-    await handleLoginSuccess(result);
+    await handleLoginSuccess(result, provider);
 
     return true;
   };

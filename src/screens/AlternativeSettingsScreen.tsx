@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { trackEvent, AMP } from "../utils/amplitude";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
@@ -169,15 +170,45 @@ export default function AlternativeSettingsScreen({
   }, [selectedTransportMode]);
 
   const handleBack = () => {
+    trackEvent(AMP.ALTERNATIVE_FLOW_ABANDONED, {
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      place_id: String(
+        params.targetPlace?.serverTripPlaceId ??
+        params.targetPlace?.tripPlaceId ??
+        params.targetPlace?.id ?? "",
+      ),
+    });
     navigation.goBack();
   };
 
   const handleCancel = () => {
+    trackEvent(AMP.ALTERNATIVE_FLOW_ABANDONED, {
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      place_id: String(
+        params.targetPlace?.serverTripPlaceId ??
+        params.targetPlace?.tripPlaceId ??
+        params.targetPlace?.id ?? "",
+      ),
+    });
     navigation.goBack();
   };
 
   const handleStartAnalysis = () => {
     const targetPlace = params.targetPlace;
+
+    trackEvent(AMP.SOS_FILTER_APPLIED, {
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      plan_id: String(
+        targetPlace?.serverTripPlaceId ?? targetPlace?.tripPlaceId ?? "",
+      ),
+      radius_minute: selectedMoveTime,
+      transport_mode: selectedTransportMode,
+      space: selectedPlaceScope,
+      place_type: changeCategory ? selectedType : undefined,
+      consider_distance: considerDistance,
+      change_category: changeCategory,
+      recommendation_type: params.recommendationType ?? "PLACE",
+    });
 
     navigation.navigate("AlternativeLoading", {
       ...params,

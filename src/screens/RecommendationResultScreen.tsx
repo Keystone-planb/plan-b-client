@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -19,6 +19,7 @@ import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
 import { replacePlanPlace } from "../../api/schedules/server";
+import { trackEvent, AMP } from "../utils/amplitude";
 import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import {
   getAnalyzedPlaceDetail,
@@ -395,6 +396,9 @@ export default function RecommendationResultScreen({
     Record<string, PlaceExtraDetail>
   >({});
 
+  // time_to_select_ms: 결과 화면 진입 시각 기록
+  const screenOpenedAtRef = useRef(Date.now());
+
   const params = route.params ?? {};
 
   const parsedPlaces = useMemo<DisplayPlace[]>(() => {
@@ -448,6 +452,20 @@ export default function RecommendationResultScreen({
     formatDateRange(params.startDate, params.endDate);
 
   const handleBack = () => {
+    // 선택 없이 이탈 시 alternative_dismissed
+    if (!selectedPlaceId) {
+      const isWeather =
+        (params as any).source === "weather-notification" ||
+        (params as any).fromWeatherNotification;
+
+      trackEvent(AMP.ALTERNATIVE_DISMISSED, {
+        trip_id: params.tripId ? String(params.tripId) : undefined,
+        alternatives_count: places.length,
+        recommendation_type: params.recommendationType ?? "PLACE",
+        source: isWeather ? "weather" : "manual",
+      });
+    }
+
     if (navigation.canGoBack()) {
       navigation.goBack();
       return;
@@ -464,6 +482,19 @@ export default function RecommendationResultScreen({
     const isClosing = String(expandedPlaceId) === placeKey;
 
     setExpandedPlaceId(isClosing ? null : placeId);
+
+    // 상세 열람 이벤트 (처음 열 때만)
+    if (!isClosing) {
+      const extraDetail = placeExtraDetails[placeKey];
+      trackEvent(AMP.REVIEW_CARD_OPENED, {
+        place_id: String(placeId),
+        place_name: place.name ?? "",
+        place_category: place.category ?? "",
+        sources_count: 2, // Google + Naver 기준
+        summary_shown: Boolean(extraDetail?.aiSummary),
+        analysis_blocked: Boolean(extraDetail?.error),
+      });
+    }
 
     if (isClosing || placeExtraDetails[placeKey]?.aiSummary) {
       return;
@@ -587,6 +618,21 @@ export default function RecommendationResultScreen({
 
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
+
+    // 대안 선택 이벤트
+    const selectedRank = places.findIndex(
+      (p) => (p.placeId ?? p.name) === placeId,
+    ) + 1;
+    trackEvent(AMP.ALTERNATIVE_SELECTED, {
+      rank: selectedRank,
+      place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
+      place_name: place.name ?? "",
+      place_category: place.category ?? "",
+      recommendation_type: params.recommendationType ?? "PLACE",
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      time_to_select_ms: Date.now() - screenOpenedAtRef.current,
+    });
+
     const currentPlanIdCandidates: Array<string | number> = [
       params.currentPlanId,
       params.tripPlaceId,
@@ -788,6 +834,23 @@ export default function RecommendationResultScreen({
       });
 
       setSelectedPlaceId(placeId);
+
+      // ✅ alternative_replaced: 선택 → 서버 저장 완료까지 성공한 진짜 채택
+      trackEvent(AMP.ALTERNATIVE_REPLACED, {
+        trip_id: params.tripId ? String(params.tripId) : undefined,
+        old_place_id: String(usedCurrentPlanId),
+        old_place_name: targetPlace?.name ?? "",
+        new_place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
+        new_place_name: place.name ?? "",
+        new_place_category: place.category ?? "",
+        rank: selectedRank,
+        recommendation_type: params.recommendationType ?? "PLACE",
+        source:
+          (params as any).source === "weather-notification" ||
+          (params as any).fromWeatherNotification
+            ? "weather"
+            : "manual",
+      });
 
       // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비운다.
       clearTripGapCache(params.tripId ?? params.serverTripId);

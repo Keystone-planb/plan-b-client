@@ -2,6 +2,7 @@ import "react-native-gesture-handler";
 
 import React, { useEffect, useRef, useState } from "react";
 import { onAuthExpired } from "./src/utils/authEvents";
+import { initAmplitude } from "./src/utils/amplitude";
 import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
@@ -308,6 +309,11 @@ export default function App() {
     keyof RootStackParamList | null
   >(null);
   const [navigationSessionKey, setNavigationSessionKey] = useState(0);
+
+  useEffect(() => {
+    // Amplitude 초기화 — 앱 최초 실행 시 1회
+    initAmplitude();
+  }, []);
 
   useEffect(() => {
     const bootstrapAuth = async () => {

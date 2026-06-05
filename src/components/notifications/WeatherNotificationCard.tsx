@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   Animated,
   Dimensions,
@@ -13,6 +13,7 @@ const SCREEN_WIDTH = Dimensions.get("window").width;
 import { Ionicons } from "@expo/vector-icons";
 
 import type { WeatherNotification } from "../../types/notification";
+import { trackEvent, AMP } from "../../utils/amplitude";
 
 type Props = {
   notification: WeatherNotification;
@@ -187,6 +188,23 @@ export default function WeatherNotificationCard({
   const timeRange = formatTimeRange(notification);
   const hasTime = Boolean(timeRange);
 
+  // 날씨 알림 카드 노출 이벤트
+  useEffect(() => {
+    const precipProb = getNumberValue(notification, [
+      "precipitationProb",
+      "precipitationProbability",
+      "rainProbability",
+      "pop",
+    ]);
+    trackEvent(AMP.WEATHER_NOTIFICATION_VIEWED, {
+      plan_id: String(notification.planId ?? notification.id ?? ""),
+      trip_id: String(notification.tripId ?? ""),
+      weather_type: weatherTypeLabel,
+      precip_prob: precipProb,
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notification.id]);
+
   // 좌우 드래그(스와이프)로 알림을 넘기고, 카드가 밀려 나가고 들어오는 애니메이션을 준다.
   const translateX = React.useRef(new Animated.Value(0)).current;
   const onNextRef = React.useRef(onNext);
@@ -251,7 +269,14 @@ export default function WeatherNotificationCard({
         </View>
 
         <TouchableOpacity
-          onPress={() => onDismiss?.(notification)}
+          onPress={() => {
+            trackEvent(AMP.WEATHER_NOTIFICATION_DISMISSED, {
+              plan_id: String(notification.planId ?? notification.id ?? ""),
+              trip_id: String(notification.tripId ?? ""),
+              weather_type: weatherTypeLabel,
+            });
+            onDismiss?.(notification);
+          }}
           activeOpacity={0.75}
           hitSlop={10}
           style={styles.closeButton}
@@ -305,7 +330,14 @@ export default function WeatherNotificationCard({
       <TouchableOpacity
         style={styles.recommendButton}
         activeOpacity={0.85}
-        onPress={() => onPressRecommend?.(notification)}
+        onPress={() => {
+          trackEvent(AMP.WEATHER_RECOMMEND_TAPPED, {
+            plan_id: String(notification.planId ?? notification.id ?? ""),
+            trip_id: String(notification.tripId ?? ""),
+            weather_type: weatherTypeLabel,
+          });
+          onPressRecommend?.(notification);
+        }}
       >
         <Text style={styles.recommendButtonText}>대안 추천받기</Text>
         <Ionicons name="chevron-forward" size={16} color="#FFFFFF" />

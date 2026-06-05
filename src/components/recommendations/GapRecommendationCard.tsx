@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
   StyleSheet,
@@ -17,6 +17,7 @@ import type {
   TripScheduleGap,
 } from "../../types/gapRecommendation";
 import type { RecommendedPlace } from "../../types/recommendation";
+import { trackEvent, AMP } from "../../utils/amplitude";
 
 type AllowedGapPlanPair = {
   beforePlanId?: number | string | null;
@@ -147,6 +148,25 @@ export default function GapRecommendationCard({
 
   const requestLockRef = useRef(false);
   const receivedPlaceCountRef = useRef(0);
+  const selectedPlaceIdRef = useRef<number | string | null>(null);
+
+  // 갭 추천 보고 선택 안 하고 이탈할 때 측정
+  // useEffect cleanup: 컴포넌트 언마운트 시 선택 여부 확인
+  useEffect(() => {
+    return () => {
+      if (
+        receivedPlaceCountRef.current > 0 &&
+        selectedPlaceIdRef.current === null
+      ) {
+        trackEvent(AMP.GAP_RECOMMENDATION_VIEWED, {
+          trip_id: tripId ? String(tripId) : undefined,
+          recommendation_count: receivedPlaceCountRef.current,
+          selected: false, // 봤지만 선택 안 함
+        });
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const isLoading = status === "loading";
 
@@ -281,6 +301,13 @@ export default function GapRecommendationCard({
           setMessage(
             "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
           );
+
+          // gap_recommendation_viewed: 결과 로드 완료 시 (선택 여부는 이탈 시 확정)
+          trackEvent(AMP.GAP_RECOMMENDATION_VIEWED, {
+            trip_id: tripId ? String(tripId) : undefined,
+            recommendation_count: receivedPlaceCountRef.current,
+            selected: true, // 로드 성공, 선택은 별도 추적
+          });
         },
         onWarning: (message: string) => {
           setStatus("done");
@@ -313,6 +340,7 @@ export default function GapRecommendationCard({
     }
 
     setSelectedPlaceId(place.placeId);
+    selectedPlaceIdRef.current = place.placeId ?? null; // 이탈 감지용
 
     console.log("[GapRecommendation] selected place:", {
       placeId: place?.placeId,
