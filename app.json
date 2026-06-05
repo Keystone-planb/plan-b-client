@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Keystone",
-    "slug": "keystone",
+    "name": "PLAN.B",
+    "slug": "plan-b",
     "scheme": "planb",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -12,6 +12,10 @@
         "googleMaps": {
           "apiKey": ""
         }
+      },
+      "adaptiveIcon": {
+        "foregroundImage": "./src/assets/PB.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "ios": {
@@ -27,6 +31,10 @@
       "eas": {
         "projectId": "ae4365b2-a5ee-46b6-b12c-e4ef3fd10f7a"
       }
+    },
+    "icon": "./src/assets/PB.png",
+    "web": {
+      "favicon": "./src/assets/PB.png"
     }
   }
 }
