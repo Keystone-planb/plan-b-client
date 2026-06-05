@@ -21,11 +21,6 @@ export const initAmplitude = () => {
   }
 
   amplitude.init(amplitudeApiKey, undefined, {
-    defaultTracking: {
-      sessions: true,      // 세션 자동 트래킹 → session_id 공통 제공
-      appLifecycles: false, // app_open 은 직접 심는다
-      attribution: false,
-    },
     minIdLength: 1,        // device_id / user_id 최소 길이 제한 해제 (짧은 숫자 ID 대응)
     logLevel: __DEV__ ? amplitude.Types.LogLevel.Warn : amplitude.Types.LogLevel.None,
   });

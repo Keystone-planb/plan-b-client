@@ -170,7 +170,7 @@ export default function LoginScreen({ navigation }: any) {
     }
 
     const result = await requestSocialTokenLogin(provider, oauthToken);
-    await handleLoginSuccess(result, provider);
+    await handleLoginSuccess(result);
 
     return true;
   };

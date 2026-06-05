@@ -50,6 +50,7 @@ type Props = {
   route?: {
     params?: {
       scheduleId?: string;
+      tripId?: string | number;
       tripName?: string;
       startDate?: string;
       endDate?: string;

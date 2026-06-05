@@ -110,6 +110,7 @@ type RootStackParamList = {
     fromAIAnalysis?: boolean;
     hasError?: boolean;
     title?: string;
+    recommendationType?: "PLACE" | "GAP" | "WEATHER" | "alternative" | "gap" | "weather";
   };
 };
 
