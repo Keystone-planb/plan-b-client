@@ -782,51 +782,19 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
     if (hasAutoScrolledRef.current) return;
 
     const timer = setTimeout(() => {
-      focusedPlaceRef.current?.measureLayout(
-        scrollViewRef.current as any,
-        (_x, y) => {
-          scrollViewRef.current?.scrollTo({
-            y: Math.max(y - 120, 0),
-            animated: true,
-          });
-
-          hasAutoScrolledRef.current = true;
-        },
-        () => {},
-      );
+      focusedPlaceRef.current?.measureInWindow((_x, y) => {
+        scrollViewRef.current?.scrollTo({
+          y: Math.max(y - 120, 0),
+          animated: true,
+        });
+      });
     }, 500);
 
     return () => clearTimeout(timer);
   }, [isSelectedDayToday, selectedDayIndex, places.length]);
 
   const handleBack = () => {
-    Alert.alert(
-      "홈으로 이동할까요?",
-      "현재 화면에서 홈으로 이동합니다.",
-      [
-        {
-          text: "현재 화면에 남기",
-          style: "cancel",
-        },
-        {
-          text: "홈으로 이동",
-          onPress: () => {
-            navigation.reset({
-              index: 0,
-              routes: [
-                {
-                  name: "Main",
-                  params: {
-                    refreshSchedules: true,
-                    refreshMainAt: Date.now(),
-                  },
-                },
-              ],
-            });
-          },
-        },
-      ],
-    );
+    navigation.navigate("Main");
   };
 
   const getTimeValueForTarget = (

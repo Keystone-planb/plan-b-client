@@ -203,12 +203,13 @@ export default function GapRecommendationCard({
 
       const serverGaps = await getCachedTripGaps(tripId);
 
+
       const currentScreenGaps = serverGaps.filter((gap) => {
         const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-        // 추천 가능 시간(availableMinutes)이 60분 이상인 구간만 추천 카드 대상으로 한다.
         const usableMinutes = gap.availableMinutes ?? gap.gapMinutes;
         return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
       });
+
       applyGaps(currentScreenGaps);
     };
 
