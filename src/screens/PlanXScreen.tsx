@@ -316,17 +316,7 @@ export default function PlanXScreen({ navigation }: Props) {
       >
         <View style={styles.header}>
           <View style={styles.headerRow}>
-            <TouchableOpacity
-              style={styles.iconButton}
-              activeOpacity={0.8}
-              onPress={handleBack}
-            >
-              <Ionicons name="chevron-back" size={24} color="#1C2534" />
-            </TouchableOpacity>
-
             <Text style={styles.logoText}>Plan.X</Text>
-
-            <View style={styles.iconPlaceholder} />
           </View>
 
           <Text style={styles.description}>
@@ -439,7 +429,7 @@ const styles = StyleSheet.create({
     height: 54,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 8,
   },
 

@@ -57,7 +57,7 @@ export default function PlanXTripCard({
             </View>
           </View>
 
-          {onDelete ? (
+          {onDelete ?
             <TouchableOpacity
               style={[
                 styles.deleteButton,
@@ -69,7 +69,7 @@ export default function PlanXTripCard({
             >
               <Ionicons name="trash-outline" size={16} color="#EF4444" />
             </TouchableOpacity>
-          ) : null}
+          : null}
         </View>
 
         <TouchableOpacity
