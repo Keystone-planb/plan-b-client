@@ -14,8 +14,8 @@
         }
       },
       "adaptiveIcon": {
-        "foregroundImage": "./src/assets/PB.png",
-        "backgroundColor": "#FFFFFF"
+        "foregroundImage": "./assets/logo.png",
+        "backgroundColor": "#F3F4F6"
       }
     },
     "ios": {
@@ -32,9 +32,9 @@
         "projectId": "ae4365b2-a5ee-46b6-b12c-e4ef3fd10f7a"
       }
     },
-    "icon": "./src/assets/PB.png",
+    "icon": "./assets/logo.png",
     "web": {
-      "favicon": "./src/assets/PB.png"
+      "favicon": "./assets/favicon.png"
     }
   }
 }
