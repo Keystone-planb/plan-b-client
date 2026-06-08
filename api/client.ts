@@ -28,7 +28,12 @@ type RefreshResponse = {
 };
 
 const TOKEN_KEYS = ["access_token", "refresh_token"] as const;
-const AUTH_STORAGE_KEYS = ["access_token", "refresh_token", "user_id", "nickname"] as const;
+const AUTH_STORAGE_KEYS = [
+  "access_token",
+  "refresh_token",
+  "user_id",
+  "nickname",
+] as const;
 
 const clearStoredAuth = async () => {
   await AsyncStorage.multiRemove([...AUTH_STORAGE_KEYS]);
@@ -69,7 +74,7 @@ const getCachedTrip = async <T>(
 
 const apiClient = axios.create({
   baseURL: API_CONFIG.BASE_URL,
-  timeout: 30000,
+  timeout: 60000,
   headers: {
     "Content-Type": "application/json",
   },
@@ -281,12 +286,14 @@ apiClient.interceptors.response.use(
         });
 
         const refreshResponseStatus =
-          refreshError &&
-          typeof refreshError === "object" &&
-          "response" in refreshError &&
-          refreshError.response &&
-          typeof refreshError.response === "object" &&
-          "status" in refreshError.response ?
+          (
+            refreshError &&
+            typeof refreshError === "object" &&
+            "response" in refreshError &&
+            refreshError.response &&
+            typeof refreshError.response === "object" &&
+            "status" in refreshError.response
+          ) ?
             Number(refreshError.response.status)
           : undefined;
 
