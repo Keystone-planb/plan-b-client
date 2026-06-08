@@ -24,7 +24,13 @@
         "usesNonExemptEncryption": false
       },
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "LSApplicationQueriesSchemes": [
+          "kakaokompassauth",
+          "storykompassauth",
+          "kakaolink",
+          "kakaotalk"
+        ]
       }
     },
     "plugins": [
