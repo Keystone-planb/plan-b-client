@@ -7,7 +7,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "android": {
-      "package": "com.anonymous.keystone",
+      "package": "com.planbtravel.app",
       "config": {
         "googleMaps": {
           "apiKey": ""
@@ -19,9 +19,12 @@
       }
     },
     "ios": {
-      "bundleIdentifier": "com.anonymous.keystone",
+      "bundleIdentifier": "com.planbtravel.app",
       "config": {
-        "googleMapsApiKey": ""
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "plugins": [

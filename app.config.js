@@ -10,7 +10,7 @@ export default ({ config }) => {
     // 2. Android 설정 주입
     android: {
       ...config.android,
-      package: "com.anonymous.keystone",
+      package: "com.planbtravel.app",
       config: {
         ...config.android?.config,
         googleMaps: {
@@ -23,10 +23,12 @@ export default ({ config }) => {
     // 3. iOS 설정 주입
     ios: {
       ...config.ios,
-      bundleIdentifier: "com.anonymous.keystone",
+      bundleIdentifier: "com.planbtravel.app",
+      config: {
+        usesNonExemptEncryption: false,
+      },
       config: {
         ...config.ios?.config,
-        googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY || "AIzaSy...실제_구글_지도_키_직접_입력"
       }
     },
 
