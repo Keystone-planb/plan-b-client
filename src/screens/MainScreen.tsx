@@ -168,7 +168,7 @@ const getScheduleLocation = (schedule: StoredSchedule) => {
 };
 
 const getWeatherStatusText = (notifications: WeatherNotification[]) => {
-  return `날씨 알림 ${notifications.length}건`;
+  return `날씨알림 ${notifications.length}건`;
 };
 
 const getWeatherStatusEmoji = (notifications: WeatherNotification[]) => {
@@ -1650,7 +1650,12 @@ export default function MainScreen({ navigation }: Props) {
                   </View>
                 </View>
 
-                <Ionicons name="chevron-forward" size={26} color="#CBD5E1" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color="#CBD5E1"
+                  style={styles.ongoingCardChevron}
+                />
               </TouchableOpacity>
             </Swipeable>
           : <View style={styles.ongoingCard}>
@@ -1673,18 +1678,8 @@ export default function MainScreen({ navigation }: Props) {
           activeOpacity={0.86}
           onPress={handleAddSchedule}
         >
-          <View style={styles.newScheduleIconCircle}>
-            <Ionicons name="add" size={22} color="#2158E8" />
-          </View>
-
-          <View style={styles.newScheduleTextBox}>
-            <Text style={styles.newScheduleTitle}>새 일정 추가하기</Text>
-            <Text style={styles.newScheduleDescription}>
-              또 다른 여행 계획을 만들어보세요
-            </Text>
-          </View>
-
-          <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+          <Ionicons name="add" size={24} color="#FFFFFF" />
+          <Text style={styles.newScheduleTitle}>새로운 일정 추가하기</Text>
         </TouchableOpacity>
 
         <View style={styles.nextTripSection}>
@@ -1732,7 +1727,12 @@ export default function MainScreen({ navigation }: Props) {
                   </View>
                 </View>
 
-                <Ionicons name="chevron-forward" size={24} color="#CBD5E1" />
+                <Ionicons
+                  name="chevron-forward"
+                  size={24}
+                  color="#CBD5E1"
+                  style={styles.nextTripCardChevron}
+                />
               </TouchableOpacity>
             ))
           : <View style={styles.emptyNextTripCard}>
@@ -1785,11 +1785,11 @@ const styles = StyleSheet.create({
   header: {
     alignItems: "center",
     paddingTop: 44,
-    paddingBottom: 36,
+    paddingBottom: 28,
   },
 
   logoText: {
-    color: "#1C2534",
+    color: "#012055",
     fontSize: 42,
     fontWeight: "900",
     letterSpacing: -1.4,
@@ -1828,10 +1828,10 @@ const styles = StyleSheet.create({
     paddingBottom: 150,
   },
   todayInfoPill: {
-    marginTop: 14,
-    marginBottom: 16,
+    marginTop: 10,
+    marginBottom: 14,
     paddingHorizontal: 14,
-    paddingVertical: 11,
+    paddingVertical: 10,
     borderRadius: 16,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
@@ -1860,16 +1860,16 @@ const styles = StyleSheet.create({
   },
 
   todayEmoji: {
-    fontSize: 11,
-    lineHeight: 15,
+    fontSize: 16,
+    lineHeight: 20,
   },
 
   todayInfoText: {
-    flexShrink: 1,
+    flexShrink: 0,
     minWidth: 0,
-    fontSize: 11,
-    lineHeight: 15,
-    fontWeight: "800",
+    fontSize: 15,
+    lineHeight: 20,
+    fontWeight: "500",
     color: "#334155",
     textAlign: "center",
   },
@@ -1906,9 +1906,9 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderColor: "#B9DCFF",
     paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 22,
-    marginBottom: 16,
+    paddingTop: 20,
+    paddingBottom: 18,
+    marginBottom: 14,
     shadowColor: "#74B8FF",
     shadowOffset: {
       width: 0,
@@ -1922,23 +1922,40 @@ const styles = StyleSheet.create({
 
   homeSectionTitle: {
     color: "#000000",
-    fontSize: 24,
+    fontSize: 20,
     fontWeight: "900",
-    letterSpacing: -0.5,
-    marginBottom: 26,
+    letterSpacing: -0.4,
+    marginBottom: 16,
   },
 
   ongoingCard: {
-    minHeight: 84,
+    minHeight: 72,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
+    position: "relative",
+    paddingRight: 44,
+    paddingVertical: 6,
+  },
+
+  ongoingCardChevron: {
+    position: "absolute",
+    right: 0,
+    top: "50%",
+    marginTop: -16,
+  },
+
+  nextTripCardChevron: {
+    position: "absolute",
+    right: 0,
+    top: "50%",
+    marginTop: -12,
   },
 
   pinIconCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 42,
+    height: 42,
+    borderRadius: 21,
     backgroundColor: "#F5F7FA",
     alignItems: "center",
     justifyContent: "center",
@@ -1946,25 +1963,27 @@ const styles = StyleSheet.create({
   },
 
   pinEmoji: {
-    fontSize: 24,
+    fontSize: 22,
   },
 
   ongoingInfo: {
     flex: 1,
+    justifyContent: "center",
+    marginTop: -4,
   },
 
   ongoingTitle: {
-    color: "#1C2534",
-    fontSize: 19,
+    color: "#012055",
+    fontSize: 16,
     fontWeight: "900",
-    marginBottom: 6,
+    marginBottom: 3,
   },
 
   ongoingLocation: {
     color: "#8A9BB2",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 9,
+    fontSize: 14,
+    fontWeight: "400",
+    marginBottom: 3,
   },
 
   ongoingDateRow: {
@@ -1974,9 +1993,9 @@ const styles = StyleSheet.create({
 
   ongoingDateText: {
     color: "#8A9BB2",
-    fontSize: 15,
-    fontWeight: "700",
-    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "400",
+    marginLeft: 6,
   },
 
   deleteAction: {
@@ -2000,8 +2019,8 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 22,
+    paddingTop: 20,
+    paddingBottom: 18,
     shadowColor: "#0F172A",
     shadowOffset: {
       width: 0,
@@ -2013,13 +2032,13 @@ const styles = StyleSheet.create({
   },
 
   emptyNextTripCard: {
-    marginTop: 14,
-    borderRadius: 24,
+    marginTop: 4,
+    borderRadius: 22,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    paddingVertical: 24,
-    paddingHorizontal: 22,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
   emptyNextTripTitle: {
     color: "#0F172A",
@@ -2038,6 +2057,8 @@ const styles = StyleSheet.create({
     minHeight: 92,
     flexDirection: "row",
     alignItems: "center",
+    position: "relative",
+    paddingRight: 44,
   },
 
   nextTripThumb: {
@@ -2067,10 +2088,10 @@ const styles = StyleSheet.create({
   },
 
   nextTripTitle: {
-    color: "#1C2534",
-    fontSize: 18,
+    color: "#012055",
+    fontSize: 16,
     fontWeight: "900",
-    marginBottom: 11,
+    marginBottom: 8,
   },
 
   nextTripMetaRow: {
@@ -2081,36 +2102,36 @@ const styles = StyleSheet.create({
 
   nextTripMetaText: {
     color: "#8A9BB2",
-    fontSize: 13,
-    fontWeight: "700",
+    fontSize: 14,
+    fontWeight: "400",
     marginLeft: 6,
   },
 
   newScheduleCardButton: {
-    minHeight: 76,
-    marginBottom: 16,
-    borderRadius: 20,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#DDE6F2",
+    height: 60,
+    marginBottom: 14,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    borderWidth: 0,
     paddingHorizontal: 18,
-    paddingVertical: 16,
     flexDirection: "row",
     alignItems: "center",
-    shadowColor: "#0F172A",
+    justifyContent: "center",
+    gap: 10,
+    shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
-      height: 8,
+      height: 6,
     },
-    shadowOpacity: 0.04,
-    shadowRadius: 14,
-    elevation: 2,
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
 
   newScheduleIconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#EAF3FF",
     alignItems: "center",
     justifyContent: "center",
@@ -2122,10 +2143,9 @@ const styles = StyleSheet.create({
   },
 
   newScheduleTitle: {
-    color: "#1C2534",
+    color: "#FFFFFF",
     fontSize: 16,
     fontWeight: "900",
-    marginBottom: 5,
   },
 
   newScheduleDescription: {
