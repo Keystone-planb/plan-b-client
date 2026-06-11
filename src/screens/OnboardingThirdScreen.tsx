@@ -1,6 +1,7 @@
 // src/screens/OnboardingThirdScreen.tsx
 
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
@@ -20,6 +21,8 @@ const BG = "#F6F8FC";
 const BORDER = "#E4EAF3";
 
 export default function OnboardingThirdScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <TouchableOpacity
       activeOpacity={1}
@@ -28,11 +31,11 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
     >
       <ResultBackground />
       <View style={styles.dim} />
-        <OnboardingSkipButton onPress={() => navigation.replace("Login")} />
+        <OnboardingSkipButton topInset={insets.top} onPress={() => navigation.replace("Login")} />
 
       <View style={styles.tooltip} pointerEvents="none">
         <View style={styles.tooltipBody}>
-          <Text style={styles.tooltipText}>대안 리스트를 상세하게 보여드려요</Text>
+          <Text style={styles.tooltipText}>일정의 변수를 빠르게 복구해드려요</Text>
         </View>
         <View style={styles.tooltipArrow} />
       </View>
@@ -40,7 +43,7 @@ export default function OnboardingThirdScreen({ navigation }: Props) {
       <View style={styles.focusCard} pointerEvents="none">
         <ResultCard />
       </View>
-      <OnboardingProgressDots activeIndex={2} />
+      <OnboardingProgressDots activeIndex={2} bottomInset={insets.bottom} />
     </TouchableOpacity>
   );
 }
@@ -235,7 +238,7 @@ const styles = StyleSheet.create({
   },
   backgroundCard: {
     opacity: 0.45,
-    marginBottom: 14,
+    marginBottom: 8,
   },
   backgroundCardDim: {
     opacity: 0.28,
@@ -247,7 +250,7 @@ const styles = StyleSheet.create({
   },
   tooltip: {
     position: "absolute",
-    top: 296,
+    top: 287,
     left: 0,
     right: 0,
     alignItems: "center",
@@ -255,18 +258,20 @@ const styles = StyleSheet.create({
   },
   tooltipBody: {
     minWidth: 292,
-    height: 48,
+    minHeight: 56,
     borderRadius: 16,
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 15,
+    paddingVertical: 10,
   },
   tooltipText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",
     textAlign: "center",
+    lineHeight: 21,
   },
   tooltipArrow: {
     width: 0,
@@ -281,7 +286,7 @@ const styles = StyleSheet.create({
   },
   focusCard: {
     position: "absolute",
-    top: 350,
+    top: 374,
     left: 20,
     right: 20,
     zIndex: 95,
@@ -290,11 +295,11 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E6ECF5",
+    borderWidth: 1.5,
+    borderColor: BLUE,
     paddingHorizontal: 14,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingTop: 12,
+    paddingBottom: 10,
     shadowColor: "#000000",
     shadowOpacity: 0.14,
     shadowRadius: 14,
@@ -363,13 +368,13 @@ const styles = StyleSheet.create({
   },
   aiReviewBox: {
     position: "relative",
-    marginTop: 14,
+    marginTop: 15,
     marginLeft: 34,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#BFD7FF",
     backgroundColor: "#F5FAFF",
-    minHeight: 54,
+    minHeight: 44,
     paddingHorizontal: 10,
     paddingVertical: 8,
     flexDirection: "row",

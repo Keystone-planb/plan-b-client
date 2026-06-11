@@ -7,11 +7,12 @@ const BLUE = "#2F5BEA";
 
 type Props = {
   activeIndex: 0 | 1 | 2 | 3;
+  bottomInset?: number;
 };
 
-export default function OnboardingProgressDots({ activeIndex }: Props) {
+export default function OnboardingProgressDots({ activeIndex, bottomInset = 0 }: Props) {
   return (
-    <View pointerEvents="none" style={styles.dots}>
+    <View pointerEvents="none" style={[styles.dots, { bottom: Math.max(bottomInset + 20, 36) }]}>
       {[0, 1, 2, 3].map((index) => (
         <View
           key={index}
@@ -25,14 +26,15 @@ export default function OnboardingProgressDots({ activeIndex }: Props) {
 const styles = StyleSheet.create({
   dots: {
     position: "absolute",
-    bottom: 36,
     left: 0,
     right: 0,
+    height: 16,
     flexDirection: "row",
     justifyContent: "center",
     alignItems: "center",
     gap: 12,
-    zIndex: 100,
+    zIndex: 999,
+    elevation: 999,
   },
   activeDot: {
     width: 54,

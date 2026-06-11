@@ -1,6 +1,7 @@
 // src/screens/OnboardingFourthScreen.tsx
 
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 
 type Props = {
@@ -14,12 +15,12 @@ const TEXT = "#111827";
 const MUTED = "#667085";
 
 export default function OnboardingFourthScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.screen}>
       <View style={styles.center}>
         <Text style={styles.logo}>Plan.B</Text>
-        <Text style={styles.subLogo}>더 스마트한 여행의 시작</Text>
-
         <View style={styles.rocketCircle}>
           <Text style={styles.rocket}>🚀</Text>
         </View>
@@ -36,7 +37,7 @@ export default function OnboardingFourthScreen({ navigation }: Props) {
 
       <TouchableOpacity
         activeOpacity={0.85}
-        style={styles.startButton}
+        style={[styles.startButton, { bottom: Math.max(insets.bottom + 24, 44) }]}
         onPress={() => navigation.replace("Login")}
       >
         <Text style={styles.startButtonText}>시작하기</Text>
@@ -52,7 +53,7 @@ const styles = StyleSheet.create({
   },
   center: {
     alignItems: "center",
-    paddingTop: 132,
+    paddingTop: 110,
   },
   logo: {
     color: "#050505",
@@ -60,17 +61,11 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     letterSpacing: -1.5,
   },
-  subLogo: {
-    marginTop: 14,
-    color: "#FFFFFF",
-    fontSize: 20,
-    fontWeight: "700",
-  },
   rocketCircle: {
-    marginTop: 78,
-    width: 176,
-    height: 176,
-    borderRadius: 88,
+    marginTop: 96,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
     backgroundColor: "#4968B5",
     alignItems: "center",
     justifyContent: "center",
@@ -81,7 +76,7 @@ const styles = StyleSheet.create({
     elevation: 10,
   },
   rocket: {
-    fontSize: 78,
+    fontSize: 100,
     transform: [{ rotate: "-18deg" }],
   },
   tooltip: {
@@ -106,7 +101,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 15,
   },
   tooltipText: {
     color: "#FFFFFF",

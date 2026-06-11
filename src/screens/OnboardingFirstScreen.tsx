@@ -1,6 +1,7 @@
 // src/screens/OnboardingFirstScreen.tsx
 
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
 import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
@@ -19,6 +20,8 @@ const TEXT = "#111827";
 const MUTED = "#667085";
 
 export default function OnboardingFirstScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <View style={styles.container}>
       <View style={styles.backgroundScreen} pointerEvents="none">
@@ -32,7 +35,7 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
         style={styles.touchLayer}
         onPress={() => navigation.replace("OnboardingSecond")}
       >
-        <OnboardingSkipButton onPress={() => navigation.replace("Login")} />
+        <OnboardingSkipButton topInset={insets.top} onPress={() => navigation.replace("Login")} />
 
         <FocusedWeatherModal />
 
@@ -45,8 +48,7 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
           </View>
         </View>
 
-        <Text style={styles.touchText}>날씨 걱정 없는 여행</Text>
-        <OnboardingProgressDots activeIndex={0} />
+        <OnboardingProgressDots activeIndex={0} bottomInset={insets.bottom} />
 
       </TouchableOpacity>
     </View>
@@ -61,7 +63,7 @@ function FocusedWeatherModal() {
           <Text style={styles.alertText}>!</Text>
         </View>
 
-        <Text style={styles.modalTitle}>날씨 경보</Text>
+        <Text style={styles.modalTitle}>날씨정보</Text>
         <Text style={styles.closeText}>×</Text>
       </View>
 
@@ -73,7 +75,7 @@ function FocusedWeatherModal() {
         <View>
           <Text style={styles.placeName}>강릉역</Text>
           <Text style={styles.placeSub}>강원도 강릉시</Text>
-          <Text style={styles.timeText}>◷ 12:00 - 14:00</Text>
+          <Text style={styles.timeText}>12:00 - 14:00</Text>
         </View>
 
         <View style={styles.weatherBadge}>
@@ -83,7 +85,7 @@ function FocusedWeatherModal() {
 
       <View style={styles.rainCard}>
         <Text style={styles.rainText}>
-          10:00 - 12:00 강수 확률 <Text style={styles.bold}>85%</Text>
+          강수 확률 <Text style={styles.bold}>85%</Text> · 10:00~12:00
         </Text>
       </View>
 
@@ -171,27 +173,29 @@ const styles = StyleSheet.create({
   placeCard: {
     height: 96,
     borderRadius: 24,
-    backgroundColor: "#F5F7FA",
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
+    backgroundColor: "#F7F9FB",
     paddingHorizontal: 21,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   placeName: {
-    color: "#25304A",
+    color: "#252D3C",
     fontSize: 19,
     fontWeight: "900",
   },
   placeSub: {
-    color: MUTED,
+    color: "#627187",
     fontSize: 13,
-    fontWeight: "700",
+    fontWeight: "400",
     marginTop: 4,
   },
   timeText: {
-    color: MUTED,
+    color: "#627187",
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "400",
     marginTop: 6,
   },
   weatherBadge: {
@@ -210,19 +214,22 @@ const styles = StyleSheet.create({
   },
 
   rainCard: {
-    marginTop: 14,
+    marginTop: 15,
     height: 60,
     borderRadius: 22,
-    backgroundColor: "#F5F7FA",
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
+    backgroundColor: "#F7F9FB",
     justifyContent: "center",
     paddingHorizontal: 20,
   },
   rainText: {
-    color: "#050505",
-    fontSize: 18,
-    fontWeight: "800",
+    color: "#627187",
+    fontSize: 15,
+    fontWeight: "500",
   },
   bold: {
+    color: "#252D3C",
     fontWeight: "900",
   },
   actionButton: {
@@ -241,7 +248,7 @@ const styles = StyleSheet.create({
 
   tooltip: {
     position: "absolute",
-    top: 622,
+    top: 645,
     left: 0,
     right: 0,
     alignItems: "center",
@@ -265,7 +272,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 15,
   },
   tooltipText: {
     color: "#FFFFFF",

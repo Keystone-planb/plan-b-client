@@ -5,13 +5,14 @@ import { StyleSheet, Text, TouchableOpacity } from "react-native";
 
 type Props = {
   onPress: () => void;
+  topInset?: number;
 };
 
-export default function OnboardingSkipButton({ onPress }: Props) {
+export default function OnboardingSkipButton({ onPress, topInset = 0 }: Props) {
   return (
     <TouchableOpacity
       activeOpacity={0.8}
-      style={styles.skipButton}
+      style={[styles.skipButton, { top: Math.max(topInset + 18, 58) }]}
       onPress={onPress}
     >
       <Text style={styles.skipText}>건너뛰기</Text>
@@ -22,7 +23,6 @@ export default function OnboardingSkipButton({ onPress }: Props) {
 const styles = StyleSheet.create({
   skipButton: {
     position: "absolute",
-    top: 58,
     right: 34,
     zIndex: 100,
   },

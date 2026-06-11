@@ -1,6 +1,7 @@
 // src/screens/OnboardingSecondScreen.tsx
 
 import React from "react";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
@@ -19,6 +20,8 @@ const MUTED = "#667085";
 const BORDER = "#E4EAF3";
 
 export default function OnboardingSecondScreen({ navigation }: Props) {
+  const insets = useSafeAreaInsets();
+
   return (
     <TouchableOpacity
       style={styles.screen}
@@ -34,23 +37,19 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
         style={styles.touchLayer}
         onPress={() => navigation.replace("OnboardingThird")}
       >
-        <OnboardingSkipButton onPress={() => navigation.replace("Login")} />
+        <OnboardingSkipButton topInset={insets.top} onPress={() => navigation.replace("Login")} />
 
-        <TransportFocusCard />
-
-        <View style={styles.tooltip}>
-          <View style={styles.tooltipArrow} />
-          <View style={styles.tooltipBody}>
-            <Text style={styles.tooltipText}>
-              이동수단을 선택해 일정 간 이동을 계산해드려요
-            </Text>
-          </View>
-        </View>
-
-        <Text style={styles.touchText}>이동 동선까지 자동으로 관리해요</Text>
-        <OnboardingProgressDots activeIndex={1} />
-
+        <OnboardingProgressDots activeIndex={1} bottomInset={insets.bottom} />
       </TouchableOpacity>
+
+      <View pointerEvents="none" style={styles.tooltip}>
+        <View style={styles.tooltipArrow} />
+        <View style={styles.tooltipBody}>
+          <Text style={styles.tooltipText}>
+            이동수단을 선택할 수 있어요
+          </Text>
+        </View>
+      </View>
     </TouchableOpacity>
   );
 }
@@ -225,7 +224,7 @@ const styles = StyleSheet.create({
     height: 240,
     backgroundColor: "#D8E6D2",
     justifyContent: "flex-end",
-    paddingHorizontal: 18,
+    paddingHorizontal: 15,
     paddingBottom: 16,
   },
 
@@ -499,21 +498,21 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 142,
     borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: "#F59E0B",
-    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
+    backgroundColor: "#F7F9FB",
     overflow: "hidden",
   },
   focusTransportCard: {
     position: "absolute",
-    top: 470,
+    top: 430,
     left: 64,
     right: 22,
-    minHeight: 142,
+    maxHeight: 142,
     borderRadius: 16,
-    borderWidth: 2,
-    borderColor: "#F59E0B",
-    backgroundColor: "#FFF7ED",
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
+    backgroundColor: "#F7F9FB",
     overflow: "hidden",
     zIndex: 60,
     shadowColor: "#000000",
@@ -537,17 +536,17 @@ const styles = StyleSheet.create({
   transportTitleWarning: {
     fontSize: 13,
     fontWeight: "800",
-    color: "#D97706",
+    color: "#252D3C",
   },
   transportDescriptionWarning: {
     marginTop: 3,
     fontSize: 11,
     fontWeight: "600",
-    color: "#92400E",
+    color: "#627187",
   },
   transportPickerBody: {
     borderTopWidth: 1,
-    borderTopColor: "#E2E8F0",
+    borderTopColor: "#E1E7EF",
     paddingHorizontal: 10,
     paddingBottom: 10,
   },
@@ -561,7 +560,7 @@ const styles = StyleSheet.create({
     height: 34,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#D9E2F2",
+    borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
@@ -627,11 +626,12 @@ const styles = StyleSheet.create({
   },
   tooltip: {
     position: "absolute",
-    top: 620,
+    top: 604,
     left: 0,
     right: 0,
     alignItems: "center",
-    zIndex: 40,
+    zIndex: 1000,
+    elevation: 1000,
   },
   tooltipArrow: {
     width: 0,
@@ -651,7 +651,7 @@ const styles = StyleSheet.create({
     backgroundColor: BLUE,
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 15,
   },
   tooltipText: {
     color: "#FFFFFF",
