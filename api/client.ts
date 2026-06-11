@@ -8,8 +8,6 @@ import { API_CONFIG } from "./config";
 import { runRefreshOnce } from "./auth/refreshLock";
 import { emitAuthExpired } from "../src/utils/authEvents";
 
-// refresh가 실패하면 일정 시간 동안 추가 refresh 시도를 막아(쿨다운),
-// 무한 재시도로 /api/auth/refresh를 폭주시켜 WAF에 차단되는 루프를 방지한다.
 const REFRESH_COOLDOWN_MS = 30000;
 let lastRefreshFailureAt = 0;
 
@@ -45,9 +43,6 @@ const clearStoredAuth = async () => {
   }
 };
 
-// ===============================
-// MVP Trip Cache Layer (safe)
-// ===============================
 const tripCache = new Map<string, { data: any; time: number }>();
 
 const getCachedTrip = async <T>(
