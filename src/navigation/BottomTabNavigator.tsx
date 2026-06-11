@@ -1,10 +1,15 @@
 import React from "react";
-import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
+import {
+  Image,
+  Platform,
+  StyleSheet,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import {
   BottomTabBarProps,
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MainScreen from "../screens/MainScreen";
@@ -21,22 +26,20 @@ const ANDROID_NAVIGATION_BAR_HEIGHT = 48;
 const TAB_BAR_FLOATING_GAP = 18;
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
-type IconName = keyof typeof Ionicons.glyphMap;
-
-function getIconName(routeName: string, focused: boolean): IconName {
+function getTabIconSource(routeName: string) {
   if (routeName === "PlanX") {
-    return focused ? "time" : "time-outline";
+    return require("../../assets/tab-history.png");
   }
 
   if (routeName === "Home") {
-    return focused ? "home" : "home-outline";
+    return require("../../assets/tab-home.png");
   }
 
   if (routeName === "Profile") {
-    return focused ? "person" : "person-outline";
+    return require("../../assets/tab-profile.png");
   }
 
-  return "ellipse-outline";
+  return require("../../assets/tab-home.png");
 }
 
 function CustomBottomTabBar({
@@ -53,9 +56,9 @@ function CustomBottomTabBar({
         styles.tabBarOuter,
         {
           bottom:
-            Platform.OS === "android"
-              ? ANDROID_NAVIGATION_BAR_HEIGHT + TAB_BAR_FLOATING_GAP
-              : Math.max(insets.bottom, 16),
+            Platform.OS === "android" ?
+              ANDROID_NAVIGATION_BAR_HEIGHT + TAB_BAR_FLOATING_GAP
+            : Math.max(insets.bottom, 16),
         },
       ]}
     >
@@ -64,7 +67,7 @@ function CustomBottomTabBar({
           const focused = state.index === index;
           const { options } = descriptors[route.key];
 
-          const iconName = getIconName(route.name, focused);
+          const iconSource = getTabIconSource(route.name);
 
           const handlePress = () => {
             const event = navigation.emit({
@@ -97,10 +100,13 @@ function CustomBottomTabBar({
               onLongPress={handleLongPress}
               style={styles.tabButton}
             >
-              <Ionicons
-                name={iconName}
-                size={34}
-                color={focused ? "#2B3445" : "#C8D1DF"}
+              <Image
+                source={iconSource}
+                style={[
+                  styles.tabIcon,
+                  focused ? styles.tabIconActive : styles.tabIconInactive,
+                ]}
+                resizeMode="contain"
               />
             </TouchableOpacity>
           );
@@ -175,5 +181,18 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  tabIcon: {
+    width: 24,
+    height: 24,
+  },
+
+  tabIconActive: {
+    opacity: 1,
+  },
+
+  tabIconInactive: {
+    opacity: 0.9,
   },
 });
