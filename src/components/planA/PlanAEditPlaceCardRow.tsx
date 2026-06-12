@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
   editTransportDashedLine: {
     flex: 1,
     minHeight: 70,
-    borderLeftWidth: 2,
+    borderLeftWidth: 1,
     borderStyle: "dashed",
     borderColor: "#CBD5E1",
     zIndex: 2,
