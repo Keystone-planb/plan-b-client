@@ -148,12 +148,13 @@ const styles = StyleSheet.create({
   },
 
   emptyContainer: {
+    flex: 1,
     width: "100%",
-    backgroundColor: "#F8FAFC",
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#F8FAFC",
     paddingHorizontal: 24,
-    paddingBottom: 34,
   },
 
   markerBadge: {
