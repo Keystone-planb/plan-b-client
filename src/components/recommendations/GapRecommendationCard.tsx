@@ -230,6 +230,13 @@ export default function GapRecommendationCard({
         return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
       });
 
+      console.log("[GapRecommendationCard] gap debug", {
+        tripId,
+        allowedPairKeys: Array.from(allowedPairKeys),
+        serverGaps,
+        currentScreenGaps,
+      });
+
       applyGaps(currentScreenGaps);
     };
 
@@ -370,7 +377,8 @@ export default function GapRecommendationCard({
   }
 
   return (
-    <View style={styles.card}>
+    <>
+      <View style={styles.card}>
       <View style={styles.headerRow}>
         <View style={styles.titleBox}>
           <View style={styles.iconCircle}>
@@ -378,10 +386,7 @@ export default function GapRecommendationCard({
           </View>
 
           <View>
-            <Text style={styles.title}>빈 시간 장소 추천</Text>
-            <Text style={styles.subTitle}>
-              일정 사이 30분 이상 남는 시간 기준
-            </Text>
+            <Text style={styles.title}>틈새 대안 추천</Text>
           </View>
         </View>
 
@@ -401,8 +406,9 @@ export default function GapRecommendationCard({
             const isExpanded = expandedGapKey === gapKey;
 
             return (
-              <View key={gapKey} style={styles.gapItem}>
-                <TouchableOpacity
+              <React.Fragment key={gapKey}>
+                <View style={styles.gapItem}>
+                  <TouchableOpacity
                   style={[
                     styles.gapButton,
                     isExpanded && styles.expandedGapButton,
@@ -418,11 +424,6 @@ export default function GapRecommendationCard({
                   <View style={styles.gapTextBox}>
                     <Text style={styles.gapTitle}>
                       {gap.beforePlanTitle} → {gap.afterPlanTitle}
-                    </Text>
-
-                    <Text style={styles.gapMeta}>
-                      총 공백 {gap.gapMinutes}분 · 추천 가능{" "}
-                      {gap.availableMinutes ?? gap.gapMinutes}분
                     </Text>
                   </View>
 
@@ -496,7 +497,8 @@ export default function GapRecommendationCard({
                     </TouchableOpacity>
                   </View>
                 : null}
-              </View>
+                </View>
+              </React.Fragment>
             );
           })}
         </View>
@@ -536,7 +538,8 @@ export default function GapRecommendationCard({
           })}
         </View>
       : null}
-    </View>
+      </View>
+    </>
   );
 }
 
@@ -592,9 +595,9 @@ const styles = StyleSheet.create({
     width: "100%",
     marginTop: 0,
     marginHorizontal: 0,
-    paddingHorizontal: 11,
-    paddingVertical: 10,
-    borderRadius: 15,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 14,
     backgroundColor: "#F8FAFC",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -611,14 +614,14 @@ const styles = StyleSheet.create({
   titleBox: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
+    gap: 8,
     flex: 1,
     minWidth: 0,
   },
   iconCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     backgroundColor: "#EFF6FF",
     alignItems: "center",
     justifyContent: "center",
@@ -627,12 +630,6 @@ const styles = StyleSheet.create({
     color: "#1C2534",
     fontSize: 13,
     fontWeight: "900",
-  },
-  subTitle: {
-    marginTop: 1,
-    color: "#64748B",
-    fontSize: 10,
-    fontWeight: "700",
   },
   message: {
     marginTop: 10,
@@ -681,8 +678,8 @@ const styles = StyleSheet.create({
   },
 
   gapList: {
-    marginTop: 8,
-    gap: 6,
+    marginTop: 4,
+    gap: 4,
   },
 
   gapItem: {
@@ -690,13 +687,13 @@ const styles = StyleSheet.create({
     overflow: "hidden",
   },
   gapButton: {
-    minHeight: 42,
+    minHeight: 34,
     borderRadius: 10,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 10,
-    paddingVertical: 7,
+    paddingVertical: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -723,12 +720,6 @@ const styles = StyleSheet.create({
   },
   selectedGapText: {
     color: "#FFFFFF",
-  },
-  gapMeta: {
-    marginTop: 2,
-    color: "#64748B",
-    fontSize: 10,
-    fontWeight: "800",
   },
   selectedGapSubText: {
     color: "#DBEAFE",
