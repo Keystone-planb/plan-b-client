@@ -1109,12 +1109,14 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         </View>
 
         <View style={localStyles.mapLayerBody}>
-          <OngoingDayTabs
-            displayDays={displayDays}
-            selectedDayIndex={selectedDayIndex}
-            setSelectedDayIndex={setSelectedDayIndex}
-            styles={styles}
-          />
+          <View style={localStyles.dayTabsTightWrapper}>
+            <OngoingDayTabs
+              displayDays={displayDays}
+              selectedDayIndex={selectedDayIndex}
+              setSelectedDayIndex={setSelectedDayIndex}
+              styles={styles}
+            />
+          </View>
 
           <View style={localStyles.mapLayer}>
             <OngoingMapSection
@@ -1305,12 +1307,18 @@ const localStyles = StyleSheet.create({
     marginTop: 0,
   },
 
-  mapLayer: {
-    height: 640,
-    position: "relative",
-    backgroundColor: "#EDF3F9",
+  dayTabsTightWrapper: {
+    height: 72,
     overflow: "hidden",
-    marginTop: 12,
+    backgroundColor: "#FFFFFF",
+  },
+
+  mapLayer: {
+    height: 740,
+    position: "relative",
+    backgroundColor: "#F8FAFC",
+    overflow: "hidden",
+    marginTop: 0,
   },
 
   scheduleBottomSheet: {
@@ -1372,9 +1380,9 @@ const localStyles = StyleSheet.create({
 
 
   upcomingHeader: {
-    minHeight: 84,
+    minHeight: 62,
     paddingHorizontal: 20,
-    paddingTop: 6,
+    paddingTop: 2,
     paddingBottom: 0,
     backgroundColor: "#FFFFFF",
     justifyContent: "flex-start",
@@ -1383,7 +1391,7 @@ const localStyles = StyleSheet.create({
   upcomingBackButton: {
     position: "absolute",
     left: 16,
-    top: 20,
+    top: 12,
     width: 36,
     height: 36,
     alignItems: "center",
@@ -1394,8 +1402,8 @@ const localStyles = StyleSheet.create({
   upcomingTitleBlock: {
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 8,
-    marginBottom: 18,
+    marginTop: 2,
+    marginBottom: 6,
   },
 
   upcomingTitle: {
@@ -1414,9 +1422,9 @@ const localStyles = StyleSheet.create({
 
   transportBetweenWrapper: {
     flexDirection: "row",
+    marginTop: 10,
+    marginBottom: 10,
     alignItems: "flex-start",
-    marginTop: 18,
-    marginBottom: 22,
     zIndex: 5,
   },
 
@@ -1497,11 +1505,11 @@ const localStyles = StyleSheet.create({
 
   transportEmptyRow: {
     flexDirection: "row",
+    marginTop: 15,
+    marginBottom: 15,
     alignItems: "center",
     minHeight: 26,
     height: 26,
-    marginTop: 2,
-    marginBottom: 2,
     paddingLeft: 18,
     zIndex: 10,
   },
@@ -1549,10 +1557,10 @@ const localStyles = StyleSheet.create({
   transportCardColumn: {
     flex: 1,
     justifyContent: "center",
-    paddingTop: 4,
+    paddingTop: 0,
     marginLeft: 12,
     paddingRight: 18,
-    paddingBottom: 12,
+    paddingBottom: 0,
     zIndex: 1,
   },
 

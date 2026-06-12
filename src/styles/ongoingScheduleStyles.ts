@@ -260,13 +260,16 @@ const styles = StyleSheet.create({
   },
 
   todayCard: {
-    minHeight: 98,
+    width: "100%",
+    minHeight: 112,
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 18,
     paddingVertical: 16,
-    flexDirection: "column",
-    alignItems: "stretch",
+    flexDirection: "row",
+    alignItems: "center",
   },
 
   futureTodayCard: {
@@ -289,13 +292,14 @@ const styles = StyleSheet.create({
   },
 
   numberCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#F1F5F9",
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#EAF5FF",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 18,
+    marginRight: 16,
+    flexShrink: 0,
   },
 
   numberText: {
@@ -307,23 +311,25 @@ const styles = StyleSheet.create({
   placeInfo: {
     flex: 1,
     minWidth: 0,
-    marginLeft: 14,
-    marginRight: 12,
+    marginLeft: 0,
+    marginRight: 14,
+    justifyContent: "center",
   },
 
   placeName: {
     color: "#1F2937",
-    fontSize: 19,
+    fontSize: 17,
     fontWeight: "900",
-    letterSpacing: -0.4,
-    marginBottom: 5,
+    lineHeight: 21,
+    marginBottom: 6,
   },
 
   placeAddress: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "700",
-    marginBottom: 7,
+    color: "#1F2937",
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 21,
+    marginBottom: 6,
   },
 
   timeRow: {
@@ -334,25 +340,21 @@ const styles = StyleSheet.create({
   timeText: {
     color: "#64748B",
     fontSize: 15,
-    fontWeight: "700",
+    fontWeight: "400",
     marginLeft: 5,
   },
 
   alternativeButton: {
-    minWidth: 104,
+    minWidth: 120,
     height: 44,
-    paddingHorizontal: 16,
-    borderRadius: 15,
+    paddingHorizontal: 18,
+    borderRadius: 16,
     backgroundColor: "#2158E8",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 4,
-    shadowColor: "#2158E8",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.16,
-    shadowRadius: 10,
-    elevation: 4,
+    gap: 6,
+    flexShrink: 0,
   },
 
   disabledAlternativeButton: {
@@ -361,9 +363,9 @@ const styles = StyleSheet.create({
 
   alternativeButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "900",
-    marginRight: 3,
+    marginRight: 4,
   },
 
   deleteMemoButton: {
