@@ -1,8 +1,9 @@
-// src/components/planA/PlanATimePickerModal.tsx
-
-import React from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Modal,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -38,6 +39,38 @@ type Props = {
   onSave: () => void;
 };
 
+const HOURS = Array.from({ length: 24 }, (_, index) => index);
+const MINUTES = Array.from({ length: 60 }, (_, index) => index);
+const ITEM_HEIGHT = 42;
+const WHEEL_PADDING = ITEM_HEIGHT * 2;
+
+const toNumber = (value: string) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+};
+
+const pad = (value: number) => String(value).padStart(2, "0");
+
+const moveByStep = (
+  current: number,
+  next: number,
+  max: number,
+  decrease: () => void,
+  increase: () => void,
+) => {
+  if (current === next) return;
+
+  const forward = (next - current + max) % max;
+  const backward = (current - next + max) % max;
+
+  const count = Math.min(forward, backward);
+  const action = forward <= backward ? increase : decrease;
+
+  for (let index = 0; index < count; index += 1) {
+    action();
+  }
+};
+
 export default function PlanATimePickerModal({
   visible,
   place,
@@ -53,6 +86,62 @@ export default function PlanATimePickerModal({
   onIncreaseMinute,
   onSave,
 }: Props) {
+  const hourRef = useRef<ScrollView>(null);
+  const minuteRef = useRef<ScrollView>(null);
+
+  const hour = toNumber(hourText);
+  const minute = toNumber(minuteText);
+
+  useEffect(() => {
+    if (!visible) return;
+
+    requestAnimationFrame(() => {
+      hourRef.current?.scrollTo({
+        y: hour * ITEM_HEIGHT,
+        animated: false,
+      });
+
+      minuteRef.current?.scrollTo({
+        y: minute * ITEM_HEIGHT,
+        animated: false,
+      });
+    });
+  }, [visible, target, hour, minute]);
+
+  const handleHourScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const next = Math.round(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    const safeNext = Math.max(0, Math.min(23, next));
+
+    moveByStep(hour, safeNext, 24, onDecreaseHour, onIncreaseHour);
+  };
+
+  const handleMinuteScrollEnd = (
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) => {
+    const next = Math.round(event.nativeEvent.contentOffset.y / ITEM_HEIGHT);
+    const safeNext = Math.max(0, Math.min(59, next));
+
+    moveByStep(minute, safeNext, 60, onDecreaseMinute, onIncreaseMinute);
+  };
+
+  const renderWheelItem = (
+    value: number,
+    selected: boolean,
+  ) => (
+    <View key={value} style={styles.wheelItem}>
+      <Text
+        style={[
+          styles.wheelItemText,
+          selected && styles.wheelItemTextActive,
+        ]}
+      >
+        {pad(value)}
+      </Text>
+    </View>
+  );
+
   return (
     <Modal
       visible={visible}
@@ -176,53 +265,39 @@ export default function PlanATimePickerModal({
             </View>
           </View>
 
-          <View style={styles.timePickerControls}>
-            <View style={styles.timePickerColumn}>
-              <TouchableOpacity
-                style={styles.timePickerArrow}
-                activeOpacity={0.75}
-                onPress={onDecreaseHour}
-              >
-                <Ionicons name="chevron-up" size={22} color="#64748B" />
-              </TouchableOpacity>
+          <View style={styles.wheelPickerArea}>
+            <View style={styles.wheelSelectionBar} />
 
-              <View style={styles.timePickerValueBox}>
-                <Text style={styles.timePickerValueText}>{hourText}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.timePickerArrow}
-                activeOpacity={0.75}
-                onPress={onIncreaseHour}
-              >
-                <Ionicons name="chevron-down" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
+            <ScrollView
+              ref={hourRef}
+              style={styles.wheelColumn}
+              contentContainerStyle={styles.wheelContent}
+              showsVerticalScrollIndicator={false}
+              snapToInterval={ITEM_HEIGHT}
+              decelerationRate="fast"
+              onMomentumScrollEnd={handleHourScrollEnd}
+              onScrollEndDrag={handleHourScrollEnd}
+            >
+              {HOURS.map((value) => renderWheelItem(value, value === hour))}
+            </ScrollView>
 
             <Text style={styles.timePickerColon}>:</Text>
 
-            <View style={styles.timePickerColumn}>
-              <TouchableOpacity
-                style={styles.timePickerArrow}
-                activeOpacity={0.75}
-                onPress={onDecreaseMinute}
-              >
-                <Ionicons name="chevron-up" size={22} color="#64748B" />
-              </TouchableOpacity>
-
-              <View style={styles.timePickerValueBox}>
-                <Text style={styles.timePickerValueText}>{minuteText}</Text>
-              </View>
-
-              <TouchableOpacity
-                style={styles.timePickerArrow}
-                activeOpacity={0.75}
-                onPress={onIncreaseMinute}
-              >
-                <Ionicons name="chevron-down" size={22} color="#64748B" />
-              </TouchableOpacity>
-            </View>
+            <ScrollView
+              ref={minuteRef}
+              style={styles.wheelColumn}
+              contentContainerStyle={styles.wheelContent}
+              showsVerticalScrollIndicator={false}
+              snapToInterval={ITEM_HEIGHT}
+              decelerationRate="fast"
+              onMomentumScrollEnd={handleMinuteScrollEnd}
+              onScrollEndDrag={handleMinuteScrollEnd}
+            >
+              {MINUTES.map((value) => renderWheelItem(value, value === minute))}
+            </ScrollView>
           </View>
+
+          <Text style={styles.timeStandardText}>24시간 기준</Text>
 
           <View style={styles.timeModalButtonRow}>
             <TouchableOpacity
@@ -290,7 +365,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 42,
     borderRadius: 14,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F1F5F9",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -298,7 +373,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2158E8",
   },
   timeTargetTabText: {
-    color: "#64748B",
+    color: "#475569",
     fontSize: 13,
     fontWeight: "900",
   },
@@ -312,63 +387,97 @@ const styles = StyleSheet.create({
   },
   timePickerSummaryCard: {
     flex: 1,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
+    minHeight: 92,
+    borderRadius: 18,
+    backgroundColor: "#F1F5F9",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
+    alignItems: "center",
+    justifyContent: "center",
   },
   timePickerSummaryCardActive: {
     backgroundColor: "#EFF6FF",
   },
   timePickerSummaryLabel: {
-    color: "#94A3B8",
-    fontSize: 11,
+    color: "#CBD5E1",
+    fontSize: 16,
     fontWeight: "900",
+    textAlign: "center",
   },
   timePickerSummaryLabelActive: {
     color: "#2158E8",
   },
   timePickerSummaryValue: {
-    marginTop: 5,
-    color: "#64748B",
-    fontSize: 16,
+    marginTop: 10,
+    color: "#475569",
+    fontSize: 30,
     fontWeight: "900",
+    lineHeight: 36,
+    textAlign: "center",
   },
   timePickerSummaryValueActive: {
     color: "#1E40AF",
   },
-  timePickerControls: {
-    marginTop: 22,
+  wheelPickerArea: {
+    marginTop: 18,
+    height: ITEM_HEIGHT * 5,
+    borderRadius: 22,
+    backgroundColor: "#F1F5F9",
+    overflow: "hidden",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
+    gap: 14,
   },
-  timePickerColumn: { alignItems: "center", gap: 8 },
-  timePickerArrow: {
-    width: 42,
-    height: 34,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  timePickerValueBox: {
-    width: 72,
-    height: 52,
+  wheelSelectionBar: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    top: ITEM_HEIGHT * 2,
+    height: ITEM_HEIGHT,
     borderRadius: 16,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#EFF6FF",
+  },
+  wheelColumn: {
+    width: 86,
+    height: ITEM_HEIGHT * 5,
+  },
+  wheelContent: {
+    paddingVertical: WHEEL_PADDING,
+  },
+  wheelItem: {
+    height: ITEM_HEIGHT,
     alignItems: "center",
     justifyContent: "center",
   },
-  timePickerValueText: { color: "#111827", fontSize: 18, fontWeight: "900" },
-  timePickerColon: {
-    color: "#111827",
-    fontSize: 24,
+  wheelItemText: {
+    color: "#CBD5E1",
+    fontSize: 20,
+    fontWeight: "800",
+    lineHeight: 28,
+  },
+  wheelItemTextActive: {
+    color: "#2158E8",
+    fontSize: 28,
     fontWeight: "900",
+    lineHeight: 34,
+  },
+  timePickerColon: {
+    zIndex: 2,
+    color: "#111827",
+    fontSize: 30,
+    fontWeight: "900",
+    lineHeight: 36,
+  },
+  timeStandardText: {
+    marginTop: 12,
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "800",
+    textAlign: "center",
   },
   timeModalButtonRow: {
-    marginTop: 22,
+    marginTop: 16,
     flexDirection: "row",
     gap: 10,
   },
@@ -380,7 +489,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  timeModalCancelText: { color: "#64748B", fontSize: 14, fontWeight: "900" },
+  timeModalCancelText: { color: "#475569", fontSize: 16, fontWeight: "900" },
   timeModalSaveButton: {
     flex: 1,
     height: 46,
@@ -389,5 +498,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  timeModalSaveText: { color: "#FFFFFF", fontSize: 14, fontWeight: "900" },
+  timeModalSaveText: { color: "#FFFFFF", fontSize: 16, fontWeight: "900" },
 });
