@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   ActivityIndicator,
+  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -18,6 +19,7 @@ import type {
 } from "../../types/gapRecommendation";
 import type { RecommendedPlace } from "../../types/recommendation";
 import { trackEvent, AMP } from "../../utils/amplitude";
+import { getPlaceCategoryIcon } from "../../utils/placeCategoryIcon";
 
 type AllowedGapPlanPair = {
   beforePlanId?: number | string | null;
@@ -506,6 +508,16 @@ export default function GapRecommendationCard({
 
       {places.length > 0 ?
         <View style={styles.placeList}>
+          <View style={styles.placeListHeader}>
+            <View>
+              <Text style={styles.placeListTitle}>✨ 추천 결과 {places.length}개</Text>
+              <Text style={styles.placeListSubtitle}>
+                선택하면 일정에 추가할 수 있어요
+              </Text>
+            </View>
+            <Ionicons name="chevron-up" size={16} color="#94A3B8" />
+          </View>
+
           {places.map((place) => {
             const isSelectedPlace =
               String(selectedPlaceId) === String(place.placeId);
@@ -520,13 +532,20 @@ export default function GapRecommendationCard({
                 activeOpacity={0.85}
                 onPress={() => handleSelectPlace(place)}
               >
+                <View style={styles.placeIconCircle}>
+                  <Image
+                    source={getPlaceCategoryIcon(place.category)}
+                    style={styles.placeCategoryIcon}
+                  />
+                </View>
+
                 <View style={styles.placeTextBox}>
                   <Text style={styles.placeName} numberOfLines={1}>
                     {place.name}
                   </Text>
 
                   <Text style={styles.placeMeta} numberOfLines={1}>
-                    {place.category || place.address || "추천 장소"}
+                    {place.category || "추천 장소"}
                   </Text>
                 </View>
 
@@ -773,32 +792,74 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   placeList: {
-    marginTop: 16,
-    gap: 10,
+    marginTop: 12,
+    padding: 10,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFF",
+    borderWidth: 1,
+    borderColor: "#DCE8FF",
+    gap: 8,
+  },
+
+  placeListHeader: {
+    minHeight: 34,
+    paddingHorizontal: 2,
+    paddingBottom: 4,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  placeListTitle: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  placeListSubtitle: {
+    marginTop: 3,
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
   },
   placeButton: {
-    minHeight: 72,
-    borderRadius: 18,
+    minHeight: 64,
+    borderRadius: 15,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DCE5F2",
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   selectedPlaceButton: {
     backgroundColor: "#EFF6FF",
     borderColor: "#2563EB",
   },
+  placeIconCircle: {
+    width: 46,
+    height: 46,
+    borderRadius: 23,
+    backgroundColor: "#F1F6FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  placeCategoryIcon: {
+    width: 34,
+    height: 34,
+    resizeMode: "contain",
+  },
+
   placeTextBox: {
     flex: 1,
   },
   placeName: {
     color: "#1C2534",
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: "900",
   },
   placeMeta: {
@@ -809,7 +870,12 @@ const styles = StyleSheet.create({
   },
   placeActionText: {
     color: "#2563EB",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "900",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "#EFF6FF",
+    overflow: "hidden",
   },
 });
