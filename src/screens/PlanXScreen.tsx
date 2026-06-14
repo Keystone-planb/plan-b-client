@@ -360,35 +360,12 @@ export default function PlanXScreen({ navigation }: Props) {
                 key={`${trip.source}-${trip.id}`}
                 style={styles.tripCardWrapper}
               >
-                <PlanXTripCard trip={trip} onPress={handlePressTrip} />
-
-                <TouchableOpacity
-                  style={[
-                    styles.deleteIconButton,
-                    isDeleting && styles.deleteIconButtonDisabled,
-                  ]}
-                  activeOpacity={0.85}
-                  disabled={isDeleting}
-                  onPress={() => {
-                    console.log("[PlanX] 카드 안 휴지통 삭제 버튼 클릭:", {
-                      tripId: trip.tripId,
-                      title: trip.title,
-                    });
-
-                    handleDeleteTrip(trip);
-                  }}
-                >
-                  {isDeleting ?
-                    <ActivityIndicator size="small" color="#EF4444" />
-                  : <>
-                      <Ionicons
-                        name="trash-outline"
-                        size={18}
-                        color="#EF4444"
-                      />
-                    </>
-                  }
-                </TouchableOpacity>
+                <PlanXTripCard
+                  trip={trip}
+                  onPress={handlePressTrip}
+                  onDelete={handleDeleteTrip}
+                  deleting={isDeleting}
+                />
               </View>
             );
           })}
@@ -468,26 +445,6 @@ const styles = StyleSheet.create({
   tripCardWrapper: {
     position: "relative",
     marginBottom: 16,
-  },
-
-  deleteIconButton: {
-    position: "absolute",
-    right: 22,
-    bottom: 32,
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: "#FEF2F2",
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 999,
-    elevation: 999,
-  },
-
-  deleteIconButtonDisabled: {
-    opacity: 0.45,
   },
 
   loadingBox: {

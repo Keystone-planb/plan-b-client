@@ -72,13 +72,6 @@ export default function PlanXTripCard({
           <Ionicons name="close" size={18} color="#EF4444" />
         </TouchableOpacity>
       ) : null}
-
-      <Ionicons
-        name="chevron-forward"
-        size={22}
-        color="#B8C4D5"
-        style={styles.cardChevron}
-      />
     </TouchableOpacity>
   );
 }
@@ -150,14 +143,10 @@ const styles = StyleSheet.create({
 
   deleteButton: {
     position: "absolute",
-    right: 12,
-    top: 12,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#FECACA",
-    backgroundColor: "#FEF2F2",
+    right: 14,
+    top: 14,
+    width: 28,
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
     zIndex: 2,
@@ -165,11 +154,5 @@ const styles = StyleSheet.create({
 
   deleteButtonDisabled: {
     opacity: 0.55,
-  },
-
-  cardChevron: {
-    position: "absolute",
-    right: 16,
-    bottom: 18,
   },
 });
