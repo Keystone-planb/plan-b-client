@@ -1,13 +1,5 @@
-import React, { useState } from "react";
-import {
-  Alert,
-  Platform,
-  StyleSheet,
-  Text,
-  TextInput,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import React from "react";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { MemoItem, PlaceItem } from "../../types/planA";
@@ -30,349 +22,97 @@ type Props = {
   onSaveEditMemo: () => void;
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
+  onOpenMemoSheet: (placeId: string) => void;
 };
 
-export default function PlanAMemoList({
-  place,
-  memoDraft,
-  editingMemo,
-  editingMemoText,
-  onChangeMemoDraft,
-  onAddMemo,
-  onClearMemo,
-  onStartEditMemo,
-  onCancelEditMemo,
-  onSaveEditMemo,
-  onDeleteMemo,
-  onChangeEditingMemoText,
-}: Props) {
-  const hasMemoText = memoDraft.trim().length > 0;
-  const hasEditingText = editingMemoText.trim().length > 0;
-  const isAnyMemoEditing = Boolean(editingMemo);
-
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  const handleDeleteMemoPress = (memoId: string) => {
-    if (Platform.OS === "web") {
-      const confirmed =
-        typeof window !== "undefined" ?
-          window.confirm("이 메모를 삭제할까요?")
-        : true;
-
-      if (confirmed) {
-        onDeleteMemo(place.id, memoId);
-      }
-
-      return;
-    }
-
-    Alert.alert("메모 삭제", "이 메모를 삭제할까요?", [
-      {
-        text: "취소",
-        style: "cancel",
-      },
-      {
-        text: "삭제",
-        style: "destructive",
-        onPress: () => onDeleteMemo(place.id, memoId),
-      },
-    ]);
-  };
+export default function PlanAMemoList({ place, onOpenMemoSheet }: Props) {
+  const memoCount = place.memos?.length ?? 0;
+  const hasMemo = memoCount > 0;
 
   return (
     <View style={styles.memoList}>
-      {!isAnyMemoEditing ?
-        <TouchableOpacity
-          activeOpacity={0.85}
-          style={styles.memoSummaryRow}
-          onPress={() => setIsExpanded((prev) => !prev)}
-        >
-          <View style={styles.memoSummaryLeft}>
-            <Ionicons
-              name="document-text-outline"
-              size={14}
-              color="#94A3B8"
-            />
-
-            <Text style={styles.memoSummaryText}>
-              {place.memos.length > 0 ?
-                `메모 ${place.memos.length}개`
-              : "+ 메모 추가"}
-            </Text>
-          </View>
-
+      <View style={[styles.memoSummaryRow, hasMemo && styles.memoSummaryRowActive]}>
+        <View style={styles.memoSummaryLeft}>
           <Ionicons
-            name={isExpanded ? "chevron-up" : "chevron-forward"}
+            name={hasMemo ? "document-text" : "document-text-outline"}
             size={15}
-            color="#94A3B8"
-          />
-        </TouchableOpacity>
-      : null}
-
-
-      {isExpanded || isAnyMemoEditing ?
-        place.memos.map((item) => {
-        const isEditing =
-          editingMemo?.placeId === place.id && editingMemo.memoId === item.id;
-
-        if (isEditing) {
-          return (
-            <View key={item.id} style={styles.memoEditItem}>
-              <TextInput
-                value={editingMemoText}
-                onChangeText={onChangeEditingMemoText}
-                style={styles.memoEditInput}
-                placeholder="메모 내용을 수정하세요"
-                placeholderTextColor="#8C9BB1"
-                autoFocus
-              />
-
-              <TouchableOpacity
-                style={[
-                  styles.memoEditSaveButton,
-                  !hasEditingText && styles.memoButtonDisabled,
-                ]}
-                activeOpacity={0.85}
-                onPress={onSaveEditMemo}
-                disabled={!hasEditingText}
-              >
-                <Ionicons name="checkmark" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.memoEditCancelButton}
-                activeOpacity={0.85}
-                onPress={onCancelEditMemo}
-              >
-                <Ionicons name="close" size={16} color="#FFFFFF" />
-              </TouchableOpacity>
-            </View>
-          );
-        }
-
-        return (
-          <TouchableOpacity
-            key={item.id}
-            style={styles.memoItem}
-            activeOpacity={0.85}
-            onPress={() => onStartEditMemo(place.id, item)}
-          >
-            <Ionicons name="document-text-outline" size={14} color="#8C9BB1" />
-
-            <Text style={styles.memoItemText} numberOfLines={1}>
-              {item.text}
-            </Text>
-
-            <TouchableOpacity
-              style={styles.memoDeleteButton}
-              activeOpacity={0.8}
-              onPress={() => handleDeleteMemoPress(item.id)}
-            >
-              <Ionicons name="trash-outline" size={14} color="#64748B" />
-            </TouchableOpacity>
-          </TouchableOpacity>
-        );
-      })
-      : null}
-
-      {!isAnyMemoEditing && isExpanded ?
-        <View style={styles.memoInputRow}>
-          <TextInput
-            value={memoDraft}
-            onChangeText={(value) => onChangeMemoDraft(place.id, value)}
-            placeholder="메모를 남겨보세요"
-            placeholderTextColor="#8C9BB1"
-            style={styles.memoInput}
+            color={hasMemo ? "#2158E8" : "#94A3B8"}
           />
 
-          <TouchableOpacity
+          <Text
             style={[
-              styles.memoConfirmButton,
-              hasMemoText && styles.memoConfirmButtonActive,
-              !hasMemoText && styles.memoButtonDisabled,
+              styles.memoSummaryText,
+              hasMemo && styles.memoSummaryTextActive,
             ]}
-            activeOpacity={0.85}
-            onPress={() => onAddMemo(place.id)}
-            disabled={!hasMemoText}
+            numberOfLines={1}
           >
-            <Ionicons name="checkmark" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.memoCancelButton}
-            activeOpacity={0.85}
-            onPress={() => onClearMemo(place.id)}
-          >
-            <Ionicons name="close" size={18} color="#FFFFFF" />
-          </TouchableOpacity>
+            {hasMemo ? `메모가 ${memoCount}개 있어요` : "메모를 추가해볼까요?"}
+          </Text>
         </View>
-      : null}
+
+        <TouchableOpacity
+          style={styles.memoAddCircle}
+          activeOpacity={0.85}
+          onPress={() => onOpenMemoSheet(place.id)}
+        >
+          <Ionicons name="add" size={17} color="#2158E8" />
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   memoList: {
-    marginTop: 16,
-    gap: 12,
+    marginTop: 14,
   },
 
   memoSummaryRow: {
-    minHeight: 38,
-    borderRadius: 10,
+    minHeight: 42,
+    borderRadius: 999,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#DDE6F2",
     backgroundColor: "#F8FAFC",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
+    paddingLeft: 12,
+    paddingRight: 8,
+  },
+
+  memoSummaryRowActive: {
+    borderColor: "#D5E5FF",
+    backgroundColor: "#F8FBFF",
   },
 
   memoSummaryLeft: {
     flexDirection: "row",
     alignItems: "center",
+    minWidth: 0,
+    flex: 1,
   },
 
   memoSummaryText: {
-    marginLeft: 7,
+    flexShrink: 1,
+    marginLeft: 8,
     color: "#64748B",
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: "800",
   },
 
-  memoItem: {
-    minHeight: 40,
-    borderRadius: 10,
+  memoSummaryTextActive: {
+    color: "#2158E8",
+  },
+
+  memoAddCircle: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     borderWidth: 1,
-    borderColor: "#E1E7EF",
-    backgroundColor: "#F8FBFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 11,
-  },
-
-  memoItemText: {
-    flex: 1,
-    marginLeft: 7,
-    color: "#475569",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  memoDeleteButton: {
-    width: 30,
-    height: 30,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: 6,
-  },
-
-  memoEditItem: {
-    minHeight: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#9FC8FF",
+    borderColor: "#BFD7FF",
     backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 10,
-    gap: 8,
-  },
-
-  memoEditInput: {
-    flex: 1,
-    minHeight: 38,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    color: "#1C2534",
-    fontSize: 12,
-    fontWeight: "700",
-  },
-
-  memoEditSaveButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
+    marginLeft: 10,
   },
-
-  memoEditCancelButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: "#B8C4D4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  memoInputRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginTop: 4,
-  },
-
-  memoInput: {
-    flex: 1,
-    minHeight: 42,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#9FC8FF",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#1C2534",
-  },
-
-  memoConfirmButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 8,
-    backgroundColor: "#8DBEFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  memoConfirmButtonActive: {
-    backgroundColor: "#2158E8",
-  },
-
-  memoButtonDisabled: {
-    opacity: 0.45,
-  },
-
-  memoCancelButton: {
-    width: 34,
-    height: 34,
-    borderRadius: 6,
-    backgroundColor: "#B8C4D4",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyMemoBox: {
-    minHeight: 38,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#F8FAFC",
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 11,
-    paddingVertical: 9,
-  },
-
-  emptyMemoText: {
-    flex: 1,
-    marginLeft: 7,
-    color: "#94A3B8",
-    fontSize: 11,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-
 });

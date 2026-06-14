@@ -100,14 +100,16 @@ function CustomBottomTabBar({
               onLongPress={handleLongPress}
               style={styles.tabButton}
             >
-              <Image
-                source={iconSource}
-                style={[
-                  styles.tabIcon,
-                  focused ? styles.tabIconActive : styles.tabIconInactive,
-                ]}
-                resizeMode="contain"
-              />
+              <View style={[styles.tabIconCircle, focused && styles.tabIconCircleActive]}>
+                <Image
+                  source={iconSource}
+                  style={[
+                    styles.tabIcon,
+                    focused ? styles.tabIconActive : styles.tabIconInactive,
+                  ]}
+                  resizeMode="contain"
+                />
+              </View>
             </TouchableOpacity>
           );
         })}
@@ -183,6 +185,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
+  tabIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  tabIconCircleActive: {
+    backgroundColor: "#EFF6FF",
+  },
+
   tabIcon: {
     width: 24,
     height: 24,
@@ -190,9 +204,11 @@ const styles = StyleSheet.create({
 
   tabIconActive: {
     opacity: 1,
+    tintColor: "#2158E8",
   },
 
   tabIconInactive: {
-    opacity: 0.9,
+    opacity: 0.35,
+    tintColor: "#94A3B8",
   },
 });

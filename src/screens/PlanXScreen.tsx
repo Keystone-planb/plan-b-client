@@ -418,7 +418,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#FFFFFF",
     borderBottomWidth: 1,
     borderBottomColor: "#E1E7EF",
-    paddingTop: 18,
+    paddingTop: 44,
     paddingHorizontal: 24,
     paddingBottom: 20,
     marginBottom: 30,
@@ -448,10 +448,10 @@ const styles = StyleSheet.create({
   },
 
   logoText: {
-    color: "#1C2534",
-    fontSize: 40,
+    color: "#012055",
+    fontSize: 42,
     fontWeight: "900",
-    letterSpacing: -1,
+    letterSpacing: -1.4,
   },
 
   description: {

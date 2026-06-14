@@ -30,63 +30,62 @@ export default function PlanXTripCard({
   deleting = false,
 }: Props) {
   return (
-    <View style={styles.card}>
+    <TouchableOpacity
+      style={styles.card}
+      activeOpacity={0.86}
+      onPress={() => onPress?.(trip)}
+    >
       <View style={styles.thumbnail}>
         <Text style={styles.thumbnailEmoji}>{trip.emoji ?? "🏝️"}</Text>
       </View>
 
       <View style={styles.content}>
-        <View style={styles.topRow}>
-          <View style={styles.textBox}>
-            <Text style={styles.title} numberOfLines={1}>
-              {trip.title}
-            </Text>
+        <Text style={styles.title} numberOfLines={1}>
+          {trip.title}
+        </Text>
 
-            <View style={styles.infoRow}>
-              <Ionicons name="calendar-outline" size={17} color="#627187" />
-              <Text style={styles.infoText}>
-                {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
-              </Text>
-            </View>
-
-            <View style={styles.infoRow}>
-              <Ionicons name="location-outline" size={17} color="#627187" />
-              <Text style={styles.infoText} numberOfLines={1}>
-                {trip.location} · {trip.placeCount}개 장소
-              </Text>
-            </View>
-          </View>
-
-          {onDelete ?
-            <TouchableOpacity
-              style={[
-                styles.deleteButton,
-                deleting && styles.deleteButtonDisabled,
-              ]}
-              activeOpacity={0.85}
-              disabled={deleting}
-              onPress={() => onDelete(trip)}
-            >
-              <Ionicons name="trash-outline" size={16} color="#EF4444" />
-            </TouchableOpacity>
-          : null}
+        <View style={styles.infoRow}>
+          <Ionicons name="calendar-outline" size={17} color="#627187" />
+          <Text style={styles.infoText}>
+            {formatDate(trip.startDate)} - {formatDate(trip.endDate)}
+          </Text>
         </View>
 
-        <TouchableOpacity
-          style={styles.detailButton}
-          activeOpacity={0.85}
-          onPress={() => onPress?.(trip)}
-        >
-          <Text style={styles.detailButtonText}>상세 보기</Text>
-          <Ionicons name="chevron-forward" size={14} color="#2158E8" />
-        </TouchableOpacity>
+        <View style={styles.infoRow}>
+          <Ionicons name="location-outline" size={17} color="#627187" />
+          <Text style={styles.infoText} numberOfLines={1}>
+            {trip.location} · {trip.placeCount}개 장소
+          </Text>
+        </View>
       </View>
-    </View>
+
+      {onDelete ? (
+        <TouchableOpacity
+          style={[styles.deleteButton, deleting && styles.deleteButtonDisabled]}
+          activeOpacity={0.85}
+          disabled={deleting}
+          onPress={(event) => {
+            event.stopPropagation();
+            onDelete(trip);
+          }}
+        >
+          <Ionicons name="close" size={18} color="#EF4444" />
+        </TouchableOpacity>
+      ) : null}
+
+      <Ionicons
+        name="chevron-forward"
+        size={22}
+        color="#B8C4D5"
+        style={styles.cardChevron}
+      />
+    </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
+    minHeight: 142,
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#FFFFFF",
@@ -94,6 +93,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
+    paddingRight: 46,
     marginBottom: 16,
     shadowColor: "#000000",
     shadowOpacity: 0.06,
@@ -103,6 +103,7 @@ const styles = StyleSheet.create({
     },
     shadowRadius: 8,
     elevation: 2,
+    position: "relative",
   },
 
   thumbnail: {
@@ -123,17 +124,7 @@ const styles = StyleSheet.create({
 
   content: {
     flex: 1,
-  },
-
-  topRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-
-  textBox: {
-    flex: 1,
-    paddingRight: 10,
+    minWidth: 0,
   },
 
   title: {
@@ -150,6 +141,7 @@ const styles = StyleSheet.create({
   },
 
   infoText: {
+    flex: 1,
     marginLeft: 5,
     color: "#627187",
     fontSize: 12,
@@ -157,35 +149,27 @@ const styles = StyleSheet.create({
   },
 
   deleteButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    position: "absolute",
+    right: 12,
+    top: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     borderWidth: 1,
     borderColor: "#FECACA",
     backgroundColor: "#FEF2F2",
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 2,
   },
 
   deleteButtonDisabled: {
     opacity: 0.55,
   },
 
-  detailButton: {
-    alignSelf: "flex-start",
-    marginTop: 12,
-    minHeight: 32,
-    paddingHorizontal: 12,
-    borderRadius: 999,
-    backgroundColor: "#EFF6FF",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-
-  detailButtonText: {
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
+  cardChevron: {
+    position: "absolute",
+    right: 16,
+    bottom: 18,
   },
 });

@@ -121,12 +121,12 @@ export default function PlanAHeaderSection({
 const styles = StyleSheet.create({
   headerSection: {
     backgroundColor: "#F8FBFF",
-    paddingTop: 26,
+    paddingTop: 20,
     paddingHorizontal: 20,
     paddingBottom: 12,
   },
   topHeaderRow: {
-    minHeight: 86,
+    minHeight: 70,
     flexDirection: "row",
     alignItems: "flex-start",
   },
@@ -193,6 +193,6 @@ const styles = StyleSheet.create({
     width: "100%",
     alignItems: "flex-start",
     justifyContent: "center",
-    marginTop: 18,
+    marginTop: 6,
   },
 });

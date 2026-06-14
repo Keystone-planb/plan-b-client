@@ -230,16 +230,16 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     paddingHorizontal: 21,
-    paddingTop: 30,
+    paddingTop: 44,
     paddingBottom: 120,
   },
 
   logo: {
-    color: "#202938",
-    fontSize: 40,
+    color: "#012055",
+    fontSize: 42,
     fontWeight: "900",
     textAlign: "center",
-    letterSpacing: -1.1,
+    letterSpacing: -1.4,
     marginBottom: 35,
   },
 

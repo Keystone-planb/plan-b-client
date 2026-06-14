@@ -36,6 +36,7 @@ type Props = {
   onSaveEditMemo: () => void;
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
+  onOpenMemoSheet: (placeId: string) => void;
 };
 
 const makeDisplayTime = (place: PlaceItem) => {
@@ -70,6 +71,7 @@ export default function PlanAPlaceCard({
   onSaveEditMemo,
   onDeleteMemo,
   onChangeEditingMemoText,
+  onOpenMemoSheet,
 }: Props) {
 
   return (
@@ -101,7 +103,7 @@ export default function PlanAPlaceCard({
               );
             }}
           >
-            <Ionicons name="close" size={15} color="#EF4444" />
+            <Ionicons name="trash-outline" size={15} color="#EF4444" />
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -130,6 +132,7 @@ export default function PlanAPlaceCard({
         onSaveEditMemo={onSaveEditMemo}
         onDeleteMemo={onDeleteMemo}
         onChangeEditingMemoText={onChangeEditingMemoText}
+        onOpenMemoSheet={onOpenMemoSheet}
       />
     </View>
   );

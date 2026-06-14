@@ -1,10 +1,13 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
+  Modal,
   Platform,
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -306,6 +309,54 @@ export default function PlanAScreen({ navigation, route }: Props) {
   );
 
   const [resolvedMapPlaces, setResolvedMapPlaces] = useState(currentPlaces);
+
+  const [memoSheetPlaceId, setMemoSheetPlaceId] = useState<string | null>(null);
+  const [memoEditorPlaceId, setMemoEditorPlaceId] = useState<string | null>(null);
+
+  const handleOpenMemoSheet = (placeId: string) => {
+    handleChangeMemoDraft(placeId, "");
+    setMemoEditorPlaceId(placeId);
+    setMemoSheetPlaceId(null);
+  };
+
+  const handleCloseMemoSheet = () => {
+    setMemoSheetPlaceId(null);
+    setMemoEditorPlaceId(null);
+    handleCancelEditMemo();
+  };
+
+  const handleOpenMemoEditor = (placeId: string) => {
+    setMemoEditorPlaceId(placeId);
+  };
+
+  const handleCloseMemoEditor = () => {
+    setMemoEditorPlaceId(null);
+    handleCancelEditMemo();
+  };
+
+  const handleSaveMemoFromSheet = async () => {
+    if (!memoEditorPlaceId) return;
+
+    if (editingMemo) {
+      await handleSaveEditMemo();
+    } else {
+      await handleAddMemo(memoEditorPlaceId);
+    }
+
+    setMemoEditorPlaceId(null);
+  };
+
+  const handleDeleteMemoFromSheet = (placeId: string, memoId: string) => {
+    Alert.alert("메모 삭제", "삭제한 메모는 복구할 수 없어요.", [
+      { text: "취소", style: "cancel" },
+      {
+        text: "삭제",
+        style: "destructive",
+        onPress: () => handleDeleteMemo(placeId, memoId),
+      },
+    ]);
+  };
+
 
   useEffect(() => {
     console.log("[QA transport] screen=PlanA loaded schedule", {
@@ -994,6 +1045,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onSaveEditMemo={handleSaveEditMemo}
         onDeleteMemo={handleDeleteMemo}
         onChangeEditingMemoText={setEditingMemoText}
+        onOpenMemoSheet={handleOpenMemoSheet}
       />
     );
   };
@@ -1033,6 +1085,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onSaveEditMemo={handleSaveEditMemo}
         onDeleteMemo={handleDeleteMemo}
         onChangeEditingMemoText={setEditingMemoText}
+        onOpenMemoSheet={handleOpenMemoSheet}
         onOpenTransportPicker={handleOpenEditTransportModal}
         onSelectTransportMode={handleSelectEditTransportMode}
         onConfirmTransportMode={handleConfirmEditTransportMode}
@@ -1043,6 +1096,22 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const timePickerPreviewText = `${padTimeUnit(
     timePickerHour,
   )}:${padTimeUnit(timePickerMinute)}`;
+
+  const memoSheetPlace =
+    memoSheetPlaceId ?
+      currentPlaces.find((place) => place.id === memoSheetPlaceId)
+    : undefined;
+
+  const memoEditorPlace =
+    memoEditorPlaceId ?
+      currentPlaces.find((place) => place.id === memoEditorPlaceId) ??
+      memoSheetPlace
+    : undefined;
+
+  const memoEditorText =
+    editingMemo ? editingMemoText : memoEditorPlaceId ? memoDrafts[memoEditorPlaceId] ?? "" : "";
+
+  const canSaveMemoEditor = memoEditorText.trim().length > 0;
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -1173,6 +1242,178 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
       </View>
 
+
+      <Modal
+        visible={Boolean(memoSheetPlace)}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseMemoSheet}
+      >
+        <View style={styles.memoModalOverlay}>
+          <TouchableOpacity
+            style={styles.memoModalBackdrop}
+            activeOpacity={1}
+            onPress={handleCloseMemoSheet}
+          />
+
+          <View style={styles.memoSheet}>
+            <View style={styles.memoSheetHandle} />
+
+            <View style={styles.memoSheetHeader}>
+              <Text style={styles.memoSheetTitle}>메모</Text>
+
+              <TouchableOpacity
+                style={styles.memoSheetCloseButton}
+                activeOpacity={0.85}
+                onPress={handleCloseMemoSheet}
+              >
+                <Ionicons name="close" size={20} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            {memoSheetPlace ? (
+              <View style={styles.memoSheetBody}>
+                {memoSheetPlace.memos.length > 0 ? (
+                  memoSheetPlace.memos.map((memo) => (
+                    <View key={memo.id} style={styles.memoSheetItem}>
+                      <View style={styles.memoDot} />
+
+                      <Text style={styles.memoSheetItemText}>{memo.text}</Text>
+
+                      <TouchableOpacity
+                        style={styles.memoIconButton}
+                        activeOpacity={0.85}
+                        onPress={() => {
+                          handleStartEditMemo(memoSheetPlace.id, memo);
+                          setMemoEditorPlaceId(memoSheetPlace.id);
+                          setMemoSheetPlaceId(null);
+                        }}
+                      >
+                        <Ionicons name="pencil-outline" size={16} color="#111827" />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        style={styles.memoIconButton}
+                        activeOpacity={0.85}
+                        onPress={() =>
+                          handleDeleteMemoFromSheet(memoSheetPlace.id, memo.id)
+                        }
+                      >
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.memoEmptyBox}>
+                    <Ionicons name="document-text-outline" size={28} color="#94A3B8" />
+                    <Text style={styles.memoEmptyTitle}>아직 메모가 없어요</Text>
+                    <Text style={styles.memoEmptyText}>
+                      여행 중 챙길 내용을 메모해보세요.
+                    </Text>
+                  </View>
+                )}
+
+                <TouchableOpacity
+                  style={styles.memoAddSheetButton}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    console.log("[PlanA memo] open editor", memoSheetPlace.id);
+                    handleChangeMemoDraft(memoSheetPlace.id, "");
+                    setMemoEditorPlaceId(memoSheetPlace.id);
+                    setMemoSheetPlaceId(null);
+                  }}
+                >
+                  <Ionicons name="add" size={18} color="#2158E8" />
+                  <Text style={styles.memoAddSheetButtonText}>새 메모 추가</Text>
+                </TouchableOpacity>
+              </View>
+            ) : null}
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={Boolean(memoEditorPlaceId)}
+        transparent
+        animationType="slide"
+        onRequestClose={handleCloseMemoEditor}
+      >
+        <KeyboardAvoidingView
+          style={styles.memoEditorModalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <TouchableOpacity
+            style={styles.memoModalBackdrop}
+            activeOpacity={1}
+            onPress={handleCloseMemoEditor}
+          />
+
+          <View style={styles.memoEditorSheet}>
+            <View style={styles.memoSheetHandle} />
+
+            <View style={styles.memoSheetHeader}>
+              <Text style={styles.memoSheetTitle}>
+                {editingMemo ? "메모 수정" : "새 메모 작성"}
+              </Text>
+
+              <TouchableOpacity
+                style={styles.memoSheetCloseButton}
+                activeOpacity={0.85}
+                onPress={handleCloseMemoEditor}
+              >
+                <Ionicons name="close" size={20} color="#111827" />
+              </TouchableOpacity>
+            </View>
+
+            {memoEditorPlaceId ? (
+              <View style={styles.memoSheetBody}>
+                <TextInput
+                  value={memoEditorText}
+                  onChangeText={(value) =>
+                    editingMemo ?
+                      setEditingMemoText(value)
+                    : memoEditorPlaceId &&
+                      handleChangeMemoDraft(memoEditorPlaceId, value)
+                  }
+                  placeholder="메모를 입력하세요"
+                  placeholderTextColor="#94A3B8"
+                  style={styles.memoEditorInput}
+                  multiline
+                  autoFocus
+                  maxLength={200}
+                />
+
+                <Text style={styles.memoEditorCount}>
+                  {memoEditorText.length}/200
+                </Text>
+
+                <View style={styles.memoEditorActionRow}>
+                  <TouchableOpacity
+                    style={styles.memoEditorCancelButton}
+                    activeOpacity={0.85}
+                    onPress={handleCloseMemoEditor}
+                  >
+                    <Text style={styles.memoEditorCancelText}>취소</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[
+                      styles.memoEditorSaveButton,
+                      !canSaveMemoEditor && styles.memoEditorSaveButtonDisabled,
+                    ]}
+                    activeOpacity={0.85}
+                    disabled={!canSaveMemoEditor}
+                    onPress={handleSaveMemoFromSheet}
+                  >
+                    <Text style={styles.memoEditorSaveText}>저장</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : null}
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
       <PlanATimePickerModal
         visible={Boolean(timePickerPlace)}
         place={timePickerPlace}
@@ -1240,6 +1481,224 @@ const styles = StyleSheet.create({
   },
 
   primarySaveButtonText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+
+  memoModalOverlay: {
+    flex: 1,
+    justifyContent: "flex-end",
+  },
+  memoEditorModalOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+  },
+  memoModalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(15, 23, 42, 0.42)",
+  },
+  memoSheet: {
+    maxHeight: "72%",
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 28,
+  },
+  memoEditorSheet: {
+    width: "100%",
+    borderRadius: 24,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingTop: 12,
+    paddingBottom: 18,
+    shadowColor: "#0F172A",
+    shadowOpacity: 0.16,
+    shadowRadius: 22,
+    shadowOffset: { width: 0, height: 12 },
+    elevation: 12,
+  },
+  memoSheetHandle: {
+    alignSelf: "center",
+    width: 44,
+    height: 5,
+    borderRadius: 999,
+    backgroundColor: "#CBD5E1",
+    marginBottom: 12,
+  },
+  memoSheetHeader: {
+    minHeight: 38,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    marginBottom: 12,
+  },
+  memoSheetTitle: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  memoSheetCloseButton: {
+    position: "absolute",
+    right: 0,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#F8FAFC",
+  },
+  memoSheetBody: {
+    gap: 10,
+  },
+  memoEditorPlaceBox: {
+    borderRadius: 14,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginBottom: 12,
+  },
+  memoEditorPlaceName: {
+    color: "#111827",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  memoEditorPlaceTime: {
+    marginTop: 5,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  memoSheetItem: {
+    minHeight: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+  },
+  memoDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2158E8",
+    marginRight: 10,
+  },
+  memoSheetItemText: {
+    flex: 1,
+    color: "#1E293B",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 20,
+  },
+  memoIconButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    marginLeft: 4,
+  },
+  memoAddSheetButton: {
+    minHeight: 46,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#BFD7FF",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    marginTop: 4,
+  },
+  memoAddSheetButtonText: {
+    color: "#2158E8",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  memoEmptyBox: {
+    minHeight: 150,
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 16,
+  },
+  memoEmptyTitle: {
+    marginTop: 10,
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  memoEmptyText: {
+    marginTop: 5,
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  memoEditorInput: {
+    minHeight: 118,
+    maxHeight: 180,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#9FC8FF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    color: "#1E293B",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlignVertical: "top",
+  },
+  memoEditorCount: {
+    alignSelf: "flex-end",
+    marginTop: -30,
+    marginRight: 12,
+    marginBottom: 14,
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  memoEditorActionRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  memoEditorCancelButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  memoEditorCancelText: {
+    color: "#334155",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+  memoEditorSaveButton: {
+    flex: 1,
+    minHeight: 48,
+    borderRadius: 12,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  memoEditorSaveButtonDisabled: {
+    opacity: 0.45,
+  },
+  memoEditorSaveText: {
     color: "#FFFFFF",
     fontSize: 14,
     fontWeight: "900",

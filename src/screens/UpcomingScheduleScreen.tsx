@@ -1180,7 +1180,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
                   <>
                     <View style={styles.timelineList}>
                       {!hasPlaces ?
-                        <OngoingEmptyDayCard styles={styles} />
+                        <OngoingEmptyDayCard />
                       : null}
 
             {places.map((place, index) => {
