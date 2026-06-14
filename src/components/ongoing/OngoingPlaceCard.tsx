@@ -126,16 +126,16 @@ const localStyles = StyleSheet.create({
   },
 
   categoryIconBox: {
-    width: 54,
-    height: 54,
+    width: 66,
+    height: 66,
     alignItems: "center",
     justifyContent: "center",
     marginRight: 18,
   },
 
   categoryIcon: {
-    width: 54,
-    height: 54,
+    width: 66,
+    height: 66,
   },
 
   contentArea: {
@@ -147,10 +147,10 @@ const localStyles = StyleSheet.create({
 
   placeName: {
     color: "#252D3C",
-    fontSize: 17,
-    fontWeight: "800",
-    lineHeight: 21,
-    marginBottom: 3,
+    fontSize: 20,
+    fontWeight: "900",
+    lineHeight: 24,
+    marginBottom: 4,
   },
 
   timeRow: {
@@ -162,9 +162,9 @@ const localStyles = StyleSheet.create({
 
   timeText: {
     color: "#627187",
-    fontSize: 14,
-    fontWeight: "600",
-    lineHeight: 18,
+    fontSize: 16,
+    fontWeight: "700",
+    lineHeight: 20,
   },
 
   alternativeButton: {

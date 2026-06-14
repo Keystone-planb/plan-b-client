@@ -1136,18 +1136,10 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
           >
             <TouchableOpacity
               activeOpacity={0.85}
-              style={localStyles.sheetToggleButton}
+              style={localStyles.sheetHandleButton}
               onPress={() => setIsSheetCollapsed((prev) => !prev)}
             >
-              <Text style={localStyles.sheetToggleText}>
-                {isSheetCollapsed ? "일정 펼치기" : "일정 접기"}
-              </Text>
-
-              <Ionicons
-                name={isSheetCollapsed ? "chevron-up" : "chevron-down"}
-                size={18}
-                color="#94A3B8"
-              />
+              <View style={localStyles.sheetHandle} />
             </TouchableOpacity>
 
             <View style={styles.todayHeader}>
@@ -1165,7 +1157,17 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               </View>
 
               {canEditSchedule ?
-                <TouchableOpacity disabled={isSavingEdit} onPress={handleEdit}>
+                <TouchableOpacity
+                  style={localStyles.editPillButton}
+                  activeOpacity={0.85}
+                  disabled={isSavingEdit}
+                  onPress={handleEdit}
+                >
+                  <Ionicons
+                    name="create-outline"
+                    size={15}
+                    color={isSavingEdit ? "#94A3B8" : "#2158E8"}
+                  />
                   <Text
                     style={[
                       styles.editText,
@@ -1194,9 +1196,24 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
               styles={styles}
             />
 
-            {!hasPlaces ?
-              <OngoingEmptyDayCard styles={styles} />
-            : null}
+            {!hasPlaces ? (
+              <>
+                <OngoingEmptyDayCard selectedDay={selectedDayNumber} />
+
+                <TouchableOpacity
+                  style={localStyles.emptyAddPlaceButton}
+                  activeOpacity={0.85}
+                  onPress={handleAddPlace}
+                  disabled={!canEditSchedule || isSavingEdit}
+                >
+                  <Ionicons name="add-circle" size={20} color="#FFFFFF" />
+
+                  <Text style={localStyles.emptyAddPlaceButtonText}>
+                    장소 추가
+                  </Text>
+                </TouchableOpacity>
+              </>
+            ) : null}
 
             {places.map((place, index) => {
               const focused = isSelectedDayToday && isPlaceOngoingNow(place);
@@ -1283,6 +1300,43 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 }
 
 const localStyles = StyleSheet.create({
+  emptyAddPlaceButton: {
+    marginTop: 16,
+    width: "100%",
+    minHeight: 58,
+    borderRadius: 16,
+    backgroundColor: "#2158E8",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    shadowColor: "#2158E8",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.22,
+    shadowRadius: 14,
+    elevation: 6,
+  },
+
+  emptyAddPlaceButtonText: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+
+  editPillButton: {
+    minHeight: 40,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: "#EEF4FF",
+    borderWidth: 1,
+    borderColor: "#D7E5FF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+
   selectedDayHeaderBlock: {
     flex: 1,
     paddingRight: 12,
@@ -1348,25 +1402,19 @@ const localStyles = StyleSheet.create({
     transform: [{ translateY: 390 }],
   },
 
-  sheetToggleButton: {
-    width: 180,
-    alignSelf: "center",
-    height: 32,
-    borderRadius: 999,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    flexDirection: "row",
+  sheetHandleButton: {
+    width: "100%",
+    height: 28,
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
-    marginBottom: 2,
+    marginBottom: 8,
   },
 
-  sheetToggleText: {
-    fontSize: 12,
-    fontWeight: "800",
-    color: "#64748B",
+  sheetHandle: {
+    width: 72,
+    height: 6,
+    borderRadius: 999,
+    backgroundColor: "#D8DEE9",
   },
 
   sheetScroll: {
