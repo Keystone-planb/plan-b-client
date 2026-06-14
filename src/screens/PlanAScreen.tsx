@@ -1083,8 +1083,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
           <PlanAMapPreview
             places={sortPlacesByTime(resolvedMapPlaces)}
             height={
-              isSheetCollapsed ? 520
-              : resolvedMapPlaces.length > 0 ? 220
+              resolvedMapPlaces.length > 0 ?
+                isSheetCollapsed ? 420 : 220
               : 150
             }
             mapInteractive={isSheetCollapsed}
@@ -1147,18 +1147,10 @@ export default function PlanAScreen({ navigation, route }: Props) {
                 )}
                 </View>
               </>
-            : <View style={styles.emptyScheduleRow}>
-                <View style={styles.timelineColumn}>
-                  <View style={styles.timelineCircle} />
-                </View>
-
-                <View style={styles.emptyScheduleContent}>
-                  <PlanAEmptyPlaceCard
-                    selectedDay={selectedDay}
-                    onPress={handleAddPlace}
-                  />
-                </View>
-              </View>
+            : <PlanAEmptyPlaceCard
+                selectedDay={selectedDay}
+                onPress={handleAddPlace}
+              />
             }
 
             {isEditMode ?
@@ -1300,14 +1292,21 @@ const styles = StyleSheet.create({
 
 
   sheet: {
-    minHeight: 430,
-    marginTop: -1,
+    minHeight: 320,
+    marginTop: -10,
     backgroundColor: "#FFFFFF",
-    borderTopLeftRadius: 22,
-    borderTopRightRadius: 22,
-    paddingTop: 6,
+    borderTopLeftRadius: 26,
+    borderTopRightRadius: 26,
+    paddingTop: 8,
     paddingHorizontal: 20,
     paddingBottom: 36,
+    borderWidth: 1,
+    borderColor: "#E8EEF7",
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: -8 },
+    shadowOpacity: 0.06,
+    shadowRadius: 18,
+    elevation: 8,
   },
   sheetHandleWrapper: {
     alignSelf: "center",
@@ -1323,15 +1322,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  emptyScheduleRow: {
-    width: "100%",
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-  emptyScheduleContent: { flex: 1 },
   addPlaceButton: {
-    marginTop: 10,
-    marginLeft: 43,
+    marginTop: 14,
+    marginLeft: 0,
     minHeight: 48,
     borderRadius: 14,
     backgroundColor: "#ECF5FF",
