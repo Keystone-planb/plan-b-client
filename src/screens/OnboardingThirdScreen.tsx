@@ -54,7 +54,6 @@ function ResultBackground() {
       <View style={styles.header}>
         <Text style={styles.backIcon}>‹</Text>
         <Text style={styles.logo}>Plan.B</Text>
-        <Text style={styles.headerSkip}>건너뛰기</Text>
       </View>
 
       <Text style={styles.pageTitle}>AI 대안 추천</Text>
@@ -159,14 +158,6 @@ const styles = StyleSheet.create({
     fontSize: 27,
     fontWeight: "900",
     color: "#111827",
-  },
-  headerSkip: {
-    position: "absolute",
-    right: 0,
-    top: 9,
-    fontSize: 15,
-    fontWeight: "900",
-    color: TEXT,
   },
   pageTitle: {
     marginTop: 24,
