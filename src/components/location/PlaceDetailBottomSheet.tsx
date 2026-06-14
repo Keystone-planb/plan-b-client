@@ -70,6 +70,81 @@ const ReviewPlatformLogo = ({ logoType }: { logoType?: string }) => {
   return null;
 };
 
+const getDetailPlaceIcon = (place: any, tags: string[]) => {
+  const sources = [
+    place?.type,
+    place?.placeType,
+    place?.category,
+    ...tags,
+  ]
+    .filter(Boolean)
+    .map((value) => String(value).toUpperCase());
+
+  if (sources.some((value) => value.includes("CAFE") || value.includes("카페"))) {
+    return "☕";
+  }
+
+  if (
+    sources.some(
+      (value) =>
+        value.includes("FOOD") ||
+        value.includes("RESTAURANT") ||
+        value.includes("음식") ||
+        value.includes("맛집"),
+    )
+  ) {
+    return "🍽️";
+  }
+
+  if (
+    sources.some(
+      (value) =>
+        value.includes("CULTURE") ||
+        value.includes("문화") ||
+        value.includes("MUSEUM") ||
+        value.includes("전시"),
+    )
+  ) {
+    return "🎭";
+  }
+
+  if (
+    sources.some(
+      (value) =>
+        value.includes("SHOP") ||
+        value.includes("STORE") ||
+        value.includes("쇼핑"),
+    )
+  ) {
+    return "🛍️";
+  }
+
+  if (
+    sources.some(
+      (value) =>
+        value.includes("NATURE") ||
+        value.includes("PARK") ||
+        value.includes("공원") ||
+        value.includes("자연"),
+    )
+  ) {
+    return "🌳";
+  }
+
+  if (
+    sources.some(
+      (value) =>
+        value.includes("HOTEL") ||
+        value.includes("ACCOMMODATION") ||
+        value.includes("숙소"),
+    )
+  ) {
+    return "🏨";
+  }
+
+  return "📍";
+};
+
 export default function PlaceDetailBottomSheet({
   visible,
   place,
@@ -93,6 +168,9 @@ export default function PlaceDetailBottomSheet({
     reanalyzeSuccessMessage?.includes("표시 가능한 리뷰를 찾지 못했습니다") ||
     reanalyzeSuccessMessage?.includes("표시할 리뷰가 아직 없습니다.");
 
+  const showRetryButton = isNoReviewNotice && !reanalyzeDisabled;
+  const detailPlaceIcon = getDetailPlaceIcon(place, tags);
+
   return (
     <Modal
       visible={visible}
@@ -108,7 +186,7 @@ export default function PlaceDetailBottomSheet({
           >
             <View style={styles.detailHeaderRow}>
               <View style={styles.detailIconCircle}>
-                <Text style={styles.detailIconEmoji}>🎡</Text>
+                <Text style={styles.detailIconEmoji}>{detailPlaceIcon}</Text>
               </View>
 
               <View style={styles.detailTitleArea}>
@@ -118,25 +196,15 @@ export default function PlaceDetailBottomSheet({
 
                 <Text style={styles.detailAddress}>{address}</Text>
 
-                <View style={styles.detailMetaRow}>
-                  <Ionicons name="star" size={14} color="#FFD600" />
+                {typeof rating === "number" ? (
+                  <View style={styles.detailMetaRow}>
+                    <Ionicons name="star" size={14} color="#FFD600" />
 
-                  <Text style={styles.detailMetaText}>
-                    {typeof rating === "number" ?
-                      rating.toFixed(1)
-                    : "평점 정보 없음"}
-                  </Text>
-
-                  <Text style={styles.detailMetaDot}>·</Text>
-
-                  <Ionicons name="time-outline" size={15} color="#8DC7FF" />
-
-                  <Text style={styles.detailMetaText}>
-                    {formattedOpeningHours ?
-                      "영업시간 보기"
-                    : "운영 시간 정보 없음"}
-                  </Text>
-                </View>
+                    <Text style={styles.detailMetaText}>
+                      {rating.toFixed(1)}
+                    </Text>
+                  </View>
+                ) : null}
 
                 {tags.length > 0 ?
                   <View style={styles.detailTagRow}>
@@ -201,68 +269,46 @@ export default function PlaceDetailBottomSheet({
                   </View>
                 : null}
 
-                <TouchableOpacity
-                  style={styles.reanalyzeButton}
-                  activeOpacity={0.8}
-                  disabled={reanalyzeDisabled}
-                  onPress={onReanalyze}
-                >
-                  {reanalyzeDisabled ? (
-                    <ActivityIndicator size="small" color="#2158E8" />
-                  ) : (
-                    <Ionicons name="refresh-outline" size={16} color="#2158E8" />
-                  )}
-                  <Text style={styles.reanalyzeButtonText}>
-                    {reanalyzeDisabled ?
-                      reanalyzeLoadingMessage || "분석 중..."
-                    : "재분석 요청"}
-                  </Text>
-                </TouchableOpacity>
-
-                {reanalyzeSuccessMessage ? (
-                  <View
-                    style={[
-                      styles.reanalyzeSuccessBox,
-                      isNoReviewNotice && styles.reanalyzeWarningBox,
-                    ]}
-                  >
+                {isNoReviewNotice ? (
+                  <View style={styles.reviewEmptyCard}>
                     <Ionicons
-                      name={isNoReviewNotice ? "alert-circle" : "checkmark-circle"}
-                      size={15}
-                      color={isNoReviewNotice ? "#DC2626" : "#2563EB"}
+                      name="alert-circle-outline"
+                      size={26}
+                      color="#64748B"
                     />
-                    <Text
-                      style={[
-                        styles.reanalyzeSuccessText,
-                        isNoReviewNotice && styles.reanalyzeWarningText,
-                      ]}
-                    >
-                      {reanalyzeSuccessMessage}
+
+                    <Text style={styles.reviewEmptyTitle}>
+                      아직 리뷰 분석이 준비되지 않았어요
                     </Text>
+
+                    <Text style={styles.reviewEmptyDescription}>
+                      잠시 후 다시 확인해 주세요.
+                    </Text>
+
+                    {showRetryButton ? (
+                      <TouchableOpacity
+                        style={styles.retryButton}
+                        activeOpacity={0.85}
+                        onPress={onReanalyze}
+                      >
+                        <Text style={styles.retryButtonText}>
+                          재분석 요청
+                        </Text>
+                      </TouchableOpacity>
+                    ) : null}
                   </View>
                 ) : null}
 
                 {aiSummary ?
                   <View style={styles.aiSummaryCard}>
-                    <Text style={styles.aiSummaryText}>📊 {aiSummary}</Text>
+                    <Text style={styles.aiSummaryText}>✨ AI 요약{"\n"}{aiSummary}</Text>
 
-                    <View style={styles.aiCircleBadge}>
-                      <Text style={styles.aiCircleText}>AI</Text>
-                    </View>
+
                   </View>
                 : null}
 
                 {reviews.length > 0 ?
                   <View style={styles.reviewSection}>
-                    <View style={styles.reviewSectionHeader}>
-                      <Text style={styles.reviewSectionTitle}>
-                        플랫폼별 리뷰
-                      </Text>
-                      <Text style={styles.reviewSectionSubtitle}>
-                        Google · Naver
-                      </Text>
-                    </View>
-
                     <View style={styles.reviewList}>
                       {reviews.map((review) => (
                         <View key={review.id} style={styles.reviewCard}>
@@ -271,11 +317,9 @@ export default function PlaceDetailBottomSheet({
                           </View>
 
                           <View style={styles.platformTextBox}>
-                            <View style={styles.reviewMetaRow}>
-                              <Text style={styles.reviewRatingText}>
-                                {review.platform}
-                              </Text>
-                            </View>
+                            <Text style={styles.reviewRatingText}>
+                              {review.platform}
+                            </Text>
 
                             <Text style={styles.platformText}>
                               {truncateText(review.text)}
@@ -286,6 +330,7 @@ export default function PlaceDetailBottomSheet({
                     </View>
                   </View>
                 : null}
+
 
                 {!hasAnyRealDetailContent ?
                   <View style={styles.emptyDetailBox}>
@@ -307,8 +352,7 @@ export default function PlaceDetailBottomSheet({
               activeOpacity={0.85}
               onPress={onClose}
             >
-              <Text style={styles.compactButtonText}>간략히</Text>
-              <Ionicons name="chevron-up" size={18} color="#7A889B" />
+              <Text style={styles.compactButtonText}>닫기</Text>
             </TouchableOpacity>
           </ScrollView>
         </View>
@@ -328,7 +372,7 @@ const styles = StyleSheet.create({
     maxHeight: "78%",
     borderRadius: 20,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 16,
+    paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 14,
     borderWidth: 1,
@@ -390,8 +434,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 8,
-    marginTop: 12,
-    marginBottom: 18,
+    marginTop: 10,
+    marginBottom: 10,
   },
   detailTagPill: {
     paddingHorizontal: 12,
@@ -505,18 +549,15 @@ const styles = StyleSheet.create({
     color: "#DC2626",
   },
   aiSummaryCard: {
-    position: "relative",
     minHeight: 78,
-    borderRadius: 8,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: "#C7DCFF",
     backgroundColor: "#EEF5FF",
-    paddingLeft: 15,
-    paddingRight: 52,
-    paddingVertical: 13,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
     justifyContent: "center",
-    marginBottom: 11,
-    overflow: "visible",
+    marginBottom: 10,
   },
   aiSummaryText: {
     color: "#2F6BFF",
@@ -544,7 +585,7 @@ const styles = StyleSheet.create({
   reviewSectionHeader: {
     flexDirection: "row",
     alignItems: "flex-end",
-    justifyContent: "space-between",
+    justifyContent: "flex-start",
     marginBottom: 9,
   },
   reviewSectionTitle: {
@@ -562,20 +603,20 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   reviewCard: {
-    minHeight: 72,
-    borderRadius: 10,
-    backgroundColor: "#F8FAFC",
+    minHeight: 88,
+    borderRadius: 12,
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DDE6F1",
-    paddingHorizontal: 13,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
     flexDirection: "row",
     alignItems: "flex-start",
   },
   reviewIconCircle: {
-    width: 25,
-    height: 25,
-    borderRadius: 12.5,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
@@ -595,19 +636,58 @@ const styles = StyleSheet.create({
   },
   reviewRatingText: {
     color: "#1E293B",
-    fontSize: 11,
+    fontSize: 13,
     fontWeight: "900",
+    marginBottom: 5,
   },
   platformText: {
     color: "#64748B",
     fontSize: 13,
     fontWeight: "800",
-    lineHeight: 19,
+    lineHeight: 20,
   },
   reviewPlatformLogoImage: {
     width: 22,
     height: 22,
     resizeMode: "contain",
+  },
+  reviewEmptyCard: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#F8FAFC",
+    paddingVertical: 22,
+    paddingHorizontal: 18,
+    alignItems: "center",
+    marginBottom: 14,
+  },
+  reviewEmptyTitle: {
+    marginTop: 10,
+    color: "#1E293B",
+    fontSize: 15,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  reviewEmptyDescription: {
+    marginTop: 6,
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 16,
+    height: 40,
+    paddingHorizontal: 18,
+    borderRadius: 10,
+    backgroundColor: "#2158E8",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  retryButtonText: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "900",
   },
   emptyDetailBox: {
     minHeight: 96,

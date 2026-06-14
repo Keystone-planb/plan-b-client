@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Keyboard,
+  KeyboardAvoidingView,
   ScrollView,
   StyleSheet,
   Text,
@@ -1163,6 +1164,18 @@ export default function AddScheduleLocationScreen({
 
   const detailTags = serverDetailTags.slice(0, 3);
 
+  console.log("[DETAIL CATEGORY]", {
+    placeName: detailModalPlace?.name,
+    searchCategory: detailModalPlace?.category,
+    detailCategory: detailRaw?.category,
+    detailType: detailRaw?.type,
+    detailPlaceType: detailRaw?.placeType,
+    summaryCategory: summaryRaw?.category,
+    summaryType: summaryRaw?.type,
+    summaryPlaceType: summaryRaw?.placeType,
+    tags: detailTags,
+  });
+
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||
     detailModalKeywords.length > 0 ||
@@ -1265,13 +1278,18 @@ export default function AddScheduleLocationScreen({
         </SafeAreaView>
       </View>
 
-      <View style={styles.bottomSheet}>
+      <KeyboardAvoidingView
+        style={styles.bottomSheet}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+      >
         <View style={styles.handleBar} />
 
         <ScrollView
           style={styles.resultScroll}
           contentContainerStyle={styles.resultContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
         >
           {selectedPlaces.length > 0 ?
             <View style={styles.selectedSummaryBox}>
@@ -1342,7 +1360,7 @@ export default function AddScheduleLocationScreen({
             );
           })}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
 
       <PlaceDetailBottomSheet
         visible={Boolean(detailModalPlace)}
@@ -1376,7 +1394,7 @@ export default function AddScheduleLocationScreen({
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
-    backgroundColor: "#F7F9FC",
+    backgroundColor: "#FFFFFF",
   },
 
   mapSection: {
@@ -1449,7 +1467,7 @@ const styles = StyleSheet.create({
 
   searchInput: {
     flex: 1,
-    height: 52,
+    height: 44,
     paddingVertical: 0,
     textAlignVertical: "center",
     paddingTop: 1,
@@ -1470,7 +1488,7 @@ const styles = StyleSheet.create({
     marginTop: -4,
     borderTopLeftRadius: 22,
     borderTopRightRadius: 22,
-    backgroundColor: "#F7F9FC",
+    backgroundColor: "#FFFFFF",
     overflow: "hidden",
   },
 
@@ -1490,7 +1508,7 @@ const styles = StyleSheet.create({
 
   resultContent: {
     paddingHorizontal: 16,
-    paddingBottom: 190,
+    paddingBottom: 120,
   },
 
   selectedSummaryBox: {
@@ -1536,7 +1554,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     height: 32,
     borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -1567,7 +1585,7 @@ const styles = StyleSheet.create({
     right: 24,
     bottom: 120,
     width: 56,
-    height: 56,
+    height: 44,
     borderRadius: 28,
     backgroundColor: "#2158E8",
     alignItems: "center",
@@ -1622,7 +1640,7 @@ const styles = StyleSheet.create({
 
   keywordChip: {
     borderRadius: 999,
-    backgroundColor: "#F1F5F9",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     paddingHorizontal: 10,

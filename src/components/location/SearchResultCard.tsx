@@ -17,6 +17,7 @@ type Props = {
 
   onDetailPress: () => void;
   onSelectPress: () => void;
+  onCancelReviewLoading?: () => void;
   onCardPress?: () => void;
 };
 
@@ -28,8 +29,29 @@ export default function SearchResultCard({
   isReviewLoading,
   onDetailPress,
   onSelectPress,
+  onCancelReviewLoading,
   onCardPress,
 }: Props) {
+  if (isPreview) {
+    return (
+      <View style={[styles.placeCard, styles.previewCard]}>
+        <View style={styles.previewIconCircle}>
+          <Ionicons name="search-outline" size={24} color="#2158E8" />
+        </View>
+
+        <Text style={styles.previewTitle}>어디로 떠나시나요?</Text>
+
+        <Text style={styles.previewDescription}>
+          맛집, 관광지, 카페, 숙소를 검색해보세요.
+        </Text>
+
+        <Text style={styles.previewHintText}>
+          지도를 움직이거나 검색어를 입력해보세요.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View
       style={[
@@ -38,53 +60,49 @@ export default function SearchResultCard({
         isSelected && styles.selectedPlaceCard,
       ]}
     >
-      {/* 카드 본문(이름/주소/별점)을 탭하면 지도를 해당 장소로 이동시킨다.
-          상세/선택 버튼은 자체 onPress가 있어 영향받지 않는다. */}
       <TouchableOpacity
         activeOpacity={0.7}
-        disabled={isPreview || !onCardPress}
+        disabled={!onCardPress}
         onPress={onCardPress}
       >
-        <Text style={styles.placeName}>{place.name}</Text>
-
-        <Text style={styles.placeAddress}>{place.address}</Text>
-
-        {!isPreview && typeof place.rating === "number" && (
-          <View style={styles.ratingRow}>
-            <Ionicons name="star" size={13} color="#FACC15" />
-            <Text style={styles.ratingText}>
-              {place.rating.toFixed(1)}
-            </Text>
+        <View style={styles.resultHeaderRow}>
+          <View style={styles.resultIconCircle}>
+            <Ionicons name="location" size={20} color="#2158E8" />
           </View>
-        )}
+
+          <View style={styles.resultTitleArea}>
+            <Text style={styles.placeName}>{place.name}</Text>
+
+            <View style={styles.addressRow}>
+              <Ionicons name="location-outline" size={14} color="#8A9BB2" />
+              <Text style={styles.placeAddress} numberOfLines={1}>
+                {place.address}
+              </Text>
+            </View>
+
+          </View>
+        </View>
       </TouchableOpacity>
 
-      <TouchableOpacity
-        style={[
-          styles.detailButton,
-          isPreview && styles.disabledDetailButton,
-        ]}
-        activeOpacity={0.8}
-        disabled={isPreview || isReviewLoading}
-        onPress={onDetailPress}
-      >
-        {isReviewLoading ? (
-          <ActivityIndicator size="small" color="#6F7F95" />
-        ) : (
-          <>
-            <Text style={styles.detailButtonText}>
-              상세 정보 보기
-            </Text>
-            <Ionicons
-              name="eye-outline"
-              size={15}
-              color="#6F7F95"
-            />
-          </>
-        )}
-      </TouchableOpacity>
+      <View style={styles.resultActionRow}>
+        <TouchableOpacity
+          style={styles.detailButton}
+          activeOpacity={0.8}
+          disabled={isReviewLoading}
+          onPress={onDetailPress}
+        >
+          {isReviewLoading ? (
+            <ActivityIndicator size="small" color="#2158E8" />
+          ) : (
+            <>
+              <Ionicons name="information-circle-outline" size={16} color="#2158E8" />
+              <Text style={styles.detailButtonText}>
+                상세 보기
+              </Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-      {!isPreview && (
         <TouchableOpacity
           style={[
             styles.selectPlaceButton,
@@ -94,36 +112,44 @@ export default function SearchResultCard({
           disabled={isDetailLoading}
           onPress={onSelectPress}
         >
-          {isDetailLoading ? (
-            <ActivityIndicator
-              size="small"
-              color={isSelected ? "#FFFFFF" : "#2158E8"}
-            />
-          ) : (
-            <Text
-              style={[
-                styles.selectPlaceButtonText,
-                isSelected &&
-                  styles.selectPlaceButtonTextActive,
-              ]}
-            >
-              {isSelected ? "선택 완료" : "이 장소 선택"}
-            </Text>
-          )}
+        {isDetailLoading ? (
+          <ActivityIndicator
+            size="small"
+            color={isSelected ? "#FFFFFF" : "#2158E8"}
+          />
+        ) : (
+          <Text
+            style={[
+              styles.selectPlaceButtonText,
+              isSelected &&
+                styles.selectPlaceButtonTextActive,
+            ]}
+          >
+            {isSelected ? "선택 완료" : "이 장소 선택"}
+          </Text>
+        )}
         </TouchableOpacity>
-      )}
+      </View>
 
       {isReviewLoading && (
         <View style={styles.reviewLoadingPanel}>
           <ActivityIndicator size="large" color="#2158E8" />
 
-          <Text style={styles.reviewLoadingText}>
-            리뷰 불러오는 중...
+          <Text style={styles.reviewLoadingTitle}>
+            리뷰 분석 중
           </Text>
 
-          <View style={styles.reviewProgressTrack}>
-            <View style={styles.reviewProgressFill} />
-          </View>
+          <Text style={styles.reviewLoadingDescription}>
+            최초 조회 시 최대 1분 정도 소요될 수 있어요.
+          </Text>
+
+          <TouchableOpacity
+            style={styles.reviewLoadingCancelButton}
+            activeOpacity={0.8}
+            onPress={onCancelReviewLoading}
+          >
+            <Text style={styles.reviewLoadingCancelText}>취소</Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -132,15 +158,15 @@ export default function SearchResultCard({
 
 const styles = StyleSheet.create({
   placeCard: {
-    minHeight: 178,
+    minHeight: 154,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#DCE5F1",
-    paddingHorizontal: 20,
-    paddingTop: 22,
-    paddingBottom: 20,
-    marginBottom: 16,
+    paddingHorizontal: 18,
+    paddingTop: 18,
+    paddingBottom: 18,
+    marginBottom: 12,
     shadowColor: "#0F172A",
     shadowOffset: {
       width: 0,
@@ -157,22 +183,143 @@ const styles = StyleSheet.create({
     borderColor: "#2158E8",
     backgroundColor: "#F8FBFF",
   },
-  placeName: {
-    color: "#111827",
-    fontSize: 17,
-    fontWeight: "900",
-    marginBottom: 8,
+  resultHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 13,
   },
-  placeAddress: {
-    color: "#8A9BB2",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 14,
+  resultIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#EEF5FF",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
   },
-  ratingRow: {
+  resultTitleArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+  addressRow: {
+    marginTop: 7,
     flexDirection: "row",
     alignItems: "center",
-    marginBottom: 18,
+    gap: 4,
+  },
+  resultActionRow: {
+    marginTop: 16,
+    flexDirection: "row",
+    gap: 10,
+  },
+  previewCard: {
+    minHeight: 220,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    paddingTop: 22,
+    paddingBottom: 20,
+  },
+  previewIconCircle: {
+    width: 52,
+    height: 52,
+    borderRadius: 26,
+    backgroundColor: "#EEF5FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12,
+  },
+  previewTitle: {
+    color: "#111827",
+    fontSize: 21,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+  previewDescription: {
+    marginTop: 7,
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+    textAlign: "center",
+  },
+  previewHintText: {
+    marginTop: 12,
+    color: "#94A3B8",
+    fontSize: 12,
+    fontWeight: "800",
+    lineHeight: 17,
+    textAlign: "center",
+  },
+  previewExampleTitle: {
+    alignSelf: "flex-start",
+    marginTop: 20,
+    marginBottom: 9,
+    color: "#111827",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  previewChipRow: {
+    width: "100%",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  previewChip: {
+    height: 34,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+  },
+  previewChipText: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+  previewMapTip: {
+    width: "100%",
+    marginTop: 18,
+    borderRadius: 16,
+    backgroundColor: "#F8FBFF",
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 11,
+  },
+  previewMapTipTextArea: {
+    flex: 1,
+  },
+  previewMapTipTitle: {
+    color: "#334155",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+  previewMapTipText: {
+    marginTop: 4,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 17,
+  },
+  placeName: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+  },
+  placeAddress: {
+    flex: 1,
+    color: "#8A9BB2",
+    fontSize: 13,
+    fontWeight: "800",
+  },
+  ratingRow: {
+    marginTop: 9,
+    flexDirection: "row",
+    alignItems: "center",
   },
   ratingText: {
     marginLeft: 5,
@@ -181,29 +328,32 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
   detailButton: {
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#F1F4F8",
+    flex: 1,
+    height: 44,
+    borderRadius: 13,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#CFE3FF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 10,
+    gap: 5,
   },
   disabledDetailButton: {
     opacity: 0.65,
   },
   detailButtonText: {
-    color: "#6F7F95",
+    color: "#2158E8",
     fontSize: 13,
-    fontWeight: "800",
-    marginRight: 5,
+    fontWeight: "900",
   },
   selectPlaceButton: {
-    height: 42,
+    flex: 1,
+    height: 44,
     borderRadius: 13,
-    backgroundColor: "#ECF5FF",
+    backgroundColor: "#2158E8",
     borderWidth: 1,
-    borderColor: "#D7E9FF",
+    borderColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2158E8",
@@ -222,7 +372,7 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   selectPlaceButtonText: {
-    color: "#2158E8",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "900",
   },
@@ -242,6 +392,35 @@ const styles = StyleSheet.create({
     marginTop: 12,
     color: "#617087",
     fontSize: 15,
+    fontWeight: "900",
+  },
+  reviewLoadingTitle: {
+    marginTop: 16,
+    color: "#475569",
+    fontSize: 24,
+    fontWeight: "900",
+  },
+  reviewLoadingDescription: {
+    marginTop: 10,
+    color: "#94A3B8",
+    fontSize: 14,
+    fontWeight: "700",
+    textAlign: "center",
+    lineHeight: 22,
+    paddingHorizontal: 32,
+  },
+  reviewLoadingCancelButton: {
+    marginTop: 14,
+    minWidth: 116,
+    height: 38,
+    borderRadius: 12,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reviewLoadingCancelText: {
+    color: "#64748B",
+    fontSize: 13,
     fontWeight: "900",
   },
   reviewProgressTrack: {
