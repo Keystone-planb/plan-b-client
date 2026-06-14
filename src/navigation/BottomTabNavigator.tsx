@@ -1,15 +1,10 @@
 import React from "react";
-import {
-  Image,
-  Platform,
-  StyleSheet,
-  TouchableOpacity,
-  View,
-} from "react-native";
+import { Platform, StyleSheet, TouchableOpacity, View } from "react-native";
 import {
   BottomTabBarProps,
   createBottomTabNavigator,
 } from "@react-navigation/bottom-tabs";
+import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MainScreen from "../screens/MainScreen";
@@ -26,20 +21,22 @@ const ANDROID_NAVIGATION_BAR_HEIGHT = 48;
 const TAB_BAR_FLOATING_GAP = 18;
 
 const Tab = createBottomTabNavigator<BottomTabParamList>();
-function getTabIconSource(routeName: string) {
+type IconName = keyof typeof Ionicons.glyphMap;
+
+function getIconName(routeName: string, focused: boolean): IconName {
   if (routeName === "PlanX") {
-    return require("../../assets/tab-history.png");
+    return focused ? "time" : "time-outline";
   }
 
   if (routeName === "Home") {
-    return require("../../assets/tab-home.png");
+    return focused ? "home" : "home-outline";
   }
 
   if (routeName === "Profile") {
-    return require("../../assets/tab-profile.png");
+    return focused ? "person" : "person-outline";
   }
 
-  return require("../../assets/tab-home.png");
+  return "ellipse-outline";
 }
 
 function CustomBottomTabBar({
@@ -67,7 +64,7 @@ function CustomBottomTabBar({
           const focused = state.index === index;
           const { options } = descriptors[route.key];
 
-          const iconSource = getTabIconSource(route.name);
+          const iconName = getIconName(route.name, focused);
 
           const handlePress = () => {
             const event = navigation.emit({
@@ -100,16 +97,11 @@ function CustomBottomTabBar({
               onLongPress={handleLongPress}
               style={styles.tabButton}
             >
-              <View style={[styles.tabIconCircle, focused && styles.tabIconCircleActive]}>
-                <Image
-                  source={iconSource}
-                  style={[
-                    styles.tabIcon,
-                    focused ? styles.tabIconActive : styles.tabIconInactive,
-                  ]}
-                  resizeMode="contain"
-                />
-              </View>
+              <Ionicons
+                name={iconName}
+                size={34}
+                color={focused ? "#2B3445" : "#C8D1DF"}
+              />
             </TouchableOpacity>
           );
         })}
@@ -183,32 +175,5 @@ const styles = StyleSheet.create({
     height: "100%",
     alignItems: "center",
     justifyContent: "center",
-  },
-
-  tabIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  tabIconCircleActive: {
-    backgroundColor: "#EFF6FF",
-  },
-
-  tabIcon: {
-    width: 24,
-    height: 24,
-  },
-
-  tabIconActive: {
-    opacity: 1,
-    tintColor: "#2158E8",
-  },
-
-  tabIconInactive: {
-    opacity: 0.35,
-    tintColor: "#94A3B8",
   },
 });
