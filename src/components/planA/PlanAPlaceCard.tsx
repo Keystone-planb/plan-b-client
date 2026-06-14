@@ -37,6 +37,7 @@ type Props = {
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
   onOpenMemoSheet: (placeId: string) => void;
+  onOpenMemoEditor: (placeId: string) => void;
 };
 
 const makeDisplayTime = (place: PlaceItem) => {
@@ -72,6 +73,7 @@ export default function PlanAPlaceCard({
   onDeleteMemo,
   onChangeEditingMemoText,
   onOpenMemoSheet,
+  onOpenMemoEditor,
 }: Props) {
 
   return (
@@ -133,6 +135,7 @@ export default function PlanAPlaceCard({
         onDeleteMemo={onDeleteMemo}
         onChangeEditingMemoText={onChangeEditingMemoText}
         onOpenMemoSheet={onOpenMemoSheet}
+        onOpenMemoEditor={onOpenMemoEditor}
       />
     </View>
   );

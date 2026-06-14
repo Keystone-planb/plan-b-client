@@ -23,37 +23,53 @@ type Props = {
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
   onOpenMemoSheet: (placeId: string) => void;
+  onOpenMemoEditor: (placeId: string) => void;
 };
 
-export default function PlanAMemoList({ place, onOpenMemoSheet }: Props) {
+export default function PlanAMemoList({
+  place,
+  onOpenMemoSheet,
+  onOpenMemoEditor,
+}: Props) {
   const memoCount = place.memos?.length ?? 0;
   const hasMemo = memoCount > 0;
 
   return (
     <View style={styles.memoList}>
-      <View style={[styles.memoSummaryRow, hasMemo && styles.memoSummaryRowActive]}>
-        <View style={styles.memoSummaryLeft}>
-          <Ionicons
-            name={hasMemo ? "document-text" : "document-text-outline"}
-            size={15}
-            color={hasMemo ? "#2158E8" : "#94A3B8"}
-          />
+      <View
+        style={[
+          styles.memoSummaryRow,
+          hasMemo && styles.memoSummaryRowActive,
+        ]}
+      >
+        <TouchableOpacity
+          style={styles.memoSummaryTouch}
+          activeOpacity={0.85}
+          onPress={() => onOpenMemoSheet(place.id)}
+        >
+          <View style={styles.memoSummaryLeft}>
+            <Ionicons
+              name={hasMemo ? "document-text" : "document-text-outline"}
+              size={15}
+              color={hasMemo ? "#2158E8" : "#94A3B8"}
+            />
 
-          <Text
-            style={[
-              styles.memoSummaryText,
-              hasMemo && styles.memoSummaryTextActive,
-            ]}
-            numberOfLines={1}
-          >
-            {hasMemo ? `메모가 ${memoCount}개 있어요` : "메모를 추가해볼까요?"}
-          </Text>
-        </View>
+            <Text
+              style={[
+                styles.memoSummaryText,
+                hasMemo && styles.memoSummaryTextActive,
+              ]}
+              numberOfLines={1}
+            >
+              {hasMemo ? `메모가 ${memoCount}개 있어요` : "메모를 추가해볼까요?"}
+            </Text>
+          </View>
+        </TouchableOpacity>
 
         <TouchableOpacity
           style={styles.memoAddCircle}
           activeOpacity={0.85}
-          onPress={() => onOpenMemoSheet(place.id)}
+          onPress={() => onOpenMemoEditor(place.id)}
         >
           <Ionicons name="add" size={17} color="#2158E8" />
         </TouchableOpacity>
@@ -83,6 +99,12 @@ const styles = StyleSheet.create({
   memoSummaryRowActive: {
     borderColor: "#D5E5FF",
     backgroundColor: "#F8FBFF",
+  },
+
+  memoSummaryTouch: {
+    flex: 1,
+    minWidth: 0,
+    justifyContent: "center",
   },
 
   memoSummaryLeft: {

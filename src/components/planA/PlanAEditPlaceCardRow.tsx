@@ -42,6 +42,7 @@ type Props = {
   onDeleteMemo: (placeId: string, memoId: string) => void;
   onChangeEditingMemoText: (value: string) => void;
   onOpenMemoSheet: (placeId: string) => void;
+  onOpenMemoEditor: (placeId: string) => void;
 
   onOpenTransportPicker: (params: {
     pairKey: string;
@@ -76,6 +77,7 @@ export default function PlanAEditPlaceCardRow({
   onDeleteMemo,
   onChangeEditingMemoText,
   onOpenMemoSheet,
+  onOpenMemoEditor,
   onOpenTransportPicker,
   onSelectTransportMode,
   onConfirmTransportMode,
@@ -110,6 +112,7 @@ export default function PlanAEditPlaceCardRow({
             onDeleteMemo={onDeleteMemo}
             onChangeEditingMemoText={onChangeEditingMemoText}
             onOpenMemoSheet={onOpenMemoSheet}
+        onOpenMemoEditor={onOpenMemoEditor}
           />
         </View>
       </View>

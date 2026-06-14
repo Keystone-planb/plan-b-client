@@ -313,19 +313,23 @@ export default function PlanAScreen({ navigation, route }: Props) {
   const [memoSheetPlaceId, setMemoSheetPlaceId] = useState<string | null>(null);
   const [memoEditorPlaceId, setMemoEditorPlaceId] = useState<string | null>(null);
 
+  
   const handleOpenMemoSheet = (placeId: string) => {
-    handleChangeMemoDraft(placeId, "");
-    setMemoEditorPlaceId(placeId);
-    setMemoSheetPlaceId(null);
+    console.log("[MEMO] SHEET OPEN", placeId);
+    setMemoSheetPlaceId(placeId);
+    setMemoEditorPlaceId(null);
   };
 
-  const handleCloseMemoSheet = () => {
+const handleCloseMemoSheet = () => {
     setMemoSheetPlaceId(null);
     setMemoEditorPlaceId(null);
     handleCancelEditMemo();
   };
 
   const handleOpenMemoEditor = (placeId: string) => {
+    console.log("[MEMO] EDITOR OPEN", placeId);
+    handleChangeMemoDraft(placeId, "");
+    setMemoSheetPlaceId(null);
     setMemoEditorPlaceId(placeId);
   };
 
@@ -1046,6 +1050,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onDeleteMemo={handleDeleteMemo}
         onChangeEditingMemoText={setEditingMemoText}
         onOpenMemoSheet={handleOpenMemoSheet}
+        onOpenMemoEditor={handleOpenMemoEditor}
       />
     );
   };
@@ -1086,6 +1091,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         onDeleteMemo={handleDeleteMemo}
         onChangeEditingMemoText={setEditingMemoText}
         onOpenMemoSheet={handleOpenMemoSheet}
+        onOpenMemoEditor={handleOpenMemoEditor}
         onOpenTransportPicker={handleOpenEditTransportModal}
         onSelectTransportMode={handleSelectEditTransportMode}
         onConfirmTransportMode={handleConfirmEditTransportMode}
@@ -1281,7 +1287,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
                       <Text style={styles.memoSheetItemText}>{memo.text}</Text>
 
                       <TouchableOpacity
-                        style={styles.memoIconButton}
+                        style={styles.memoEditButton}
                         activeOpacity={0.85}
                         onPress={() => {
                           handleStartEditMemo(memoSheetPlace.id, memo);
@@ -1289,11 +1295,11 @@ export default function PlanAScreen({ navigation, route }: Props) {
                           setMemoSheetPlaceId(null);
                         }}
                       >
-                        <Ionicons name="pencil-outline" size={16} color="#111827" />
+                        <Ionicons name="pencil" size={14} color="#2563EB" />
                       </TouchableOpacity>
 
                       <TouchableOpacity
-                        style={styles.memoIconButton}
+                        style={styles.memoDeleteButton}
                         activeOpacity={0.85}
                         onPress={() =>
                           handleDeleteMemoFromSheet(memoSheetPlace.id, memo.id)
@@ -1317,7 +1323,6 @@ export default function PlanAScreen({ navigation, route }: Props) {
                   style={styles.memoAddSheetButton}
                   activeOpacity={0.85}
                   onPress={() => {
-                    console.log("[PlanA memo] open editor", memoSheetPlace.id);
                     handleChangeMemoDraft(memoSheetPlace.id, "");
                     setMemoEditorPlaceId(memoSheetPlace.id);
                     setMemoSheetPlaceId(null);
@@ -1600,6 +1605,31 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     lineHeight: 20,
   },
+  
+  memoEditButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    marginLeft: 8,
+  },
+
+  memoDeleteButton: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    marginLeft: 8,
+  },
+
   memoIconButton: {
     width: 32,
     height: 32,
