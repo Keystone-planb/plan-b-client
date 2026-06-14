@@ -426,17 +426,17 @@ export default function AlternativeSettingsScreen({
                 false: "#CBD5E1",
                 true: "#BBD0FF",
               }}
-              thumbColor={considerDistance ? "#2158E8" : "#FFFFFF"}
+              thumbColor={considerDistance ? "#2F5EF7" : "#FFFFFF"}
             />
           </View>
 
           <View style={styles.toggleCard}>
             <View style={styles.toggleTextBox}>
-              <Text style={styles.toggleTitle}>카테고리 변경</Text>
+              <Text style={styles.toggleTitle}>카테고리 추천 방식</Text>
               <Text style={styles.toggleSubtitle}>
                 {changeCategory ?
-                  "선택한 카테고리를 우선으로 추천합니다"
-                : "기존 카테고리와 동일한 장소를 추천합니다"}
+                  "직접 선택한 장소 유형을 우선 추천합니다"
+                : "기존 장소와 비슷한 유형으로 추천합니다"}
               </Text>
             </View>
 
@@ -447,13 +447,13 @@ export default function AlternativeSettingsScreen({
                 false: "#CBD5E1",
                 true: "#BBD0FF",
               }}
-              thumbColor={changeCategory ? "#2158E8" : "#FFFFFF"}
+              thumbColor={changeCategory ? "#2F5EF7" : "#FFFFFF"}
             />
           </View>
 
           {changeCategory ?
             <View style={styles.conditionCard}>
-              <Text style={styles.sectionTitle}>장소 유형</Text>
+              <Text style={styles.sectionTitle}>원하는 장소 유형</Text>
 
               <View style={styles.typeGrid}>
                 {SELECTED_TYPE_OPTIONS.map((option) => {
@@ -584,13 +584,13 @@ const styles = StyleSheet.create({
   },
 
   scrollContent: {
-    paddingHorizontal: 10,
-    paddingTop: 24,
+    paddingHorizontal: 14,
+    paddingTop: 22,
     paddingBottom: 120,
   },
 
   conditionCard: {
-    borderRadius: 12,
+    borderRadius: 18,
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 18,
     paddingVertical: 22,
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     color: "#111827",
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: -0.3,
     marginBottom: 18,
   },
@@ -626,8 +626,8 @@ const styles = StyleSheet.create({
   },
 
   segmentButtonActive: {
-    backgroundColor: "#2158E8",
-    borderColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
+    borderColor: "#2F5EF7",
   },
 
   segmentButtonText: {
@@ -655,13 +655,13 @@ const styles = StyleSheet.create({
   },
 
   timeButtonActive: {
-    backgroundColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
   },
 
   timeButtonText: {
     color: "#64748B",
     fontSize: 15,
-    fontWeight: "900",
+    fontWeight: "800",
   },
 
   timeButtonTextActive: {
@@ -669,11 +669,11 @@ const styles = StyleSheet.create({
   },
 
   toggleCard: {
-    minHeight: 72,
-    borderRadius: 12,
+    minHeight: 76,
+    borderRadius: 18,
     backgroundColor: "#F8FAFC",
     paddingHorizontal: 18,
-    paddingVertical: 15,
+    paddingVertical: 16,
     marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
@@ -688,16 +688,16 @@ const styles = StyleSheet.create({
   toggleTitle: {
     color: "#111827",
     fontSize: 18,
-    fontWeight: "900",
+    fontWeight: "800",
     letterSpacing: -0.3,
   },
 
   toggleSubtitle: {
     color: "#64748B",
-    fontSize: 13,
-    fontWeight: "700",
-    marginTop: 6,
-    lineHeight: 18,
+    fontSize: 14,
+    fontWeight: "600",
+    marginTop: 7,
+    lineHeight: 20,
   },
 
   scopeRow: {
@@ -715,13 +715,13 @@ const styles = StyleSheet.create({
   },
 
   scopeButtonActive: {
-    backgroundColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
   },
 
   scopeButtonText: {
     color: "#64748B",
     fontSize: 17,
-    fontWeight: "900",
+    fontWeight: "800",
   },
 
   scopeButtonTextActive: {
@@ -745,13 +745,13 @@ const styles = StyleSheet.create({
   },
 
   typeButtonActive: {
-    backgroundColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
   },
 
   typeButtonText: {
     color: "#64748B",
     fontSize: 14,
-    fontWeight: "800",
+    fontWeight: "700",
     textAlign: "center",
   },
 
@@ -793,7 +793,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 58,
     borderRadius: 14,
-    backgroundColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2158E8",
@@ -911,8 +911,8 @@ const styles = StyleSheet.create({
   },
 
   gapTransportButtonActive: {
-    backgroundColor: "#2158E8",
-    borderColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
+    borderColor: "#2F5EF7",
     shadowColor: "#2158E8",
     shadowOffset: {
       width: 0,
@@ -941,7 +941,7 @@ const styles = StyleSheet.create({
   gapCompleteButton: {
     height: 56,
     borderRadius: 12,
-    backgroundColor: "#2158E8",
+    backgroundColor: "#2F5EF7",
     alignItems: "center",
     justifyContent: "center",
     shadowColor: "#2158E8",

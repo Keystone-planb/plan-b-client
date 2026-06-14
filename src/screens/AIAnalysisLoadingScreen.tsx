@@ -108,7 +108,7 @@ const LOADING_STEPS: LoadingStep[] = [
   {
     icon: StepSearchIcon,
     title: "주변 장소를 찾고 있어요",
-    description: "주변 장소를 찾고 있어요",
+    description: "이동 조건에 맞는 장소를 분석 중이에요",
     tip: "5개의 대안을 찾아드려요",
     detailTitle: "잠깐! 알고 계셨나요?",
     detailDescription:
@@ -588,7 +588,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
             setProgress(100);
             setErrorMessage(
               message ||
-                "조건에 맞는 장소를 찾지 못했습니다.\n조건을 바꾸거나 다시 시도해주세요.",
+                "현재 조건으로는 추천할 장소가 없어요.",
             );
           },
 
@@ -610,7 +610,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
               setProgress(100);
               setErrorMessage(
                 streamMessage ||
-                  "조건에 맞는 장소를 찾지 못했습니다.\n\조건을 바꾸거나 다시 시도해주세요.",
+                  "현재 조건으로는 추천할 장소가 없어요.",
               );
               return;
             }
@@ -812,7 +812,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           </Animated.View>
 
           <Text style={styles.title}>
-            {errorMessage ? "추천 요청에 실패했어요" : currentStep.title}
+            {errorMessage ? "추천 결과를 찾지 못했어요" : currentStep.title}
           </Text>
 
           <Text
@@ -929,7 +929,7 @@ const styles = StyleSheet.create({
   },
   progressTrack: {
     width: "100%",
-    height: 5,
+    height: 6,
     borderRadius: 999,
     backgroundColor: "#E8EFFB",
     overflow: "hidden",
@@ -942,27 +942,27 @@ const styles = StyleSheet.create({
   progressText: {
     marginTop: 10,
     color: "#2158E8",
-    fontSize: 12,
+    fontSize: 15,
     fontWeight: "900",
     textAlign: "right",
   },
   iconWrapper: {
-    width: 142,
-    height: 142,
+    width: 216,
+    height: 216,
     alignItems: "center",
     justifyContent: "center",
-    marginBottom: 34,
+    marginBottom: 26,
   },
   iconGlow: {
     position: "absolute",
-    width: 124,
-    height: 124,
-    borderRadius: 62,
+    width: 194,
+    height: 194,
+    borderRadius: 97,
     backgroundColor: "#F2F7FF",
   },
   stepIcon: {
-    width: 126,
-    height: 126,
+    width: 178,
+    height: 178,
   },
   title: {
     color: "#111827",
@@ -1035,14 +1035,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#2158E8",
   },
   tipCard: {
-    marginTop: 54,
+    marginTop: 48,
     borderRadius: 20,
     borderWidth: 1,
     borderColor: "#E1E7EF",
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 22,
-    paddingVertical: 21,
-    minHeight: 128,
+    paddingVertical: 24,
+    minHeight: 150,
     justifyContent: "center",
     shadowColor: "#0F172A",
     shadowOffset: { width: 0, height: 10 },
