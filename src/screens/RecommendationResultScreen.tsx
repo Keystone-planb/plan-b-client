@@ -184,7 +184,7 @@ const formatOpeningHoursText = (value: unknown) => {
   }
 
   if (typeof parsed?.open_now === "boolean") {
-    return parsed.open_now ? "현재 영업 중" : "현재 영업 종료";
+    return parsed.open_now ? "영업 중" : "영업 종료";
   }
 
   return (
@@ -193,6 +193,51 @@ const formatOpeningHoursText = (value: unknown) => {
       value
     : "";
 };
+
+const formatTodayOpeningHoursText = (value: unknown) => {
+  const parsed = safeParseJson(value);
+  const weekdayText = parsed?.weekday_text;
+
+  const openNow =
+    typeof parsed?.open_now === "boolean" ? parsed.open_now : null;
+
+  const statusText =
+    openNow === true ? "영업시간" : openNow === false ? "영업 종료" : "";
+
+  if (Array.isArray(weekdayText) && weekdayText.length > 0) {
+    const today = new Date().getDay();
+    const dayLabels = [
+      "일요일",
+      "월요일",
+      "화요일",
+      "수요일",
+      "목요일",
+      "금요일",
+      "토요일",
+    ];
+
+    const todayLabel = dayLabels[today];
+    const todayRow =
+      weekdayText.find((row: string) => String(row).startsWith(todayLabel)) ||
+      weekdayText[0];
+
+    const timeText = String(todayRow)
+      .replace(`${todayLabel}:`, "")
+      .replace(/^[^:]+:/, "")
+      .trim();
+
+    if (statusText && timeText) return `${statusText} · ${timeText}`;
+    return timeText || statusText;
+  }
+
+  const fallback = formatOpeningHoursText(value);
+
+  if (!fallback) return statusText;
+  if (fallback === "영업 중" || fallback === "영업 종료") return fallback;
+
+  return statusText ? `${statusText} · ${fallback}` : fallback;
+};
+
 
 const formatReviewDataText = (value: unknown) => {
   const parsed = safeParseJson(value);
@@ -393,7 +438,10 @@ export default function RecommendationResultScreen({
   const [expandedPlaceId, setExpandedPlaceId] = useState<
     string | number | null
   >(null);
-  const [placeExtraDetails, setPlaceExtraDetails] = useState<
+    const [expandedHoursPlaceId, setExpandedHoursPlaceId] = useState<
+    string | number | null
+  >(null);
+const [placeExtraDetails, setPlaceExtraDetails] = useState<
     Record<string, PlaceExtraDetail>
   >({});
 
@@ -475,62 +523,52 @@ export default function RecommendationResultScreen({
     navigation.navigate("Main");
   };
 
-  const handleToggleDetail = async (
+  const fetchReviewDetail = async (
     place: DisplayPlace,
     placeId: string | number,
+    force = false,
   ) => {
     const placeKey = String(placeId);
-    const isClosing = String(expandedPlaceId) === placeKey;
+    const cachedDetail = placeExtraDetails[placeKey];
 
-    setExpandedPlaceId(isClosing ? null : placeId);
-
-    // 상세 열람 이벤트 (처음 열 때만)
-    if (!isClosing) {
-      const extraDetail = placeExtraDetails[placeKey];
-      trackEvent(AMP.REVIEW_CARD_OPENED, {
-        place_id: String(placeId),
-        place_name: place.name ?? "",
-        place_category: place.category ?? "",
-        sources_count: 2, // Google + Naver 기준
-        summary_shown: Boolean(extraDetail?.aiSummary),
-        analysis_blocked: Boolean(extraDetail?.error),
-      });
-    }
-
-    if (isClosing || placeExtraDetails[placeKey]?.aiSummary) {
+    if (
+      !force &&
+      cachedDetail &&
+      !cachedDetail.loading &&
+      (
+        cachedDetail.aiSummary ||
+        cachedDetail.googleReview ||
+        cachedDetail.naverReview
+      )
+    ) {
       return;
     }
 
     const googlePlaceId =
-      (
-        typeof place.googlePlaceId === "string" &&
-        place.googlePlaceId.trim().length > 0
-      ) ?
-        place.googlePlaceId
-      : "";
+      typeof place.googlePlaceId === "string" &&
+      place.googlePlaceId.trim().length > 0
+        ? place.googlePlaceId.trim()
+        : typeof place.placeId === "string" &&
+            String(place.placeId).startsWith("ChIJ")
+          ? String(place.placeId)
+          : "";
 
     if (!googlePlaceId) {
-      const reviewText = formatReviewDataText(place.reviewData);
+      console.log("[RecommendationResult] review fetch skipped: no googlePlaceId", {
+        placeId,
+        placeName: place.name,
+        rawPlaceId: place.placeId,
+        rawGooglePlaceId: place.googlePlaceId,
+      });
 
       setPlaceExtraDetails((prev) => ({
         ...prev,
         [placeKey]: {
           loading: false,
-          aiSummary:
-            place.reviewSummary ||
-            place.reason ||
-            reviewText ||
-            "현재 추천 데이터에는 AI 리뷰 요약 정보가 없습니다.",
-          googleReview:
-            place.googleReview ||
-            place.sourceSummary?.google ||
-            getPlatformReviewSummary(place.reviewData, "Google") ||
-            "구글 리뷰 요약 정보가 없습니다.",
-          naverReview:
-            place.naverReview ||
-            place.sourceSummary?.naver ||
-            getPlatformReviewSummary(place.reviewData, "Naver") ||
-            "네이버 리뷰 요약 정보가 없습니다.",
+          aiSummary: "",
+          googleReview: "",
+          naverReview: "",
+          error: "googlePlaceId 없음",
         },
       }));
       return;
@@ -552,14 +590,14 @@ export default function RecommendationResultScreen({
       ]);
 
       const detail =
-        detailResponse.status === "fulfilled" ?
-          unwrapData(detailResponse.value)
-        : null;
+        detailResponse.status === "fulfilled"
+          ? unwrapData(detailResponse.value)
+          : null;
 
       const summary =
-        summaryResponse.status === "fulfilled" ?
-          unwrapData(summaryResponse.value)
-        : null;
+        summaryResponse.status === "fulfilled"
+          ? unwrapData(summaryResponse.value)
+          : null;
 
       const aiSummary =
         pickText(summary, [
@@ -573,7 +611,8 @@ export default function RecommendationResultScreen({
           "ai_summary",
           "summary",
           "reviewSummary",
-        ]);
+        ]) ||
+        "";
 
       const googleReview =
         pickText(summary, [
@@ -585,7 +624,8 @@ export default function RecommendationResultScreen({
           "googleReview",
           "googleReviewSummary",
           "google_review",
-        ]);
+        ]) ||
+        "";
 
       const naverReview =
         pickText(summary, [
@@ -593,7 +633,20 @@ export default function RecommendationResultScreen({
           "naverReviewSummary",
           "naver_review",
         ]) ||
-        pickText(detail, ["naverReview", "naverReviewSummary", "naver_review"]);
+        pickText(detail, [
+          "naverReview",
+          "naverReviewSummary",
+          "naver_review",
+        ]) ||
+        "";
+
+      console.log("[RecommendationResult] review fetch success", {
+        placeKey,
+        googlePlaceId,
+        aiSummary,
+        googleReview,
+        naverReview,
+      });
 
       setPlaceExtraDetails((prev) => ({
         ...prev,
@@ -602,19 +655,54 @@ export default function RecommendationResultScreen({
           aiSummary,
           googleReview,
           naverReview,
+          error: undefined,
         },
       }));
     } catch (error) {
-      console.log("[RecommendationResult] place detail/summary failed:", error);
+      console.log("[RecommendationResult] review fetch failed:", error);
 
       setPlaceExtraDetails((prev) => ({
         ...prev,
         [placeKey]: {
           loading: false,
+          aiSummary: "",
+          googleReview: "",
+          naverReview: "",
           error: "상세 정보를 불러오지 못했습니다.",
         },
       }));
     }
+  };
+
+  const handleToggleDetail = async (
+    place: DisplayPlace,
+    placeId: string | number,
+  ) => {
+    const placeKey = String(placeId);
+    const isClosing = String(expandedPlaceId) === placeKey;
+
+    setExpandedPlaceId(isClosing ? null : placeId);
+
+    if (isClosing) return;
+
+    trackEvent(AMP.REVIEW_CARD_OPENED, {
+      place_id: String(placeId),
+      place_name: place.name ?? "",
+      place_category: place.category ?? "",
+      sources_count: 2,
+      summary_shown: Boolean(placeExtraDetails[placeKey]?.aiSummary),
+      analysis_blocked: Boolean(placeExtraDetails[placeKey]?.error),
+    });
+
+    await fetchReviewDetail(place, placeId, false);
+  };
+
+  const handleRetryReview = async (
+    place: DisplayPlace,
+    placeId: string | number,
+  ) => {
+    setExpandedPlaceId(placeId);
+    await fetchReviewDetail(place, placeId, true);
   };
 
   const handleSelectPlace = async (place: DisplayPlace) => {
@@ -945,7 +1033,7 @@ export default function RecommendationResultScreen({
   const subtitle =
     isWeatherRecommendation ?
       "날씨에 맞춰 방문하기 좋은 대안을 추천했어요"
-    : "거리와 리뷰를 기반으로 추천된 top5예요";
+    : "현재 일정과 조건을 기준으로 추천했어요";
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -989,32 +1077,26 @@ export default function RecommendationResultScreen({
         </View>
 
         <View style={styles.sectionBlock}>
-          <Text style={styles.sectionTitle}>추천 대안</Text>
+          <Text style={styles.sectionTitle}>AI가 찾은 대안 5개</Text>
 
           <View style={styles.resultList}>
             {places.map((place, index) => {
               const placeId = place.placeId ?? `place-${index}`;
               const isExpanded = String(expandedPlaceId) === String(placeId);
+              const isHoursExpanded =
+                String(expandedHoursPlaceId) === String(placeId);
               const isSelected = String(selectedPlaceId) === String(placeId);
               const isSubmitting =
                 String(submittingPlaceId) === String(placeId);
               const placeKey = String(placeId);
               const extraDetail = placeExtraDetails[placeKey];
-              const displayAiSummary =
-                extraDetail?.aiSummary ||
-                place.reviewSummary ||
-                place.reason ||
-                "";
-              const displayNaverReview =
-                extraDetail?.naverReview ||
-                place.naverReview ||
-                place.sourceSummary?.naver ||
-                "";
-              const displayGoogleReview =
-                extraDetail?.googleReview ||
-                place.googleReview ||
-                place.sourceSummary?.google ||
-                "";
+              const displayAiSummary = extraDetail?.aiSummary ?? "";
+              const displayNaverReview = extraDetail?.naverReview ?? "";
+              const displayGoogleReview = extraDetail?.googleReview ?? "";
+              const todayOpeningHoursText = formatTodayOpeningHoursText(
+                place.openingHours,
+              );
+              const fullOpeningHoursText = formatOpeningHoursText(place.openingHours);
 
               const reviewCount =
                 typeof place.userRatingsTotal === "number" ?
@@ -1071,18 +1153,6 @@ export default function RecommendationResultScreen({
                         </Text>
                       </View>
 
-                      {isExpanded && formatOpeningHoursText(place.openingHours) ?
-                        <View style={styles.infoLine}>
-                          <Ionicons
-                            name="time-outline"
-                            size={16}
-                            color="#8EA0B7"
-                          />
-                          <Text style={styles.infoText} numberOfLines={2}>
-                            {formatOpeningHoursText(place.openingHours)}
-                          </Text>
-                        </View>
-                      : null}
                     </View>
                   </View>
 
@@ -1101,15 +1171,85 @@ export default function RecommendationResultScreen({
                       ))}
                   </View>
 
+                  {todayOpeningHoursText ? (
+                    <>
+                      <View style={styles.hoursDivider} />
+
+                      <TouchableOpacity
+                        style={styles.hoursInfoRow}
+                        activeOpacity={0.82}
+                        onPress={() =>
+                          setExpandedHoursPlaceId((prev: string | number | null) =>
+                            String(prev) === String(placeId) ? null : placeId,
+                          )
+                        }
+                      >
+                        <View style={styles.hoursStatusDot} />
+                        <Text style={styles.hoursStatusText} numberOfLines={1}>
+                          {todayOpeningHoursText}
+                        </Text>
+                        <Ionicons
+                          name={isHoursExpanded ? "chevron-up" : "chevron-down"}
+                          size={18}
+                          color="#64748B"
+                          style={styles.hoursChevron}
+                        />
+                      </TouchableOpacity>
+
+                      {isHoursExpanded && fullOpeningHoursText ? (
+                        <View style={styles.fullHoursBox}>
+                          <Text style={styles.fullHoursTitle}>전체 영업시간</Text>
+                          {fullOpeningHoursText
+                            .split("\n")
+                            .filter(Boolean)
+                            .map((row) => {
+                              const [day, ...timeParts] = row.split(":");
+                              const time = timeParts.join(":").trim();
+
+                              return (
+                                <View key={row} style={styles.fullHoursRow}>
+                                  {(() => {
+                                    const todayLabel = new Date().toLocaleDateString(
+                                      "ko-KR",
+                                      { weekday: "long" },
+                                    );
+                                    const isToday = day.trim() === todayLabel;
+
+                                    return (
+                                      <>
+                                        <Text
+                                          style={[
+                                            styles.fullHoursDay,
+                                            isToday && styles.todayFullHoursText,
+                                          ]}
+                                        >
+                                          {day.trim()}
+                                        </Text>
+                                        <Text
+                                          style={[
+                                            styles.fullHoursTime,
+                                            isToday && styles.todayFullHoursText,
+                                          ]}
+                                        >
+                                          {time}
+                                        </Text>
+                                      </>
+                                    );
+                                  })()}
+                                </View>
+                              );
+                            })}
+                        </View>
+                      ) : null}
+                    </>
+                  ) : null}
+
                   <View
                     style={[
                       styles.aiSummaryBox,
                       isExpanded && styles.expandedAiSummaryBox,
                     ]}
                   >
-                    <View style={styles.aiBadge}>
-                      <Text style={styles.aiBadgeText}>AI</Text>
-                    </View>
 
                     <Text style={styles.aiSummaryIcon}>📊</Text>
 
@@ -1139,7 +1279,7 @@ export default function RecommendationResultScreen({
                           "선택 완료"
                         : isWeatherRecommendation ?
                           "이 장소로 대체"
-                        : "이 장소 선택"}
+                        : "일정에 추가"}
                       </Text>
                     }
                   </TouchableOpacity>
@@ -1184,6 +1324,27 @@ export default function RecommendationResultScreen({
                         </View>
                       </View>
 
+                      <TouchableOpacity
+                        style={styles.retryReviewButton}
+                        activeOpacity={0.82}
+                        onPress={() => handleRetryReview(place, placeId)}
+                        disabled={Boolean(extraDetail?.loading)}
+                      >
+                        <Ionicons
+                          name="refresh-outline"
+                          size={18}
+                          color={extraDetail?.loading ? "#94A3B8" : "#2158E8"}
+                        />
+                        <Text
+                          style={[
+                            styles.retryReviewButtonText,
+                            extraDetail?.loading && styles.retryReviewButtonTextDisabled,
+                          ]}
+                        >
+                          리뷰 다시 분석
+                        </Text>
+                      </TouchableOpacity>
+
                     </View>
                   : null}
 
@@ -1193,7 +1354,7 @@ export default function RecommendationResultScreen({
                     onPress={() => handleToggleDetail(place, placeId)}
                   >
                     <Text style={styles.detailButtonText}>
-                      {isExpanded ? "리뷰 접기" : "리뷰 보기"}
+                      {isExpanded ? "리뷰 접기" : "AI 리뷰 요약 보기"}
                     </Text>
                     <Ionicons
                       name={isExpanded ? "chevron-up" : "chevron-down"}
@@ -1222,9 +1383,9 @@ export default function RecommendationResultScreen({
 
 const styles = StyleSheet.create({
   categoryImageIcon: {
-    width: 58,
-    height: 58,
-    borderRadius: 29,
+    width: 64,
+    height: 64,
+    resizeMode: "contain",
   },
 
   safeArea: {
@@ -1271,46 +1432,47 @@ const styles = StyleSheet.create({
 
   titleSection: {
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 30,
-    paddingBottom: 24,
+    paddingHorizontal: 28,
+    paddingBottom: 26,
   },
 
   screenTitle: {
     color: "#111827",
-    fontSize: 20,
+    fontSize: 27,
     fontWeight: "900",
-    letterSpacing: -0.4,
-    marginBottom: 8,
+    letterSpacing: -0.7,
+    marginBottom: 10,
   },
 
   screenSubtitle: {
-    color: "#9AA8BA",
-    fontSize: 14,
-    fontWeight: "700",
+    color: "#94A3B8",
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 22,
   },
 
   sectionBlock: {
-    paddingHorizontal: 18,
-    paddingTop: 24,
+    paddingHorizontal: 24,
+    paddingTop: 28,
   },
 
   sectionTitle: {
     color: "#111827",
-    fontSize: 17,
+    fontSize: 20,
     fontWeight: "900",
-    letterSpacing: -0.3,
-    marginBottom: 14,
-    marginLeft: 8,
+    letterSpacing: -0.4,
+    marginBottom: 16,
+    marginTop: 0,
   },
 
   currentScheduleCard: {
-    minHeight: 84,
-    borderRadius: 16,
     backgroundColor: "#FFFFFF",
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: "#DDE5F0",
-    paddingHorizontal: 20,
-    paddingVertical: 16,
+    borderColor: "#DCE5F2",
+    paddingHorizontal: 18,
+    paddingVertical: 18,
+    minHeight: 82,
     flexDirection: "row",
     alignItems: "center",
   },
@@ -1321,9 +1483,9 @@ const styles = StyleSheet.create({
 
   currentPlaceName: {
     color: "#1C2534",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "900",
-    marginBottom: 4,
+    marginBottom: 6,
   },
 
   currentAddress: {
@@ -1340,9 +1502,9 @@ const styles = StyleSheet.create({
 
   currentTimeText: {
     color: "#7C8CA3",
-    fontSize: 13,
-    fontWeight: "700",
-    marginLeft: 5,
+    fontSize: 15,
+    fontWeight: "800",
+    marginLeft: 6,
   },
 
   badge: {
@@ -1362,17 +1524,22 @@ const styles = StyleSheet.create({
   },
 
   resultList: {
-    gap: 16,
+    gap: 18,
   },
 
   placeCard: {
-    borderRadius: 22,
     backgroundColor: "#FFFFFF",
+    borderRadius: 24,
     borderWidth: 1,
-    borderColor: "#DDE5F0",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 18,
+    borderColor: "#DCE5F2",
+    paddingHorizontal: 16,
+    paddingVertical: 20,
+    marginBottom: 18,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.05,
+    shadowRadius: 18,
+    elevation: 3,
   },
 
   expandedPlaceCard: {
@@ -1392,13 +1559,13 @@ const styles = StyleSheet.create({
   },
 
   thumbnailCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "#FFD0F6",
+    width: 84,
+    height: 84,
+    borderRadius: 42,
+    backgroundColor: "#EAF6ED",
     alignItems: "center",
     justifyContent: "center",
-    marginRight: 14,
+    marginRight: 18,
   },
 
   thumbnailEmoji: {
@@ -1417,19 +1584,19 @@ const styles = StyleSheet.create({
 
   placeName: {
     color: "#111827",
-    fontSize: 19,
+    fontSize: 24,
     fontWeight: "900",
-    marginRight: 8,
-    maxWidth: 190,
+    letterSpacing: -0.5,
+    flexShrink: 1,
   },
 
   tagRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginTop: 12,
-    marginBottom: 10,
-    marginLeft: 70,
+    gap: 7,
+    marginTop: 10,
+    marginBottom: 0,
+    marginLeft: 102,
     alignItems: "center",
   },
 
@@ -1454,16 +1621,15 @@ const styles = StyleSheet.create({
 
   ratingText: {
     color: "#111827",
-    fontSize: 14,
+    fontSize: 18,
     fontWeight: "900",
-    marginLeft: 3,
   },
 
   reviewText: {
     color: "#7C8CA3",
-    fontSize: 13,
-    fontWeight: "700",
-    marginLeft: 3,
+    fontSize: 15,
+    fontWeight: "800",
+    marginLeft: 4,
   },
 
   infoLine: {
@@ -1473,57 +1639,124 @@ const styles = StyleSheet.create({
   },
 
   infoText: {
+    color: "#64748B",
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 22,
+    marginLeft: 7,
+    flex: 1,
+  },
+
+  hoursDivider: {
+    height: 1,
+    backgroundColor: "#CBD5E1",
+    marginTop: 16,
+    marginBottom: 14,
+  },
+
+  hoursInfoRow: {
+    marginTop: 0,
+    marginBottom: 2,
+    paddingHorizontal: 0,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+
+  hoursStatusDot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: "#34C759",
+    marginRight: 8,
+  },
+
+  hoursStatusText: {
+    color: "#16A34A",
+    fontSize: 16,
+    fontWeight: "900",
+    flex: 1,
+  },
+
+  hoursTimeText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  hoursChevron: {
+    marginLeft: "auto",
+  },
+
+  fullHoursBox: {
+    marginTop: 12,
+    marginBottom: 8,
+    borderRadius: 16,
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#DCE5F2",
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+
+  fullHoursTitle: {
+    color: "#111827",
+    fontSize: 14,
+    fontWeight: "900",
+    marginBottom: 6,
+  },
+
+  fullHoursRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 2,
+  },
+
+  fullHoursDay: {
+    width: 62,
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 22,
+  },
+
+  fullHoursTime: {
     flex: 1,
     color: "#64748B",
-    fontSize: 13,
-    fontWeight: "700",
-    marginLeft: 7,
-    lineHeight: 18,
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+
+  todayFullHoursText: {
+    color: "#2158E8",
+    fontWeight: "900",
+  },
+
+  fullHoursText: {
+    color: "#64748B",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 23,
   },
 
   aiSummaryBox: {
-    position: "relative",
-    marginTop: 12,
-    minHeight: 54,
-    borderRadius: 14,
+    marginTop: 14,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: "#C7DCFF",
-    backgroundColor: "#EEF6FF",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 15,
+    paddingVertical: 13,
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    gap: 10,
   },
 
   expandedAiSummaryBox: {
     marginTop: 12,
   },
 
-  aiBadge: {
-    position: "absolute",
-    right: -13,
-    top: -13,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "#5B3DFF",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#5B3DFF",
-    shadowOffset: {
-      width: 0,
-      height: 4,
-    },
-    shadowOpacity: 0.25,
-    shadowRadius: 7,
-    elevation: 6,
-  },
 
-  aiBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
 
   aiSummaryIcon: {
     fontSize: 16,
@@ -1534,25 +1767,48 @@ const styles = StyleSheet.create({
   aiSummaryText: {
     flex: 1,
     color: "#2158E8",
-    fontSize: 13,
-    fontWeight: "800",
-    lineHeight: 19,
+    fontSize: 15,
+    fontWeight: "900",
+    lineHeight: 21,
   },
 
-  detailButton: {
-    marginTop: 10,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#F5F7FA",
+  retryReviewButton: {
+    marginTop: 12,
+    minHeight: 46,
+    borderRadius: 14,
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#C7D5FF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    gap: 8,
+  },
+
+  retryReviewButtonText: {
+    color: "#2158E8",
+    fontSize: 15,
+    fontWeight: "900",
+  },
+
+  retryReviewButtonTextDisabled: {
+    color: "#94A3B8",
+  },
+
+  detailButton: {
+    marginTop: 14,
+    minHeight: 54,
+    borderRadius: 16,
+    backgroundColor: "#F1F5F9",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "row",
     gap: 6,
   },
 
   detailButtonText: {
     color: "#64748B",
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: "900",
   },
 
@@ -1626,9 +1882,9 @@ const styles = StyleSheet.create({
   },
 
   selectButton: {
-    marginTop: 12,
-    height: 48,
-    borderRadius: 14,
+    marginTop: 16,
+    minHeight: 58,
+    borderRadius: 16,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
@@ -1640,7 +1896,7 @@ const styles = StyleSheet.create({
 
   selectButtonText: {
     color: "#FFFFFF",
-    fontSize: 15,
+    fontSize: 18,
     fontWeight: "900",
   },
 
