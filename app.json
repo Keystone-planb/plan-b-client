@@ -10,7 +10,7 @@
       "package": "com.planbtravel.app",
       "config": {
         "googleMaps": {
-          "apiKey": ""
+          "apiKey": "${EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY}"
         }
       },
       "adaptiveIcon": {
