@@ -10,7 +10,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_ENV": "prod"
+        "EXPO_PUBLIC_API_ENV": "prod",
+        "EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY": "AIzaSyCobc0-_9drn2veQlzOm3MNM6LgOrHCyR8"
       }
     },
     "production": {
@@ -18,7 +19,8 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_API_ENV": "prod"
+        "EXPO_PUBLIC_API_ENV": "prod",
+        "EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY": "AIzaSyCobc0-_9drn2veQlzOm3MNM6LgOrHCyR8"
       }
     }
   }

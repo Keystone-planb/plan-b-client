@@ -1,5 +1,7 @@
 import "dotenv/config";
 
+const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "";
+
 export default ({ config }) => ({
   ...config,
 
@@ -8,18 +10,20 @@ export default ({ config }) => ({
   scheme: "planb",
 
   android: {
-    ...config.android,
     package: "com.planbtravel.app",
+    adaptiveIcon: {
+      foregroundImage: "./assets/logo.png",
+      backgroundColor: "#F3F4F6",
+    },
     config: {
-      ...(config.android?.config ?? {}),
       googleMaps: {
-        apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "",
+        apiKey: googleMapsApiKey,
       },
     },
   },
 
   ios: {
-    ...config.ios,
+    ...(config.ios ?? {}),
     bundleIdentifier: "com.planbtravel.app",
     config: {
       ...(config.ios?.config ?? {}),
