@@ -26,7 +26,6 @@ export const configureAndroidNotificationChannel = async () => {
       importance: Notifications.AndroidImportance.HIGH,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: "#2158E8",
-      sound: "default",
     });
 
     console.log("[push] Android notification channel 설정 완료");
