@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
+  KeyboardAvoidingView,
+  Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -39,7 +41,11 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.screen}>
+      <KeyboardAvoidingView
+        style={styles.screen}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        keyboardVerticalOffset={12}
+      >
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.scrollContent}
@@ -81,6 +87,7 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
               autoCapitalize="none"
               autoCorrect={false}
               returnKeyType="done"
+              onSubmitEditing={handleNext}
             />
           </View>
         </ScrollView>
@@ -101,7 +108,7 @@ export default function AddScheduleNameScreen({ navigation }: Props) {
             <Text style={styles.nextButtonText}>다음</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
