@@ -1616,12 +1616,6 @@ export function usePlanAPlaces({
       const createdLocations: CreatedLocationWithDay[] = [];
 
       for (const item of locationRequests) {
-        console.log("[QA_DUPLICATE] PlanA before addLocationToTripDay:", {
-          tripId: refreshedTripId,
-          day: item.day,
-          placeId: item.payload.place_id,
-          name: item.payload.name,
-        });
 
         const createdLocation = await addLocationToTripDay({
           tripId: refreshedTripId,

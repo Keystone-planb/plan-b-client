@@ -107,12 +107,6 @@ export default function LoginScreen({ navigation }: any) {
     const savedAccess = await AsyncStorage.getItem("access_token");
     const savedRefresh = await AsyncStorage.getItem("refresh_token");
 
-    console.log("[LOGIN_DEBUG] saved token state:", {
-      hasAccessToken: Boolean(savedAccess),
-      accessLength: savedAccess?.length ?? 0,
-      hasRefreshToken: Boolean(savedRefresh),
-      refreshLength: savedRefresh?.length ?? 0,
-    });
   };
 
   const handleLoginSuccess = async (result: LoginResult) => {
@@ -210,11 +204,7 @@ export default function LoginScreen({ navigation }: any) {
     const isFailure = isOAuthFailureUrl(url);
 
     if (__DEV__) {
-      console.log("[OAuth] redirect url received:", { isSuccess, isFailure });
-      console.log("[OAuth] is success:", isSuccess);
-      console.log("[OAuth] is failure:", isFailure);
       if (isFailure) {
-        console.log("[OAuth] failure message:", getOAuthFailureMessage(url));
       }
     }
 

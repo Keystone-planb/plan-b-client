@@ -683,10 +683,6 @@ export default function AddScheduleLocationScreen({
       if (!key) return true;
 
       if (duplicatePlaceIds.has(key)) {
-        console.log("[QA_DUPLICATE] blocked duplicate submit:", {
-          placeId: key,
-          name: place.name,
-        });
 
         return false;
       }
@@ -750,14 +746,6 @@ export default function AddScheduleLocationScreen({
 
         if (targetServerTripId) {
           for (const place of filteredPlacesToSubmit) {
-            console.log("[QA_DUPLICATE] before addTripLocation:", {
-              file: "AddScheduleLocationScreen.native.tsx",
-              tripId: targetServerTripId,
-              selectedDay,
-              placeId: place.placeId,
-              googlePlaceId: place.googlePlaceId,
-              name: place.name,
-            });
 
             const response = await addTripLocation(
               targetServerTripId,
@@ -773,13 +761,6 @@ export default function AddScheduleLocationScreen({
               },
             );
 
-            console.log("[QA_DUPLICATE] after addTripLocation:", {
-              file: "AddScheduleLocationScreen.native.tsx",
-              tripPlaceId: response.tripPlaceId,
-              placeId: place.placeId,
-              googlePlaceId: place.googlePlaceId,
-              name: place.name,
-            });
 
             serverPlaceMap[place.placeId] = {
               tripPlaceId: response.tripPlaceId,

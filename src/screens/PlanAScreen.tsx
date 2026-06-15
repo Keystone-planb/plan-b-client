@@ -363,21 +363,6 @@ const handleCloseMemoSheet = () => {
 
 
   useEffect(() => {
-    console.log("[QA transport] screen=PlanA loaded schedule", {
-      scheduleId: schedule.id,
-      tripId: schedule.serverTripId ?? resolvedTripId,
-      selectedDay,
-      places: schedule.days.flatMap((day) =>
-        day.places.map((place: any) => ({
-          day: day.day,
-          id: place.id,
-          tripPlaceId: place.tripPlaceId,
-          serverTripPlaceId: place.serverTripPlaceId,
-          name: place.name,
-          transportMode: place.transportMode,
-        })),
-      ),
-    });
 
     const nextModesByPair: Record<string, TransportMode> = {};
 
