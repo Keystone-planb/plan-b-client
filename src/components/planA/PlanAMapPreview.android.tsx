@@ -14,6 +14,7 @@ type PlaceLike = {
 type Props = {
   places?: PlaceLike[];
   height?: number;
+  mapInteractive?: boolean;
 };
 
 const DEFAULT_REGION: Region = {
@@ -32,7 +33,11 @@ const toNumber = (value?: number | string | null) => {
   return null;
 };
 
-export default function PlanAMapPreview({ places = [], height = 220 }: Props) {
+export default function PlanAMapPreview({
+  places = [],
+  height = 220,
+  mapInteractive = false,
+}: Props) {
   const mapRef = useRef<MapView>(null);
 
 const visiblePlaces = useMemo(() => {
@@ -85,10 +90,15 @@ const visiblePlaces = useMemo(() => {
         ref={mapRef}
         key={`${initialRegion.latitude}-${initialRegion.longitude}-${visiblePlaces.length}`}
         provider={PROVIDER_GOOGLE}
-        style={styles.map}
+        style={[styles.map, { height }]}
         initialRegion={initialRegion}
         loadingEnabled
         moveOnMarkerPress={false}
+        scrollEnabled={mapInteractive}
+        zoomEnabled={mapInteractive}
+        rotateEnabled={mapInteractive}
+        pitchEnabled={mapInteractive}
+        toolbarEnabled={false}
       >
         {visiblePlaces.length > 1 ? (
           <Polyline
