@@ -1,0 +1,7 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- tapOn: "새로운 일정 추가하기"
+- waitForAnimationToEnd
+- takeScreenshot: add-schedule-entry
+- back

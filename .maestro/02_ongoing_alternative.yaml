@@ -1,0 +1,13 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- tapOn: "신나는 제주도 여행"
+
+# 하단 시트 핸들 근처 탭
+- tapOn:
+    point: "50%,84%"
+
+- scroll
+- assertVisible: "한라면옥"
+
+- takeScreenshot: ongoing-alternative

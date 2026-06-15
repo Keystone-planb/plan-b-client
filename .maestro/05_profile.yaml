@@ -1,0 +1,10 @@
+appId: com.planbtravel.app
+---
+- launchApp
+
+# 하단 오른쪽 탭: 프로필
+- tapOn:
+    point: "80%,95%"
+
+- assertVisible: "프로필"
+- takeScreenshot: profile

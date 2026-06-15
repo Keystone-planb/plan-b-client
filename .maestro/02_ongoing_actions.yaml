@@ -1,0 +1,17 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- assertVisible: "진행중인 일정"
+- tapOn: "신나는 제주도 여행"
+
+- assertVisible: "수정"
+- assertVisible: "Day 1"
+
+# 일정 펼치기/접기 확인
+- tapOn: "일정 펼치기"
+- assertVisible: "1일 차 일정"
+
+# 장소 카드 확인
+- assertVisible: "한라면옥"
+
+- takeScreenshot: ongoing-actions

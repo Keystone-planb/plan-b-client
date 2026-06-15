@@ -1,0 +1,28 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- tapOn: "신나는 제주도 여행"
+
+- tapOn: "수정"
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: "완료"
+    timeout: 8000
+- takeScreenshot: plana-main
+
+# 첫 번째 장소 시간 변경: 오른쪽 시계 아이콘
+- tapOn:
+    point: "88%,60%"
+- waitForAnimationToEnd
+- takeScreenshot: time-change-modal
+- back
+
+# 첫 번째 장소 메모 추가/수정: 메모 영역 오른쪽 + 버튼
+- tapOn:
+    point: "86%,67%"
+- waitForAnimationToEnd
+- takeScreenshot: memo-sheet
+- back
+
+# 삭제 버튼은 누르지 않고 편집 화면 캡처만
+- takeScreenshot: delete-visible

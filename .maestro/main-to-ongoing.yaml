@@ -1,0 +1,13 @@
+appId: com.planbtravel.app
+---
+- launchApp
+
+- assertVisible: "진행중인 일정"
+- assertVisible: "새로운 일정 추가하기"
+- assertVisible: "다음 여행"
+
+- tapOn: "신나는 제주도 여행"
+
+- assertVisible: "수정"
+
+- takeScreenshot: ongoing-schedule

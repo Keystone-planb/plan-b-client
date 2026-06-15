@@ -1,0 +1,21 @@
+appId: com.planbtravel.app
+---
+- launchApp
+
+# 지난 여행 탭
+- tapOn:
+    point: "20%,95%"
+- waitForAnimationToEnd
+- takeScreenshot: plan-x-tab
+
+# 홈 탭
+- tapOn:
+    point: "50%,95%"
+- waitForAnimationToEnd
+- assertVisible: "진행중인 일정"
+
+# 프로필 탭
+- tapOn:
+    point: "80%,95%"
+- waitForAnimationToEnd
+- takeScreenshot: profile-tab

@@ -1,0 +1,13 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- tapOn: "신나는 제주도 여행"
+- assertVisible: "수정"
+- assertVisible: "Day 1"
+- takeScreenshot: ongoing-collapsed
+
+# 시트 핸들 탭
+- tapOn:
+    point: "50%,82%"
+- waitForAnimationToEnd
+- takeScreenshot: ongoing-expanded

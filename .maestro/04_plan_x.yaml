@@ -1,0 +1,10 @@
+appId: com.planbtravel.app
+---
+- launchApp
+
+# 하단 왼쪽 탭: 지난 여행/Plan.X
+- tapOn:
+    point: "21%,95%"
+
+- assertVisible: "지난"
+- takeScreenshot: plan-x

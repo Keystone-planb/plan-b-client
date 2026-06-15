@@ -1,0 +1,9 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- assertVisible: "여행"
+- tapOn: "진행중"
+- assertVisible: "Day"
+- assertVisible: "수정"
+- back
+- assertVisible: "여행"

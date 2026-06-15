@@ -1,0 +1,13 @@
+appId: com.planbtravel.app
+---
+- launchApp
+- tapOn: "신나는 제주도 여행"
+
+- tapOn: "수정"
+- assertVisible: "저장"
+- assertVisible: "장소 추가"
+
+# 시간 변경 버튼/메모 영역은 화면에 보이는 장소 카드 기준
+- assertVisible: "한라면옥"
+
+- takeScreenshot: plan-a-edit
