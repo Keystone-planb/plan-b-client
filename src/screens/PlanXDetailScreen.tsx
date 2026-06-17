@@ -60,8 +60,31 @@ const getItineraryDate = (itinerary: TripItinerary) => {
   return "";
 };
 
+const getSortableTimeValue = (place: TripPlace) => {
+  const time = place.visitTime ?? "";
+
+  if (!time) return Number.POSITIVE_INFINITY;
+
+  const normalizedTime = time.includes("T") ? time.split("T").pop() ?? time : time;
+  const [hour = "0", minute = "0"] = normalizedTime.split(":");
+
+  const parsedHour = Number(hour);
+  const parsedMinute = Number(minute);
+
+  if (!Number.isFinite(parsedHour) || !Number.isFinite(parsedMinute)) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  return parsedHour * 60 + parsedMinute;
+};
+
 const sortPlaces = (places: TripPlace[]) => {
   return [...places].sort((a, b) => {
+    const aTime = getSortableTimeValue(a);
+    const bTime = getSortableTimeValue(b);
+
+    if (aTime !== bTime) return aTime - bTime;
+
     const aOrder = a.visitOrder ?? 0;
     const bOrder = b.visitOrder ?? 0;
 
