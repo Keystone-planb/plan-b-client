@@ -134,6 +134,15 @@ export default function ProfileScreen({ navigation }: Props) {
 
   const nickname = me?.nickname || storedNickname || "사용자";
   const email = me?.email || storedEmail || "이메일 정보를 불러오는 중";
+  const preferenceLabels =
+    preferenceSummary?.keywords && preferenceSummary.keywords.length > 0 ?
+      preferenceSummary.keywords
+    : preferenceSummary?.preferredCategories &&
+      preferenceSummary.preferredCategories.length > 0 ?
+      preferenceSummary.preferredCategories
+    : me?.preferredMoods && me.preferredMoods.length > 0 ?
+      me.preferredMoods.map((mood) => MOOD_LABELS[mood] ?? mood)
+    : [];
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -169,13 +178,11 @@ export default function ProfileScreen({ navigation }: Props) {
         <View style={styles.preferenceCard}>
           <Text style={styles.preferenceTitle}>선호 여행 스타일</Text>
 
-          {me?.preferredMoods && me.preferredMoods.length > 0 ?
+          {preferenceLabels.length > 0 ?
             <View style={styles.preferenceKeywordRow}>
-              {me.preferredMoods.map((mood) => (
-                <View key={mood} style={styles.preferenceKeyword}>
-                  <Text style={styles.preferenceKeywordText}>
-                    {MOOD_LABELS[mood] ?? mood}
-                  </Text>
+              {preferenceLabels.map((label) => (
+                <View key={label} style={styles.preferenceKeyword}>
+                  <Text style={styles.preferenceKeywordText}>{label}</Text>
                 </View>
               ))}
             </View>
