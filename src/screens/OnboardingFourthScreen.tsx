@@ -3,6 +3,7 @@
 import React from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import OnboardingSwipe from "../components/onboarding/OnboardingSwipe";
 
 type Props = {
   navigation: {
@@ -18,7 +19,8 @@ export default function OnboardingFourthScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.screen}>
+    <OnboardingSwipe onSwipeRight={() => navigation.replace("OnboardingThird")}>
+      <View style={styles.screen}>
       <View style={styles.center}>
         <Text style={styles.logo}>Plan.B</Text>
         <View style={styles.rocketCircle}>
@@ -42,7 +44,8 @@ export default function OnboardingFourthScreen({ navigation }: Props) {
       >
         <Text style={styles.startButtonText}>시작하기</Text>
       </TouchableOpacity>
-    </View>
+      </View>
+    </OnboardingSwipe>
   );
 }
 

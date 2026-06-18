@@ -6,6 +6,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
 import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
+import OnboardingSwipe from "../components/onboarding/OnboardingSwipe";
 
 type Props = {
   navigation: {
@@ -23,7 +24,11 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
-    <TouchableOpacity
+    <OnboardingSwipe
+      onSwipeLeft={() => navigation.replace("OnboardingThird")}
+      onSwipeRight={() => navigation.replace("OnboardingFirst")}
+    >
+      <TouchableOpacity
       style={styles.screen}
       activeOpacity={1}
       onPress={() => navigation.replace("OnboardingThird")}
@@ -50,7 +55,8 @@ export default function OnboardingSecondScreen({ navigation }: Props) {
           </Text>
         </View>
       </View>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </OnboardingSwipe>
   );
 }
 

@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
 import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
+import OnboardingSwipe from "../components/onboarding/OnboardingSwipe";
 import MainScreen from "./MainScreen";
 
 type Props = {
@@ -23,7 +24,8 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
   const insets = useSafeAreaInsets();
 
   return (
-    <View style={styles.container}>
+    <OnboardingSwipe onSwipeLeft={() => navigation.replace("OnboardingSecond")}>
+      <View style={styles.container}>
       <View style={styles.backgroundScreen} pointerEvents="none">
         <MainScreen navigation={navigation as never} route={{} as never} />
       </View>
@@ -51,7 +53,8 @@ export default function OnboardingFirstScreen({ navigation }: Props) {
         <OnboardingProgressDots activeIndex={0} bottomInset={insets.bottom} />
 
       </TouchableOpacity>
-    </View>
+      </View>
+    </OnboardingSwipe>
   );
 }
 
