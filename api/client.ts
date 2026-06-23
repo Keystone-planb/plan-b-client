@@ -7,6 +7,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { API_CONFIG } from "./config";
 import { runRefreshOnce } from "./auth/refreshLock";
 import { emitAuthExpired } from "../src/utils/authEvents";
+import { saveAuthFailureLog } from "../src/utils/authFailureLog";
 
 const REFRESH_COOLDOWN_MS = 30000;
 let lastRefreshFailureAt = 0;
@@ -218,8 +219,15 @@ apiClient.interceptors.response.use(
 
       originalRequest._retry = true;
 
+      let refreshTokenExistsForFailureLog = false;
+
       try {
         const refreshToken = await getStoredValue("refresh_token");
+
+        refreshTokenExistsForFailureLog = Boolean(
+          refreshToken &&
+            refreshToken.trim().length > 0,
+        );
 
         console.log("[apiClient] stored token state before refresh:", {
           hasRefreshToken: Boolean(refreshToken),
@@ -292,6 +300,17 @@ apiClient.interceptors.response.use(
             Number(refreshError.response.status)
           : undefined;
 
+        const refreshDiagnosticStatus =
+          refreshResponseStatus ??
+          ((
+            refreshError &&
+            typeof refreshError === "object" &&
+            "refreshStatus" in refreshError &&
+            typeof refreshError.refreshStatus === "number"
+          ) ?
+            refreshError.refreshStatus
+          : undefined);
+
         // refresh 요청이 ELB/WAF 등 게이트웨이에 막혀(비-API 응답) 실패한 경우에도
         // 토큰을 유지하면 화면이 계속 재시도 → refresh 폭주 → WAF 차단의 무한 루프가 발생한다.
         // 이 경우에도 토큰을 정리해 루프를 끊고 재로그인하도록 한다.
@@ -323,7 +342,65 @@ apiClient.interceptors.response.use(
             refreshResponseStatus,
           });
 
+          const authFailureReason =
+            !refreshTokenExistsForFailureLog ?
+              "refresh_token_missing"
+            : refreshDiagnosticStatus === 401 ?
+              "refresh_api_401"
+            : refreshErrorMessage.includes("만료") ?
+              "refresh_token_expired"
+            : "refresh_token_invalid";
+
+          try {
+            await saveAuthFailureLog({
+              occurredAt:
+                new Date().toISOString(),
+
+              requestUrl:
+                originalRequest?.url ??
+                null,
+
+              requestMethod:
+                originalRequest?.method
+                  ?.toUpperCase() ??
+                null,
+
+              originalStatus:
+                error.response?.status ??
+                null,
+
+              refreshTokenExists:
+                refreshTokenExistsForFailureLog,
+
+              refreshStatus:
+                refreshDiagnosticStatus ??
+                null,
+
+              refreshErrorMessage:
+                refreshErrorMessage
+                  .trim()
+                  .slice(0, 300) ||
+                null,
+
+              reason:
+                authFailureReason,
+
+              action:
+                "clear_tokens_and_redirect_login",
+            });
+
+            console.warn(
+              "[AuthFailureReport] 로그아웃 직전 인증 실패 기록 저장 완료",
+            );
+          } catch (logError) {
+            console.warn(
+              "[AuthFailureReport] 인증 실패 기록 저장 실패:",
+              logError,
+            );
+          }
+
           await clearStoredAuth();
+
           // 세션 만료 → 앱에 알려 로그인 화면으로 보낸다.
           emitAuthExpired();
         } else {

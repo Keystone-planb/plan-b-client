@@ -26,6 +26,29 @@ interface RefreshErrorResponse {
   error?: string;
 }
 
+type RefreshErrorWithStatus = Error & {
+  refreshStatus?: number;
+};
+
+const createRefreshError = (
+  message: string,
+  refreshStatus?: number,
+): RefreshErrorWithStatus => {
+  const error =
+    new Error(
+      message,
+    ) as RefreshErrorWithStatus;
+
+  if (
+    typeof refreshStatus === "number"
+  ) {
+    error.refreshStatus =
+      refreshStatus;
+  }
+
+  return error;
+};
+
 const isRefreshResponse = (data: unknown): data is RefreshResponse => {
   if (!data || typeof data !== "object") return false;
 
@@ -80,14 +103,16 @@ export const requestRefresh = async ({
     const data = response.data;
 
     if (isHtmlResponse(data)) {
-      throw new Error(
+      throw createRefreshError(
         "토큰 재발급 API가 HTML을 반환했습니다. BASE_URL과 백엔드 서버 상태를 확인해주세요.",
+        response.status,
       );
     }
 
     if (!isRefreshResponse(data)) {
-      throw new Error(
+      throw createRefreshError(
         "새 access_token이 없습니다. 토큰 재발급 응답을 확인해주세요.",
+        response.status,
       );
     }
 
@@ -100,7 +125,7 @@ export const requestRefresh = async ({
         | undefined;
 
       if (!error.response && error.message === "Network Error") {
-        throw new Error(
+        throw createRefreshError(
           "백엔드 서버에 연결할 수 없습니다. 서버 상태와 BASE_URL을 확인해주세요.",
         );
       }
@@ -116,19 +141,28 @@ export const requestRefresh = async ({
       });
 
       if (isHtmlResponse(errorData)) {
-        throw new Error(
+        throw createRefreshError(
           "토큰 재발급 요청이 API 서버가 아닌 다른 서버로 전달되고 있습니다. BASE_URL을 확인해주세요.",
+          error.response?.status,
         );
       }
 
-      if (typeof errorData === "string") {
-        throw new Error(errorData.trim());
+      if (
+        typeof errorData === "string"
+      ) {
+        throw createRefreshError(
+          errorData.trim(),
+          error.response?.status,
+        );
       }
 
       const errorMessage =
         errorData?.message || errorData?.error || "토큰 재발급에 실패했습니다.";
 
-      throw new Error(errorMessage);
+      throw createRefreshError(
+        errorMessage,
+        error.response?.status,
+      );
     }
 
     if (error instanceof Error) {

@@ -2,6 +2,7 @@ import "react-native-gesture-handler";
 
 import React, { useEffect, useRef, useState } from "react";
 import { onAuthExpired } from "./src/utils/authEvents";
+import { getAuthFailureLog } from "./src/utils/authFailureLog";
 import { initAmplitude } from "./src/utils/amplitude";
 import { ActivityIndicator, AppState, Platform, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -317,6 +318,23 @@ export default function App() {
 
   useEffect(() => {
     const bootstrapAuth = async () => {
+      try {
+        const previousAuthFailure =
+          await getAuthFailureLog();
+
+        if (previousAuthFailure) {
+          console.warn(
+            "[AuthFailureReport] 지난 인증 종료 기록",
+            previousAuthFailure,
+          );
+        }
+      } catch (error) {
+        console.warn(
+          "[AuthFailureReport] 지난 인증 종료 기록 조회 실패:",
+          error,
+        );
+      }
+
       if (FORCE_INITIAL_ROUTE_FOR_FLOW_TEST) {
         console.log(
           "[App] 화면 플로우 테스트용 초기 라우트:",
