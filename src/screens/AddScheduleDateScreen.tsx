@@ -13,6 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 
 import TravelDateRangeModal from "../components/TravelDateRangeModal";
 
+const WEEKDAY_LABELS = [
+  "일",
+  "월",
+  "화",
+  "수",
+  "목",
+  "금",
+  "토",
+] as const;
+
 type Props = {
   navigation: any;
   route: {
@@ -97,9 +107,46 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
     setEndDate(nextEndDate);
   };
 
-  const formatDate = (value: string) => {
-    if (!value) return "";
-    return value.replace(/-/g, ".");
+  const formatTravelDate = (
+    value: string,
+  ) => {
+    if (!value) return "날짜 선택";
+
+    const [
+      yearText,
+      monthText,
+      dayText,
+    ] = value.split("-");
+
+    const year = Number(yearText);
+    const month = Number(monthText);
+    const day = Number(dayText);
+
+    const date = new Date(
+      year,
+      month - 1,
+      day,
+    );
+
+    if (
+      !Number.isFinite(year) ||
+      !Number.isFinite(month) ||
+      !Number.isFinite(day) ||
+      Number.isNaN(date.getTime())
+    ) {
+      return value.replace(/-/g, ".");
+    }
+
+    const weekday =
+      WEEKDAY_LABELS[date.getDay()];
+
+    return `${String(month).padStart(
+      2,
+      "0",
+    )}월 ${String(day).padStart(
+      2,
+      "0",
+    )}일 (${weekday})`;
   };
 
   return (
@@ -157,57 +204,134 @@ export default function AddScheduleDateScreen({ navigation, route }: Props) {
               </View>
             </View>
 
-            <Text style={styles.title}>여행 날짜를{"\n"}알려주세요</Text>
+            <Text style={styles.title}>
+              여행 날짜를{"\n"}선택해 주세요
+            </Text>
 
             <Text style={styles.description}>
-              {tripName ?
-                `"${tripName}" 여행은 언제 떠나시나요?`
-              : "언제부터 언제까지 여행하시나요?"}
+              {tripName ? (
+                <Text>
+                  <Text style={styles.tripNameText}>
+                    {tripName}
+                  </Text>
+                  {" 여행은 언제 떠나시나요?"}
+                </Text>
+              ) : (
+                "언제부터 언제까지 여행하시나요?"
+              )}
             </Text>
           </View>
 
           <View style={styles.inputSection}>
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>출발일</Text>
+            <TouchableOpacity
+              style={styles.travelPeriodCard}
+              activeOpacity={0.9}
+              accessibilityRole="button"
+              accessibilityLabel="여행 기간 선택"
+              onPress={() =>
+                setCalendarVisible(true)
+              }
+            >
+              <View style={styles.periodCardHeader}>
+                <View style={styles.periodTitleRow}>
+                  <View style={styles.periodIconBox}>
+                    <Ionicons
+                      name="calendar-outline"
+                      size={18}
+                      color="#2158E8"
+                    />
+                  </View>
 
-              <TouchableOpacity
-                style={styles.dateField}
-                activeOpacity={0.85}
-                onPress={() => setCalendarVisible(true)}
-              >
-                <Text
-                  style={[
-                    styles.dateText,
-                    startDate && styles.selectedDateText,
-                  ]}
-                >
-                  {startDate ? formatDate(startDate) : "0000.00.00"}
-                </Text>
-
-                <View style={styles.calendarButton}>
-                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                  <Text style={styles.periodTitle}>
+                    여행 기간
+                  </Text>
                 </View>
-              </TouchableOpacity>
-            </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>도착일</Text>
+                <View style={styles.periodChangeRow}>
+                  <Text
+                    style={styles.periodChangeText}
+                  >
+                    {startDate || endDate
+                      ? "날짜 변경"
+                      : "날짜 선택"}
+                  </Text>
 
-              <TouchableOpacity
-                style={styles.dateField}
-                activeOpacity={0.85}
-                onPress={() => setCalendarVisible(true)}
-              >
-                <Text
-                  style={[styles.dateText, endDate && styles.selectedDateText]}
-                >
-                  {endDate ? formatDate(endDate) : "0000.00.00"}
-                </Text>
-
-                <View style={styles.calendarButton}>
-                  <Ionicons name="calendar-outline" size={20} color="#2158E8" />
+                  <Ionicons
+                    name="chevron-forward"
+                    size={16}
+                    color="#2158E8"
+                  />
                 </View>
-              </TouchableOpacity>
+              </View>
+
+              <View
+                style={
+                  styles.periodHorizontalDivider
+                }
+              />
+
+              <View style={styles.periodDateRow}>
+                <View
+                  style={styles.periodDateColumn}
+                >
+                  <Text style={styles.periodLabel}>
+                    여행 출발일
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.periodDateValue,
+                      !startDate &&
+                        styles.periodPlaceholder,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    {formatTravelDate(startDate)}
+                  </Text>
+                </View>
+
+                <View
+                  style={
+                    styles.periodVerticalDivider
+                  }
+                />
+
+                <View
+                  style={styles.periodDateColumn}
+                >
+                  <Text style={styles.periodLabel}>
+                    여행 도착일
+                  </Text>
+
+                  <Text
+                    style={[
+                      styles.periodDateValue,
+                      !endDate &&
+                        styles.periodPlaceholder,
+                    ]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit
+                    minimumFontScale={0.82}
+                  >
+                    {formatTravelDate(endDate)}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+
+            <View style={styles.periodHintRow}>
+              <Ionicons
+                name="information-circle-outline"
+                size={16}
+                color="#7C8CA3"
+              />
+
+              <Text style={styles.periodHintText}>
+                카드를 눌러 달력에서 여행 기간을
+                선택할 수 있어요.
+              </Text>
             </View>
           </View>
         </ScrollView>
@@ -409,51 +533,139 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
+  tripNameText: {
+    color: "#2158E8",
+    fontWeight: "900",
+  },
+
   inputSection: {
     marginBottom: 20,
   },
 
-  fieldGroup: {
-    marginBottom: 18,
-  },
-
-  fieldLabel: {
-    color: "#252D3C",
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 8,
-  },
-
-  dateField: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    backgroundColor: "#FFFFFF",
-    borderColor: "#E1E7EF",
+  travelPeriodCard: {
+    borderRadius: 18,
     borderWidth: 1,
-    borderRadius: 14,
-    paddingVertical: 8,
-    paddingHorizontal: 20,
+    borderColor: "#DDE5EF",
+    backgroundColor: "#FFFFFF",
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.06,
+    shadowRadius: 16,
+    elevation: 3,
   },
 
-  dateText: {
-    color: "#8C9BB1",
-    fontSize: 16,
-    fontWeight: "500",
+  periodCardHeader: {
+    minHeight: 58,
+    paddingHorizontal: 18,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
 
-  selectedDateText: {
-    color: "#1C2534",
-    fontWeight: "700",
+  periodTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9,
   },
 
-  calendarButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
+  periodIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
     backgroundColor: "#EAF3FF",
     alignItems: "center",
     justifyContent: "center",
+  },
+
+  periodTitle: {
+    color: "#1C2534",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  periodChangeRow: {
+    minHeight: 36,
+    paddingLeft: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+
+  periodChangeText: {
+    color: "#2158E8",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  periodHorizontalDivider: {
+    height: 1,
+    backgroundColor: "#EEF2F7",
+  },
+
+  periodDateRow: {
+    minHeight: 100,
+    paddingVertical: 18,
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "stretch",
+  },
+
+  periodDateColumn: {
+    flex: 1,
+    minWidth: 0,
+    paddingHorizontal: 6,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  periodVerticalDivider: {
+    width: 1,
+    backgroundColor: "#E7ECF3",
+  },
+
+  periodLabel: {
+    color: "#8190A5",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 10,
+  },
+
+  periodDateValue: {
+    width: "100%",
+    color: "#1C2534",
+    fontSize: 17,
+    fontWeight: "900",
+    lineHeight: 23,
+    textAlign: "center",
+    letterSpacing: -0.3,
+  },
+
+  periodPlaceholder: {
+    color: "#9AA8BA",
+    fontWeight: "700",
+  },
+
+  periodHintRow: {
+    marginTop: 11,
+    paddingHorizontal: 6,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  periodHintText: {
+    flexShrink: 1,
+    color: "#7C8CA3",
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 18,
+    textAlign: "center",
   },
 
   footerSection: {

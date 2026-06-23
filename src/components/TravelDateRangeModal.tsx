@@ -28,6 +28,18 @@ const BG = "#F7F9FB";
 const BORDER = "#E1E7EF";
 const ERROR = "#EF4444";
 
+function getLocalDateString(date: Date) {
+  const year = date.getFullYear();
+  const month = String(
+    date.getMonth() + 1,
+  ).padStart(2, "0");
+  const day = String(
+    date.getDate(),
+  ).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
 function formatDisplayDate(date?: string) {
   if (!date) return "날짜 선택";
   const [year, month, day] = date.split("-");
@@ -121,6 +133,11 @@ export default function TravelDateRangeModal({
   const [startDate, setStartDate] = useState(initialStartDate ?? "");
   const [endDate, setEndDate] = useState(initialEndDate ?? "");
 
+  const todayDate = useMemo(
+    () => getLocalDateString(new Date()),
+    [],
+  );
+
   const hasDateError = isEndBeforeStart(startDate, endDate);
   const dateErrorMessage =
     hasDateError ? "출발일은 도착일보다 늦을 수 없습니다." : "";
@@ -158,6 +175,17 @@ export default function TravelDateRangeModal({
 
     const dateString = date.dateString;
     const isDisabled = state === "disabled";
+    const isToday = dateString === todayDate;
+
+    const dayOfWeek = new Date(
+      date.year,
+      date.month - 1,
+      date.day,
+    ).getDay();
+
+    const isSunday = dayOfWeek === 0;
+    const isSaturday = dayOfWeek === 6;
+
     const hasRange = Boolean(startDate && endDate && !hasDateError);
     const isSingleSelected =
       startDate === dateString && (!endDate || hasDateError);
@@ -195,15 +223,41 @@ export default function TravelDateRangeModal({
         <View
           style={[
             styles.dayCircle,
-            isSelectedCircle && styles.selectedDayCircle,
-            isErrorEnd && styles.errorDayCircle,
+            isToday &&
+              !isSelectedCircle &&
+              !isMiddle &&
+              !isErrorEnd &&
+              styles.todayDayCircle,
+            isSelectedCircle &&
+              styles.selectedDayCircle,
+            isErrorEnd &&
+              styles.errorDayCircle,
           ]}
         >
           <Text
             style={[
               styles.dayText,
-              isDisabled && styles.disabledDayText,
-              isMiddle && styles.rangeDayText,
+              isDisabled &&
+                styles.disabledDayText,
+              isToday &&
+                !isSelectedCircle &&
+                !isMiddle &&
+                !isErrorEnd &&
+                styles.todayDayText,
+              isSunday &&
+                !isDisabled &&
+                !isSelectedCircle &&
+                !isMiddle &&
+                !isErrorEnd &&
+                styles.sundayDayText,
+              isSaturday &&
+                !isDisabled &&
+                !isSelectedCircle &&
+                !isMiddle &&
+                !isErrorEnd &&
+                styles.saturdayDayText,
+              isMiddle &&
+                styles.rangeDayText,
               isSelectedCircle && styles.selectedDayText,
               isErrorEnd && styles.errorDayText,
             ]}
@@ -223,7 +277,11 @@ export default function TravelDateRangeModal({
 
           <View style={styles.headerRow}>
             <Text style={styles.title}>여행 날짜 선택</Text>
-            <TouchableOpacity onPress={onClose} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.closeButton}
+              onPress={onClose}
+              activeOpacity={0.8}
+            >
               <Text style={styles.closeText}>닫기</Text>
             </TouchableOpacity>
           </View>
@@ -257,7 +315,7 @@ export default function TravelDateRangeModal({
               <Text style={styles.modalErrorText}>{dateErrorMessage}</Text>
             </View>
           : <Text style={styles.helperText}>
-              출발일을 먼저 선택하고, 그다음 도착일을 선택해주세요.
+              출발일을 먼저 선택한 뒤, 도착일을 선택해 주세요.
             </Text>
           }
 
@@ -292,7 +350,18 @@ export default function TravelDateRangeModal({
               textDayFontSize: 15,
               textMonthFontSize: 18,
               textDayHeaderFontSize: 13,
-            }}
+
+              "stylesheet.calendar.header": {
+                dayTextAtIndex0: {
+                  color: "#EF4444",
+                  fontWeight: "700",
+                },
+                dayTextAtIndex6: {
+                  color: "#2563EB",
+                  fontWeight: "700",
+                },
+              },
+            } as any}
             style={styles.calendar}
           />
 
@@ -333,10 +402,11 @@ const styles = StyleSheet.create({
   },
 
   sheet: {
-    width: 310,
+    width: "100%",
+    maxWidth: 342,
     backgroundColor: "#FFFFFF",
     borderRadius: 22,
-    paddingHorizontal: 14,
+    paddingHorizontal: 18,
     paddingTop: 18,
     paddingBottom: 22,
   },
@@ -346,16 +416,30 @@ const styles = StyleSheet.create({
   },
 
   headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+    minHeight: 30,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 14,
+    position: "relative",
+    marginBottom: 16,
   },
 
   title: {
+    width: "100%",
+    paddingHorizontal: 54,
     fontSize: 20,
     fontWeight: "900",
     color: TEXT_MAIN,
+    textAlign: "center",
+  },
+
+  closeButton: {
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 4,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   closeText: {
@@ -377,8 +461,11 @@ const styles = StyleSheet.create({
 
   summaryCard: {
     flex: 1,
+    minWidth: 0,
     paddingVertical: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   summaryDivider: {
@@ -387,16 +474,20 @@ const styles = StyleSheet.create({
   },
 
   summaryLabel: {
+    width: "100%",
     fontSize: 13,
     fontWeight: "700",
     color: TEXT_SUB,
     marginBottom: 6,
+    textAlign: "center",
   },
 
   summaryValue: {
+    width: "100%",
     fontSize: 18,
     fontWeight: "800",
     color: TEXT_MAIN,
+    textAlign: "center",
   },
 
   summaryErrorValue: {
@@ -404,9 +495,13 @@ const styles = StyleSheet.create({
   },
 
   helperText: {
+    width: "100%",
+    paddingHorizontal: 4,
     fontSize: 13,
+    lineHeight: 19,
     color: TEXT_SUB,
-    marginBottom: 14,
+    textAlign: "center",
+    marginBottom: 16,
   },
 
   modalErrorBox: {
@@ -420,15 +515,16 @@ const styles = StyleSheet.create({
     marginBottom: 14,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 6,
   },
 
   modalErrorText: {
-    flex: 1,
     color: ERROR,
     fontSize: 12,
     fontWeight: "800",
     lineHeight: 17,
+    textAlign: "center",
   },
 
   calendar: {
@@ -481,6 +577,12 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
 
+  todayDayCircle: {
+    backgroundColor: "#EEF4FF",
+    borderWidth: 1.5,
+    borderColor: PRIMARY,
+  },
+
   selectedDayCircle: {
     backgroundColor: PRIMARY,
   },
@@ -495,6 +597,21 @@ const styles = StyleSheet.create({
     color: TEXT_MAIN,
     fontSize: 14,
     fontWeight: "600",
+  },
+
+  todayDayText: {
+    color: PRIMARY,
+    fontWeight: "900",
+  },
+
+  sundayDayText: {
+    color: "#EF4444",
+    fontWeight: "800",
+  },
+
+  saturdayDayText: {
+    color: "#2563EB",
+    fontWeight: "800",
   },
 
   selectedDayText: {
