@@ -84,7 +84,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
             <View style={localStyles.titleTimeBox}>
               <Text
                 style={[styles.placeName, localStyles.placeName]}
-                numberOfLines={1}
+                numberOfLines={2}
                 ellipsizeMode="tail"
               >
                 {place.name || "이름 없는 장소"}
@@ -108,15 +108,29 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
                 activeOpacity={0.85}
                 onPress={() => handleAlternative(place)}
               >
-                <Text
-                  style={[
-                    styles.alternativeButtonText,
-                    localStyles.alternativeButtonText,
-                  ]}
+                <View
+                  style={
+                    localStyles.alternativeButtonContent
+                  }
                 >
-                  대안찾기
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+                  <Text
+                    style={[
+                      styles.alternativeButtonText,
+                      localStyles.alternativeButtonText,
+                    ]}
+                  >
+                    대안찾기
+                  </Text>
+
+                  <Ionicons
+                    name="chevron-forward"
+                    size={15}
+                    color="#FFFFFF"
+                    style={
+                      localStyles.alternativeButtonIcon
+                    }
+                  />
+                </View>
               </TouchableOpacity>
             ) : null}
           </View>
@@ -200,8 +214,8 @@ const localStyles = StyleSheet.create({
   cardInner: {
     flex: 1,
     flexDirection: "row",
-    alignItems: "flex-start",
-    paddingTop: 8,
+    alignItems: "center",
+    paddingTop: 0,
   },
 
   categoryIconBox: {
@@ -210,7 +224,12 @@ const localStyles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     marginRight: 18,
-    marginTop: 2,
+    marginTop: 0,
+    transform: [
+      {
+        translateY: -2,
+      },
+    ],
   },
 
   categoryIcon: {
@@ -221,12 +240,13 @@ const localStyles = StyleSheet.create({
   contentArea: {
     flex: 1,
     minWidth: 0,
-    justifyContent: "flex-start",
+    justifyContent: "center",
   },
 
   titleActionRow: {
+    width: "100%",
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
   },
@@ -234,18 +254,23 @@ const localStyles = StyleSheet.create({
   titleTimeBox: {
     flex: 1,
     minWidth: 0,
+    justifyContent: "center",
+    paddingRight: 4,
   },
 
   placeName: {
+    width: "100%",
     color: "#252D3C",
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: "900",
-    lineHeight: 24,
-    marginBottom: 4,
+    lineHeight: 23,
+    marginBottom: 5,
+    textAlign: "left",
+    letterSpacing: -0.3,
   },
 
   timeRow: {
-    marginTop: 3,
+    marginTop: 2,
     flexDirection: "row",
     alignItems: "center",
     gap: 7,
@@ -253,7 +278,7 @@ const localStyles = StyleSheet.create({
 
   timeText: {
     color: "#627187",
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     lineHeight: 20,
   },
@@ -322,25 +347,37 @@ const localStyles = StyleSheet.create({
   },
 
   alternativeButton: {
-    marginTop: 4,
-    width: 86,
-    minWidth: 86,
-    maxWidth: 86,
-    height: 35,
-    borderRadius: 10,
+    marginTop: 0,
+    width: 90,
+    minWidth: 90,
+    maxWidth: 90,
+    height: 38,
+    borderRadius: 11,
     backgroundColor: "#2158E8",
-    paddingHorizontal: 0,
-    flexDirection: "row",
+    paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    gap: 5,
     flexShrink: 0,
+  },
+
+  alternativeButtonContent: {
+    width: "100%",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+    paddingRight: 10,
+  },
+
+  alternativeButtonIcon: {
+    position: "absolute",
+    right: 0,
   },
 
   alternativeButtonText: {
     color: "#FFFFFF",
-    fontSize: 12,
-    fontWeight: "800",
-    lineHeight: 15,
+    fontSize: 14,
+    fontWeight: "900",
+    lineHeight: 18,
+    textAlign: "center",
   },
 });
