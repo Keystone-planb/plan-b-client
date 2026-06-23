@@ -197,24 +197,92 @@ export default function SearchResultCard({
       </View>
 
       {isReviewLoading && (
-        <View style={styles.reviewLoadingPanel}>
-          <ActivityIndicator size="large" color="#2158E8" />
+        <View style={styles.reviewSkeletonPanel}>
+          <View style={styles.reviewSkeletonHeader}>
+            <View style={styles.reviewSkeletonTitleRow}>
+              <View style={styles.reviewSkeletonSparkleBox}>
+                <Ionicons
+                  name="sparkles-outline"
+                  size={15}
+                  color="#2158E8"
+                />
+              </View>
 
-          <Text style={styles.reviewLoadingTitle}>
-            리뷰 분석 중
+              <Text style={styles.reviewSkeletonTitle}>
+                AI 리뷰 요약
+              </Text>
+            </View>
+
+            <TouchableOpacity
+              style={styles.reviewSkeletonCancelChip}
+              activeOpacity={0.8}
+              onPress={onCancelReviewLoading}
+            >
+              <Text style={styles.reviewSkeletonCancelText}>
+                취소
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.reviewSkeletonSummaryCard}>
+            <View
+              style={[
+                styles.reviewSkeletonLine,
+                styles.reviewSkeletonLineLong,
+              ]}
+            />
+
+            <View
+              style={[
+                styles.reviewSkeletonLine,
+                styles.reviewSkeletonLineMedium,
+              ]}
+            />
+
+            <View
+              style={[
+                styles.reviewSkeletonLine,
+                styles.reviewSkeletonLineShort,
+              ]}
+            />
+          </View>
+
+          <View style={styles.reviewSkeletonSourceCard}>
+            <View style={styles.reviewSkeletonSourceHeader}>
+              <View style={styles.reviewSkeletonSourceIcon} />
+              <View style={styles.reviewSkeletonSourceMeta}>
+                <View
+                  style={[
+                    styles.reviewSkeletonLine,
+                    styles.reviewSkeletonSourceTitle,
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.reviewSkeletonLine,
+                    styles.reviewSkeletonSourceSubline,
+                  ]}
+                />
+              </View>
+            </View>
+
+            <View
+              style={[
+                styles.reviewSkeletonLine,
+                styles.reviewSkeletonSourceBodyLong,
+              ]}
+            />
+            <View
+              style={[
+                styles.reviewSkeletonLine,
+                styles.reviewSkeletonSourceBodyMedium,
+              ]}
+            />
+          </View>
+
+          <Text style={styles.reviewSkeletonHint}>
+            리뷰 요약을 불러오는 중이에요.
           </Text>
-
-          <Text style={styles.reviewLoadingDescription}>
-            최초 조회 시 최대 1분 정도 소요될 수 있어요.
-          </Text>
-
-          <TouchableOpacity
-            style={styles.reviewLoadingCancelButton}
-            activeOpacity={0.8}
-            onPress={onCancelReviewLoading}
-          >
-            <Text style={styles.reviewLoadingCancelText}>취소</Text>
-          </TouchableOpacity>
         </View>
       )}
     </View>
@@ -243,7 +311,7 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   reviewLoadingPlaceCard: {
-    minHeight: 360,
+    minHeight: 318,
   },
   selectedPlaceCard: {
     borderColor: "#2158E8",
@@ -459,62 +527,146 @@ const styles = StyleSheet.create({
   selectPlaceButtonTextActive: {
     color: "#FFFFFF",
   },
-  reviewLoadingPanel: {
-    minHeight: 150,
+  reviewSkeletonPanel: {
+    marginTop: 18,
+    marginBottom: 8,
     borderRadius: 18,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#F8FBFF",
+    borderWidth: 1,
+    borderColor: "#D9E7FF",
+    paddingHorizontal: 14,
+    paddingTop: 14,
+    paddingBottom: 14,
+  },
+
+  reviewSkeletonHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+    gap: 10,
+  },
+
+  reviewSkeletonTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  reviewSkeletonSparkleBox: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: "#EAF3FF",
     alignItems: "center",
     justifyContent: "center",
-    marginTop: 18,
-    marginBottom: 12,
   },
-  reviewLoadingText: {
-    marginTop: 12,
-    color: "#617087",
+
+  reviewSkeletonTitle: {
+    color: "#2158E8",
     fontSize: 15,
     fontWeight: "900",
   },
-  reviewLoadingTitle: {
-    marginTop: 16,
-    color: "#475569",
-    fontSize: 24,
-    fontWeight: "900",
-  },
-  reviewLoadingDescription: {
-    marginTop: 10,
-    color: "#94A3B8",
-    fontSize: 14,
-    fontWeight: "700",
-    textAlign: "center",
-    lineHeight: 22,
-    paddingHorizontal: 32,
-  },
-  reviewLoadingCancelButton: {
-    marginTop: 14,
-    minWidth: 116,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: "#F1F5F9",
+
+  reviewSkeletonCancelChip: {
+    minWidth: 52,
+    height: 28,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    backgroundColor: "#EEF2F7",
     alignItems: "center",
     justifyContent: "center",
   },
-  reviewLoadingCancelText: {
+
+  reviewSkeletonCancelText: {
     color: "#64748B",
-    fontSize: 13,
-    fontWeight: "900",
+    fontSize: 12,
+    fontWeight: "800",
   },
-  reviewProgressTrack: {
-    width: "78%",
-    height: 5,
-    borderRadius: 999,
-    backgroundColor: "#E2E8F0",
-    marginTop: 24,
-    overflow: "hidden",
+
+  reviewSkeletonSummaryCard: {
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6EEF8",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
   },
-  reviewProgressFill: {
-    width: "74%",
-    height: "100%",
+
+  reviewSkeletonLine: {
+    height: 12,
     borderRadius: 999,
-    backgroundColor: "#2158E8",
+    backgroundColor: "#E8EDF4",
+  },
+
+  reviewSkeletonLineLong: {
+    width: "92%",
+  },
+
+  reviewSkeletonLineMedium: {
+    width: "84%",
+    marginTop: 10,
+  },
+
+  reviewSkeletonLineShort: {
+    width: "58%",
+    marginTop: 10,
+  },
+
+  reviewSkeletonSourceCard: {
+    marginTop: 12,
+    borderRadius: 14,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E6EEF8",
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+
+  reviewSkeletonSourceHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+
+  reviewSkeletonSourceIcon: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#E8EDF4",
+    marginRight: 10,
+  },
+
+  reviewSkeletonSourceMeta: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  reviewSkeletonSourceTitle: {
+    width: 86,
+    height: 11,
+  },
+
+  reviewSkeletonSourceSubline: {
+    width: "56%",
+    height: 10,
+    marginTop: 8,
+  },
+
+  reviewSkeletonSourceBodyLong: {
+    width: "94%",
+  },
+
+  reviewSkeletonSourceBodyMedium: {
+    width: "72%",
+    marginTop: 10,
+  },
+
+  reviewSkeletonHint: {
+    marginTop: 12,
+    color: "#8EA0B8",
+    fontSize: 12,
+    fontWeight: "700",
+    textAlign: "center",
   },
 });
