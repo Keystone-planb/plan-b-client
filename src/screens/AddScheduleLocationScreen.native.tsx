@@ -2,8 +2,11 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
+  Animated,
+  Dimensions,
   Keyboard,
   KeyboardAvoidingView,
+  PanResponder,
   ScrollView,
   StyleSheet,
   Text,
@@ -127,6 +130,29 @@ const INITIAL_REGION = {
   latitudeDelta: 0.014,
   longitudeDelta: 0.014,
 };
+
+/*
+ * SHEET_DOWN_TOGGLE_FIX
+ *
+ * 기본 상태는 기존처럼 지도가 335 높이로 보인다.
+ * 핸들을 누르면 지도 영역이 커지면서
+ * 바텀시트가 화면 아래 방향으로 내려간다.
+ */
+const MAP_HEIGHT_WHEN_SHEET_EXPANDED = 335;
+
+const MAP_HEIGHT_WHEN_SHEET_COLLAPSED =
+  Math.min(
+    Math.max(
+      Dimensions.get("window").height - 185,
+      515,
+    ),
+    680,
+  );
+
+const MAP_HEIGHT_SNAP_MIDPOINT =
+  (MAP_HEIGHT_WHEN_SHEET_COLLAPSED +
+    MAP_HEIGHT_WHEN_SHEET_EXPANDED) /
+  2;
 
 const REVIEW_TEXT_MAX_LENGTH = 80;
 
@@ -317,6 +343,147 @@ export default function AddScheduleLocationScreen({
   const inputRef = useRef<TextInput>(null);
   const submitLockRef = useRef(false);
   const mapRef = useRef<MapView>(null);
+
+  const mapSectionHeight = useRef(
+    new Animated.Value(
+      MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+    ),
+  ).current;
+
+  const mapSectionHeightValueRef = useRef(
+    MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+  );
+
+  const sheetDragStartHeightRef = useRef(
+    MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+  );
+
+  const animateBottomSheetTo = (
+    mapHeight: number,
+  ) => {
+    Animated.spring(mapSectionHeight, {
+      toValue: mapHeight,
+      useNativeDriver: false,
+      damping: 22,
+      stiffness: 220,
+      mass: 0.8,
+      overshootClamping: true,
+    }).start();
+  };
+
+  const toggleBottomSheet = () => {
+    const shouldExpand =
+      mapSectionHeightValueRef.current >=
+      MAP_HEIGHT_SNAP_MIDPOINT;
+
+    animateBottomSheetTo(
+      shouldExpand
+        ? MAP_HEIGHT_WHEN_SHEET_EXPANDED
+        : MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+    );
+  };
+
+  const finishBottomSheetDrag = (
+    velocityY: number,
+  ) => {
+    const currentHeight =
+      mapSectionHeightValueRef.current;
+
+    const shouldExpand =
+      velocityY < -0.35 ||
+      (velocityY <= 0.35 &&
+        currentHeight <
+          MAP_HEIGHT_SNAP_MIDPOINT);
+
+    animateBottomSheetTo(
+      shouldExpand
+        ? MAP_HEIGHT_WHEN_SHEET_EXPANDED
+        : MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+    );
+  };
+
+  const bottomSheetPanResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () =>
+        false,
+
+      onMoveShouldSetPanResponder: (
+        _,
+        gestureState,
+      ) =>
+        Math.abs(gestureState.dy) > 4 &&
+        Math.abs(gestureState.dy) >
+          Math.abs(gestureState.dx),
+
+      onMoveShouldSetPanResponderCapture: (
+        _,
+        gestureState,
+      ) =>
+        Math.abs(gestureState.dy) > 4 &&
+        Math.abs(gestureState.dy) >
+          Math.abs(gestureState.dx),
+
+      onPanResponderGrant: () => {
+        sheetDragStartHeightRef.current =
+          mapSectionHeightValueRef.current;
+      },
+
+      onPanResponderMove: (
+        _,
+        gestureState,
+      ) => {
+        const nextHeight = Math.max(
+          MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+          Math.min(
+            MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+            sheetDragStartHeightRef.current +
+              gestureState.dy,
+          ),
+        );
+
+        mapSectionHeight.setValue(
+          nextHeight,
+        );
+      },
+
+      onPanResponderRelease: (
+        _,
+        gestureState,
+      ) => {
+        finishBottomSheetDrag(
+          gestureState.vy,
+        );
+      },
+
+      onPanResponderTerminate: (
+        _,
+        gestureState,
+      ) => {
+        finishBottomSheetDrag(
+          gestureState.vy,
+        );
+      },
+
+      onPanResponderTerminationRequest:
+        () => false,
+    }),
+  ).current;
+
+  useEffect(() => {
+    const listenerId =
+      mapSectionHeight.addListener(
+        ({ value }) => {
+          mapSectionHeightValueRef.current =
+            value;
+        },
+      );
+
+    return () => {
+      mapSectionHeight.removeListener(
+        listenerId,
+      );
+    };
+  }, [mapSectionHeight]);
 
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
@@ -1420,9 +1587,19 @@ export default function AddScheduleLocationScreen({
 
   return (
     <View style={styles.screen}>
-      <View style={styles.mapSection}>
-        <MapView
-          ref={mapRef}
+      <Animated.View
+        style={[
+          styles.mapSection,
+          {
+            height: mapSectionHeight,
+          },
+        ]}
+      >
+        <Animated.View
+          style={styles.mapLayer}
+        >
+          <MapView
+            ref={mapRef}
           style={styles.map}
           provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
           initialRegion={INITIAL_REGION}
@@ -1473,9 +1650,13 @@ export default function AddScheduleLocationScreen({
               tracksViewChanges={false}
             />
           ) : null}
-        </MapView>
+          </MapView>
+        </Animated.View>
 
-        <SafeAreaView pointerEvents="box-none" style={styles.searchOverlay}>
+        <SafeAreaView
+          pointerEvents="box-none"
+          style={styles.searchOverlay}
+        >
           <View style={styles.searchBar}>
             <TouchableOpacity
               style={styles.backButton}
@@ -1511,14 +1692,27 @@ export default function AddScheduleLocationScreen({
             </TouchableOpacity>
           </View>
         </SafeAreaView>
-      </View>
+      </Animated.View>
 
       <KeyboardAvoidingView
         style={styles.bottomSheet}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
         keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
       >
-        <View style={styles.handleBar} />
+        <View
+          style={styles.handleTouchArea}
+          {...bottomSheetPanResponder.panHandlers}
+        >
+          <TouchableOpacity
+            style={styles.handleButton}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="장소 목록 펼치기 또는 접기"
+            onPress={toggleBottomSheet}
+          >
+            <View style={styles.handleBar} />
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.resultTabBar}>
           <TouchableOpacity
@@ -1768,19 +1962,18 @@ const styles = StyleSheet.create({
   },
 
   mapSection: {
-    height: 335,
     backgroundColor: "#DDE7F2",
     position: "relative",
+    overflow: "hidden",
+    zIndex: 0,
   },
 
-  // 지도 위에 검색바 오버레이(절대배치)가 떠 있으므로 지도도 절대배치 레이어로 유지하되,
-  // Android에서 stretch(bottom:0) 높이가 0으로 측정되는 버그를 피하려고 명시적 height를 준다.
+  mapLayer: {
+    ...StyleSheet.absoluteFillObject,
+  },
+
   map: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: 335,
+    ...StyleSheet.absoluteFillObject,
   },
 
   markerBadge: {
@@ -1860,16 +2053,30 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 22,
     backgroundColor: "#FFFFFF",
     overflow: "hidden",
+    position: "relative",
+    zIndex: 2,
+    elevation: 2,
+  },
+
+  handleTouchArea: {
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 3,
+  },
+
+  handleButton: {
+    width: 100,
+    height: 32,
+    alignItems: "center",
+    justifyContent: "center",
   },
 
   handleBar: {
-    alignSelf: "center",
     width: 43,
     height: 4,
     borderRadius: 999,
     backgroundColor: "#D6DDE8",
-    marginTop: 10,
-    marginBottom: 15,
   },
 
   resultTabBar: {
