@@ -34,6 +34,8 @@ type TodayPlace = {
   name?: string;
   address?: string;
   time?: string;
+  visitTime?: string | null;
+  endTime?: string | null;
   latitude?: number;
   longitude?: number;
   category?: string;

@@ -43,6 +43,8 @@ type TodayPlace = {
   name?: string;
   address?: string;
   time?: string;
+  visitTime?: string | null;
+  endTime?: string | null;
   latitude?: number;
   longitude?: number;
   lat?: number;
@@ -605,21 +607,39 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           onDone: () => {
             if (cancelled) return;
 
-            const receivedPlaces = receivedPlacesRef.current;
+            const receivedPlaces = [...receivedPlacesRef.current];
+
+            console.log("[AIAnalysisLoading] stream done:", {
+              count: receivedPlaces.length,
+            });
+
+            setProgress(100);
+
             if (receivedPlaces.length === 0) {
-              setProgress(100);
               setErrorMessage(
-                streamMessage ||
-                  "현재 조건으로는 추천할 장소가 없어요.",
+                "현재 조건으로는 추천할 장소가 없어요.",
               );
               return;
             }
 
-            setProgress(100);
+            setStreamMessage("추천 결과를 불러왔어요");
 
-            setTimeout(() => {
-              moveToResult(receivedPlaces);
-            }, 500);
+            requestAnimationFrame(() => {
+              if (cancelled) return;
+
+              setTimeout(() => {
+                if (cancelled) return;
+
+                console.log(
+                  "[AIAnalysisLoading] 결과 화면 이동:",
+                  {
+                    count: receivedPlaces.length,
+                  },
+                );
+
+                moveToResult(receivedPlaces);
+              }, 120);
+            });
           },
 
           onError: (error) => {
@@ -747,6 +767,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         duration: 1700,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
+        isInteraction: false,
       }),
     );
 
@@ -756,6 +777,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
         duration: 1500,
         easing: Easing.inOut(Easing.ease),
         useNativeDriver: true,
+        isInteraction: false,
       }),
     );
 

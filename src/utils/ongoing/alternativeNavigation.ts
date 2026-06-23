@@ -45,17 +45,77 @@ export const buildAlternativeNavigationParams = ({
     return placeCandidates.some((value) => value && candidates.includes(value));
   });
 
+  const pickTimeValue = (
+    ...values: unknown[]
+  ) => {
+    const matched = values.find(
+      (value) =>
+        typeof value === "string" &&
+        value.trim().length > 0,
+    );
+
+    return typeof matched === "string"
+      ? matched.trim()
+      : undefined;
+  };
+
+  const visitTime = pickTimeValue(
+    matchedResolvedPlace?.visitTime,
+    place?.visitTime,
+  );
+
+  const endTime = pickTimeValue(
+    matchedResolvedPlace?.endTime,
+    place?.endTime,
+  );
+
+  const displayTime =
+    pickTimeValue(
+      matchedResolvedPlace?.time,
+      place?.time,
+    ) ||
+    [visitTime, endTime]
+      .filter(Boolean)
+      .join(" - ");
+
   const targetPlaceForAlternative = {
     ...place,
     ...matchedResolvedPlace,
-    latitude: matchedResolvedPlace?.latitude ?? place.latitude,
-    longitude: matchedResolvedPlace?.longitude ?? place.longitude,
+
+    visitTime,
+    endTime,
+    time: displayTime,
+
+    latitude:
+      matchedResolvedPlace?.latitude ??
+      place.latitude,
+
+    longitude:
+      matchedResolvedPlace?.longitude ??
+      place.longitude,
   };
 
   const serverPlanId =
     targetPlaceForAlternative.serverTripPlaceId ??
     targetPlaceForAlternative.tripPlaceId ??
     targetPlaceForAlternative.id;
+
+  if (__DEV__) {
+    console.log(
+      "[AlternativeNavigation] 기존 일정 시간 전달:",
+      {
+        placeName:
+          targetPlaceForAlternative.name,
+        serverPlanId,
+        time:
+          targetPlaceForAlternative.time,
+        visitTime:
+          targetPlaceForAlternative.visitTime,
+        endTime:
+          targetPlaceForAlternative.endTime,
+      },
+    );
+  }
 
   return {
     serverPlanId,
@@ -91,9 +151,16 @@ export const buildAlternativeNavigationParams = ({
         name: targetPlaceForAlternative.name,
         address: targetPlaceForAlternative.address,
         time: targetPlaceForAlternative.time,
-        latitude: targetPlaceForAlternative.latitude,
-        longitude: targetPlaceForAlternative.longitude,
-        category: targetPlaceForAlternative.category,
+        visitTime:
+          targetPlaceForAlternative.visitTime,
+        endTime:
+          targetPlaceForAlternative.endTime,
+        latitude:
+          targetPlaceForAlternative.latitude,
+        longitude:
+          targetPlaceForAlternative.longitude,
+        category:
+          targetPlaceForAlternative.category,
       },
     },
   };

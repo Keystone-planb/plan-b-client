@@ -1,8 +1,14 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   ActivityIndicator,
   Alert,
   Image,
+  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -15,6 +21,7 @@ import NaverIcon from "../assets/naver.png";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import MapView, { Marker } from "react-native-maps";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
@@ -45,6 +52,8 @@ type TodayPlace = {
   name?: string;
   address?: string;
   time?: string;
+  visitTime?: string | null;
+  endTime?: string | null;
   latitude?: number;
   longitude?: number;
 };
@@ -137,6 +146,8 @@ type DisplayPlace = RecommendedPlace & {
   reviewData?: string | null;
   priceLevel?: number;
   reason?: string;
+  suggestedVisitTime?: string | null;
+  suggestedEndTime?: string | null;
   sourceSummary?: {
     naver?: string;
     google?: string;
@@ -435,6 +446,14 @@ export default function RecommendationResultScreen({
   const [submittingPlaceId, setSubmittingPlaceId] = useState<
     string | number | null
   >(null);
+
+  const [pendingPlace, setPendingPlace] =
+    useState<DisplayPlace | null>(null);
+
+  const [
+    savedOriginalSchedulePlace,
+    setSavedOriginalSchedulePlace,
+  ] = useState<TodayPlace | null>(null);
   const [expandedPlaceId, setExpandedPlaceId] = useState<
     string | number | null
   >(null);
@@ -472,33 +491,243 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
 
   const targetPlace = params.targetPlace;
 
-  const originalSchedulePlace = useMemo(() => {
-    if (!targetPlace) return null;
+  useEffect(() => {
+    let cancelled = false;
 
-    const targetPlaceRecord = targetPlace as TodayPlace & {
-      visitTime?: string | null;
-      endTime?: string | null;
+    const loadOriginalSchedulePlace = async () => {
+      const routeParams =
+        params as Record<string, unknown>;
+
+      const currentPlanId =
+        routeParams.currentPlanId ??
+        routeParams.tripPlaceId ??
+        routeParams.serverTripPlaceId ??
+        targetPlace?.serverTripPlaceId ??
+        targetPlace?.tripPlaceId ??
+        targetPlace?.id;
+
+      const scheduleId =
+        typeof routeParams.scheduleId === "string"
+          ? routeParams.scheduleId
+          : undefined;
+
+      if (!scheduleId || currentPlanId == null) {
+        return;
+      }
+
+      try {
+        const savedSchedule =
+          await loadPlanASchedule(scheduleId);
+
+        const savedPlaces =
+          savedSchedule?.days?.flatMap(
+            (day) => day.places,
+          ) ?? [];
+
+        const matchedPlace = savedPlaces.find(
+          (place) =>
+            [
+              place.id,
+              place.tripPlaceId,
+              place.serverTripPlaceId,
+            ].some(
+              (id) =>
+                id != null &&
+                String(id) ===
+                  String(currentPlanId),
+            ),
+        );
+
+        if (cancelled || !matchedPlace) {
+          return;
+        }
+
+        const visitTime =
+          matchedPlace.visitTime ?? null;
+
+        const endTime =
+          matchedPlace.endTime ?? null;
+
+        const combinedTime =
+          matchedPlace.time?.trim() ||
+          [visitTime, endTime]
+            .filter(Boolean)
+            .join(" - ");
+
+        setSavedOriginalSchedulePlace({
+          ...matchedPlace,
+          visitTime,
+          endTime,
+          time: combinedTime,
+        });
+
+        console.log(
+          "[RecommendationResult] 기존 일정 방문 시간 조회:",
+          {
+            currentPlanId,
+            visitTime,
+            endTime,
+            time: combinedTime,
+          },
+        );
+      } catch (error) {
+        console.log(
+          "[RecommendationResult] 기존 일정 방문 시간 조회 실패:",
+          error,
+        );
+      }
     };
+
+    void loadOriginalSchedulePlace();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    params,
+    targetPlace,
+  ]);
+
+  const originalSchedulePlace = useMemo(() => {
+    const routePlace =
+      targetPlace as TodayPlace | undefined;
+
+    const sourcePlace =
+      savedOriginalSchedulePlace ??
+      routePlace;
+
+    if (!sourcePlace) {
+      return null;
+    }
+
+    const visitTime =
+      savedOriginalSchedulePlace?.visitTime ??
+      routePlace?.visitTime ??
+      null;
+
+    const endTime =
+      savedOriginalSchedulePlace?.endTime ??
+      routePlace?.endTime ??
+      null;
+
+    const time =
+      savedOriginalSchedulePlace?.time?.trim() ||
+      routePlace?.time?.trim() ||
+      [visitTime, endTime]
+        .filter(Boolean)
+        .join(" - ");
 
     return {
-      ...targetPlace,
-      name: targetPlace.name || params.title || "현재 진행 중인 일정",
-      address: targetPlace.address || params.location || "",
-      time:
-        targetPlace.time ||
-        [targetPlaceRecord.visitTime, targetPlaceRecord.endTime]
-          .filter(Boolean)
-          .join(" - "),
+      ...routePlace,
+      ...savedOriginalSchedulePlace,
+      name:
+        savedOriginalSchedulePlace?.name ||
+        routePlace?.name ||
+        params.title ||
+        "현재 진행 중인 일정",
+      address:
+        savedOriginalSchedulePlace?.address ||
+        routePlace?.address ||
+        params.location ||
+        "",
+      visitTime,
+      endTime,
+      time,
     };
-  }, [params.location, params.title, targetPlace]);
+  }, [
+    params.location,
+    params.title,
+    savedOriginalSchedulePlace,
+    targetPlace,
+  ]);
 
   const currentPlaceName =
     originalSchedulePlace?.name || params.title || "현재 진행 중인 일정";
   const currentPlaceAddress =
     originalSchedulePlace?.address || params.location || "";
   const currentPlaceTime =
-    originalSchedulePlace?.time ||
-    formatDateRange(params.startDate, params.endDate);
+    originalSchedulePlace?.time?.trim() ||
+    "시간 미정";
+
+  const previewBeforeTime =
+    currentPlaceTime;
+
+  const previewAfterTime =
+    currentPlaceTime;
+
+  const originalLatitude = Number(
+    originalSchedulePlace?.latitude,
+  );
+
+  const originalLongitude = Number(
+    originalSchedulePlace?.longitude,
+  );
+
+  const replacementLatitude = Number(
+    pendingPlace?.latitude,
+  );
+
+  const replacementLongitude = Number(
+    pendingPlace?.longitude,
+  );
+
+  const hasOriginalCoordinate =
+    Number.isFinite(originalLatitude) &&
+    Number.isFinite(originalLongitude);
+
+  const hasReplacementCoordinate =
+    Number.isFinite(replacementLatitude) &&
+    Number.isFinite(replacementLongitude);
+
+  const hasPreviewMap =
+    hasOriginalCoordinate ||
+    hasReplacementCoordinate;
+
+  const previewLatitude =
+    hasOriginalCoordinate &&
+    hasReplacementCoordinate
+      ? (
+          originalLatitude +
+          replacementLatitude
+        ) / 2
+      : hasReplacementCoordinate
+        ? replacementLatitude
+        : originalLatitude;
+
+  const previewLongitude =
+    hasOriginalCoordinate &&
+    hasReplacementCoordinate
+      ? (
+          originalLongitude +
+          replacementLongitude
+        ) / 2
+      : hasReplacementCoordinate
+        ? replacementLongitude
+        : originalLongitude;
+
+  const previewLatitudeDelta =
+    hasOriginalCoordinate &&
+    hasReplacementCoordinate
+      ? Math.max(
+          Math.abs(
+            originalLatitude -
+            replacementLatitude,
+          ) * 2.2,
+          0.012,
+        )
+      : 0.015;
+
+  const previewLongitudeDelta =
+    hasOriginalCoordinate &&
+    hasReplacementCoordinate
+      ? Math.max(
+          Math.abs(
+            originalLongitude -
+            replacementLongitude,
+          ) * 2.2,
+          0.012,
+        )
+      : 0.015;
 
   const handleBack = () => {
     // 선택 없이 이탈 시 alternative_dismissed
@@ -1265,7 +1494,16 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                     ]}
                     activeOpacity={0.85}
                     disabled={isSubmitting || isSelected}
-                    onPress={() => handleSelectPlace(place)}
+                    onPress={() => {
+                      if (
+                        isWeatherRecommendation
+                      ) {
+                        void handleSelectPlace(place);
+                        return;
+                      }
+
+                      setPendingPlace(place);
+                    }}
                   >
                     {isSubmitting ?
                       <ActivityIndicator size="small" color="#FFFFFF" />
@@ -1377,6 +1615,334 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           </View>
         : null}
       </ScrollView>
+
+      <Modal
+        visible={Boolean(pendingPlace)}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setPendingPlace(null)
+        }
+      >
+        <View style={styles.previewOverlay}>
+          <View style={styles.previewModal}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle}>
+                이렇게 바꿀까요?
+              </Text>
+
+              <TouchableOpacity
+                style={
+                  styles.previewCloseButton
+                }
+                activeOpacity={0.8}
+                onPress={() =>
+                  setPendingPlace(null)
+                }
+              >
+                <Ionicons
+                  name="close"
+                  size={22}
+                  color="#64748B"
+                />
+              </TouchableOpacity>
+            </View>
+
+            <View style={styles.previewMapBox}>
+              {hasPreviewMap ? (
+                <MapView
+                  style={styles.previewMap}
+                  region={{
+                    latitude:
+                      previewLatitude,
+                    longitude:
+                      previewLongitude,
+                    latitudeDelta:
+                      previewLatitudeDelta,
+                    longitudeDelta:
+                      previewLongitudeDelta,
+                  }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}
+                  pointerEvents="none"
+                >
+                  {hasOriginalCoordinate ? (
+                    <Marker
+                      coordinate={{
+                        latitude:
+                          originalLatitude,
+                        longitude:
+                          originalLongitude,
+                      }}
+                      title="변경 전"
+                      description={
+                        currentPlaceName
+                      }
+                      pinColor="#94A3B8"
+                    />
+                  ) : null}
+
+                  {hasReplacementCoordinate ? (
+                    <Marker
+                      coordinate={{
+                        latitude:
+                          replacementLatitude,
+                        longitude:
+                          replacementLongitude,
+                      }}
+                      title="변경 후"
+                      description={
+                        pendingPlace?.name
+                      }
+                      pinColor="#2158E8"
+                    />
+                  ) : null}
+                </MapView>
+              ) : (
+                <View
+                  style={
+                    styles.previewMapFallback
+                  }
+                >
+                  <Ionicons
+                    name="map-outline"
+                    size={38}
+                    color="#2158E8"
+                  />
+
+                  <Text
+                    style={
+                      styles.previewMapFallbackText
+                    }
+                  >
+                    장소 위치를 지도에서
+                    확인할 수 없어요.
+                  </Text>
+                </View>
+              )}
+            </View>
+
+            <View style={styles.previewMapLegend}>
+              <View style={styles.previewLegendItem}>
+                <View
+                  style={[
+                    styles.previewLegendMarker,
+                    styles.previewLegendMarkerBefore,
+                  ]}
+                />
+
+                <Text style={styles.previewLegendText}>
+                  기존 장소
+                </Text>
+              </View>
+
+              <View style={styles.previewLegendItem}>
+                <View
+                  style={[
+                    styles.previewLegendMarker,
+                    styles.previewLegendMarkerAfter,
+                  ]}
+                />
+
+                <Text style={styles.previewLegendText}>
+                  대안 장소
+                </Text>
+              </View>
+            </View>
+
+            <View
+              style={styles.previewCompareRow}
+            >
+              <View
+                style={
+                  styles.previewScheduleColumn
+                }
+              >
+                <Text
+                  style={
+                    styles.previewColumnLabel
+                  }
+                >
+                  변경 전
+                </Text>
+
+                <View
+                  style={
+                    styles.previewScheduleCard
+                  }
+                >
+                  <View
+                    style={
+                      styles.previewInfoRow
+                    }
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={15}
+                      color="#64748B"
+                    />
+
+                    <Text
+                      style={
+                        styles.previewTimeText
+                      }
+                    >
+                      {previewBeforeTime}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.previewInfoRow
+                    }
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={15}
+                      color="#64748B"
+                    />
+
+                    <Text
+                      style={
+                        styles.previewPlaceText
+                      }
+                      numberOfLines={2}
+                    >
+                      {currentPlaceName}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+
+              <Ionicons
+                name="arrow-forward"
+                size={20}
+                color="#94A3B8"
+                style={styles.previewArrow}
+              />
+
+              <View
+                style={
+                  styles.previewScheduleColumn
+                }
+              >
+                <Text
+                  style={
+                    styles.previewColumnLabel
+                  }
+                >
+                  변경 후
+                </Text>
+
+                <View
+                  style={[
+                    styles.previewScheduleCard,
+                    styles.previewAfterCard,
+                  ]}
+                >
+                  <View
+                    style={
+                      styles.previewInfoRow
+                    }
+                  >
+                    <Ionicons
+                      name="time-outline"
+                      size={15}
+                      color="#2158E8"
+                    />
+
+                    <Text
+                      style={
+                        styles.previewTimeText
+                      }
+                    >
+                      {previewAfterTime}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={
+                      styles.previewInfoRow
+                    }
+                  >
+                    <Ionicons
+                      name="location-outline"
+                      size={15}
+                      color="#2158E8"
+                    />
+
+                    <Text
+                      style={
+                        styles.previewPlaceText
+                      }
+                      numberOfLines={2}
+                    >
+                      {pendingPlace?.name ??
+                        "추천 장소"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+
+            <View style={styles.previewNoticeBox}>
+              <View
+                style={styles.previewNoticeIconBox}
+              >
+                <Ionicons
+                  name="bulb-outline"
+                  size={20}
+                  color="#F59E0B"
+                />
+              </View>
+
+              <View style={styles.previewNoticeTextArea}>
+                <Text style={styles.previewNoticeTitle}>
+                  장소만 변경되고 기존 방문 시간은 유지돼요.
+                </Text>
+
+                <Text
+                  style={
+                    styles.previewNoticeDescription
+                  }
+                >
+                  다른 일정에는 영향을 주지 않아요.
+                </Text>
+              </View>
+            </View>
+
+            <TouchableOpacity
+              style={
+                styles.previewConfirmButton
+              }
+              activeOpacity={0.86}
+              onPress={() => {
+                const placeToApply =
+                  pendingPlace;
+
+                setPendingPlace(null);
+
+                if (placeToApply) {
+                  void handleSelectPlace(
+                    placeToApply,
+                  );
+                }
+              }}
+            >
+              <Text
+                style={
+                  styles.previewConfirmButtonText
+                }
+              >
+                교체하기
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1902,6 +2468,238 @@ const styles = StyleSheet.create({
 
   selectedButtonText: {
     color: "#FFFFFF",
+  },
+
+  previewOverlay: {
+    flex: 1,
+    backgroundColor:
+      "rgba(15, 23, 42, 0.48)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+
+  previewModal: {
+    width: "100%",
+    maxWidth: 380,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 16,
+  },
+
+  previewHeader: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 12,
+  },
+
+  previewTitle: {
+    color: "#1C2534",
+    fontSize: 20,
+    fontWeight: "900",
+  },
+
+  previewCloseButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  previewMapBox: {
+    height: 154,
+    borderRadius: 18,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    backgroundColor: "#EFF6FF",
+  },
+
+  previewMap: {
+    flex: 1,
+  },
+
+  previewMapFallback: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+
+  previewMapFallbackText: {
+    color: "#64748B",
+    fontSize: 13,
+    fontWeight: "700",
+    textAlign: "center",
+  },
+
+  previewMapLegend: {
+    minHeight: 30,
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 22,
+  },
+
+  previewLegendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+
+  previewLegendMarker: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
+  },
+
+  previewLegendMarkerBefore: {
+    backgroundColor: "#94A3B8",
+  },
+
+  previewLegendMarkerAfter: {
+    backgroundColor: "#2158E8",
+  },
+
+  previewLegendText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  previewCompareRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 12,
+  },
+
+  previewScheduleColumn: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  previewColumnLabel: {
+    marginBottom: 7,
+    color: "#475569",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  previewScheduleCard: {
+    height: 104,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: "#DCE5F2",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 11,
+    paddingVertical: 11,
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  previewAfterCard: {
+    borderColor: "#93C5FD",
+    backgroundColor: "#F8FBFF",
+  },
+
+  previewInfoRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 5,
+  },
+
+  previewTimeText: {
+    flex: 1,
+    color: "#1C2534",
+    fontSize: 12,
+    fontWeight: "900",
+    lineHeight: 17,
+  },
+
+  previewPlaceText: {
+    flex: 1,
+    minHeight: 32,
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 16,
+  },
+
+  previewArrow: {
+    marginHorizontal: 7,
+    marginTop: 22,
+  },
+
+  previewNoticeBox: {
+    minHeight: 66,
+    marginTop: 12,
+    borderRadius: 14,
+    backgroundColor: "#F7F9FC",
+    paddingHorizontal: 13,
+    paddingVertical: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  previewNoticeIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  previewNoticeTextArea: {
+    flex: 1,
+    minWidth: 0,
+  },
+
+  previewNoticeTitle: {
+    color: "#F59E0B",
+    fontSize: 11,
+    fontWeight: "900",
+    lineHeight: 16,
+  },
+
+  previewNoticeDescription: {
+    marginTop: 3,
+    color: "#64748B",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+
+  previewConfirmButton: {
+    minHeight: 54,
+    marginTop: 14,
+    borderRadius: 16,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#2158E8",
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.22,
+    shadowRadius: 10,
+    elevation: 5,
+  },
+
+  previewConfirmButtonText: {
+    color: "#FFFFFF",
+    fontSize: 17,
+    fontWeight: "900",
   },
 
   warningBox: {
