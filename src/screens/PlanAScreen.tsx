@@ -1724,8 +1724,8 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   scrollContent: {
     flexGrow: 1,
-    backgroundColor: "#F4F7FC",
-    paddingBottom: 130,
+    backgroundColor: "#FFFFFF",
+    paddingBottom: 0,
   },
   transportButtonRow: {
     flexDirection: "row",
@@ -1766,6 +1766,7 @@ const styles = StyleSheet.create({
 
 
   sheet: {
+    flexGrow: 1,
     minHeight: 320,
     marginTop: -10,
     backgroundColor: "#FFFFFF",
