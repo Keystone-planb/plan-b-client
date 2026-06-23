@@ -19,6 +19,9 @@ type Props = {
   onSelectPress: () => void;
   onCancelReviewLoading?: () => void;
   onCardPress?: () => void;
+  isFavorite?: boolean;
+  isFavoriteLoading?: boolean;
+  onFavoritePress?: () => void;
 };
 
 export default function SearchResultCard({
@@ -31,6 +34,9 @@ export default function SearchResultCard({
   onSelectPress,
   onCancelReviewLoading,
   onCardPress,
+  isFavorite = false,
+  isFavoriteLoading = false,
+  onFavoritePress,
 }: Props) {
   if (isPreview) {
     return (
@@ -60,6 +66,44 @@ export default function SearchResultCard({
         isSelected && styles.selectedPlaceCard,
       ]}
     >
+      {onFavoritePress ? (
+        <TouchableOpacity
+          style={styles.favoriteButton}
+          activeOpacity={0.75}
+          hitSlop={{
+            top: 10,
+            bottom: 10,
+            left: 10,
+            right: 10,
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={
+            isFavorite
+              ? "즐겨찾기에서 삭제"
+              : "즐겨찾기에 추가"
+          }
+          disabled={isFavoriteLoading}
+          onPress={onFavoritePress}
+        >
+          {isFavoriteLoading ? (
+            <ActivityIndicator
+              size="small"
+              color="#2F66F3"
+            />
+          ) : (
+            <Ionicons
+              name={
+                isFavorite
+                  ? "heart"
+                  : "heart-outline"
+              }
+              size={24}
+              color="#2F66F3"
+            />
+          )}
+        </TouchableOpacity>
+      ) : null}
+
       <TouchableOpacity
         activeOpacity={0.7}
         disabled={!onCardPress}
@@ -74,12 +118,33 @@ export default function SearchResultCard({
             <Text style={styles.placeName}>{place.name}</Text>
 
             <View style={styles.addressRow}>
-              <Ionicons name="location-outline" size={14} color="#8A9BB2" />
-              <Text style={styles.placeAddress} numberOfLines={1}>
+              <Ionicons
+                name="location-outline"
+                size={14}
+                color="#8A9BB2"
+              />
+
+              <Text
+                style={styles.placeAddress}
+                numberOfLines={1}
+              >
                 {place.address}
               </Text>
             </View>
 
+            {typeof place.rating === "number" ? (
+              <View style={styles.ratingRow}>
+                <Ionicons
+                  name="star"
+                  size={13}
+                  color="#FFD600"
+                />
+
+                <Text style={styles.ratingText}>
+                  {place.rating.toFixed(2)}
+                </Text>
+              </View>
+            ) : null}
           </View>
         </View>
       </TouchableOpacity>
@@ -158,6 +223,7 @@ export default function SearchResultCard({
 
 const styles = StyleSheet.create({
   placeCard: {
+    position: "relative",
     minHeight: 154,
     borderRadius: 18,
     backgroundColor: "#FFFFFF",
@@ -200,6 +266,20 @@ const styles = StyleSheet.create({
   resultTitleArea: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 36,
+  },
+
+  favoriteButton: {
+    position: "absolute",
+    top: 14,
+    right: 14,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 3,
   },
   addressRow: {
     marginTop: 7,

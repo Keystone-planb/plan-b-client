@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Alert,
@@ -17,6 +17,13 @@ import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
 import { getAnalyzedPlaceDetail } from "../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import {
+  BookmarkApiError,
+  BookmarkResponse,
+  createBookmark,
+  deleteBookmark,
+  getBookmarks,
+} from "../../api/bookmarks/bookmarks";
 
 import {
   getPlaceDetail,
@@ -85,6 +92,11 @@ type PlaceReviewInfo = {
   detail?: unknown;
   summary?: PlaceSummaryResponse;
   freshness?: PlaceFreshnessResponse;
+};
+
+type BookmarkPlace = PlaceSearchResult & {
+  bookmarkId: number;
+  createdAt?: string;
 };
 
 const getUniquePlaces = <T extends { placeId: string; googlePlaceId?: string }>(
@@ -336,6 +348,23 @@ export default function AddScheduleLocationScreen({
     longitude: number;
   } | null>(null);
   const [selectedPlaces, setSelectedPlaces] = useState<SelectedPlace[]>([]);
+
+  const [activeResultTab, setActiveResultTab] = useState<
+    "search" | "favorites"
+  >("search");
+
+  const [favoritePlaces, setFavoritePlaces] = useState<
+    BookmarkPlace[]
+  >([]);
+
+  const [favoriteListLoading, setFavoriteListLoading] =
+    useState(false);
+
+  const [
+    bookmarkActionPlaceId,
+    setBookmarkActionPlaceId,
+  ] = useState<string | null>(null);
+
   const [businessHoursExpanded, setBusinessHoursExpanded] = useState(false);
 
   const handleBack = () => {
@@ -434,6 +463,217 @@ export default function AddScheduleLocationScreen({
     });
   };
 
+  const normalizeBookmarkPlace = (
+    bookmark: BookmarkResponse,
+  ): BookmarkPlace => ({
+    bookmarkId: bookmark.bookmarkId,
+    placeId: bookmark.googlePlaceId,
+    googlePlaceId: bookmark.googlePlaceId,
+    name:
+      bookmark.name?.trim() ||
+      bookmark.category?.trim() ||
+      "저장한 장소",
+    category: bookmark.category ?? undefined,
+    address: bookmark.address ?? "주소 정보 없음",
+    latitude:
+      typeof bookmark.lat === "number"
+        ? bookmark.lat
+        : undefined,
+    longitude:
+      typeof bookmark.lng === "number"
+        ? bookmark.lng
+        : undefined,
+    createdAt: bookmark.createdAt,
+  });
+
+  const loadFavoritePlaces = async (
+    showErrorAlert = false,
+  ) => {
+    try {
+      setFavoriteListLoading(true);
+
+      const bookmarks = await getBookmarks();
+
+      setFavoritePlaces(
+        bookmarks.map(normalizeBookmarkPlace),
+      );
+    } catch (error) {
+      console.log(
+        "[Bookmarks] 목록 조회 실패:",
+        error,
+      );
+
+      if (showErrorAlert) {
+        const message =
+          error instanceof BookmarkApiError &&
+          error.status === 401
+            ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+            : "즐겨찾기 목록을 불러오지 못했습니다.";
+
+        Alert.alert(
+          "즐겨찾기 조회 실패",
+          message,
+        );
+      }
+    } finally {
+      setFavoriteListLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadFavoritePlaces();
+  }, []);
+
+  const toggleFavoritePlace = async (
+    place: PlaceSearchResult,
+  ) => {
+    const placeKey = getReviewPlaceKey(place);
+
+    if (!placeKey || bookmarkActionPlaceId) {
+      return;
+    }
+
+    const existingBookmark = favoritePlaces.find(
+      (item) =>
+        getReviewPlaceKey(item) === placeKey,
+    );
+
+    try {
+      setBookmarkActionPlaceId(placeKey);
+
+      if (existingBookmark) {
+        await deleteBookmark(
+          existingBookmark.bookmarkId,
+        );
+
+        setFavoritePlaces((prev) =>
+          prev.filter(
+            (item) =>
+              getReviewPlaceKey(item) !== placeKey,
+          ),
+        );
+
+        return;
+      }
+
+      let latitude = place.latitude;
+      let longitude = place.longitude;
+
+      /*
+       * 검색 결과에 좌표가 없는 경우가 있으므로
+       * 상세 조회로 좌표를 보강한 뒤 저장한다.
+       */
+      if (
+        typeof latitude !== "number" ||
+        typeof longitude !== "number"
+      ) {
+        try {
+          const detail =
+            await getPlaceDetail(placeKey);
+
+          latitude =
+            typeof detail.latitude === "number"
+              ? detail.latitude
+              : detail.lat;
+
+          longitude =
+            typeof detail.longitude === "number"
+              ? detail.longitude
+              : detail.lng;
+        } catch (detailError) {
+          console.log(
+            "[Bookmarks] 좌표 상세 조회 실패:",
+            detailError,
+          );
+        }
+      }
+
+      const createdBookmark =
+        await createBookmark({
+          googlePlaceId: placeKey,
+          name: place.name,
+          category: place.category,
+          address: place.address,
+          lat:
+            typeof latitude === "number"
+              ? latitude
+              : undefined,
+          lng:
+            typeof longitude === "number"
+              ? longitude
+              : undefined,
+        });
+
+      const nextFavorite =
+        normalizeBookmarkPlace(
+          createdBookmark,
+        );
+
+      /*
+       * 서버 명세상 최신 추가 순이므로
+       * 새 항목을 목록 맨 앞에 넣는다.
+       */
+      setFavoritePlaces((prev) => [
+        nextFavorite,
+        ...prev.filter(
+          (item) =>
+            getReviewPlaceKey(item) !== placeKey,
+        ),
+      ]);
+    } catch (error) {
+      console.log(
+        "[Bookmarks] 추가/삭제 실패:",
+        error,
+      );
+
+      if (
+        error instanceof BookmarkApiError &&
+        error.status === 409
+      ) {
+        await loadFavoritePlaces();
+
+        Alert.alert(
+          "즐겨찾기",
+          "이미 즐겨찾기에 추가된 장소입니다.",
+        );
+
+        return;
+      }
+
+      if (
+        error instanceof BookmarkApiError &&
+        error.status === 404
+      ) {
+        await loadFavoritePlaces();
+
+        Alert.alert(
+          "즐겨찾기",
+          "이미 삭제된 즐겨찾기입니다.",
+        );
+
+        return;
+      }
+
+      const message =
+        error instanceof BookmarkApiError &&
+        error.status === 401
+          ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+          : error instanceof BookmarkApiError &&
+              error.status === 403
+            ? "본인의 즐겨찾기만 삭제할 수 있습니다."
+            : existingBookmark
+              ? "즐겨찾기에서 삭제하지 못했습니다."
+              : "즐겨찾기에 추가하지 못했습니다.";
+
+      Alert.alert(
+        "즐겨찾기 처리 실패",
+        message,
+      );
+    } finally {
+      setBookmarkActionPlaceId(null);
+    }
+  };
+
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
 
@@ -459,6 +699,7 @@ export default function AddScheduleLocationScreen({
       });
 
       setSearchResults(places);
+      setActiveResultTab("search");
       Keyboard.dismiss();
 
       // 검색 후 가장 위에 뜨는 장소로 지도를 자동 이동한다(좌표는 상세조회로 보강).
@@ -817,20 +1058,33 @@ export default function AddScheduleLocationScreen({
   };
 
   const placesToRender =
-    searchResults.length > 0 ?
-      searchResults
-    : [
-        {
-          placeId: "empty-preview-1",
-          name: "장소를 검색해주세요",
-          address: "검색어를 입력하면 장소 후보가 표시됩니다.",
-          rating: undefined,
-          category: "preview",
-        } as PlaceSearchResult,
-      ];
+    activeResultTab === "favorites"
+      ? favoritePlaces
+      : searchResults.length > 0
+        ? searchResults
+        : [
+            {
+              placeId: "empty-preview-1",
+              name: "장소를 검색해주세요",
+              address:
+                "검색어를 입력하면 장소 후보가 표시됩니다.",
+              rating: undefined,
+              category: "preview",
+            } as PlaceSearchResult,
+          ];
 
-  const detailModalPlace = searchResults.find((place) => {
-    return getReviewPlaceKey(place) === expandedPlaceId;
+  const mapPlaces =
+    activeResultTab === "favorites"
+      ? favoritePlaces
+      : searchResults;
+
+  const detailModalPlace = [
+    ...searchResults,
+    ...favoritePlaces,
+  ].find((place) => {
+    return (
+      getReviewPlaceKey(place) === expandedPlaceId
+    );
   });
 
   const detailModalPlaceId =
@@ -1177,7 +1431,7 @@ export default function AddScheduleLocationScreen({
           showsCompass={false}
           rotateEnabled={false}
         >
-          {searchResults
+          {mapPlaces
             .filter(
               (place) =>
                 typeof place.latitude === "number" &&
@@ -1266,13 +1520,75 @@ export default function AddScheduleLocationScreen({
       >
         <View style={styles.handleBar} />
 
+        <View style={styles.resultTabBar}>
+          <TouchableOpacity
+            style={[
+              styles.resultTabButton,
+              activeResultTab === "search" &&
+                styles.resultTabButtonActive,
+            ]}
+            activeOpacity={0.8}
+            onPress={() =>
+              setActiveResultTab("search")
+            }
+          >
+            <Text
+              style={[
+                styles.resultTabText,
+                activeResultTab === "search" &&
+                  styles.resultTabTextActive,
+              ]}
+            >
+              검색 결과
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.resultTabButton,
+              activeResultTab === "favorites" &&
+                styles.resultTabButtonActive,
+            ]}
+            activeOpacity={0.8}
+            onPress={() => {
+              setActiveResultTab("favorites");
+              void loadFavoritePlaces(true);
+            }}
+          >
+            <Ionicons
+              name={
+                activeResultTab === "favorites"
+                  ? "heart"
+                  : "heart-outline"
+              }
+              size={17}
+              color={
+                activeResultTab === "favorites"
+                  ? "#2F66F3"
+                  : "#A8B3C3"
+              }
+            />
+
+            <Text
+              style={[
+                styles.resultTabText,
+                activeResultTab === "favorites" &&
+                  styles.resultTabTextActive,
+              ]}
+            >
+              즐겨찾기 {favoritePlaces.length}
+            </Text>
+          </TouchableOpacity>
+        </View>
+
         <ScrollView
           style={styles.resultScroll}
           contentContainerStyle={styles.resultContent}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          {selectedPlaces.length > 0 ?
+          {activeResultTab === "search" &&
+          selectedPlaces.length > 0 ?
             <View style={styles.selectedSummaryBox}>
               <Text style={styles.selectedSummaryTitle}>
                 선택한 장소 {selectedPlaces.length}개
@@ -1283,6 +1599,59 @@ export default function AddScheduleLocationScreen({
               </Text>
             </View>
           : null}
+
+          {activeResultTab === "favorites" &&
+          favoriteListLoading ? (
+            <View style={styles.favoriteEmptyCard}>
+              <ActivityIndicator
+                size="large"
+                color="#2F66F3"
+              />
+
+              <Text style={styles.favoriteEmptyTitle}>
+                즐겨찾기를 불러오는 중이에요
+              </Text>
+            </View>
+          ) : null}
+
+          {activeResultTab === "favorites" &&
+          !favoriteListLoading &&
+          favoritePlaces.length === 0 ? (
+            <View style={styles.favoriteEmptyCard}>
+              <View style={styles.favoriteEmptyIcon}>
+                <Ionicons
+                  name="heart-outline"
+                  size={28}
+                  color="#2F66F3"
+                />
+              </View>
+
+              <Text style={styles.favoriteEmptyTitle}>
+                저장한 장소가 아직 없어요
+              </Text>
+
+              <Text
+                style={styles.favoriteEmptyDescription}
+              >
+                검색 결과의 하트를 눌러 가고 싶은
+                장소를 모아보세요.
+              </Text>
+
+              <TouchableOpacity
+                style={styles.favoriteEmptyButton}
+                activeOpacity={0.8}
+                onPress={() =>
+                  setActiveResultTab("search")
+                }
+              >
+                <Text
+                  style={styles.favoriteEmptyButtonText}
+                >
+                  검색 결과 보기
+                </Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {placesToRender.map((place) => {
             const placeId = String(place.placeId);
@@ -1305,7 +1674,27 @@ export default function AddScheduleLocationScreen({
                 isSelected={isSelected}
                 isDetailLoading={isDetailLoading}
                 isReviewLoading={isReviewLoading}
-                onCardPress={() => focusMapOnPlace(place)}
+                isFavorite={favoritePlaces.some(
+                  (item) =>
+                    getReviewPlaceKey(item) ===
+                    reviewPlaceKey,
+                )}
+                isFavoriteLoading={
+                  bookmarkActionPlaceId ===
+                  reviewPlaceKey
+                }
+                onFavoritePress={
+                  isPreview
+                    ? undefined
+                    : () => {
+                        void toggleFavoritePlace(
+                          place,
+                        );
+                      }
+                }
+                onCardPress={() =>
+                  focusMapOnPlace(place)
+                }
                 onDetailPress={() => {
                   if (
                     typeof place.latitude === "number" &&
@@ -1483,6 +1872,52 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
 
+  resultTabBar: {
+    height: 48,
+    marginHorizontal: 16,
+    marginBottom: 14,
+    padding: 4,
+    borderRadius: 12,
+    backgroundColor: "#F7F9FC",
+    borderWidth: 1,
+    borderColor: "#E3E9F2",
+    flexDirection: "row",
+    gap: 6,
+  },
+
+  resultTabButton: {
+    flex: 1,
+    borderRadius: 9,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+  },
+
+  resultTabButtonActive: {
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#D9E4F4",
+    shadowColor: "#0F172A",
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.05,
+    shadowRadius: 5,
+    elevation: 1,
+  },
+
+  resultTabText: {
+    color: "#A8B3C3",
+    fontSize: 14,
+    fontWeight: "800",
+  },
+
+  resultTabTextActive: {
+    color: "#2F66F3",
+  },
+
   resultScroll: {
     flex: 1,
   },
@@ -1514,6 +1949,60 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "800",
     lineHeight: 18,
+  },
+
+  favoriteEmptyCard: {
+    minHeight: 245,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: "#DCE5F1",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 28,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  favoriteEmptyIcon: {
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 14,
+  },
+
+  favoriteEmptyTitle: {
+    color: "#111827",
+    fontSize: 18,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  favoriteEmptyDescription: {
+    marginTop: 8,
+    color: "#7C8CA3",
+    fontSize: 13,
+    fontWeight: "700",
+    lineHeight: 19,
+    textAlign: "center",
+  },
+
+  favoriteEmptyButton: {
+    minWidth: 132,
+    height: 40,
+    marginTop: 18,
+    paddingHorizontal: 18,
+    borderRadius: 12,
+    backgroundColor: "#EEF4FF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  favoriteEmptyButtonText: {
+    color: "#2F66F3",
+    fontSize: 13,
+    fontWeight: "900",
   },
 
 
