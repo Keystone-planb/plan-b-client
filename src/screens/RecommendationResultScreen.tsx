@@ -57,6 +57,7 @@ import RecommendationResultPlaceCard from "../components/recommendation/Recommen
 import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
 import RecommendationTagRow from "../components/recommendation/RecommendationTagRow";
 import RecommendationOpeningHours from "../components/recommendation/RecommendationOpeningHours";
+import RecommendationAiSummaryBox from "../components/recommendation/RecommendationAiSummaryBox";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1349,19 +1350,10 @@ export default function RecommendationResultScreen({
                     }
                   />
 
-                  <View
-                    style={[
-                      styles.aiSummaryBox,
-                      isExpanded && styles.expandedAiSummaryBox,
-                    ]}
-                  >
-
-                    <Text style={styles.aiSummaryIcon}>📊</Text>
-
-                    <Text style={styles.aiSummaryText}>
-                      {displayAiSummary || "AI 요약을 불러오는 중이에요."}
-                    </Text>
-                  </View>
+                  <RecommendationAiSummaryBox
+                    summary={displayAiSummary}
+                    isExpanded={isExpanded}
+                  />
 
                   <TouchableOpacity
                     style={[
