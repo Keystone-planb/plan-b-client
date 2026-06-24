@@ -6,7 +6,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Modal,
   SafeAreaView,
@@ -25,7 +24,7 @@ import MapView, { Marker } from "react-native-maps";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
-import { replacePlanPlace } from "../../api/schedules/server";
+import { replacePlanPlace, updatePlanSchedule } from "../../api/schedules/server";
 import { trackEvent, AMP } from "../utils/amplitude";
 import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import {
@@ -38,6 +37,13 @@ import {
 } from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
+import VisitTimePickerPanel from "../components/common/VisitTimePickerPanel";
+import RecommendationHeader from "../components/recommendation/RecommendationHeader";
+import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
+import WhiteToast, {
+  type WhiteToastState,
+} from "../components/recommendation/WhiteToast";
+import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
@@ -162,10 +168,79 @@ type PlaceExtraDetail = {
   error?: string;
 };
 
+
 const toText = (value: unknown) => {
   if (typeof value !== "string") return "";
   return value.trim();
 };
+
+const PREVIEW_TRANSPORT_OPTIONS = [
+  {
+    key: "WALK",
+    label: "도보",
+    icon: "walk",
+  },
+  {
+    key: "TRANSIT",
+    label: "대중교통",
+    icon: "bus",
+  },
+  {
+    key: "CAR",
+    label: "자동차",
+    icon: "car",
+  },
+] as const;
+
+type PreviewTransportMode =
+  (typeof PREVIEW_TRANSPORT_OPTIONS)[number]["key"];
+
+const getPreviewTimeText = (
+  place?: {
+    time?: string | null;
+    visitTime?: string | null;
+    endTime?: string | null;
+  } | null,
+) => {
+  const directTime = place?.time?.trim();
+
+  if (directTime) {
+    return directTime;
+  }
+
+  const visitTime = place?.visitTime?.trim();
+  const endTime = place?.endTime?.trim();
+
+  return [visitTime, endTime].filter(Boolean).join(" - ");
+};
+
+
+const padPreviewTime = (value: number) =>
+  String(value).padStart(2, "0");
+
+const splitPreviewTime = (value?: string | null) => {
+  const matched = String(value ?? "").match(/([01]?\d|2[0-3]):([0-5]\d)/);
+
+  return {
+    hour: matched ? Number(matched[1]) : 0,
+    minute: matched ? Number(matched[2]) : 0,
+  };
+};
+
+const makePreviewTime = (hour: number, minute: number) =>
+  `${padPreviewTime(hour)}:${padPreviewTime(minute)}`;
+
+
+const getPreviewTimeMinutes = (value?: string | null) => {
+  const matched = String(value ?? "").match(/([01]?\d|2[0-3]):([0-5]\d)/);
+
+  if (!matched) {
+    return null;
+  }
+
+  return Number(matched[1]) * 60 + Number(matched[2]);
+};
+
 
 const pickText = (source: any, keys: string[]) => {
   for (const key of keys) {
@@ -360,11 +435,17 @@ const updateStoredPlanAAfterReplace = async ({
   currentPlanId,
   place,
   replaceResult,
+  previewVisitTime,
+  previewEndTime,
+  previewTransportMode,
 }: {
   scheduleId?: string;
   currentPlanId: string | number;
   place: DisplayPlace;
   replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
+  previewVisitTime?: string | null;
+  previewEndTime?: string | null;
+  previewTransportMode?: "WALK" | "TRANSIT" | "CAR" | null;
 }) => {
   if (!scheduleId) {
     console.log(
@@ -421,6 +502,14 @@ const updateStoredPlanAAfterReplace = async ({
           category: place.category ?? item.category,
           latitude: place.latitude ?? item.latitude,
           longitude: place.longitude ?? item.longitude,
+          visitTime: previewVisitTime ?? item.visitTime,
+          endTime: previewEndTime ?? item.endTime,
+          time:
+            previewVisitTime && previewEndTime
+              ? `${previewVisitTime} - ${previewEndTime}`
+              : item.time,
+          transportMode:
+            previewTransportMode ?? item.transportMode,
           updatedAt: now,
         };
       }),
@@ -447,12 +536,99 @@ export default function RecommendationResultScreen({
     string | number | null
   >(null);
 
+
+  const [whiteToast, setWhiteToast] = useState<WhiteToastState>(null);
+  const whiteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const showWhiteToast = (
+    title: string,
+    message?: string,
+    type: "success" | "error" | "info" = "info",
+    onDone?: () => void,
+  ) => {
+    if (whiteToastTimerRef.current) {
+      clearTimeout(whiteToastTimerRef.current);
+    }
+
+    setWhiteToast({ title, message, type });
+
+    whiteToastTimerRef.current = setTimeout(() => {
+      setWhiteToast(null);
+      whiteToastTimerRef.current = null;
+      onDone?.();
+    }, 1300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (whiteToastTimerRef.current) {
+        clearTimeout(whiteToastTimerRef.current);
+      }
+    };
+  }, []);
+
   const [pendingPlace, setPendingPlace] =
     useState<DisplayPlace | null>(null);
 
   const [
+    previewTransportMode,
+    setPreviewTransportMode,
+  ] = useState<PreviewTransportMode>("CAR");
+
+  const [
+    savedPreviousSchedulePlace,
+    setSavedPreviousSchedulePlace,
+  ] = useState<TodayPlace | null>(null);
+
+  const [
     savedOriginalSchedulePlace,
     setSavedOriginalSchedulePlace,
+  ] = useState<TodayPlace | null>(null);
+
+  const [
+    previewVisitTime,
+    setPreviewVisitTime,
+  ] = useState<string | null>(null);
+
+  const [
+    previewEndTime,
+    setPreviewEndTime,
+  ] = useState<string | null>(null);
+
+  const [
+    draftPreviewVisitTime,
+    setDraftPreviewVisitTime,
+  ] = useState<string | null>(null);
+
+  const [
+    draftPreviewEndTime,
+    setDraftPreviewEndTime,
+  ] = useState<string | null>(null);
+
+  const [
+    previewTimePickerVisible,
+    setPreviewTimePickerVisible,
+  ] = useState(false);
+
+  const [
+    previewTimePickerTarget,
+    setPreviewTimePickerTarget,
+  ] = useState<"visitTime" | "endTime">("visitTime");
+
+  const [
+    previewTimePickerHour,
+    setPreviewTimePickerHour,
+  ] = useState(0);
+
+  const [
+    previewTimePickerMinute,
+    setPreviewTimePickerMinute,
+  ] = useState(0);
+
+
+  const [
+    savedNextSchedulePlace,
+    setSavedNextSchedulePlace,
   ] = useState<TodayPlace | null>(null);
   const [expandedPlaceId, setExpandedPlaceId] = useState<
     string | number | null
@@ -519,13 +695,14 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
         const savedSchedule =
           await loadPlanASchedule(scheduleId);
 
-        const savedPlaces =
-          savedSchedule?.days?.flatMap(
-            (day) => day.places,
-          ) ?? [];
+        let matchedPlace: TodayPlace | undefined;
+        let previousPlace: TodayPlace | undefined;
+        let nextPlace: TodayPlace | undefined;
 
-        const matchedPlace = savedPlaces.find(
-          (place) =>
+        for (const day of savedSchedule?.days ?? []) {
+          const dayPlaces = day.places as TodayPlace[];
+
+          const matchedIndex = dayPlaces.findIndex((place) =>
             [
               place.id,
               place.tripPlaceId,
@@ -533,10 +710,17 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
             ].some(
               (id) =>
                 id != null &&
-                String(id) ===
-                  String(currentPlanId),
+                String(id) === String(currentPlanId),
             ),
-        );
+          );
+
+          if (matchedIndex >= 0) {
+            matchedPlace = dayPlaces[matchedIndex];
+            previousPlace = dayPlaces[matchedIndex - 1];
+            nextPlace = dayPlaces[matchedIndex + 1];
+            break;
+          }
+        }
 
         if (cancelled || !matchedPlace) {
           return;
@@ -549,10 +733,20 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           matchedPlace.endTime ?? null;
 
         const combinedTime =
-          matchedPlace.time?.trim() ||
-          [visitTime, endTime]
-            .filter(Boolean)
-            .join(" - ");
+          getPreviewTimeText({
+            ...matchedPlace,
+            visitTime,
+            endTime,
+          });
+
+        setSavedPreviousSchedulePlace(
+          previousPlace
+            ? {
+                ...previousPlace,
+                time: getPreviewTimeText(previousPlace),
+              }
+            : null,
+        );
 
         setSavedOriginalSchedulePlace({
           ...matchedPlace,
@@ -560,6 +754,18 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           endTime,
           time: combinedTime,
         });
+
+        setPreviewVisitTime((prev) => prev ?? visitTime);
+        setPreviewEndTime((prev) => prev ?? endTime);
+
+        setSavedNextSchedulePlace(
+          nextPlace
+            ? {
+                ...nextPlace,
+                time: getPreviewTimeText(nextPlace),
+              }
+            : null,
+        );
 
         console.log(
           "[RecommendationResult] 기존 일정 방문 시간 조회:",
@@ -652,8 +858,54 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
   const previewBeforeTime =
     currentPlaceTime;
 
+  const previewAppliedVisitTime =
+    previewVisitTime ??
+    savedOriginalSchedulePlace?.visitTime ??
+    targetPlace?.visitTime ??
+    null;
+
+  const previewAppliedEndTime =
+    previewEndTime ??
+    savedOriginalSchedulePlace?.endTime ??
+    targetPlace?.endTime ??
+    null;
+
   const previewAfterTime =
+    [previewAppliedVisitTime, previewAppliedEndTime]
+      .filter(Boolean)
+      .join(" - ") ||
     currentPlaceTime;
+
+  const previewPreviousName =
+    savedPreviousSchedulePlace?.name?.trim() || "장소 정보 없음";
+
+  const previewPreviousTime =
+    getPreviewTimeText(savedPreviousSchedulePlace) || "시간 미정";
+
+  const previewNextName =
+    savedNextSchedulePlace?.name?.trim() || "장소 정보 없음";
+
+  const previewNextTime =
+    getPreviewTimeText(savedNextSchedulePlace) || "시간 미정";
+
+  const previewPreviousAddress =
+    savedPreviousSchedulePlace?.address?.trim() || "";
+
+  const previewAlternativeAddress =
+    pendingPlace?.address?.trim() || "";
+
+  const previewNextAddress =
+    savedNextSchedulePlace?.address?.trim() || "";
+
+  const previewSelectedTransport =
+    PREVIEW_TRANSPORT_OPTIONS.find(
+      (option) => option.key === previewTransportMode,
+    ) ?? PREVIEW_TRANSPORT_OPTIONS[0];
+
+  const previewMoveTimeText =
+    params.moveTime && params.moveTime !== "ANY"
+      ? `${params.moveTime}분`
+      : "";
 
   const originalLatitude = Number(
     originalSchedulePlace?.latitude,
@@ -665,6 +917,60 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
 
   const replacementLatitude = Number(
     pendingPlace?.latitude,
+  );
+
+  const renderPreviewTransportSelector = () => (
+    <>
+      <View style={styles.previewTransportRow}>
+        {PREVIEW_TRANSPORT_OPTIONS.map((option) => {
+          const isActive = previewTransportMode === option.key;
+
+          return (
+            <TouchableOpacity
+              key={option.key}
+              style={[
+                styles.previewTransportChip,
+                isActive && styles.previewTransportChipActive,
+              ]}
+              activeOpacity={0.82}
+              onPress={() => setPreviewTransportMode(option.key)}
+            >
+              <Ionicons
+                name={option.icon as any}
+                size={15}
+                color={isActive ? "#2158E8" : "#1C2534"}
+              />
+
+              <Text
+                style={[
+                  styles.previewTransportChipText,
+                  isActive && styles.previewTransportChipTextActive,
+                ]}
+              >
+                {option.label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {previewMoveTimeText ? (
+        <View style={styles.previewMoveTimeRow}>
+          <Ionicons
+            name={previewSelectedTransport.icon as any}
+            size={15}
+            color="#2158E8"
+          />
+
+          <Text style={styles.previewMoveTimeText}>
+            예상 이동시간{" "}
+            <Text style={styles.previewMoveTimeValue}>
+              {previewMoveTimeText}
+            </Text>
+          </Text>
+        </View>
+      ) : null}
+    </>
   );
 
   const replacementLongitude = Number(
@@ -934,6 +1240,125 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
     await fetchReviewDetail(place, placeId, true);
   };
 
+  const openPreviewTimePicker = () => {
+    const nextDraftVisitTime =
+      previewAppliedVisitTime ?? null;
+
+    const nextDraftEndTime =
+      previewAppliedEndTime ?? null;
+
+    setDraftPreviewVisitTime(nextDraftVisitTime);
+    setDraftPreviewEndTime(nextDraftEndTime);
+
+    const baseTime =
+      previewTimePickerTarget === "visitTime"
+        ? nextDraftVisitTime
+        : nextDraftEndTime;
+
+    const parsed = splitPreviewTime(baseTime);
+
+    setPreviewTimePickerHour(parsed.hour);
+    setPreviewTimePickerMinute(parsed.minute);
+    setPreviewTimePickerVisible(true);
+  };
+
+  const closePreviewTimePicker = () => {
+    setPreviewTimePickerVisible(false);
+  };
+
+  const getCurrentPickerTime = () =>
+    makePreviewTime(
+      previewTimePickerHour,
+      previewTimePickerMinute,
+    );
+
+  const switchPreviewTimePickerTarget = (
+    target:
+      | "visitTime"
+      | "endTime"
+      | "transportStartTime"
+      | "transportEndTime",
+  ) => {
+    if (
+      target !== "visitTime" &&
+      target !== "endTime"
+    ) {
+      return;
+    }
+
+    const currentPickerTime = getCurrentPickerTime();
+
+    const nextDraftVisitTime =
+      previewTimePickerTarget === "visitTime"
+        ? currentPickerTime
+        : draftPreviewVisitTime ??
+          previewAppliedVisitTime ??
+          null;
+
+    const nextDraftEndTime =
+      previewTimePickerTarget === "endTime"
+        ? currentPickerTime
+        : draftPreviewEndTime ??
+          previewAppliedEndTime ??
+          null;
+
+    setDraftPreviewVisitTime(nextDraftVisitTime);
+    setDraftPreviewEndTime(nextDraftEndTime);
+    setPreviewTimePickerTarget(target);
+
+    const parsed = splitPreviewTime(
+      target === "visitTime"
+        ? nextDraftVisitTime
+        : nextDraftEndTime,
+    );
+
+    setPreviewTimePickerHour(parsed.hour);
+    setPreviewTimePickerMinute(parsed.minute);
+  };
+
+  const savePreviewTimePicker = () => {
+    const currentPickerTime = getCurrentPickerTime();
+
+    const nextVisitTime =
+      previewTimePickerTarget === "visitTime"
+        ? currentPickerTime
+        : draftPreviewVisitTime ??
+          previewAppliedVisitTime ??
+          null;
+
+    const nextEndTime =
+      previewTimePickerTarget === "endTime"
+        ? currentPickerTime
+        : draftPreviewEndTime ??
+          previewAppliedEndTime ??
+          null;
+
+    const nextVisitMinutes =
+      getPreviewTimeMinutes(nextVisitTime);
+
+    const nextEndMinutes =
+      getPreviewTimeMinutes(nextEndTime);
+
+    if (
+      nextVisitMinutes == null ||
+      nextEndMinutes == null ||
+      nextVisitMinutes >= nextEndMinutes
+    ) {
+      showWhiteToast(
+        "시간 설정 확인",
+        "시작 시간은 종료 시간보다 빨라야 합니다.",
+        "error",
+      );
+      return;
+    }
+
+    setDraftPreviewVisitTime(nextVisitTime);
+    setDraftPreviewEndTime(nextEndTime);
+    setPreviewVisitTime(nextVisitTime);
+    setPreviewEndTime(nextEndTime);
+    setPreviewTimePickerVisible(false);
+  };
+
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
 
@@ -978,17 +1403,19 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
       const notificationId = params.notificationId;
 
       if (!notificationId) {
-        Alert.alert(
+        showWhiteToast(
           "알림 교체 불가",
           "날씨 알림 ID가 없어 장소 교체를 진행할 수 없습니다.",
+          "error",
         );
         return;
       }
 
       if (!newGooglePlaceId || !newPlaceName) {
-        Alert.alert(
+        showWhiteToast(
           "장소 정보 부족",
           "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+          "error",
         );
         return;
       }
@@ -1028,37 +1455,32 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
         // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비워 새로 계산되게 한다.
         clearTripGapCache(params.tripId ?? params.serverTripId);
 
-        Alert.alert(
+        showWhiteToast(
           "장소 선택 완료",
           "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
-          [
-            {
-              text: "확인",
-              onPress: () => {
-                const replacedDay =
-                  Number((updatedTripPlace as { day?: number | string })?.day) >
-                  0
-                    ? Number((updatedTripPlace as { day?: number }).day)
-                    : (params.day ?? params.selectedDay);
+          "success",
+          () => {
+            const replacedDay =
+              Number((updatedTripPlace as { day?: number | string })?.day) > 0
+                ? Number((updatedTripPlace as { day?: number }).day)
+                : (params.day ?? params.selectedDay);
 
-                navigation.replace("PlanA", {
-                  scheduleId: params.scheduleId,
-                  tripId: params.tripId,
-                  serverTripId: params.serverTripId ?? params.tripId,
-                  tripName: params.tripName,
-                  startDate: params.startDate,
-                  endDate: params.endDate,
-                  location: params.location,
-                  transportMode: params.transportMode,
-                  transportLabel: params.transportMode,
-                  day: replacedDay,
-                  selectedDay: replacedDay,
-                  isEditMode: true,
-                  refreshPlanAAt: Date.now(),
-                } as any);
-              },
-            },
-          ],
+            navigation.replace("PlanA", {
+              scheduleId: params.scheduleId,
+              tripId: params.tripId,
+              serverTripId: params.serverTripId ?? params.tripId,
+              tripName: params.tripName,
+              startDate: params.startDate,
+              endDate: params.endDate,
+              location: params.location,
+              transportMode: params.transportMode,
+              transportLabel: params.transportMode,
+              day: replacedDay,
+              selectedDay: replacedDay,
+              isEditMode: true,
+              refreshPlanAAt: Date.now(),
+            } as any);
+          },
         );
 
         return;
@@ -1068,11 +1490,12 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           error,
         );
 
-        Alert.alert(
+        showWhiteToast(
           "장소 교체 실패",
           error instanceof Error ?
             error.message
           : "날씨 알림 기반 장소 교체 중 오류가 발생했습니다.",
+          "error",
         );
       } finally {
         setSubmittingPlaceId(null);
@@ -1082,17 +1505,19 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
     }
 
     if (currentPlanIdCandidates.length === 0) {
-      Alert.alert(
+      showWhiteToast(
         "일정 교체 불가",
         "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
+        "error",
       );
       return;
     }
 
     if (!newGooglePlaceId || !newPlaceName) {
-      Alert.alert(
+      showWhiteToast(
         "장소 정보 부족",
         "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+        "error",
       );
       return;
     }
@@ -1151,6 +1576,27 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
         replaceResult,
       });
 
+      const previewSchedulePayload: Record<string, unknown> = {};
+
+      if (previewVisitTime) {
+        previewSchedulePayload.visitTime = previewVisitTime;
+      }
+
+      if (previewEndTime) {
+        previewSchedulePayload.endTime = previewEndTime;
+      }
+
+      if (previewTransportMode) {
+        previewSchedulePayload.transportMode = previewTransportMode;
+      }
+
+      if (Object.keys(previewSchedulePayload).length > 0) {
+        await updatePlanSchedule(
+          replaceResult.tripPlaceId ?? usedCurrentPlanId,
+          previewSchedulePayload as any,
+        );
+      }
+
       setSelectedPlaceId(placeId);
 
       // ✅ alternative_replaced: 선택 → 서버 저장 완료까지 성공한 진짜 채택
@@ -1178,6 +1624,9 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
         currentPlanId: usedCurrentPlanId,
         place,
         replaceResult,
+        previewVisitTime,
+        previewEndTime,
+        previewTransportMode,
       });
 
       const storedUserId = await AsyncStorage.getItem("user_id");
@@ -1226,17 +1675,7 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
         navigation.replace("PlanA", planAParams as any);
       };
 
-      if (typeof window !== "undefined") {
-        window.alert(`PLAN B 교체 완료\n${successMessage}`);
-        moveToPlanA();
-      } else {
-        Alert.alert("PLAN B 교체 완료", successMessage, [
-          {
-            text: "확인",
-            onPress: moveToPlanA,
-          },
-        ]);
-      }
+      showWhiteToast("PLAN B 교체 완료", successMessage, "success", moveToPlanA);
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
 
@@ -1245,11 +1684,7 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           error.message
         : "일정 교체 요청에 실패했습니다.";
 
-      if (typeof window !== "undefined") {
-        window.alert(`일정 교체 실패\n${message}`);
-      } else {
-        Alert.alert("일정 교체 실패", message);
-      }
+      showWhiteToast("일정 교체 실패", message, "error");
     } finally {
       setSubmittingPlaceId(null);
     }
@@ -1344,14 +1779,12 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                   ]}
                 >
                   <View style={styles.placeTopRow}>
-                    <View style={styles.thumbnailCircle}>
-                      <Image
+                    <Image
                         source={getPlaceCategoryIcon(
                           place.category ?? place.type,
                         )}
                         style={styles.categoryImageIcon}
                       />
-                    </View>
 
                     <View style={styles.placeMainInfo}>
                       <View style={styles.placeNameRow}>
@@ -1626,27 +2059,58 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
       >
         <View style={styles.previewOverlay}>
           <View style={styles.previewModal}>
-            <View style={styles.previewHeader}>
-              <Text style={styles.previewTitle}>
-                이렇게 바꿀까요?
-              </Text>
+            <RecommendationHeader
+              title="이렇게 바꿀까요?"
+              onClose={() => setPendingPlace(null)}
+            />
 
-              <TouchableOpacity
-                style={
-                  styles.previewCloseButton
-                }
-                activeOpacity={0.8}
-                onPress={() =>
-                  setPendingPlace(null)
-                }
-              >
-                <Ionicons
-                  name="close"
-                  size={22}
-                  color="#64748B"
+            {previewTimePickerVisible ? (
+              <View style={styles.previewTimePickerPanelOverlay}>
+                <VisitTimePickerPanel
+                  placeName={pendingPlace?.name ?? "대안 장소"}
+                  target={previewTimePickerTarget}
+                  previewText={makePreviewTime(
+                    previewTimePickerHour,
+                    previewTimePickerMinute,
+                  )}
+                  visitTimeText={
+                    draftPreviewVisitTime ??
+                    previewAppliedVisitTime ??
+                    "00:00"
+                  }
+                  endTimeText={
+                    draftPreviewEndTime ??
+                    previewAppliedEndTime ??
+                    "00:00"
+                  }
+                  hourText={padPreviewTime(previewTimePickerHour)}
+                  minuteText={padPreviewTime(previewTimePickerMinute)}
+                  onClose={closePreviewTimePicker}
+                  onSwitchTarget={switchPreviewTimePickerTarget}
+                  onDecreaseHour={() =>
+                    setPreviewTimePickerHour((prev) =>
+                      prev <= 0 ? 23 : prev - 1,
+                    )
+                  }
+                  onIncreaseHour={() =>
+                    setPreviewTimePickerHour((prev) =>
+                      prev >= 23 ? 0 : prev + 1,
+                    )
+                  }
+                  onDecreaseMinute={() =>
+                    setPreviewTimePickerMinute((prev) =>
+                      prev <= 0 ? 59 : prev - 1,
+                    )
+                  }
+                  onIncreaseMinute={() =>
+                    setPreviewTimePickerMinute((prev) =>
+                      prev >= 59 ? 0 : prev + 1,
+                    )
+                  }
+                  onSave={savePreviewTimePicker}
                 />
-              </TouchableOpacity>
-            </View>
+              </View>
+            ) : null}
 
             <View style={styles.previewMapBox}>
               {hasPreviewMap ? (
@@ -1677,12 +2141,19 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                         longitude:
                           originalLongitude,
                       }}
-                      title="변경 전"
+                      title="기존 장소"
                       description={
                         currentPlaceName
                       }
-                      pinColor="#94A3B8"
-                    />
+                    >
+                      <View style={styles.previewOriginalMarker}>
+                        <Ionicons
+                          name="close"
+                          size={14}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                    </Marker>
                   ) : null}
 
                   {hasReplacementCoordinate ? (
@@ -1693,12 +2164,19 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                         longitude:
                           replacementLongitude,
                       }}
-                      title="변경 후"
+                      title="대안 장소"
                       description={
                         pendingPlace?.name
                       }
-                      pinColor="#2158E8"
-                    />
+                    >
+                      <View style={styles.previewReplacementMarker}>
+                        <Ionicons
+                          name="location"
+                          size={16}
+                          color="#FFFFFF"
+                        />
+                      </View>
+                    </Marker>
                   ) : null}
                 </MapView>
               ) : (
@@ -1709,7 +2187,7 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                 >
                   <Ionicons
                     name="map-outline"
-                    size={38}
+                    size={34}
                     color="#2158E8"
                   />
 
@@ -1718,8 +2196,7 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
                       styles.previewMapFallbackText
                     }
                   >
-                    장소 위치를 지도에서
-                    확인할 수 없어요.
+                    장소 위치를 지도에서 확인할 수 없어요.
                   </Text>
                 </View>
               )}
@@ -1753,166 +2230,22 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
               </View>
             </View>
 
-            <View
-              style={styles.previewCompareRow}
-            >
-              <View
-                style={
-                  styles.previewScheduleColumn
-                }
-              >
-                <Text
-                  style={
-                    styles.previewColumnLabel
-                  }
-                >
-                  변경 전
-                </Text>
-
-                <View
-                  style={
-                    styles.previewScheduleCard
-                  }
-                >
-                  <View
-                    style={
-                      styles.previewInfoRow
-                    }
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={15}
-                      color="#64748B"
-                    />
-
-                    <Text
-                      style={
-                        styles.previewTimeText
-                      }
-                    >
-                      {previewBeforeTime}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={
-                      styles.previewInfoRow
-                    }
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={15}
-                      color="#64748B"
-                    />
-
-                    <Text
-                      style={
-                        styles.previewPlaceText
-                      }
-                      numberOfLines={2}
-                    >
-                      {currentPlaceName}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <Ionicons
-                name="arrow-forward"
-                size={20}
-                color="#94A3B8"
-                style={styles.previewArrow}
-              />
-
-              <View
-                style={
-                  styles.previewScheduleColumn
-                }
-              >
-                <Text
-                  style={
-                    styles.previewColumnLabel
-                  }
-                >
-                  변경 후
-                </Text>
-
-                <View
-                  style={[
-                    styles.previewScheduleCard,
-                    styles.previewAfterCard,
-                  ]}
-                >
-                  <View
-                    style={
-                      styles.previewInfoRow
-                    }
-                  >
-                    <Ionicons
-                      name="time-outline"
-                      size={15}
-                      color="#2158E8"
-                    />
-
-                    <Text
-                      style={
-                        styles.previewTimeText
-                      }
-                    >
-                      {previewAfterTime}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={
-                      styles.previewInfoRow
-                    }
-                  >
-                    <Ionicons
-                      name="location-outline"
-                      size={15}
-                      color="#2158E8"
-                    />
-
-                    <Text
-                      style={
-                        styles.previewPlaceText
-                      }
-                      numberOfLines={2}
-                    >
-                      {pendingPlace?.name ??
-                        "추천 장소"}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.previewNoticeBox}>
-              <View
-                style={styles.previewNoticeIconBox}
-              >
-                <Ionicons
-                  name="bulb-outline"
-                  size={20}
-                  color="#F59E0B"
-                />
-              </View>
-
-              <View style={styles.previewNoticeTextArea}>
-                <Text style={styles.previewNoticeTitle}>
-                  장소만 변경되고 기존 방문 시간은 유지돼요.
-                </Text>
-
-                <Text
-                  style={
-                    styles.previewNoticeDescription
-                  }
-                >
-                  다른 일정에는 영향을 주지 않아요.
-                </Text>
-              </View>
-            </View>
+            <RecommendationTimeline
+              previousName={previewPreviousName}
+              previousTime={previewPreviousTime}
+              previousAddress={previewPreviousAddress}
+              alternativeName={pendingPlace?.name ?? "추천 장소"}
+              alternativeTime={previewAfterTime}
+              alternativeAddress={previewAlternativeAddress}
+              originalPlaceName={currentPlaceName}
+              nextName={previewNextName}
+              nextTime={previewNextTime}
+              nextAddress={previewNextAddress}
+              transportMode={previewTransportMode as RecommendationTransportMode}
+              moveTimeText={previewMoveTimeText}
+              onChangeTransportMode={(mode) => setPreviewTransportMode(mode)}
+              onPressTimeEdit={openPreviewTimePicker}
+            />
 
             <TouchableOpacity
               style={
@@ -1943,15 +2276,65 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
           </View>
         </View>
       </Modal>
+      <WhiteToast toast={whiteToast} />
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+
+  whiteToastWrap: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    bottom: 28,
+    zIndex: 999,
+    elevation: 999,
+    alignItems: "center",
+  },
+
+  whiteToast: {
+    width: "100%",
+    minHeight: 54,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    paddingHorizontal: 14,
+    paddingVertical: 11,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    shadowColor: "#0F172A",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.14,
+    shadowRadius: 14,
+  },
+
+  whiteToastTextBox: {
+    flex: 1,
+  },
+
+  whiteToastTitle: {
+    color: "#0F172A",
+    fontSize: 13,
+    fontWeight: "900",
+  },
+
+  whiteToastMessage: {
+    marginTop: 2,
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "700",
+    lineHeight: 15,
+  },
+
+
   categoryImageIcon: {
-    width: 64,
-    height: 64,
+    width: 72,
+    height: 72,
     resizeMode: "contain",
+    marginRight: 24,
   },
 
   safeArea: {
@@ -2476,47 +2859,55 @@ const styles = StyleSheet.create({
       "rgba(15, 23, 42, 0.48)",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 18,
   },
 
   previewModal: {
+    position: "relative",
+    overflow: "hidden",
     width: "100%",
-    maxWidth: 380,
-    borderRadius: 22,
+    maxWidth: 390,
+    borderRadius: 24,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 18,
-    paddingTop: 16,
+    paddingTop: 18,
     paddingBottom: 16,
   },
 
   previewHeader: {
-    minHeight: 36,
+    minHeight: 38,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    justifyContent: "center",
     marginBottom: 12,
+    position: "relative",
   },
 
   previewTitle: {
+    flex: 1,
     color: "#1C2534",
-    fontSize: 20,
+    fontSize: 22,
     fontWeight: "900",
+    textAlign: "center",
   },
 
   previewCloseButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    position: "absolute",
+    right: 0,
+    top: 2,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     alignItems: "center",
     justifyContent: "center",
   },
 
   previewMapBox: {
-    height: 154,
-    borderRadius: 18,
+    height: 142,
+    borderRadius: 16,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: "#BFDBFE",
+    borderColor: "#D9E7FF",
     backgroundColor: "#EFF6FF",
   },
 
@@ -2524,27 +2915,49 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 
+  previewOriginalMarker: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "rgba(100, 116, 139, 0.72)",
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.9)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  previewReplacementMarker: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: "#2158E8",
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
   previewMapFallback: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 10,
+    gap: 8,
   },
 
   previewMapFallbackText: {
     color: "#64748B",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
   },
 
   previewMapLegend: {
-    minHeight: 30,
-    marginTop: 8,
+    minHeight: 26,
+    marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 22,
+    gap: 20,
   },
 
   previewLegendItem: {
@@ -2554,15 +2967,14 @@ const styles = StyleSheet.create({
   },
 
   previewLegendMarker: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: "#FFFFFF",
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
 
   previewLegendMarkerBefore: {
     backgroundColor: "#94A3B8",
+    opacity: 0.75,
   },
 
   previewLegendMarkerAfter: {
@@ -2575,114 +2987,310 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  previewCompareRow: {
+  previewTimelineWrap: {
+    marginTop: 8,
     flexDirection: "row",
+    alignItems: "stretch",
+  },
+
+  previewTimelineRail: {
+    width: 34,
     alignItems: "center",
-    marginTop: 12,
+    position: "relative",
+    marginRight: 10,
   },
 
-  previewScheduleColumn: {
-    flex: 1,
-    minWidth: 0,
+  previewTimelineNodeA: {
+    position: "absolute",
+    top: 12,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#475569",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
   },
 
-  previewColumnLabel: {
-    marginBottom: 7,
-    color: "#475569",
-    fontSize: 12,
+  previewTimelineNodeB: {
+    position: "absolute",
+    top: 155,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+
+  previewTimelineNodeC: {
+    position: "absolute",
+    bottom: 22,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#475569",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 2,
+  },
+
+  previewTimelineNodeText: {
+    color: "#FFFFFF",
+    fontSize: 14,
     fontWeight: "900",
   },
 
-  previewScheduleCard: {
-    height: 104,
-    borderRadius: 14,
+  previewTimelineCards: {
+    flex: 1,
+    gap: 10,
+  },
+
+  previewFlowCard: {
+    minHeight: 102,
+    borderRadius: 17,
     borderWidth: 1,
     borderColor: "#DCE5F2",
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 11,
-    paddingVertical: 11,
+    paddingHorizontal: 13,
+    paddingVertical: 12,
     justifyContent: "center",
-    gap: 8,
   },
 
-  previewAfterCard: {
-    borderColor: "#93C5FD",
-    backgroundColor: "#F8FBFF",
-  },
-
-  previewInfoRow: {
+  previewCardTopRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8,
+  },
+
+  previewCardMetaLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flexShrink: 1,
+  },
+
+
+  previewAddressRow: {
+    marginTop: 7,
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
 
-  previewTimeText: {
-    flex: 1,
+  previewTransportPanel: {
+    borderRadius: 15,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+
+  previewTransportPanelActive: {
+    borderColor: "#D7E6FF",
+    backgroundColor: "#F8FBFF",
+  },
+
+  previewAddressText: {
+    marginTop: 6,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  previewMoveTimeRow: {
+    marginTop: 7,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+  },
+
+  previewMoveTimeText: {
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "800",
+  },
+
+  previewMoveTimeValue: {
+    color: "#2158E8",
+    fontWeight: "900",
+  },
+
+  previewSmallBadge: {
+    alignSelf: "flex-start",
+    height: 23,
+    borderRadius: 999,
+    backgroundColor: "#F1F5F9",
+    paddingHorizontal: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+  },
+
+  previewSmallBadgeText: {
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  previewFlowTimeRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 6,
+  },
+
+  previewFlowTimeText: {
     color: "#1C2534",
+    fontSize: 14,
+    fontWeight: "900",
+  },
+
+  previewFlowPlaceText: {
+    color: "#111827",
+    fontSize: 16,
+    fontWeight: "900",
+  },
+
+  previewAlternativeCard: {
+    minHeight: 138,
+    borderColor: "#8CB5FF",
+    backgroundColor: "#F8FBFF",
+  },
+
+  previewAlternativeHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+
+  previewAlternativeBadge: {
+    height: 24,
+    borderRadius: 999,
+    backgroundColor: "#2158E8",
+    paddingHorizontal: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  previewAlternativeBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  previewTimeEditButton: {
+    height: 28,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#BFD7FF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 4,
+    zIndex: 10,
+    elevation: 10,
+  },
+
+  previewTimeEditText: {
+    color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "900",
+  },
+
+  previewAlternativeTimeText: {
+    color: "#94A3B8",
+  },
+
+  previewAlternativePlaceText: {
+    color: "#2158E8",
+    fontSize: 20,
+    fontWeight: "900",
+    marginBottom: 8,
+  },
+
+  previewOriginalReferenceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginBottom: 10,
+  },
+
+  previewOriginalReferenceText: {
+    flex: 1,
+    color: "#64748B",
+    fontSize: 11,
+    fontWeight: "800",
+  },
+
+  previewTransportRow: {
+    flexDirection: "row",
+    gap: 8,
+    marginTop: 0,
+  },
+
+  previewTransportChip: {
+    flex: 1,
+    height: 32,
+    minHeight: 32,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    backgroundColor: "#FFFFFF",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 5,
+    paddingHorizontal: 6,
+  },
+
+  previewTransportChipActive: {
+    borderColor: "#2158E8",
+    backgroundColor: "#F8FBFF",
+  },
+
+  previewTransportChipText: {
+    color: "#1C2534",
+    fontSize: 12,
+    fontWeight: "900",
+    textAlign: "center",
+  },
+
+  previewTransportChipTextActive: {
+    color: "#2158E8",
+  },
+
+  previewNoticeBox: {
+    minHeight: 40,
+    marginTop: 12,
+    borderRadius: 12,
+    backgroundColor: "#F3F7FF",
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+
+  previewNoticeTitle: {
+    flex: 1,
+    color: "#2158E8",
     fontSize: 12,
     fontWeight: "900",
     lineHeight: 17,
   },
 
-  previewPlaceText: {
-    flex: 1,
-    minHeight: 32,
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "700",
-    lineHeight: 16,
-  },
-
-  previewArrow: {
-    marginHorizontal: 7,
-    marginTop: 22,
-  },
-
-  previewNoticeBox: {
-    minHeight: 66,
-    marginTop: 12,
-    borderRadius: 14,
-    backgroundColor: "#F7F9FC",
-    paddingHorizontal: 13,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-
-  previewNoticeIconBox: {
-    width: 34,
-    height: 34,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-
-  previewNoticeTextArea: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  previewNoticeTitle: {
-    color: "#F59E0B",
-    fontSize: 11,
-    fontWeight: "900",
-    lineHeight: 16,
-  },
-
-  previewNoticeDescription: {
-    marginTop: 3,
-    color: "#64748B",
-    fontSize: 10,
-    fontWeight: "700",
-    lineHeight: 15,
-  },
-
   previewConfirmButton: {
-    minHeight: 54,
-    marginTop: 14,
-    borderRadius: 16,
+    minHeight: 52,
+    marginTop: 12,
+    borderRadius: 15,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
@@ -2700,6 +3308,21 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "900",
+  },
+
+
+  previewTimePickerPanelOverlay: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    zIndex: 100,
+    elevation: 100,
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    justifyContent: "center",
+    paddingHorizontal: 0,
   },
 
   warningBox: {
