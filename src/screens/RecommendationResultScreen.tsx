@@ -60,6 +60,7 @@ import {
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
+import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast, {
   type WhiteToastState,
 } from "../components/recommendation/WhiteToast";
