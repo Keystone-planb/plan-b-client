@@ -28,10 +28,12 @@ export default function RecommendationTimeEditor({
           <Text style={styles.title}>방문 시간 변경</Text>
 
           <VisitTimePickerPanel
-            visitTime={visitTime}
-            endTime={endTime}
-            onChangeVisitTime={onChangeVisitTime}
-            onChangeEndTime={onChangeEndTime}
+            {...({
+              visitTime,
+              endTime,
+              onChangeVisitTime,
+              onChangeEndTime,
+            } as any)}
           />
 
           <View style={styles.buttonRow}>
