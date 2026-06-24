@@ -1311,6 +1311,8 @@ export default function RecommendationResultScreen({
               return (
                 <RecommendationResultPlaceCard
                   key={`recommendation-${String(placeId)}-${index}`}
+                  isExpanded={isExpanded}
+                  isSelected={isSelected}
                 >
                   <View style={styles.placeTopRow}>
                     <Image
