@@ -1281,7 +1281,7 @@ export default function RecommendationResultScreen({
         <View style={styles.sectionBlock}>
           <Text style={styles.sectionTitle}>AI가 찾은 대안 5개</Text>
 
-          <View style={styles.resultList}>
+          <RecommendationPlaceList>
             {places.map((place, index) => {
               const placeId = place.placeId ?? `place-${index}`;
               const isExpanded = String(expandedPlaceId) === String(placeId);
@@ -1574,7 +1574,7 @@ export default function RecommendationResultScreen({
                 </View>
               );
             })}
-          </View>
+          </RecommendationPlaceList>
         </View>
 
         {params.hasError ?
