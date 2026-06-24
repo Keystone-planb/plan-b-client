@@ -4,15 +4,10 @@ import {
   getPreviewTimeText,
 } from "../../utils/recommendation/recommendationFormatters";
 
-type TransportMode = "WALK" | "TRANSIT" | "CAR";
-
-type PreviewPlace = {
-  name?: string | null;
-  address?: string | null;
-  time?: string | null;
-  visitTime?: string | null;
-  endTime?: string | null;
-};
+import type {
+  RecommendationPreviewPlace,
+  RecommendationTransportMode,
+} from "../../types/recommendation/recommendationPreview";
 
 type Params = {
   moveTime?: string | null;
@@ -20,10 +15,10 @@ type Params = {
 
 type UseRecommendationPreviewParams = {
   params: Params;
-  previousPlace?: PreviewPlace | null;
-  alternativePlace?: PreviewPlace | null;
-  nextPlace?: PreviewPlace | null;
-  initialTransportMode?: TransportMode;
+  previousPlace?: RecommendationPreviewPlace | null;
+  alternativePlace?: RecommendationPreviewPlace | null;
+  nextPlace?: RecommendationPreviewPlace | null;
+  initialTransportMode?: RecommendationTransportMode;
 };
 
 export function useRecommendationPreview({
@@ -34,7 +29,7 @@ export function useRecommendationPreview({
   initialTransportMode = "WALK",
 }: UseRecommendationPreviewParams) {
   const [previewTransportMode, setPreviewTransportMode] =
-    useState<TransportMode>(initialTransportMode);
+    useState<RecommendationTransportMode>(initialTransportMode);
 
   const [previewTimePickerVisible, setPreviewTimePickerVisible] =
     useState(false);
