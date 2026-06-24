@@ -54,6 +54,7 @@ import RecommendationHeader from "../components/recommendation/RecommendationHea
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
+import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1314,45 +1315,17 @@ export default function RecommendationResultScreen({
                   isExpanded={isExpanded}
                   isSelected={isSelected}
                 >
-                  <View style={styles.placeTopRow}>
-                    <Image
-                        source={getPlaceCategoryIcon(
-                          place.category ?? place.type,
-                        )}
-                        style={styles.categoryImageIcon}
-                      />
-
-                    <View style={styles.placeMainInfo}>
-                      <View style={styles.placeNameRow}>
-                        <Text style={styles.placeName} numberOfLines={1}>
-                          {place.name || "에버랜드"}
-                        </Text>
-                      </View>
-
-                      <View style={styles.ratingRow}>
-                        <Ionicons name="star" size={14} color="#FFD400" />
-                        <Text style={styles.ratingText}>
-                          {typeof place.rating === "number" ?
-                            place.rating.toFixed(2)
-                          : "4.58"}
-                        </Text>
-                        <Text style={styles.reviewText}>({reviewCount})</Text>
-                      </View>
-
-                      <View style={styles.infoLine}>
-                        <Ionicons
-                          name="location-outline"
-                          size={18}
-                          color="#8EA0B7"
-                        />
-                        <Text style={styles.infoText} numberOfLines={1}>
-                          {place.address ||
-                            "경기도 용인시 처인구 포곡읍 에버랜드로 199"}
-                        </Text>
-                      </View>
-
-                    </View>
-                  </View>
+                  <RecommendationPlaceMainInfo
+                    iconSource={getPlaceCategoryIcon(place.category ?? place.type)}
+                    name={place.name || "장소 정보 없음"}
+                    ratingText={
+                      typeof place.rating === "number"
+                        ? place.rating.toFixed(2)
+                        : "0.00"
+                    }
+                    reviewCountText={reviewCount}
+                    address={place.address || "주소 정보 없음"}
+                  />
 
                   <View style={styles.tagRow}>
                     {[
