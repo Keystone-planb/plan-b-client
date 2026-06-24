@@ -20,7 +20,6 @@ import NaverIcon from "../assets/naver.png";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import MapView, { Marker } from "react-native-maps";
 
 import { reportPreferenceFeedback } from "../../api/preferences/preferences";
 import { replaceNotificationPlace } from "../../api/notifications/notifications";
@@ -60,6 +59,7 @@ import {
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
+import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 
@@ -1809,95 +1809,11 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
               </View>
             ) : null}
 
-            <View style={styles.previewMapBox}>
-              {hasPreviewMap ? (
-                <MapView
-                  style={styles.previewMap}
-                  region={{
-                    latitude:
-                      previewLatitude,
-                    longitude:
-                      previewLongitude,
-                    latitudeDelta:
-                      previewLatitudeDelta,
-                    longitudeDelta:
-                      previewLongitudeDelta,
-                  }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
-                  rotateEnabled={false}
-                  pitchEnabled={false}
-                  toolbarEnabled={false}
-                  pointerEvents="none"
-                >
-                  {hasOriginalCoordinate ? (
-                    <Marker
-                      coordinate={{
-                        latitude:
-                          originalLatitude,
-                        longitude:
-                          originalLongitude,
-                      }}
-                      title="기존 장소"
-                      description={
-                        currentPlaceName
-                      }
-                    >
-                      <View style={styles.previewOriginalMarker}>
-                        <Ionicons
-                          name="close"
-                          size={14}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    </Marker>
-                  ) : null}
-
-                  {hasReplacementCoordinate ? (
-                    <Marker
-                      coordinate={{
-                        latitude:
-                          replacementLatitude,
-                        longitude:
-                          replacementLongitude,
-                      }}
-                      title="대안 장소"
-                      description={
-                        pendingPlace?.name
-                      }
-                    >
-                      <View style={styles.previewReplacementMarker}>
-                        <Ionicons
-                          name="location"
-                          size={16}
-                          color="#FFFFFF"
-                        />
-                      </View>
-                    </Marker>
-                  ) : null}
-                </MapView>
-              ) : (
-                <View
-                  style={
-                    styles.previewMapFallback
-                  }
-                >
-                  <Ionicons
-                    name="map-outline"
-                    size={34}
-                    color="#2158E8"
-                  />
-
-                  <Text
-                    style={
-                      styles.previewMapFallbackText
-                    }
-                  >
-                    장소 위치를 지도에서 확인할 수 없어요.
-                  </Text>
-                </View>
-              )}
-            </View>
+            <RecommendationMap
+              previous={originalSchedulePlace}
+              alternative={pendingPlace}
+              next={savedNextSchedulePlace}
+            />
 
             <View style={styles.previewMapLegend}>
               <View style={styles.previewLegendItem}>
