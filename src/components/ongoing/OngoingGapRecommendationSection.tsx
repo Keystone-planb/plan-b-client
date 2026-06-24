@@ -1,8 +1,14 @@
 import React from "react";
-import { Alert, View } from "react-native";
+import { View } from "react-native";
 import type { NavigationProp } from "@react-navigation/native";
 
 import GapRecommendationCard from "../recommendations/GapRecommendationCard";
+
+type WhiteToastState = {
+  title: string;
+  message?: string;
+  type?: "success" | "error" | "info";
+};
 
 type Props = {
   styles: any;
@@ -16,6 +22,7 @@ type Props = {
   transportMode?: "WALK" | "TRANSIT" | "CAR";
   transportLabel?: string;
   selectedDayIndex: number;
+  showWhiteToast?: (toast: WhiteToastState) => void;
   currentGapPlanPairs: Array<{
     beforePlanId?: string | number;
     afterPlanId?: string | number;
@@ -34,6 +41,7 @@ export default function OngoingGapRecommendationSection({
   transportMode,
   transportLabel,
   selectedDayIndex,
+  showWhiteToast,
   currentGapPlanPairs,
 }: Props) {
   if (!resolvedTripId || currentGapPlanPairs.length <= 0) return null;
@@ -52,10 +60,11 @@ export default function OngoingGapRecommendationSection({
           const targetDay = gap.day ?? selectedDayIndex + 1;
 
           if (!recommendedGooglePlaceId) {
-            Alert.alert(
-              "장소 추가 실패",
-              "추천 장소의 Google Place ID가 없어 일정에 추가할 수 없습니다.",
-            );
+            showWhiteToast?.({
+              title: "장소 추가 실패",
+              message: "추천 장소의 Google Place ID가 없어 일정에 추가할 수 없습니다.",
+              type: "error",
+            });
 
             return;
           }

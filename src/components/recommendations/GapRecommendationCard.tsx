@@ -387,8 +387,11 @@ export default function GapRecommendationCard({
             <Ionicons name="time-outline" size={20} color="#2563EB" />
           </View>
 
-          <View>
-            <Text style={styles.title}>틈새 대안 추천</Text>
+          <View style={styles.titleTextBox}>
+            <View style={styles.planBBadge}>
+              <Text style={styles.planBBadgeText}>Plan.B</Text>
+            </View>
+            <Text style={styles.title}>빈 시간 대안 추천</Text>
           </View>
         </View>
 
@@ -645,6 +648,28 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  titleTextBox: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flexShrink: 1,
+  },
+
+  planBBadge: {
+    minHeight: 20,
+    borderRadius: 999,
+    backgroundColor: "#2158E8",
+    paddingHorizontal: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  planBBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+
   title: {
     color: "#1C2534",
     fontSize: 13,
