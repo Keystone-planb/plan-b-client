@@ -1779,28 +1779,9 @@ const styles = StyleSheet.create({
 
 
 
-  selectButton: {
-    marginTop: 16,
-    minHeight: 58,
-    borderRadius: 16,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  selectedButton: {
-    backgroundColor: "#2158E8",
-  },
 
-  selectButtonText: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "900",
-  },
 
-  selectedButtonText: {
-    color: "#FFFFFF",
-  },
 
   previewOverlay: {
     flex: 1,
