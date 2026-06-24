@@ -1866,28 +1866,8 @@ const styles = StyleSheet.create({
 
 
 
-  tagRow: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 7,
-    marginTop: 10,
-    marginBottom: 0,
-    marginLeft: 102,
-    alignItems: "center",
-  },
 
-  categoryPill: {
-    borderRadius: 8,
-    backgroundColor: "#F3F6FA",
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
 
-  categoryText: {
-    color: "#7C8CA3",
-    fontSize: 11,
-    fontWeight: "800",
-  },
 
 
 
