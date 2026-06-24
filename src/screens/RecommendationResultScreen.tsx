@@ -52,6 +52,7 @@ import {
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
+import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
