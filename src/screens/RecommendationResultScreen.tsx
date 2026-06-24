@@ -1814,97 +1814,18 @@ const styles = StyleSheet.create({
 
 
 
-  hoursDivider: {
-    height: 1,
-    backgroundColor: "#CBD5E1",
-    marginTop: 16,
-    marginBottom: 14,
-  },
 
-  hoursInfoRow: {
-    marginTop: 0,
-    marginBottom: 2,
-    paddingHorizontal: 0,
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
-  hoursStatusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    backgroundColor: "#34C759",
-    marginRight: 8,
-  },
 
-  hoursStatusText: {
-    color: "#16A34A",
-    fontSize: 16,
-    fontWeight: "900",
-    flex: 1,
-  },
 
-  hoursTimeText: {
-    color: "#111827",
-    fontSize: 16,
-    fontWeight: "900",
-  },
 
-  hoursChevron: {
-    marginLeft: "auto",
-  },
 
-  fullHoursBox: {
-    marginTop: 12,
-    marginBottom: 8,
-    borderRadius: 16,
-    backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#DCE5F2",
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
 
-  fullHoursTitle: {
-    color: "#111827",
-    fontSize: 14,
-    fontWeight: "900",
-    marginBottom: 6,
-  },
 
-  fullHoursRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 2,
-  },
 
-  fullHoursDay: {
-    width: 62,
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "900",
-    lineHeight: 22,
-  },
 
-  fullHoursTime: {
-    flex: 1,
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "800",
-    lineHeight: 22,
-  },
 
-  todayFullHoursText: {
-    color: "#2158E8",
-    fontWeight: "900",
-  },
 
-  fullHoursText: {
-    color: "#64748B",
-    fontSize: 14,
-    fontWeight: "800",
-    lineHeight: 23,
-  },
 
   aiSummaryBox: {
     marginTop: 14,
