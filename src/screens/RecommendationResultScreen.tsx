@@ -1885,9 +1885,6 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  resultList: {
-    gap: 18,
-  },
 
   placeCard: {
     backgroundColor: "#FFFFFF",
