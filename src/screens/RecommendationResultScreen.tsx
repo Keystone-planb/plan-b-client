@@ -56,6 +56,7 @@ import RecommendationPlaceList from "../components/recommendation/Recommendation
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
 import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
 import RecommendationTagRow from "../components/recommendation/RecommendationTagRow";
+import RecommendationOpeningHours from "../components/recommendation/RecommendationOpeningHours";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1336,78 +1337,17 @@ export default function RecommendationResultScreen({
                     ]}
                   />
 
-                  {todayOpeningHoursText ? (
-                    <>
-                      <View style={styles.hoursDivider} />
-
-                      <TouchableOpacity
-                        style={styles.hoursInfoRow}
-                        activeOpacity={0.82}
-                        onPress={() =>
-                          setExpandedHoursPlaceId((prev: string | number | null) =>
-                            String(prev) === String(placeId) ? null : placeId,
-                          )
-                        }
-                      >
-                        <View style={styles.hoursStatusDot} />
-                        <Text style={styles.hoursStatusText} numberOfLines={1}>
-                          {todayOpeningHoursText}
-                        </Text>
-                        <Ionicons
-                          name={isHoursExpanded ? "chevron-up" : "chevron-down"}
-                          size={18}
-                          color="#64748B"
-                          style={styles.hoursChevron}
-                        />
-                      </TouchableOpacity>
-
-                      {isHoursExpanded && fullOpeningHoursText ? (
-                        <View style={styles.fullHoursBox}>
-                          <Text style={styles.fullHoursTitle}>전체 영업시간</Text>
-                          {fullOpeningHoursText
-                            .split("\n")
-                            .filter(Boolean)
-                            .map((row) => {
-                              const [day, ...timeParts] = row.split(":");
-                              const time = timeParts.join(":").trim();
-
-                              return (
-                                <View key={row} style={styles.fullHoursRow}>
-                                  {(() => {
-                                    const todayLabel = new Date().toLocaleDateString(
-                                      "ko-KR",
-                                      { weekday: "long" },
-                                    );
-                                    const isToday = day.trim() === todayLabel;
-
-                                    return (
-                                      <>
-                                        <Text
-                                          style={[
-                                            styles.fullHoursDay,
-                                            isToday && styles.todayFullHoursText,
-                                          ]}
-                                        >
-                                          {day.trim()}
-                                        </Text>
-                                        <Text
-                                          style={[
-                                            styles.fullHoursTime,
-                                            isToday && styles.todayFullHoursText,
-                                          ]}
-                                        >
-                                          {time}
-                                        </Text>
-                                      </>
-                                    );
-                                  })()}
-                                </View>
-                              );
-                            })}
-                        </View>
-                      ) : null}
-                    </>
-                  ) : null}
+                  <RecommendationOpeningHours
+                    placeId={placeId}
+                    todayText={todayOpeningHoursText}
+                    fullText={fullOpeningHoursText}
+                    isExpanded={isHoursExpanded}
+                    onToggle={() =>
+                      setExpandedHoursPlaceId((prev: string | number | null) =>
+                        String(prev) === String(placeId) ? null : placeId,
+                      )
+                    }
+                  />
 
                   <View
                     style={[
