@@ -2515,54 +2515,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  previewMapBox: {
-    height: 142,
-    borderRadius: 16,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#D9E7FF",
-    backgroundColor: "#EFF6FF",
-  },
 
-  previewMap: {
-    flex: 1,
-  },
 
-  previewOriginalMarker: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "rgba(100, 116, 139, 0.72)",
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.9)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  previewReplacementMarker: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: "#2158E8",
-    borderWidth: 3,
-    borderColor: "#FFFFFF",
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  previewMapFallback: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
 
-  previewMapFallbackText: {
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "700",
-    textAlign: "center",
-  },
 
   previewMapLegend: {
     minHeight: 26,
