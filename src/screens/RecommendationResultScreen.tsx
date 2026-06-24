@@ -176,13 +176,6 @@ type DisplayPlace = RecommendedPlace & {
   };
 };
 
-type PlaceExtraDetail = {
-  loading?: boolean;
-  aiSummary?: string;
-  googleReview?: string;
-  naverReview?: string;
-  error?: string;
-};
 
 
 
@@ -326,6 +319,15 @@ export default function RecommendationResultScreen({
 
   const { whiteToast, showWhiteToast } = useRecommendationToast();
 
+  const {
+    expandedPlaceId,
+    setExpandedPlaceId,
+    expandedHoursPlaceId,
+    setExpandedHoursPlaceId,
+    placeExtraDetails,
+    setPlaceExtraDetails,
+  } = useRecommendationReviewDetails();
+
   const [
     previewTransportMode,
     setPreviewTransportMode,
@@ -386,15 +388,6 @@ export default function RecommendationResultScreen({
     savedNextSchedulePlace,
     setSavedNextSchedulePlace,
   ] = useState<TodayPlace | null>(null);
-  const [expandedPlaceId, setExpandedPlaceId] = useState<
-    string | number | null
-  >(null);
-    const [expandedHoursPlaceId, setExpandedHoursPlaceId] = useState<
-    string | number | null
-  >(null);
-const [placeExtraDetails, setPlaceExtraDetails] = useState<
-    Record<string, PlaceExtraDetail>
-  >({});
 
   // time_to_select_ms: 결과 화면 진입 시각 기록
   const screenOpenedAtRef = useRef(Date.now());
