@@ -38,8 +38,6 @@ import {
 import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
 import VisitTimePickerPanel from "../components/common/VisitTimePickerPanel";
-import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
-import { useRecommendationReplace } from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
 import {
   formatDateRange,
@@ -62,7 +60,6 @@ import {
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
-import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 
@@ -191,26 +188,6 @@ type PlaceExtraDetail = {
 
 
 
-const PREVIEW_TRANSPORT_OPTIONS = [
-  {
-    key: "WALK",
-    label: "도보",
-    icon: "walk",
-  },
-  {
-    key: "TRANSIT",
-    label: "대중교통",
-    icon: "bus",
-  },
-  {
-    key: "CAR",
-    label: "자동차",
-    icon: "car",
-  },
-] as const;
-
-type PreviewTransportMode =
-  (typeof PREVIEW_TRANSPORT_OPTIONS)[number]["key"];
 
 
 
@@ -354,7 +331,7 @@ export default function RecommendationResultScreen({
   const [
     previewTransportMode,
     setPreviewTransportMode,
-  ] = useState<PreviewTransportMode>("CAR");
+  ] = useState<RecommendationTransportMode>("CAR");
 
   const [
     savedPreviousSchedulePlace,
@@ -677,12 +654,6 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
 
   const previewNextAddress =
     savedNextSchedulePlace?.address?.trim() || "";
-
-  const previewSelectedTransport =
-    PREVIEW_TRANSPORT_OPTIONS.find(
-      (option) => option.key === previewTransportMode,
-    ) ?? PREVIEW_TRANSPORT_OPTIONS[0];
-
   const previewMoveTimeText =
     params.moveTime && params.moveTime !== "ANY"
       ? `${params.moveTime}분`
@@ -699,61 +670,6 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
   const replacementLatitude = Number(
     pendingPlace?.latitude,
   );
-
-  const renderPreviewTransportSelector = () => (
-    <>
-      <View style={styles.previewTransportRow}>
-        {PREVIEW_TRANSPORT_OPTIONS.map((option) => {
-          const isActive = previewTransportMode === option.key;
-
-          return (
-            <TouchableOpacity
-              key={option.key}
-              style={[
-                styles.previewTransportChip,
-                isActive && styles.previewTransportChipActive,
-              ]}
-              activeOpacity={0.82}
-              onPress={() => setPreviewTransportMode(option.key)}
-            >
-              <Ionicons
-                name={option.icon as any}
-                size={15}
-                color={isActive ? "#2158E8" : "#1C2534"}
-              />
-
-              <Text
-                style={[
-                  styles.previewTransportChipText,
-                  isActive && styles.previewTransportChipTextActive,
-                ]}
-              >
-                {option.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </View>
-
-      {previewMoveTimeText ? (
-        <View style={styles.previewMoveTimeRow}>
-          <Ionicons
-            name={previewSelectedTransport.icon as any}
-            size={15}
-            color="#2158E8"
-          />
-
-          <Text style={styles.previewMoveTimeText}>
-            예상 이동시간{" "}
-            <Text style={styles.previewMoveTimeValue}>
-              {previewMoveTimeText}
-            </Text>
-          </Text>
-        </View>
-      ) : null}
-    </>
-  );
-
   const replacementLongitude = Number(
     pendingPlace?.longitude,
   );
