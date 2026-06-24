@@ -6,7 +6,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Image,
   Modal,
   SafeAreaView,
   ScrollView,
@@ -15,8 +14,6 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import GoogleReviewIcon from "../assets/google-review.svg";
-import NaverIcon from "../assets/naver.png";
 import { Ionicons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
@@ -1771,28 +1768,8 @@ const styles = StyleSheet.create({
 
 
 
-  retryReviewButton: {
-    marginTop: 12,
-    minHeight: 46,
-    borderRadius: 14,
-    backgroundColor: "#F8FBFF",
-    borderWidth: 1,
-    borderColor: "#C7D5FF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-  },
 
-  retryReviewButtonText: {
-    color: "#2158E8",
-    fontSize: 15,
-    fontWeight: "900",
-  },
 
-  retryReviewButtonTextDisabled: {
-    color: "#94A3B8",
-  },
 
   detailButton: {
     marginTop: 14,
@@ -1811,74 +1788,16 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  detailBox: {
-    marginTop: 12,
-    position: "relative",
-  },
 
-  verticalLine: {
-    display: "none",
-  },
 
-  sourceList: {
-    gap: 12,
-  },
 
-  sourceCard: {
-    minHeight: 58,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#DDE5F0",
-    backgroundColor: "#F8FAFC",
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    flexDirection: "row",
-    alignItems: "center",
-  },
 
-  sourceIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 12,
-    overflow: "hidden",
-    backgroundColor: "#FFFFFF",
-  },
 
-  naverBox: {
-    backgroundColor: "#FFFFFF",
-  },
 
-  googleBox: {
-    backgroundColor: "#FFFFFF",
-  },
 
-  platformLogo: {
-    width: 30,
-    height: 30,
-  },
 
-  naverIconText: {
-    color: "#FFFFFF",
-    fontSize: 15,
-    fontWeight: "900",
-  },
 
-  googleIconText: {
-    color: "#4285F4",
-    fontSize: 17,
-    fontWeight: "900",
-  },
 
-  sourceText: {
-    flex: 1,
-    color: "#8A97AA",
-    fontSize: 13,
-    fontWeight: "700",
-    lineHeight: 19,
-  },
 
   selectButton: {
     marginTop: 16,
