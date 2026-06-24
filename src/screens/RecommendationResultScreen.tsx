@@ -1296,102 +1296,40 @@ export default function RecommendationResultScreen({
                 String(submittingPlaceId) === String(placeId);
               const placeKey = String(placeId);
               const extraDetail = placeExtraDetails[placeKey];
-              const displayAiSummary = extraDetail?.aiSummary ?? "";
-              const displayNaverReview = extraDetail?.naverReview ?? "";
-              const displayGoogleReview = extraDetail?.googleReview ?? "";
-              const todayOpeningHoursText = formatTodayOpeningHoursText(
-                place.openingHours,
-              );
-              const fullOpeningHoursText = formatOpeningHoursText(place.openingHours);
-
-              const reviewCount =
-                typeof place.userRatingsTotal === "number" ?
-                  place.userRatingsTotal.toLocaleString()
-                : typeof place.reviewCount === "number" ?
-                  place.reviewCount.toLocaleString()
-                : "0";
 
               return (
                 <RecommendationResultPlaceCard
                   key={`recommendation-${String(placeId)}-${index}`}
+                  place={place}
+                  index={index}
                   isExpanded={isExpanded}
+                  isHoursExpanded={isHoursExpanded}
                   isSelected={isSelected}
-                >
-                  <RecommendationPlaceMainInfo
-                    iconSource={getPlaceCategoryIcon(place.category ?? place.type)}
-                    name={place.name || "장소 정보 없음"}
-                    ratingText={
-                      typeof place.rating === "number"
-                        ? place.rating.toFixed(2)
-                        : "0.00"
+                  isSubmitting={isSubmitting}
+                  isWeatherRecommendation={Boolean(isWeatherRecommendation)}
+                  extraDetail={extraDetail}
+                  onToggleHours={(targetPlaceId) =>
+                    setExpandedHoursPlaceId((prev: string | number | null) =>
+                      String(prev) === String(targetPlaceId)
+                        ? null
+                        : targetPlaceId,
+                    )
+                  }
+                  onSelect={(selectedPlace) => {
+                    if (isWeatherRecommendation) {
+                      void handleSelectPlace(selectedPlace as DisplayPlace);
+                      return;
                     }
-                    reviewCountText={reviewCount}
-                    address={place.address || "주소 정보 없음"}
-                  />
 
-                  <RecommendationTagRow
-                    tags={[
-                      getSpaceLabel(place.space),
-                      getTypeLabel(place.type),
-                      getMoodLabel(place.mood),
-                    ]}
-                  />
-
-                  <RecommendationOpeningHours
-                    placeId={placeId}
-                    todayText={todayOpeningHoursText}
-                    fullText={fullOpeningHoursText}
-                    isExpanded={isHoursExpanded}
-                    onToggle={() =>
-                      setExpandedHoursPlaceId((prev: string | number | null) =>
-                        String(prev) === String(placeId) ? null : placeId,
-                      )
-                    }
-                  />
-
-                  <RecommendationAiSummaryBox
-                    summary={displayAiSummary}
-                    isExpanded={isExpanded}
-                  />
-
-                  <RecommendationSelectButton
-                    isSelected={isSelected}
-                    isSubmitting={isSubmitting}
-                    isWeatherRecommendation={Boolean(isWeatherRecommendation)}
-                    onPress={() => {
-                      if (isWeatherRecommendation) {
-                        void handleSelectPlace(place);
-                        return;
-                      }
-
-                      setPendingPlace(place);
-                    }}
-                  />
-
-                  {isExpanded ?
-                    <RecommendationReviewDetailBox
-                      loading={Boolean(extraDetail?.loading)}
-                      naverReview={displayNaverReview}
-                      googleReview={displayGoogleReview}
-                      onRetry={() => handleRetryReview(place, placeId)}
-                    />
-                  : null}
-
-                  <TouchableOpacity
-                    style={styles.detailButton}
-                    activeOpacity={0.8}
-                    onPress={() => handleToggleDetail(place, placeId)}
-                  >
-                    <Text style={styles.detailButtonText}>
-                      {isExpanded ? "리뷰 접기" : "AI 리뷰 요약 보기"}
-                    </Text>
-                    <Ionicons
-                      name={isExpanded ? "chevron-up" : "chevron-down"}
-                      size={16}
-                      color="#64748B"
-                    />
-                  </TouchableOpacity>
-                </RecommendationResultPlaceCard>
+                    setPendingPlace(selectedPlace as DisplayPlace);
+                  }}
+                  onRetryReview={(targetPlace, targetPlaceId) =>
+                    handleRetryReview(targetPlace as DisplayPlace, targetPlaceId)
+                  }
+                  onToggleDetail={(targetPlace, targetPlaceId) =>
+                    handleToggleDetail(targetPlace as DisplayPlace, targetPlaceId)
+                  }
+                />
               );
             })}
           </RecommendationPlaceList>
