@@ -41,8 +41,6 @@ import { useRecommendationToast } from "../hooks/recommendation/useRecommendatio
 import {
   formatDateRange,
   formatOpeningHoursText,
-  formatPriceLevel,
-  formatReviewDataText,
   formatTodayOpeningHoursText,
   getMoodLabel,
   getPreviewTimeMinutes,
@@ -54,7 +52,6 @@ import {
   pickText,
   safeParseJson,
   splitPreviewTime,
-  toText,
   unwrapData,
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
