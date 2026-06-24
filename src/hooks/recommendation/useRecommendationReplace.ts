@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 
-type ToastType = "success" | "error" | "info";
+import type { RecommendationToastType } from "../../types/recommendation/recommendationPreview";
 
 type ShowToast = (
   title: string,
   message?: string,
-  type?: ToastType,
+  type?: RecommendationToastType,
   onDone?: () => void,
 ) => void;
 
