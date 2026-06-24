@@ -27,10 +27,6 @@ import { replacePlanPlace, updatePlanSchedule } from "../../api/schedules/server
 import { trackEvent, AMP } from "../utils/amplitude";
 import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import {
-  getAnalyzedPlaceDetail,
-  getPlaceSummary,
-} from "../../api/places/place";
-import {
   loadPlanASchedule,
   savePlanASchedule,
 } from "../api/schedules/planAStorage";
@@ -51,10 +47,8 @@ import {
   getSpaceLabel,
   getTypeLabel,
   makePreviewTime,
-  pickText,
   safeParseJson,
   splitPreviewTime,
-  unwrapData,
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
