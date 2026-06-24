@@ -39,6 +39,7 @@ import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
 import VisitTimePickerPanel from "../components/common/VisitTimePickerPanel";
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
+import { useRecommendationReplace } from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
 import {
   formatDateRange,
