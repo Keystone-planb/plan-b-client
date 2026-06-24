@@ -329,6 +329,11 @@ export default function RecommendationResultScreen({
     setPlaceExtraDetails,
   } = useRecommendationReviewDetails();
 
+  const { fetchReviewDetail } = useRecommendationReviewActions({
+    placeExtraDetails,
+    setPlaceExtraDetails,
+  });
+
   const [
     previewTransportMode,
     setPreviewTransportMode,
@@ -745,157 +750,6 @@ export default function RecommendationResultScreen({
     }
 
     navigation.navigate("Main");
-  };
-
-  const fetchReviewDetail = async (
-    place: DisplayPlace,
-    placeId: string | number,
-    force = false,
-  ) => {
-    const placeKey = String(placeId);
-    const cachedDetail = placeExtraDetails[placeKey];
-
-    if (
-      !force &&
-      cachedDetail &&
-      !cachedDetail.loading &&
-      (
-        cachedDetail.aiSummary ||
-        cachedDetail.googleReview ||
-        cachedDetail.naverReview
-      )
-    ) {
-      return;
-    }
-
-    const googlePlaceId =
-      typeof place.googlePlaceId === "string" &&
-      place.googlePlaceId.trim().length > 0
-        ? place.googlePlaceId.trim()
-        : typeof place.placeId === "string" &&
-            String(place.placeId).startsWith("ChIJ")
-          ? String(place.placeId)
-          : "";
-
-    if (!googlePlaceId) {
-      console.log("[RecommendationResult] review fetch skipped: no googlePlaceId", {
-        placeId,
-        placeName: place.name,
-        rawPlaceId: place.placeId,
-        rawGooglePlaceId: place.googlePlaceId,
-      });
-
-      setPlaceExtraDetails((prev) => ({
-        ...prev,
-        [placeKey]: {
-          loading: false,
-          aiSummary: "",
-          googleReview: "",
-          naverReview: "",
-          error: "googlePlaceId 없음",
-        },
-      }));
-      return;
-    }
-
-    setPlaceExtraDetails((prev) => ({
-      ...prev,
-      [placeKey]: {
-        ...prev[placeKey],
-        loading: true,
-        error: undefined,
-      },
-    }));
-
-    try {
-      const [detailResponse, summaryResponse] = await Promise.allSettled([
-        getAnalyzedPlaceDetail(googlePlaceId),
-        getPlaceSummary(googlePlaceId),
-      ]);
-
-      const detail =
-        detailResponse.status === "fulfilled"
-          ? unwrapData(detailResponse.value)
-          : null;
-
-      const summary =
-        summaryResponse.status === "fulfilled"
-          ? unwrapData(summaryResponse.value)
-          : null;
-
-      const aiSummary =
-        pickText(summary, [
-          "aiSummary",
-          "ai_summary",
-          "summary",
-          "reviewSummary",
-        ]) ||
-        pickText(detail, [
-          "aiSummary",
-          "ai_summary",
-          "summary",
-          "reviewSummary",
-        ]) ||
-        "";
-
-      const googleReview =
-        pickText(summary, [
-          "googleReview",
-          "googleReviewSummary",
-          "google_review",
-        ]) ||
-        pickText(detail, [
-          "googleReview",
-          "googleReviewSummary",
-          "google_review",
-        ]) ||
-        "";
-
-      const naverReview =
-        pickText(summary, [
-          "naverReview",
-          "naverReviewSummary",
-          "naver_review",
-        ]) ||
-        pickText(detail, [
-          "naverReview",
-          "naverReviewSummary",
-          "naver_review",
-        ]) ||
-        "";
-
-      console.log("[RecommendationResult] review fetch success", {
-        placeKey,
-        googlePlaceId,
-        aiSummary,
-        googleReview,
-        naverReview,
-      });
-
-      setPlaceExtraDetails((prev) => ({
-        ...prev,
-        [placeKey]: {
-          loading: false,
-          aiSummary,
-          googleReview,
-          naverReview,
-          error: undefined,
-        },
-      }));
-    } catch (error) {
-      console.log("[RecommendationResult] review fetch failed:", error);
-
-      setPlaceExtraDetails((prev) => ({
-        ...prev,
-        [placeKey]: {
-          loading: false,
-          aiSummary: "",
-          googleReview: "",
-          naverReview: "",
-          error: "상세 정보를 불러오지 못했습니다.",
-        },
-      }));
-    }
   };
 
   const handleToggleDetail = async (
