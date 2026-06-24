@@ -58,6 +58,7 @@ import RecommendationPlaceMainInfo from "../components/recommendation/Recommenda
 import RecommendationTagRow from "../components/recommendation/RecommendationTagRow";
 import RecommendationOpeningHours from "../components/recommendation/RecommendationOpeningHours";
 import RecommendationAiSummaryBox from "../components/recommendation/RecommendationAiSummaryBox";
+import RecommendationReviewDetailBox from "../components/recommendation/RecommendationReviewDetailBox";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1391,67 +1392,12 @@ export default function RecommendationResultScreen({
                   </TouchableOpacity>
 
                   {isExpanded ?
-                    <View style={styles.detailBox}>
-                      <View style={styles.verticalLine} />
-
-                      <View style={styles.sourceList}>
-                        <View style={styles.sourceCard}>
-                          <View style={[styles.sourceIconBox, styles.naverBox]}>
-                            <Image
-                              source={NaverIcon}
-                              style={styles.platformLogo}
-                              resizeMode="contain"
-                            />
-                          </View>
-
-                          <Text style={styles.sourceText}>
-                            {extraDetail?.loading ?
-                              "네이버 리뷰 요약을 불러오는 중이에요."
-                            : displayNaverReview ||
-                              "서버에서 네이버 리뷰 요약을 제공하지 않았습니다."
-                            }
-                          </Text>
-                        </View>
-
-                        <View style={styles.sourceCard}>
-                          <View
-                            style={[styles.sourceIconBox, styles.googleBox]}
-                          >
-                            <GoogleReviewIcon width={18} height={18} />
-                          </View>
-
-                          <Text style={styles.sourceText}>
-                            {extraDetail?.loading ?
-                              "구글 리뷰 요약을 불러오는 중이에요."
-                            : displayGoogleReview ||
-                              "서버에서 구글 리뷰 요약을 제공하지 않았습니다."
-                            }
-                          </Text>
-                        </View>
-                      </View>
-
-                      <TouchableOpacity
-                        style={styles.retryReviewButton}
-                        activeOpacity={0.82}
-                        onPress={() => handleRetryReview(place, placeId)}
-                        disabled={Boolean(extraDetail?.loading)}
-                      >
-                        <Ionicons
-                          name="refresh-outline"
-                          size={18}
-                          color={extraDetail?.loading ? "#94A3B8" : "#2158E8"}
-                        />
-                        <Text
-                          style={[
-                            styles.retryReviewButtonText,
-                            extraDetail?.loading && styles.retryReviewButtonTextDisabled,
-                          ]}
-                        >
-                          리뷰 다시 분석
-                        </Text>
-                      </TouchableOpacity>
-
-                    </View>
+                    <RecommendationReviewDetailBox
+                      loading={Boolean(extraDetail?.loading)}
+                      naverReview={displayNaverReview}
+                      googleReview={displayGoogleReview}
+                      onRetry={() => handleRetryReview(place, placeId)}
+                    />
                   : null}
 
                   <TouchableOpacity
