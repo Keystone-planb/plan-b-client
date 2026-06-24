@@ -1896,51 +1896,10 @@ const [placeExtraDetails, setPlaceExtraDetails] = useState<
 
 const styles = StyleSheet.create({
 
-  whiteToastWrap: {
-    position: "absolute",
-    left: 16,
-    right: 16,
-    bottom: 28,
-    zIndex: 999,
-    elevation: 999,
-    alignItems: "center",
-  },
 
-  whiteToast: {
-    width: "100%",
-    minHeight: 54,
-    borderRadius: 16,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    shadowColor: "#0F172A",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.14,
-    shadowRadius: 14,
-  },
 
-  whiteToastTextBox: {
-    flex: 1,
-  },
 
-  whiteToastTitle: {
-    color: "#0F172A",
-    fontSize: 13,
-    fontWeight: "900",
-  },
 
-  whiteToastMessage: {
-    marginTop: 2,
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "700",
-    lineHeight: 15,
-  },
 
 
   categoryImageIcon: {
