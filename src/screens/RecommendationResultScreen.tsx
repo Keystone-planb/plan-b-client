@@ -55,6 +55,7 @@ import RecommendationTimeline from "../components/recommendation/RecommendationT
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
 import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
+import RecommendationTagRow from "../components/recommendation/RecommendationTagRow";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1327,20 +1328,13 @@ export default function RecommendationResultScreen({
                     address={place.address || "주소 정보 없음"}
                   />
 
-                  <View style={styles.tagRow}>
-                    {[
+                  <RecommendationTagRow
+                    tags={[
                       getSpaceLabel(place.space),
                       getTypeLabel(place.type),
                       getMoodLabel(place.mood),
-                    ]
-                      .filter(Boolean)
-                      .slice(0, 3)
-                      .map((tag) => (
-                        <View key={tag} style={styles.categoryPill}>
-                          <Text style={styles.categoryText}>{tag}</Text>
-                        </View>
-                      ))}
-                  </View>
+                    ]}
+                  />
 
                   {todayOpeningHoursText ? (
                     <>
