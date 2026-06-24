@@ -346,39 +346,10 @@ export default function RecommendationResultScreen({
     string | number | null
   >(null);
 
-
-  const [whiteToast, setWhiteToast] = useState<WhiteToastState>(null);
-  const whiteToastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const showWhiteToast = (
-    title: string,
-    message?: string,
-    type: "success" | "error" | "info" = "info",
-    onDone?: () => void,
-  ) => {
-    if (whiteToastTimerRef.current) {
-      clearTimeout(whiteToastTimerRef.current);
-    }
-
-    setWhiteToast({ title, message, type });
-
-    whiteToastTimerRef.current = setTimeout(() => {
-      setWhiteToast(null);
-      whiteToastTimerRef.current = null;
-      onDone?.();
-    }, 1300);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (whiteToastTimerRef.current) {
-        clearTimeout(whiteToastTimerRef.current);
-      }
-    };
-  }, []);
-
   const [pendingPlace, setPendingPlace] =
     useState<DisplayPlace | null>(null);
+
+  const { whiteToast, showWhiteToast } = useRecommendationToast();
 
   const [
     previewTransportMode,
