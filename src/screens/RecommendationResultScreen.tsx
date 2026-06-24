@@ -2516,305 +2516,45 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  previewTimelineWrap: {
-    marginTop: 8,
-    flexDirection: "row",
-    alignItems: "stretch",
-  },
-
-  previewTimelineRail: {
-    width: 34,
-    alignItems: "center",
-    position: "relative",
-    marginRight: 10,
-  },
-
-  previewTimelineNodeA: {
-    position: "absolute",
-    top: 12,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#475569",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-
-  previewTimelineNodeB: {
-    position: "absolute",
-    top: 155,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-
-  previewTimelineNodeC: {
-    position: "absolute",
-    bottom: 22,
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: "#475569",
-    alignItems: "center",
-    justifyContent: "center",
-    zIndex: 2,
-  },
-
-  previewTimelineNodeText: {
-    color: "#FFFFFF",
-    fontSize: 14,
-    fontWeight: "900",
-  },
-
-  previewTimelineCards: {
-    flex: 1,
-    gap: 10,
-  },
-
-  previewFlowCard: {
-    minHeight: 102,
-    borderRadius: 17,
-    borderWidth: 1,
-    borderColor: "#DCE5F2",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 13,
-    paddingVertical: 12,
-    justifyContent: "center",
-  },
-
-  previewCardTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 8,
-    marginBottom: 8,
-  },
-
-  previewCardMetaLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-    flexShrink: 1,
-  },
 
 
-  previewAddressRow: {
-    marginTop: 7,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
 
-  previewTransportPanel: {
-    borderRadius: 15,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-  },
 
-  previewTransportPanelActive: {
-    borderColor: "#D7E6FF",
-    backgroundColor: "#F8FBFF",
-  },
 
-  previewAddressText: {
-    marginTop: 6,
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "800",
-  },
 
-  previewMoveTimeRow: {
-    marginTop: 7,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-  },
 
-  previewMoveTimeText: {
-    color: "#64748B",
-    fontSize: 12,
-    fontWeight: "800",
-  },
 
-  previewMoveTimeValue: {
-    color: "#2158E8",
-    fontWeight: "900",
-  },
 
-  previewSmallBadge: {
-    alignSelf: "flex-start",
-    height: 23,
-    borderRadius: 999,
-    backgroundColor: "#F1F5F9",
-    paddingHorizontal: 9,
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 8,
-  },
 
-  previewSmallBadgeText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "900",
-  },
 
-  previewFlowTimeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 6,
-  },
 
-  previewFlowTimeText: {
-    color: "#1C2534",
-    fontSize: 14,
-    fontWeight: "900",
-  },
 
-  previewFlowPlaceText: {
-    color: "#111827",
-    fontSize: 16,
-    fontWeight: "900",
-  },
 
-  previewAlternativeCard: {
-    minHeight: 138,
-    borderColor: "#8CB5FF",
-    backgroundColor: "#F8FBFF",
-  },
 
-  previewAlternativeHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
 
-  previewAlternativeBadge: {
-    height: 24,
-    borderRadius: 999,
-    backgroundColor: "#2158E8",
-    paddingHorizontal: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
-  previewAlternativeBadgeText: {
-    color: "#FFFFFF",
-    fontSize: 11,
-    fontWeight: "900",
-  },
 
-  previewTimeEditButton: {
-    height: 28,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: "#BFD7FF",
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    zIndex: 10,
-    elevation: 10,
-  },
 
-  previewTimeEditText: {
-    color: "#2158E8",
-    fontSize: 11,
-    fontWeight: "900",
-  },
 
-  previewAlternativeTimeText: {
-    color: "#94A3B8",
-  },
 
-  previewAlternativePlaceText: {
-    color: "#2158E8",
-    fontSize: 20,
-    fontWeight: "900",
-    marginBottom: 8,
-  },
 
-  previewOriginalReferenceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginBottom: 10,
-  },
 
-  previewOriginalReferenceText: {
-    flex: 1,
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "800",
-  },
 
-  previewTransportRow: {
-    flexDirection: "row",
-    gap: 8,
-    marginTop: 0,
-  },
 
-  previewTransportChip: {
-    flex: 1,
-    height: 32,
-    minHeight: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    backgroundColor: "#FFFFFF",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    paddingHorizontal: 6,
-  },
 
-  previewTransportChipActive: {
-    borderColor: "#2158E8",
-    backgroundColor: "#F8FBFF",
-  },
 
-  previewTransportChipText: {
-    color: "#1C2534",
-    fontSize: 12,
-    fontWeight: "900",
-    textAlign: "center",
-  },
 
-  previewTransportChipTextActive: {
-    color: "#2158E8",
-  },
 
-  previewNoticeBox: {
-    minHeight: 40,
-    marginTop: 12,
-    borderRadius: 12,
-    backgroundColor: "#F3F7FF",
-    paddingHorizontal: 12,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
 
-  previewNoticeTitle: {
-    flex: 1,
-    color: "#2158E8",
-    fontSize: 12,
-    fontWeight: "900",
-    lineHeight: 17,
-  },
+
+
+
+
+
+
+
+
+
 
   previewConfirmButton: {
     minHeight: 52,
