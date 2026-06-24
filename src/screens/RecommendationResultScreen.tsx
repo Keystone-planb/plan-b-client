@@ -1714,12 +1714,6 @@ const styles = StyleSheet.create({
 
 
 
-  categoryImageIcon: {
-    width: 72,
-    height: 72,
-    resizeMode: "contain",
-    marginRight: 24,
-  },
 
   safeArea: {
     flex: 1,
@@ -1860,10 +1854,6 @@ const styles = StyleSheet.create({
 
 
 
-  placeTopRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-  },
 
   thumbnailCircle: {
     width: 84,
@@ -1879,23 +1869,8 @@ const styles = StyleSheet.create({
     fontSize: 29,
   },
 
-  placeMainInfo: {
-    flex: 1,
-  },
 
-  placeNameRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-  },
 
-  placeName: {
-    color: "#111827",
-    fontSize: 24,
-    fontWeight: "900",
-    letterSpacing: -0.5,
-    flexShrink: 1,
-  },
 
   tagRow: {
     flexDirection: "row",
@@ -1920,39 +1895,10 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  ratingRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-  },
 
-  ratingText: {
-    color: "#111827",
-    fontSize: 18,
-    fontWeight: "900",
-  },
 
-  reviewText: {
-    color: "#7C8CA3",
-    fontSize: 15,
-    fontWeight: "800",
-    marginLeft: 4,
-  },
 
-  infoLine: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginTop: 7,
-  },
 
-  infoText: {
-    color: "#64748B",
-    fontSize: 15,
-    fontWeight: "800",
-    lineHeight: 22,
-    marginLeft: 7,
-    flex: 1,
-  },
 
   hoursDivider: {
     height: 1,
