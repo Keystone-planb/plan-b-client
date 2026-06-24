@@ -56,6 +56,7 @@ import RecommendationTagRow from "../components/recommendation/RecommendationTag
 import RecommendationOpeningHours from "../components/recommendation/RecommendationOpeningHours";
 import RecommendationAiSummaryBox from "../components/recommendation/RecommendationAiSummaryBox";
 import RecommendationReviewDetailBox from "../components/recommendation/RecommendationReviewDetailBox";
+import RecommendationSelectButton from "../components/recommendation/RecommendationSelectButton";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1353,40 +1354,19 @@ export default function RecommendationResultScreen({
                     isExpanded={isExpanded}
                   />
 
-                  <TouchableOpacity
-                    style={[
-                      styles.selectButton,
-                      isSelected && styles.selectedButton,
-                    ]}
-                    activeOpacity={0.85}
-                    disabled={isSubmitting || isSelected}
+                  <RecommendationSelectButton
+                    isSelected={isSelected}
+                    isSubmitting={isSubmitting}
+                    isWeatherRecommendation={Boolean(isWeatherRecommendation)}
                     onPress={() => {
-                      if (
-                        isWeatherRecommendation
-                      ) {
+                      if (isWeatherRecommendation) {
                         void handleSelectPlace(place);
                         return;
                       }
 
                       setPendingPlace(place);
                     }}
-                  >
-                    {isSubmitting ?
-                      <ActivityIndicator size="small" color="#FFFFFF" />
-                    : <Text
-                        style={[
-                          styles.selectButtonText,
-                          isSelected && styles.selectedButtonText,
-                        ]}
-                      >
-                        {isSelected ?
-                          "선택 완료"
-                        : isWeatherRecommendation ?
-                          "이 장소로 대체"
-                        : "일정에 추가"}
-                      </Text>
-                    }
-                  </TouchableOpacity>
+                  />
 
                   {isExpanded ?
                     <RecommendationReviewDetailBox
