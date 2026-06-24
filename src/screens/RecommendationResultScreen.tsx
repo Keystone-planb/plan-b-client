@@ -2446,33 +2446,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
 
-  previewHeader: {
-    minHeight: 38,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12,
-    position: "relative",
-  },
 
-  previewTitle: {
-    flex: 1,
-    color: "#1C2534",
-    fontSize: 22,
-    fontWeight: "900",
-    textAlign: "center",
-  },
 
-  previewCloseButton: {
-    position: "absolute",
-    right: 0,
-    top: 2,
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: "center",
-    justifyContent: "center",
-  },
 
 
 
