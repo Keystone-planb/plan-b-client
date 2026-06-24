@@ -53,6 +53,7 @@ import {
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
+import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
 import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
@@ -1308,13 +1309,8 @@ export default function RecommendationResultScreen({
                 : "0";
 
               return (
-                <View
+                <RecommendationResultPlaceCard
                   key={`recommendation-${String(placeId)}-${index}`}
-                  style={[
-                    styles.placeCard,
-                    isExpanded && styles.expandedPlaceCard,
-                    isSelected && styles.selectedCard,
-                  ]}
                 >
                   <View style={styles.placeTopRow}>
                     <Image
@@ -1571,7 +1567,7 @@ export default function RecommendationResultScreen({
                       color="#64748B"
                     />
                   </TouchableOpacity>
-                </View>
+                </RecommendationResultPlaceCard>
               );
             })}
           </RecommendationPlaceList>
