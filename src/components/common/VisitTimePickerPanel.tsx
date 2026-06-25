@@ -46,8 +46,13 @@ const toNumber = (value: string) => {
 
 const pad = (value: number) => String(value).padStart(2, "0");
 
-const toMinutes = (value: string) => {
-  const [hour, minute] = value.split(":").map(Number);
+const toMinutes = (value?: string | null) => {
+  const safeValue =
+    typeof value === "string" && /^\\d{1,2}:\\d{2}$/.test(value)
+      ? value
+      : "00:00";
+
+  const [hour, minute] = safeValue.split(":").map(Number);
 
   return hour * 60 + minute;
 };
