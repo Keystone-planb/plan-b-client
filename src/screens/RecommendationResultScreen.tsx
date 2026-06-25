@@ -817,6 +817,61 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const requestPlanPlaceReplace = async ({
+    currentPlanIdCandidates,
+    newGooglePlaceId,
+    newPlaceName,
+  }: {
+    currentPlanIdCandidates: Array<string | number>;
+    newGooglePlaceId: string;
+    newPlaceName: string;
+  }) => {
+    let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null =
+      null;
+    let lastReplaceError: unknown = null;
+    let usedCurrentPlanId: string | number | null = null;
+
+    for (const candidatePlanId of currentPlanIdCandidates) {
+      try {
+        console.log("[RecommendationResult] replace request:", {
+          candidatePlanId,
+          newGooglePlaceId,
+          newPlaceName,
+        });
+
+        replaceResult = await replacePlanPlace(candidatePlanId, {
+          newGooglePlaceId,
+          newPlaceName,
+        });
+
+        usedCurrentPlanId = candidatePlanId;
+        break;
+      } catch (replaceError: any) {
+        lastReplaceError = replaceError;
+
+        console.log("[RecommendationResult] replace candidate failed:", {
+          candidatePlanId,
+          status: replaceError?.response?.status,
+          data: replaceError?.response?.data,
+          message: replaceError?.message,
+        });
+
+        if (replaceError?.response?.status !== 404) {
+          throw replaceError;
+        }
+      }
+    }
+
+    if (!replaceResult || !usedCurrentPlanId) {
+      throw lastReplaceError ?? new Error("일정 교체에 실패했습니다.");
+    }
+
+    return {
+      replaceResult,
+      usedCurrentPlanId,
+    };
+  };
+
   const validatePlanReplaceInput = ({
     currentPlanIdCandidates,
     newGooglePlaceId,
@@ -1129,45 +1184,12 @@ export default function RecommendationResultScreen({
         newPlaceName,
       });
 
-      let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null =
-        null;
-      let lastReplaceError: unknown = null;
-      let usedCurrentPlanId: string | number | null = null;
-
-      for (const candidatePlanId of currentPlanIdCandidates) {
-        try {
-          console.log("[RecommendationResult] replace request:", {
-            candidatePlanId,
-            newGooglePlaceId,
-            newPlaceName,
-          });
-
-          replaceResult = await replacePlanPlace(candidatePlanId, {
-            newGooglePlaceId,
-            newPlaceName,
-          });
-
-          usedCurrentPlanId = candidatePlanId;
-          break;
-        } catch (replaceError: any) {
-          lastReplaceError = replaceError;
-
-          console.log("[RecommendationResult] replace candidate failed:", {
-            candidatePlanId,
-            status: replaceError?.response?.status,
-            data: replaceError?.response?.data,
-            message: replaceError?.message,
-          });
-
-          if (replaceError?.response?.status !== 404) {
-            throw replaceError;
-          }
-        }
-      }
-
-      if (!replaceResult || !usedCurrentPlanId) {
-        throw lastReplaceError ?? new Error("일정 교체에 실패했습니다.");
-      }
+      const { replaceResult, usedCurrentPlanId } =
+        await requestPlanPlaceReplace({
+          currentPlanIdCandidates,
+          newGooglePlaceId,
+          newPlaceName,
+        });
 
       console.log("[RecommendationResult] replace success:", {
         usedCurrentPlanId,
