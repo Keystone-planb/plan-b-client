@@ -817,6 +817,62 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const handleReplaceSuccessSideEffects = async ({
+    place,
+    placeId,
+    usedCurrentPlanId,
+    replaceResult,
+    selectedRank,
+  }: {
+    place: DisplayPlace;
+    placeId: string | number;
+    usedCurrentPlanId: string | number;
+    replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
+    selectedRank: number;
+  }) => {
+    setSelectedPlaceId(placeId);
+
+    trackEvent(AMP.ALTERNATIVE_REPLACED, {
+      trip_id: params.tripId ? String(params.tripId) : undefined,
+      old_place_id: String(usedCurrentPlanId),
+      old_place_name: targetPlace?.name ?? "",
+      new_place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
+      new_place_name: place.name ?? "",
+      new_place_category: place.category ?? "",
+      rank: selectedRank,
+      recommendation_type: params.recommendationType ?? "PLACE",
+      source:
+        (params as any).source === "weather-notification" ||
+        (params as any).fromWeatherNotification
+          ? "weather"
+          : "manual",
+    });
+
+    clearTripGapCache(params.tripId ?? params.serverTripId);
+
+    await updateStoredPlanAAfterReplace({
+      scheduleId: params.scheduleId,
+      currentPlanId: usedCurrentPlanId,
+      place,
+      replaceResult,
+      previewVisitTime,
+      previewEndTime,
+      previewTransportMode,
+    });
+
+    const storedUserId = await AsyncStorage.getItem("user_id");
+
+    if (storedUserId) {
+      reportPreferenceFeedback({
+        userId: storedUserId,
+        shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
+        selectedPlaceId: placeId ?? "",
+      }).catch((feedbackError) => {
+        console.log("[RecommendationResult] feedback failed:", feedbackError);
+      });
+    }
+  };
+
   const getPreviewSchedulePayload = () => {
     const payload: Record<string, unknown> = {};
 
@@ -1083,49 +1139,13 @@ export default function RecommendationResultScreen({
         );
       }
 
-      setSelectedPlaceId(placeId);
-
-      // ✅ alternative_replaced: 선택 → 서버 저장 완료까지 성공한 진짜 채택
-      trackEvent(AMP.ALTERNATIVE_REPLACED, {
-        trip_id: params.tripId ? String(params.tripId) : undefined,
-        old_place_id: String(usedCurrentPlanId),
-        old_place_name: targetPlace?.name ?? "",
-        new_place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
-        new_place_name: place.name ?? "",
-        new_place_category: place.category ?? "",
-        rank: selectedRank,
-        recommendation_type: params.recommendationType ?? "PLACE",
-        source:
-          (params as any).source === "weather-notification" ||
-          (params as any).fromWeatherNotification
-            ? "weather"
-            : "manual",
-      });
-
-      // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비운다.
-      clearTripGapCache(params.tripId ?? params.serverTripId);
-
-      await updateStoredPlanAAfterReplace({
-        scheduleId: params.scheduleId,
-        currentPlanId: usedCurrentPlanId,
+      await handleReplaceSuccessSideEffects({
         place,
+        placeId,
+        usedCurrentPlanId,
         replaceResult,
-        previewVisitTime,
-        previewEndTime,
-        previewTransportMode,
+        selectedRank,
       });
-
-      const storedUserId = await AsyncStorage.getItem("user_id");
-
-      if (storedUserId) {
-        reportPreferenceFeedback({
-          userId: storedUserId,
-          shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
-          selectedPlaceId: placeId ?? "",
-        }).catch((feedbackError) => {
-          console.log("[RecommendationResult] feedback failed:", feedbackError);
-        });
-      }
 
       const successMessage = `${place.name}으로 기존 일정이 교체되었습니다.`;
 
