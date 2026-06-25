@@ -817,6 +817,24 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const getPreviewSchedulePayload = () => {
+    const payload: Record<string, unknown> = {};
+
+    if (previewVisitTime) {
+      payload.visitTime = previewVisitTime;
+    }
+
+    if (previewEndTime) {
+      payload.endTime = previewEndTime;
+    }
+
+    if (previewTransportMode) {
+      payload.transportMode = previewTransportMode;
+    }
+
+    return payload;
+  };
+
   const getCurrentPlanIdCandidates = () => {
     return [
       params.currentPlanId,
@@ -1056,19 +1074,7 @@ export default function RecommendationResultScreen({
         replaceResult,
       });
 
-      const previewSchedulePayload: Record<string, unknown> = {};
-
-      if (previewVisitTime) {
-        previewSchedulePayload.visitTime = previewVisitTime;
-      }
-
-      if (previewEndTime) {
-        previewSchedulePayload.endTime = previewEndTime;
-      }
-
-      if (previewTransportMode) {
-        previewSchedulePayload.transportMode = previewTransportMode;
-      }
+      const previewSchedulePayload = getPreviewSchedulePayload();
 
       if (Object.keys(previewSchedulePayload).length > 0) {
         await updatePlanSchedule(
