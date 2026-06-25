@@ -817,6 +817,18 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const showReplaceSuccessToast = (
+    placeName: string,
+    usedCurrentPlanId: string | number,
+  ) => {
+    showWhiteToast(
+      "PLAN B 교체 완료",
+      `${placeName}으로 기존 일정이 교체되었습니다.`,
+      "success",
+      () => moveToPlanAAfterReplace(usedCurrentPlanId),
+    );
+  };
+
   const updateReplacedScheduleMeta = async ({
     replaceResult,
     usedCurrentPlanId,
@@ -1226,14 +1238,7 @@ export default function RecommendationResultScreen({
         selectedRank,
       });
 
-      const successMessage = `${place.name}으로 기존 일정이 교체되었습니다.`;
-
-      showWhiteToast(
-        "PLAN B 교체 완료",
-        successMessage,
-        "success",
-        () => moveToPlanAAfterReplace(usedCurrentPlanId),
-      );
+      showReplaceSuccessToast(place.name, usedCurrentPlanId);
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
 
