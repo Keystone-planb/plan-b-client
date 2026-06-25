@@ -19,6 +19,8 @@ type UseRecommendationPreviewParams = {
   alternativePlace?: RecommendationPreviewPlace | null;
   nextPlace?: RecommendationPreviewPlace | null;
   initialTransportMode?: RecommendationTransportMode;
+  previewVisitTime?: string | null;
+  previewEndTime?: string | null;
 };
 
 export function useRecommendationPreview({
@@ -27,6 +29,8 @@ export function useRecommendationPreview({
   alternativePlace,
   nextPlace,
   initialTransportMode = "WALK",
+  previewVisitTime,
+  previewEndTime,
 }: UseRecommendationPreviewParams) {
   const [previewTransportMode, setPreviewTransportMode] =
     useState<RecommendationTransportMode>(initialTransportMode);
@@ -79,6 +83,17 @@ export function useRecommendationPreview({
     [nextPlace],
   );
 
+  const previewAppliedVisitTime =
+    previewVisitTime ?? alternativePlace?.visitTime ?? null;
+
+  const previewAppliedEndTime =
+    previewEndTime ?? alternativePlace?.endTime ?? null;
+
+  const previewAppliedTimeText =
+    [previewAppliedVisitTime, previewAppliedEndTime].filter(Boolean).join(" - ") ||
+    getPreviewTimeText(alternativePlace) ||
+    "시간 미정";
+
   const previewMoveTimeText = useMemo(() => {
     if (!params.moveTime || params.moveTime === "ANY") return "";
     return `${params.moveTime}분`;
@@ -111,6 +126,10 @@ export function useRecommendationPreview({
     previewPreviousTime,
     previewAlternativeTime,
     previewNextTime,
+
+    previewAppliedVisitTime,
+    previewAppliedEndTime,
+    previewAppliedTimeText,
 
     previewMoveTimeText,
   };
