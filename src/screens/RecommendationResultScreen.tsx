@@ -25,7 +25,11 @@ import { loadPlanASchedule } from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
-import { updateStoredPlanAAfterReplace } from "../hooks/recommendation/useRecommendationReplace";
+import {
+  getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
+  getPreviewSchedulePayload as getPreviewSchedulePayloadFromHook,
+  updateStoredPlanAAfterReplace,
+} from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
@@ -939,42 +943,18 @@ export default function RecommendationResultScreen({
     }
   };
 
-  const getPreviewSchedulePayload = () => {
-    const payload: Record<string, unknown> = {};
+  const getPreviewSchedulePayload = () =>
+    getPreviewSchedulePayloadFromHook({
+      previewVisitTime,
+      previewEndTime,
+      previewTransportMode,
+    });
 
-    if (previewVisitTime) {
-      payload.visitTime = previewVisitTime;
-    }
-
-    if (previewEndTime) {
-      payload.endTime = previewEndTime;
-    }
-
-    if (previewTransportMode) {
-      payload.transportMode = previewTransportMode;
-    }
-
-    return payload;
-  };
-
-  const getCurrentPlanIdCandidates = () => {
-    return [
-      params.currentPlanId,
-      params.tripPlaceId,
-      params.serverTripPlaceId,
-      targetPlace?.tripPlaceId,
-      targetPlace?.serverTripPlaceId,
-      targetPlace?.id,
-    ]
-      .filter((value): value is string | number => {
-        return value !== undefined && value !== null && value !== "";
-      })
-      .filter((value, index, array) => {
-        return (
-          array.findIndex((item) => String(item) === String(value)) === index
-        );
-      });
-  };
+  const getCurrentPlanIdCandidates = () =>
+    getCurrentPlanIdCandidatesFromHook({
+      params,
+      targetPlace,
+    });
 
   const moveToPlanAAfterWeatherReplace = (
     updatedTripPlace: { day?: number | string },
