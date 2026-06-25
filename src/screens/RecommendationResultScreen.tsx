@@ -652,6 +652,20 @@ export default function RecommendationResultScreen({
       ? `${params.moveTime}분`
       : "";
 
+  const previewData = useRecommendationPreview({
+    params,
+    previousPlace: savedPreviousSchedulePlace,
+    alternativePlace: {
+      ...pendingPlace,
+      visitTime: previewVisitTime,
+      endTime: previewEndTime,
+    },
+    nextPlace: savedNextSchedulePlace,
+    initialTransportMode: params.transportMode ?? "WALK",
+    previewVisitTime,
+    previewEndTime,
+  });
+
   const originalLatitude = Number(
     originalSchedulePlace?.latitude,
   );
