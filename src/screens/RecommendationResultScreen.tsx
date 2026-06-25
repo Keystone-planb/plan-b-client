@@ -1044,8 +1044,14 @@ export default function RecommendationResultScreen({
           },
         );
 
+        const confirmedNotificationId = notificationId;
+
+        if (confirmedNotificationId == null) {
+          throw new Error("날씨 알림 ID를 확인할 수 없습니다.");
+        }
+
         const updatedTripPlace = await replaceNotificationPlace(
-          notificationId,
+          confirmedNotificationId,
           place.placeId,
         );
 
@@ -1122,6 +1128,10 @@ export default function RecommendationResultScreen({
           newPlaceName,
         });
 
+      if (usedCurrentPlanId == null) {
+        throw new Error("교체된 일정 ID를 확인할 수 없습니다.");
+      }
+
       console.log("[RecommendationResult] replace success:", {
         usedCurrentPlanId,
         replaceResult,
@@ -1139,10 +1149,6 @@ export default function RecommendationResultScreen({
         replaceResult,
         selectedRank,
       });
-
-      if (usedCurrentPlanId == null) {
-        throw new Error("교체된 일정 ID를 확인할 수 없습니다.");
-      }
 
       showReplaceSuccessToast(place.name, usedCurrentPlanId);
       },
