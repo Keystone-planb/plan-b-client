@@ -1646,71 +1646,6 @@ const styles = StyleSheet.create({
 
 
 
-  previewOverlay: {
-    flex: 1,
-    backgroundColor:
-      "rgba(15, 23, 42, 0.48)",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 18,
-  },
-
-  previewModal: {
-    position: "relative",
-    overflow: "hidden",
-    width: "100%",
-    maxWidth: 390,
-    borderRadius: 24,
-    backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 16,
-  },
-
-
-
-
-
-
-
-
-
-
-  previewMapLegend: {
-    minHeight: 26,
-    marginTop: 6,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 20,
-  },
-
-  previewLegendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-
-  previewLegendMarker: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-
-  previewLegendMarkerBefore: {
-    backgroundColor: "#94A3B8",
-    opacity: 0.75,
-  },
-
-  previewLegendMarkerAfter: {
-    backgroundColor: "#2158E8",
-  },
-
-  previewLegendText: {
-    color: "#64748B",
-    fontSize: 11,
-    fontWeight: "800",
-  },
 
 
 
@@ -1752,43 +1687,25 @@ const styles = StyleSheet.create({
 
 
 
-  previewConfirmButton: {
-    minHeight: 52,
-    marginTop: 12,
-    borderRadius: 15,
-    backgroundColor: "#2158E8",
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: "#2158E8",
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.22,
-    shadowRadius: 10,
-    elevation: 5,
-  },
-
-  previewConfirmButtonText: {
-    color: "#FFFFFF",
-    fontSize: 17,
-    fontWeight: "900",
-  },
 
 
-  previewTimePickerPanelOverlay: {
-    position: "absolute",
-    left: 0,
-    right: 0,
-    top: 0,
-    bottom: 0,
-    zIndex: 100,
-    elevation: 100,
-    borderRadius: 22,
-    backgroundColor: "#FFFFFF",
-    justifyContent: "center",
-    paddingHorizontal: 0,
-  },
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   warningBox: {
     marginHorizontal: 18,
