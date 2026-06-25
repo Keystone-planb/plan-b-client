@@ -817,6 +817,36 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const validateWeatherReplaceInput = ({
+    notificationId,
+    newGooglePlaceId,
+    newPlaceName,
+  }: {
+    notificationId?: string | number;
+    newGooglePlaceId: string;
+    newPlaceName: string;
+  }) => {
+    if (!notificationId) {
+      showWhiteToast(
+        "알림 교체 불가",
+        "날씨 알림 ID가 없어 장소 교체를 진행할 수 없습니다.",
+        "error",
+      );
+      return false;
+    }
+
+    if (!newGooglePlaceId || !newPlaceName) {
+      showWhiteToast(
+        "장소 정보 부족",
+        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+        "error",
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const handleReplaceSuccessSideEffects = async ({
     place,
     placeId,
@@ -974,21 +1004,13 @@ export default function RecommendationResultScreen({
     if (isWeatherNotificationReplace) {
       const notificationId = params.notificationId;
 
-      if (!notificationId) {
-        showWhiteToast(
-          "알림 교체 불가",
-          "날씨 알림 ID가 없어 장소 교체를 진행할 수 없습니다.",
-          "error",
-        );
-        return;
-      }
-
-      if (!newGooglePlaceId || !newPlaceName) {
-        showWhiteToast(
-          "장소 정보 부족",
-          "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
-          "error",
-        );
+      if (
+        !validateWeatherReplaceInput({
+          notificationId,
+          newGooglePlaceId,
+          newPlaceName,
+        })
+      ) {
         return;
       }
 
