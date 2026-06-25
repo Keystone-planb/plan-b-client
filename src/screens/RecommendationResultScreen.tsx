@@ -600,14 +600,10 @@ export default function RecommendationResultScreen({
 
   const currentPlaceName =
     originalSchedulePlace?.name || params.title || "현재 진행 중인 일정";
-  const currentPlaceAddress =
-    originalSchedulePlace?.address || params.location || "";
   const currentPlaceTime =
     originalSchedulePlace?.time?.trim() ||
     "시간 미정";
 
-  const previewBeforeTime =
-    currentPlaceTime;
 
   const previewAppliedVisitTime =
     previewVisitTime ??
@@ -621,26 +617,6 @@ export default function RecommendationResultScreen({
     targetPlace?.endTime ??
     null;
 
-  const previewPreviousName =
-    savedPreviousSchedulePlace?.name?.trim() || "장소 정보 없음";
-
-  const previewPreviousTime =
-    getPreviewTimeText(savedPreviousSchedulePlace) || "시간 미정";
-
-  const previewNextName =
-    savedNextSchedulePlace?.name?.trim() || "장소 정보 없음";
-
-  const previewNextTime =
-    getPreviewTimeText(savedNextSchedulePlace) || "시간 미정";
-
-  const previewPreviousAddress =
-    savedPreviousSchedulePlace?.address?.trim() || "";
-
-  const previewAlternativeAddress =
-    pendingPlace?.address?.trim() || "";
-
-  const previewNextAddress =
-    savedNextSchedulePlace?.address?.trim() || "";
   const previewData = useRecommendationPreview({
     params,
     previousPlace: savedPreviousSchedulePlace,
@@ -655,78 +631,6 @@ export default function RecommendationResultScreen({
     previewEndTime,
   });
 
-  const originalLatitude = Number(
-    originalSchedulePlace?.latitude,
-  );
-
-  const originalLongitude = Number(
-    originalSchedulePlace?.longitude,
-  );
-
-  const replacementLatitude = Number(
-    pendingPlace?.latitude,
-  );
-  const replacementLongitude = Number(
-    pendingPlace?.longitude,
-  );
-
-  const hasOriginalCoordinate =
-    Number.isFinite(originalLatitude) &&
-    Number.isFinite(originalLongitude);
-
-  const hasReplacementCoordinate =
-    Number.isFinite(replacementLatitude) &&
-    Number.isFinite(replacementLongitude);
-
-  const hasPreviewMap =
-    hasOriginalCoordinate ||
-    hasReplacementCoordinate;
-
-  const previewLatitude =
-    hasOriginalCoordinate &&
-    hasReplacementCoordinate
-      ? (
-          originalLatitude +
-          replacementLatitude
-        ) / 2
-      : hasReplacementCoordinate
-        ? replacementLatitude
-        : originalLatitude;
-
-  const previewLongitude =
-    hasOriginalCoordinate &&
-    hasReplacementCoordinate
-      ? (
-          originalLongitude +
-          replacementLongitude
-        ) / 2
-      : hasReplacementCoordinate
-        ? replacementLongitude
-        : originalLongitude;
-
-  const previewLatitudeDelta =
-    hasOriginalCoordinate &&
-    hasReplacementCoordinate
-      ? Math.max(
-          Math.abs(
-            originalLatitude -
-            replacementLatitude,
-          ) * 2.2,
-          0.012,
-        )
-      : 0.015;
-
-  const previewLongitudeDelta =
-    hasOriginalCoordinate &&
-    hasReplacementCoordinate
-      ? Math.max(
-          Math.abs(
-            originalLongitude -
-            replacementLongitude,
-          ) * 2.2,
-          0.012,
-        )
-      : 0.015;
 
   const handleBack = () => {
     // 선택 없이 이탈 시 alternative_dismissed
