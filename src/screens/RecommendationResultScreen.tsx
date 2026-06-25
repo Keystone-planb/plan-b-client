@@ -1360,7 +1360,7 @@ export default function RecommendationResultScreen({
         previousTime={previewData.previewPreviousTime}
         previousAddress={previewData.previewPreviousAddress}
         alternativeName={previewData.previewAlternativeName}
-        alternativeTime={previewAfterTime}
+        alternativeTime={previewData.previewAppliedTimeText}
         alternativeAddress={previewData.previewAlternativeAddress}
         originalPlaceName={currentPlaceName}
         nextName={previewData.previewNextName}
