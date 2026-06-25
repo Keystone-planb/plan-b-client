@@ -374,20 +374,53 @@ export default function RecommendationResultScreen({
         let previousPlace: TodayPlace | undefined;
         let nextPlace: TodayPlace | undefined;
 
+        const targetIds = [
+          currentPlanId,
+          routeParams.currentPlanId,
+          routeParams.tripPlaceId,
+          routeParams.serverTripPlaceId,
+          targetPlace?.id,
+          targetPlace?.tripPlaceId,
+          targetPlace?.serverTripPlaceId,
+          targetPlace?.placeId,
+          targetPlace?.googlePlaceId,
+        ]
+          .filter((id) => id !== undefined && id !== null && id !== "")
+          .map((id) => String(id));
+
+        const targetName = targetPlace?.name?.trim();
+        const targetAddress = targetPlace?.address?.trim();
+
         for (const day of savedSchedule?.days ?? []) {
           const dayPlaces = day.places as TodayPlace[];
 
-          const matchedIndex = dayPlaces.findIndex((place) =>
-            [
+          const matchedIndex = dayPlaces.findIndex((place) => {
+            const placeIds = [
               place.id,
               place.tripPlaceId,
               place.serverTripPlaceId,
-            ].some(
-              (id) =>
-                id != null &&
-                String(id) === String(currentPlanId),
-            ),
-          );
+              place.placeId,
+              place.googlePlaceId,
+            ]
+              .filter((id) => id !== undefined && id !== null && id !== "")
+              .map((id) => String(id));
+
+            const matchedById = placeIds.some((id) => targetIds.includes(id));
+
+            if (matchedById) {
+              return true;
+            }
+
+            const matchedByNameAndAddress =
+              Boolean(targetName) &&
+              place.name?.trim() === targetName &&
+              (
+                !targetAddress ||
+                place.address?.trim() === targetAddress
+              );
+
+            return matchedByNameAndAddress;
+          });
 
           if (matchedIndex >= 0) {
             matchedPlace = dayPlaces[matchedIndex];
