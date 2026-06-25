@@ -317,7 +317,6 @@ export default function RecommendationResultScreen({
 
       return Array.isArray(parsed) ? parsed : [];
     } catch (error) {
-      console.log("[RecommendationResult] places parse failed:", error);
       return [];
     }
   }, [params.placesJson]);
@@ -442,21 +441,7 @@ export default function RecommendationResultScreen({
               }
             : null,
         );
-
-        console.log(
-          "[RecommendationResult] 기존 일정 방문 시간 조회:",
-          {
-            currentPlanId,
-            visitTime,
-            endTime,
-            time: combinedTime,
-          },
-        );
       } catch (error) {
-        console.log(
-          "[RecommendationResult] 기존 일정 방문 시간 조회 실패:",
-          error,
-        );
       }
     };
 
@@ -794,11 +779,6 @@ export default function RecommendationResultScreen({
 
     for (const candidatePlanId of currentPlanIdCandidates) {
       try {
-        console.log("[RecommendationResult] replace request:", {
-          candidatePlanId,
-          newGooglePlaceId,
-          newPlaceName,
-        });
 
         replaceResult = await replacePlanPlace(candidatePlanId, {
           newGooglePlaceId,
@@ -809,13 +789,6 @@ export default function RecommendationResultScreen({
         break;
       } catch (replaceError: any) {
         lastReplaceError = replaceError;
-
-        console.log("[RecommendationResult] replace candidate failed:", {
-          candidatePlanId,
-          status: replaceError?.response?.status,
-          data: replaceError?.response?.data,
-          message: replaceError?.message,
-        });
 
         if (replaceError?.response?.status !== 404) {
           throw replaceError;
@@ -944,7 +917,6 @@ export default function RecommendationResultScreen({
         shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
         selectedPlaceId: placeId ?? "",
       }).catch((feedbackError) => {
-        console.log("[RecommendationResult] feedback failed:", feedbackError);
       });
     }
   };
@@ -1040,15 +1012,6 @@ export default function RecommendationResultScreen({
         execute: async () => {
           setSubmittingPlaceId(placeId);
 
-        console.log(
-          "[RecommendationResult] weather notification replace request:",
-          {
-            notificationId,
-            newGooglePlaceId,
-            newPlaceName,
-          },
-        );
-
         const confirmedNotificationId = notificationId;
 
         if (confirmedNotificationId == null) {
@@ -1063,15 +1026,6 @@ export default function RecommendationResultScreen({
         if (!updatedTripPlace) {
           throw new Error("날씨 알림 대안 장소 교체에 실패했습니다.");
         }
-
-        console.log(
-          "[RecommendationResult] weather notification replace success:",
-          {
-            notificationId,
-            selectedPlaceId: place.placeId,
-            updatedTripPlace,
-          },
-        );
 
         const weatherPreviewPayload = getPreviewSchedulePayload();
         const weatherTripPlaceId =
@@ -1107,10 +1061,6 @@ export default function RecommendationResultScreen({
         return;
         },
         onError: (error) => {
-          console.log(
-            "[RecommendationResult] weather notification replace failed:",
-            error,
-          );
 
           showWeatherReplaceErrorToast(error);
         },
@@ -1136,12 +1086,6 @@ export default function RecommendationResultScreen({
       execute: async () => {
         setSubmittingPlaceId(placeId);
 
-      console.log("[RecommendationResult] replace candidates:", {
-        currentPlanIdCandidates,
-        newGooglePlaceId,
-        newPlaceName,
-      });
-
       const { replaceResult, usedCurrentPlanId } =
         await requestPlanPlaceReplace({
           currentPlanIdCandidates,
@@ -1152,11 +1096,6 @@ export default function RecommendationResultScreen({
       if (usedCurrentPlanId == null) {
         throw new Error("교체된 일정 ID를 확인할 수 없습니다.");
       }
-
-      console.log("[RecommendationResult] replace success:", {
-        usedCurrentPlanId,
-        replaceResult,
-      });
 
       await updateReplacedScheduleMeta({
         replaceResult,
@@ -1174,7 +1113,6 @@ export default function RecommendationResultScreen({
       showReplaceSuccessToast(place.name, usedCurrentPlanId);
       },
       onError: (error) => {
-        console.log("[RecommendationResult] replace failed:", error);
         showReplaceErrorToast(error);
       },
       onFinally: () => {
