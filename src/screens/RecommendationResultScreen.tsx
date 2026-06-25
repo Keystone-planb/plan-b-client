@@ -421,7 +421,25 @@ export default function RecommendationResultScreen({
           }
         }
 
+        const normalizeSchedulePlace = (
+          place?: TodayPlace,
+        ): TodayPlace | null => {
+          if (!place) return null;
+
+          return {
+            ...place,
+            name: place.name?.trim() || "장소명 없음",
+            address: place.address?.trim() || "",
+            time: getPreviewTimeText(place),
+          };
+        };
+
         if (cancelled || !matchedPlace) {
+          showWhiteToast(
+            "일정 정보 확인 필요",
+            "기존 일정 데이터를 찾지 못했습니다. 일정을 다시 불러온 뒤 시도해주세요.",
+            "error",
+          );
           return;
         }
 
@@ -439,12 +457,7 @@ export default function RecommendationResultScreen({
           });
 
         setSavedPreviousSchedulePlace(
-          previousPlace
-            ? {
-                ...previousPlace,
-                time: getPreviewTimeText(previousPlace),
-              }
-            : null,
+          normalizeSchedulePlace(previousPlace),
         );
 
         setSavedOriginalSchedulePlace({
@@ -458,12 +471,7 @@ export default function RecommendationResultScreen({
         setPreviewEndTime((prev) => prev ?? endTime);
 
         setSavedNextSchedulePlace(
-          nextPlace
-            ? {
-                ...nextPlace,
-                time: getPreviewTimeText(nextPlace),
-              }
-            : null,
+          normalizeSchedulePlace(nextPlace),
         );
       } catch (error) {
       }

@@ -681,7 +681,30 @@ const handleCloseMemoSheet = () => {
   ): Promise<boolean> => {
     const { moveToMainAfterSave = false } = options;
 
-    const missingTimePlaceNames = getMissingTimePlaceNames(schedule);
+    const normalizePlaceTimeForValidation = (place: PlaceItem): PlaceItem => {
+      const visitTime = getPlaceVisitTime(place);
+      const endTime = getPlaceEndTime(place);
+
+      return {
+        ...place,
+        visitTime: visitTime || place.visitTime || null,
+        endTime: endTime || place.endTime || null,
+        time:
+          visitTime && endTime
+            ? `${visitTime} - ${endTime}`
+            : place.time ?? "",
+      };
+    };
+
+    const scheduleForValidation: TravelSchedule = {
+      ...schedule,
+      days: schedule.days.map((day) => ({
+        ...day,
+        places: day.places.map(normalizePlaceTimeForValidation),
+      })),
+    };
+
+    const missingTimePlaceNames = getMissingTimePlaceNames(scheduleForValidation);
 
     if (missingTimePlaceNames.length > 0) {
       Alert.alert(

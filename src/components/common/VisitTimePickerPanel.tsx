@@ -48,7 +48,7 @@ const pad = (value: number) => String(value).padStart(2, "0");
 
 const toMinutes = (value?: string | null) => {
   const safeValue =
-    typeof value === "string" && /^\\d{1,2}:\\d{2}$/.test(value)
+    typeof value === "string" && /^\d{1,2}:\d{2}$/.test(value)
       ? value
       : "00:00";
 
@@ -97,21 +97,47 @@ export default function VisitTimePickerPanel({
 }: Props) {
   const hourRef = useRef<ScrollView>(null);
   const minuteRef = useRef<ScrollView>(null);
+  const lastSyncedHourRef = useRef<number | null>(null);
+  const lastSyncedMinuteRef = useRef<number | null>(null);
+  const lastHandledHourValueRef = useRef<number | null>(null);
+  const lastHandledMinuteValueRef = useRef<number | null>(null);
+
+  const selectedVisitTime =
+    target === "visitTime" ? previewText : visitTimeText;
+
+  const selectedEndTime =
+    target === "endTime" ? previewText : endTimeText;
+
+  const canSave =
+    toMinutes(selectedVisitTime) < toMinutes(selectedEndTime);
+
 
   const hour = toNumber(hourText);
   const minute = toNumber(minuteText);
 
   useEffect(() => {
+    if (lastSyncedHourRef.current === hour) return;
+
+    lastSyncedHourRef.current = hour;
+    lastHandledHourValueRef.current = null;
+
     hourRef.current?.scrollTo({
       y: hour * ITEM_HEIGHT,
       animated: false,
     });
+  }, [hour]);
+
+  useEffect(() => {
+    if (lastSyncedMinuteRef.current === minute) return;
+
+    lastSyncedMinuteRef.current = minute;
+    lastHandledMinuteValueRef.current = null;
 
     minuteRef.current?.scrollTo({
       y: minute * ITEM_HEIGHT,
       animated: false,
     });
-  }, [hour, minute]);
+  }, [minute]);
 
   const handleHourScrollEnd = (
     event: NativeSyntheticEvent<NativeScrollEvent>,
@@ -121,6 +147,10 @@ export default function VisitTimePickerPanel({
     );
 
     const normalized = Math.max(0, Math.min(23, next));
+
+    if (lastHandledHourValueRef.current === normalized) return;
+
+    lastHandledHourValueRef.current = normalized;
 
     moveByStep(
       hour,
@@ -139,6 +169,10 @@ export default function VisitTimePickerPanel({
     );
 
     const normalized = Math.max(0, Math.min(59, next));
+
+    if (lastHandledMinuteValueRef.current === normalized) return;
+
+    lastHandledMinuteValueRef.current = normalized;
 
     moveByStep(
       minute,
@@ -285,8 +319,9 @@ export default function VisitTimePickerPanel({
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           decelerationRate="fast"
+          bounces={false}
+          overScrollMode="never"
           onMomentumScrollEnd={handleHourScrollEnd}
-          onScrollEndDrag={handleHourScrollEnd}
         >
           {HOURS.map((value) => renderWheelItem(value, value === hour))}
         </ScrollView>
@@ -300,8 +335,9 @@ export default function VisitTimePickerPanel({
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
           decelerationRate="fast"
+          bounces={false}
+          overScrollMode="never"
           onMomentumScrollEnd={handleMinuteScrollEnd}
-          onScrollEndDrag={handleMinuteScrollEnd}
         >
           {MINUTES.map((value) => renderWheelItem(value, value === minute))}
         </ScrollView>
@@ -321,30 +357,9 @@ export default function VisitTimePickerPanel({
         <TouchableOpacity
           style={[
             styles.timeModalSaveButton,
-            toMinutes(
-              target === "visitTime"
-                ? previewText
-                : visitTimeText,
-            ) >=
-              toMinutes(
-                target === "endTime"
-                  ? previewText
-                  : endTimeText,
-              ) &&
-              styles.timeModalSaveButtonDisabled,
+            !canSave && styles.timeModalSaveButtonDisabled,
           ]}
-          disabled={
-            toMinutes(
-              target === "visitTime"
-                ? previewText
-                : visitTimeText,
-            ) >=
-            toMinutes(
-              target === "endTime"
-                ? previewText
-                : endTimeText,
-            )
-          }
+          disabled={!canSave}
           activeOpacity={0.8}
           onPress={() => {
             const nextVisit =
@@ -526,9 +541,7 @@ const styles = StyleSheet.create({
   },
   wheelItemTextActive: {
     color: "#2158E8",
-    fontSize: 28,
     fontWeight: "900",
-    lineHeight: 34,
   },
   timePickerColon: {
     zIndex: 2,

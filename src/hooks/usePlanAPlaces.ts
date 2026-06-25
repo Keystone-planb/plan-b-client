@@ -1439,7 +1439,8 @@ export function usePlanAPlaces({
         throw new Error("서버 여행 ID 형식이 올바르지 않습니다.");
       }
 
-      if (refreshedTripId) {
+      // 장소 시간/메모 업데이트 전에 서버 재조회하면 방금 바꾼 로컬 시간이 덮일 수 있어서 스킵.
+      if (false && refreshedTripId) {
         try {
           const refreshedDetail = await getTripDetail(refreshedTripId);
 
