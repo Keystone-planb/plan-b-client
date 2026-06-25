@@ -73,3 +73,22 @@ export async function runRecommendationReplaceTask<T>(
   }
 }
 
+export type ExecuteRecommendationReplaceParams = {
+  execute: () => Promise<void>;
+  onError?: (error: unknown) => void;
+  onFinally?: () => void;
+};
+
+export async function executeRecommendationReplace({
+  execute,
+  onError,
+  onFinally,
+}: ExecuteRecommendationReplaceParams) {
+  try {
+    await execute();
+  } catch (error) {
+    onError?.(error);
+  } finally {
+    onFinally?.();
+  }
+}
