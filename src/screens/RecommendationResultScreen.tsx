@@ -239,6 +239,11 @@ export default function RecommendationResultScreen({
   });
 
   const [
+    previewBeforeTransportMode,
+    setPreviewBeforeTransportMode,
+  ] = useState<RecommendationTransportMode>("CAR");
+
+  const [
     previewTransportMode,
     setPreviewTransportMode,
   ] = useState<RecommendationTransportMode>("CAR");
@@ -1302,6 +1307,8 @@ export default function RecommendationResultScreen({
         nextTime={previewData.previewNextTime}
         nextAddress={previewData.previewNextAddress}
         transportMode={previewTransportMode as RecommendationTransportMode}
+        previousTransportMode={previewBeforeTransportMode}
+        nextTransportMode={previewTransportMode}
         moveTimeText={previewData.previewMoveTimeText}
         timePickerVisible={previewTimePickerVisible}
         timePickerPlaceName={pendingPlace?.name ?? "대안 장소"}
@@ -1324,6 +1331,10 @@ export default function RecommendationResultScreen({
         minuteText={padPreviewTime(previewTimePickerMinute)}
         onClose={() => setPendingPlace(null)}
         onChangeTransportMode={(mode) => setPreviewTransportMode(mode)}
+        onChangePreviousTransportMode={(mode) =>
+          setPreviewBeforeTransportMode(mode)
+        }
+        onChangeNextTransportMode={(mode) => setPreviewTransportMode(mode)}
         onPressTimeEdit={openPreviewTimePicker}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}

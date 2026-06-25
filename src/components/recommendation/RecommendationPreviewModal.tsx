@@ -37,6 +37,8 @@ type Props = {
   nextAddress?: string;
 
   transportMode: RecommendationTransportMode;
+  previousTransportMode?: RecommendationTransportMode;
+  nextTransportMode?: RecommendationTransportMode;
   moveTimeText?: string;
 
   timePickerVisible: boolean;
@@ -50,6 +52,8 @@ type Props = {
 
   onClose: () => void;
   onChangeTransportMode: (mode: RecommendationTransportMode) => void;
+  onChangePreviousTransportMode?: (mode: RecommendationTransportMode) => void;
+  onChangeNextTransportMode?: (mode: RecommendationTransportMode) => void;
   onPressTimeEdit: () => void;
   onTimePickerClose: () => void;
   onSwitchTimeTarget: (
@@ -83,6 +87,8 @@ export default function RecommendationPreviewModal({
   nextTime,
   nextAddress,
   transportMode,
+  previousTransportMode,
+  nextTransportMode,
   moveTimeText,
   timePickerVisible,
   timePickerPlaceName,
@@ -94,6 +100,8 @@ export default function RecommendationPreviewModal({
   minuteText,
   onClose,
   onChangeTransportMode,
+  onChangePreviousTransportMode,
+  onChangeNextTransportMode,
   onPressTimeEdit,
   onTimePickerClose,
   onSwitchTimeTarget,
@@ -178,8 +186,12 @@ export default function RecommendationPreviewModal({
             nextTime={nextTime}
             nextAddress={nextAddress}
             transportMode={transportMode}
+            previousTransportMode={previousTransportMode}
+            nextTransportMode={nextTransportMode}
             moveTimeText={moveTimeText}
             onChangeTransportMode={onChangeTransportMode}
+            onChangePreviousTransportMode={onChangePreviousTransportMode}
+            onChangeNextTransportMode={onChangeNextTransportMode}
             onPressTimeEdit={onPressTimeEdit}
           />
 
