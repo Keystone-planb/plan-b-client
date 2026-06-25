@@ -113,8 +113,7 @@ export const formatTodayOpeningHoursText = (value: unknown) => {
       weekdayText[0];
 
     const timeText = String(todayRow)
-      .replace(`${todayLabel}:`, "")
-      .replace(/^[^:]+:/, "")
+      .replace(new RegExp(`^${todayLabel}\\s*:?\\s*`), "")
       .trim();
 
     if (statusText && timeText) return `${statusText} · ${timeText}`;
