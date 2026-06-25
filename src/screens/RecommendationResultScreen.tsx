@@ -1068,6 +1068,22 @@ export default function RecommendationResultScreen({
           },
         );
 
+        const weatherPreviewPayload = getPreviewSchedulePayload();
+        const weatherTripPlaceId =
+          (updatedTripPlace as any)?.tripPlaceId ??
+          (updatedTripPlace as any)?.id ??
+          place.placeId;
+
+        if (
+          weatherTripPlaceId != null &&
+          Object.keys(weatherPreviewPayload).length > 0
+        ) {
+          await updatePlanSchedule(
+            weatherTripPlaceId,
+            weatherPreviewPayload as any,
+          );
+        }
+
         setSelectedPlaceId(placeId);
 
         // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비워 새로 계산되게 한다.
