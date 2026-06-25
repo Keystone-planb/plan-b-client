@@ -6,7 +6,6 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  Modal,
   SafeAreaView,
   ScrollView,
   StyleSheet,
@@ -29,7 +28,6 @@ import {
 } from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
-import VisitTimePickerPanel from "../components/common/VisitTimePickerPanel";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
@@ -47,8 +45,6 @@ import {
   safeParseJson,
   splitPreviewTime,
 } from "../utils/recommendation/recommendationFormatters";
-import RecommendationHeader from "../components/recommendation/RecommendationHeader";
-import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
 import RecommendationPreviewModal from "../components/recommendation/RecommendationPreviewModal";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
@@ -58,7 +54,6 @@ import RecommendationOpeningHours from "../components/recommendation/Recommendat
 import RecommendationAiSummaryBox from "../components/recommendation/RecommendationAiSummaryBox";
 import RecommendationReviewDetailBox from "../components/recommendation/RecommendationReviewDetailBox";
 import RecommendationSelectButton from "../components/recommendation/RecommendationSelectButton";
-import RecommendationMap from "../components/recommendation/RecommendationMap";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 
