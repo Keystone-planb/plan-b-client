@@ -1233,11 +1233,6 @@ export default function RecommendationResultScreen({
                     )
                   }
                   onSelect={(selectedPlace) => {
-                    if (isWeatherRecommendation) {
-                      void handleSelectPlace(selectedPlace as DisplayPlace);
-                      return;
-                    }
-
                     setPendingPlace(selectedPlace as DisplayPlace);
                   }}
                   onRetryReview={(targetPlace, targetPlaceId) =>
