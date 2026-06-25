@@ -1154,6 +1154,10 @@ export default function RecommendationResultScreen({
         selectedRank,
       });
 
+      if (usedCurrentPlanId == null) {
+        throw new Error("교체된 일정 ID를 확인할 수 없습니다.");
+      }
+
       showReplaceSuccessToast(place.name, usedCurrentPlanId);
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
