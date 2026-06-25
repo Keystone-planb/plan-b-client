@@ -817,6 +817,16 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const showWeatherReplaceErrorToast = (error: unknown) => {
+    showWhiteToast(
+      "장소 교체 실패",
+      error instanceof Error
+        ? error.message
+        : "날씨 알림 기반 장소 교체 중 오류가 발생했습니다.",
+      "error",
+    );
+  };
+
   const showReplaceErrorToast = (error: unknown) => {
     const message =
       error instanceof Error
@@ -1189,13 +1199,7 @@ export default function RecommendationResultScreen({
           error,
         );
 
-        showWhiteToast(
-          "장소 교체 실패",
-          error instanceof Error ?
-            error.message
-          : "날씨 알림 기반 장소 교체 중 오류가 발생했습니다.",
-          "error",
-        );
+        showWeatherReplaceErrorToast(error);
       } finally {
         setSubmittingPlaceId(null);
       }
