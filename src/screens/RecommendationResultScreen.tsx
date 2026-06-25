@@ -1101,8 +1101,9 @@ export default function RecommendationResultScreen({
       return;
     }
 
-    try {
-      setSubmittingPlaceId(placeId);
+    await executeRecommendationReplace({
+      execute: async () => {
+        setSubmittingPlaceId(placeId);
 
       console.log("[RecommendationResult] replace candidates:", {
         currentPlanIdCandidates,
@@ -1140,13 +1141,15 @@ export default function RecommendationResultScreen({
       }
 
       showReplaceSuccessToast(place.name, usedCurrentPlanId);
-    } catch (error) {
-      console.log("[RecommendationResult] replace failed:", error);
-
-      showReplaceErrorToast(error);
-    } finally {
-      setSubmittingPlaceId(null);
-    }
+      },
+      onError: (error) => {
+        console.log("[RecommendationResult] replace failed:", error);
+        showReplaceErrorToast(error);
+      },
+      onFinally: () => {
+        setSubmittingPlaceId(null);
+      },
+    });
   };
 
   const title = params.title ?? "AI 대안 추천";
