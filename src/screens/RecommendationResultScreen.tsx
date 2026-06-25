@@ -647,11 +647,6 @@ export default function RecommendationResultScreen({
 
   const previewNextAddress =
     savedNextSchedulePlace?.address?.trim() || "";
-  const previewMoveTimeText =
-    params.moveTime && params.moveTime !== "ANY"
-      ? `${params.moveTime}분`
-      : "";
-
   const previewData = useRecommendationPreview({
     params,
     previousPlace: savedPreviousSchedulePlace,
