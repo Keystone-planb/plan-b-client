@@ -817,6 +817,36 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const validatePlanReplaceInput = ({
+    currentPlanIdCandidates,
+    newGooglePlaceId,
+    newPlaceName,
+  }: {
+    currentPlanIdCandidates: Array<string | number>;
+    newGooglePlaceId: string;
+    newPlaceName: string;
+  }) => {
+    if (currentPlanIdCandidates.length === 0) {
+      showWhiteToast(
+        "일정 교체 불가",
+        "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
+        "error",
+      );
+      return false;
+    }
+
+    if (!newGooglePlaceId || !newPlaceName) {
+      showWhiteToast(
+        "장소 정보 부족",
+        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
+        "error",
+      );
+      return false;
+    }
+
+    return true;
+  };
+
   const validateWeatherReplaceInput = ({
     notificationId,
     newGooglePlaceId,
@@ -1080,21 +1110,13 @@ export default function RecommendationResultScreen({
       return;
     }
 
-    if (currentPlanIdCandidates.length === 0) {
-      showWhiteToast(
-        "일정 교체 불가",
-        "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
-        "error",
-      );
-      return;
-    }
-
-    if (!newGooglePlaceId || !newPlaceName) {
-      showWhiteToast(
-        "장소 정보 부족",
-        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
-        "error",
-      );
+    if (
+      !validatePlanReplaceInput({
+        currentPlanIdCandidates,
+        newGooglePlaceId,
+        newPlaceName,
+      })
+    ) {
       return;
     }
 
