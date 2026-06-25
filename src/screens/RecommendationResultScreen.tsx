@@ -416,6 +416,18 @@ export default function RecommendationResultScreen({
       .filter((id) => id !== undefined && id !== null && id !== "");
   }, [places]);
 
+  const getReplaceNavigationParams = () => ({
+    scheduleId: params.scheduleId,
+    tripId: params.tripId,
+    serverTripId: params.serverTripId ?? params.tripId,
+    tripName: params.tripName,
+    startDate: params.startDate,
+    endDate: params.endDate,
+    location: params.location,
+    transportMode: params.transportMode,
+    transportLabel: params.transportMode,
+  });
+
   const targetPlace = params.targetPlace;
 
   useEffect(() => {
@@ -912,15 +924,7 @@ export default function RecommendationResultScreen({
                 : (params.day ?? params.selectedDay);
 
             navigation.replace("PlanA", {
-              scheduleId: params.scheduleId,
-              tripId: params.tripId,
-              serverTripId: params.serverTripId ?? params.tripId,
-              tripName: params.tripName,
-              startDate: params.startDate,
-              endDate: params.endDate,
-              location: params.location,
-              transportMode: params.transportMode,
-              transportLabel: params.transportMode,
+              ...getReplaceNavigationParams(),
               day: replacedDay,
               selectedDay: replacedDay,
               isEditMode: true,
@@ -1091,15 +1095,7 @@ export default function RecommendationResultScreen({
 
       const moveToPlanA = () => {
         const planAParams = {
-          scheduleId: params.scheduleId,
-          tripId: params.tripId,
-          serverTripId: params.serverTripId ?? params.tripId,
-          tripName: params.tripName,
-          startDate: params.startDate,
-          endDate: params.endDate,
-          location: params.location,
-          transportMode: params.transportMode,
-          transportLabel: params.transportMode,
+          ...getReplaceNavigationParams(),
           selectedDay:
             (
               Number(
