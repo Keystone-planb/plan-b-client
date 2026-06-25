@@ -238,15 +238,6 @@ export default function RecommendationResultScreen({
     setPlaceExtraDetails,
   });
 
-  const [
-    previewBeforeTransportMode,
-    setPreviewBeforeTransportMode,
-  ] = useState<RecommendationTransportMode>("CAR");
-
-  const [
-    previewTransportMode,
-    setPreviewTransportMode,
-  ] = useState<RecommendationTransportMode>("CAR");
 
   const [
     savedPreviousSchedulePlace,
@@ -573,6 +564,13 @@ export default function RecommendationResultScreen({
     previewVisitTime,
     previewEndTime,
   });
+
+  const {
+    previewBeforeTransportMode,
+    setPreviewBeforeTransportMode,
+    previewTransportMode,
+    setPreviewTransportMode,
+  } = previewData;
 
 
   const handleBack = () => {

@@ -32,6 +32,9 @@ export function useRecommendationPreview({
   previewVisitTime,
   previewEndTime,
 }: UseRecommendationPreviewParams) {
+  const [previewBeforeTransportMode, setPreviewBeforeTransportMode] =
+    useState<RecommendationTransportMode>(initialTransportMode);
+
   const [previewTransportMode, setPreviewTransportMode] =
     useState<RecommendationTransportMode>(initialTransportMode);
 
@@ -108,6 +111,8 @@ export function useRecommendationPreview({
   };
 
   return {
+    previewBeforeTransportMode,
+    setPreviewBeforeTransportMode,
     previewTransportMode,
     setPreviewTransportMode,
 
