@@ -1031,8 +1031,9 @@ export default function RecommendationResultScreen({
         return;
       }
 
-      try {
-        setSubmittingPlaceId(placeId);
+      await executeRecommendationReplace({
+        execute: async () => {
+          setSubmittingPlaceId(placeId);
 
         console.log(
           "[RecommendationResult] weather notification replace request:",
@@ -1077,16 +1078,19 @@ export default function RecommendationResultScreen({
         );
 
         return;
-      } catch (error) {
-        console.log(
-          "[RecommendationResult] weather notification replace failed:",
-          error,
-        );
+        },
+        onError: (error) => {
+          console.log(
+            "[RecommendationResult] weather notification replace failed:",
+            error,
+          );
 
-        showWeatherReplaceErrorToast(error);
-      } finally {
-        setSubmittingPlaceId(null);
-      }
+          showWeatherReplaceErrorToast(error);
+        },
+        onFinally: () => {
+          setSubmittingPlaceId(null);
+        },
+      });
 
       return;
     }
