@@ -817,6 +817,23 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const moveToPlanAAfterWeatherReplace = (
+    updatedTripPlace: { day?: number | string },
+  ) => {
+    const replacedDay =
+      Number(updatedTripPlace?.day) > 0
+        ? Number(updatedTripPlace.day)
+        : (params.day ?? params.selectedDay);
+
+    navigation.replace("PlanA", {
+      ...getReplaceNavigationParams(),
+      day: replacedDay,
+      selectedDay: replacedDay,
+      isEditMode: true,
+      refreshPlanAAt: Date.now(),
+    } as any);
+  };
+
   const moveToPlanAAfterReplace = (
     usedCurrentPlanId?: string | number | null,
   ) => {
@@ -936,20 +953,10 @@ export default function RecommendationResultScreen({
           "장소 선택 완료",
           "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
           "success",
-          () => {
-            const replacedDay =
-              Number((updatedTripPlace as { day?: number | string })?.day) > 0
-                ? Number((updatedTripPlace as { day?: number }).day)
-                : (params.day ?? params.selectedDay);
-
-            navigation.replace("PlanA", {
-              ...getReplaceNavigationParams(),
-              day: replacedDay,
-              selectedDay: replacedDay,
-              isEditMode: true,
-              refreshPlanAAt: Date.now(),
-            } as any);
-          },
+          () =>
+            moveToPlanAAfterWeatherReplace(
+              updatedTripPlace as { day?: number | string },
+            ),
         );
 
         return;
