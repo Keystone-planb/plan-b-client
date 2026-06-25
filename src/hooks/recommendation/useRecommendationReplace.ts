@@ -48,3 +48,28 @@ export function useRecommendationReplace({
     runReplace,
   };
 }
+
+export type RecommendationReplaceResult<T = unknown> = {
+  ok: boolean;
+  data?: T;
+  error?: unknown;
+};
+
+export async function runRecommendationReplaceTask<T>(
+  task: () => Promise<T>,
+): Promise<RecommendationReplaceResult<T>> {
+  try {
+    const data = await task();
+
+    return {
+      ok: true,
+      data,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error,
+    };
+  }
+}
+\n
