@@ -817,6 +817,25 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const getCurrentPlanIdCandidates = () => {
+    return [
+      params.currentPlanId,
+      params.tripPlaceId,
+      params.serverTripPlaceId,
+      targetPlace?.tripPlaceId,
+      targetPlace?.serverTripPlaceId,
+      targetPlace?.id,
+    ]
+      .filter((value): value is string | number => {
+        return value !== undefined && value !== null && value !== "";
+      })
+      .filter((value, index, array) => {
+        return (
+          array.findIndex((item) => String(item) === String(value)) === index
+        );
+      });
+  };
+
   const moveToPlanAAfterWeatherReplace = (
     updatedTripPlace: { day?: number | string },
   ) => {
@@ -870,22 +889,7 @@ export default function RecommendationResultScreen({
       time_to_select_ms: Date.now() - screenOpenedAtRef.current,
     });
 
-    const currentPlanIdCandidates: Array<string | number> = [
-      params.currentPlanId,
-      params.tripPlaceId,
-      params.serverTripPlaceId,
-      targetPlace?.tripPlaceId,
-      targetPlace?.serverTripPlaceId,
-      targetPlace?.id,
-    ]
-      .filter((value): value is string | number => {
-        return value !== undefined && value !== null && value !== "";
-      })
-      .filter((value, index, array) => {
-        return (
-          array.findIndex((item) => String(item) === String(value)) === index
-        );
-      });
+    const currentPlanIdCandidates = getCurrentPlanIdCandidates();
     const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
     const newPlaceName = place.name;
 
