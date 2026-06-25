@@ -817,6 +817,23 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const updateReplacedScheduleMeta = async ({
+    replaceResult,
+    usedCurrentPlanId,
+  }: {
+    replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
+    usedCurrentPlanId: string | number;
+  }) => {
+    const previewSchedulePayload = getPreviewSchedulePayload();
+
+    if (Object.keys(previewSchedulePayload).length > 0) {
+      await updatePlanSchedule(
+        replaceResult.tripPlaceId ?? usedCurrentPlanId,
+        previewSchedulePayload as any,
+      );
+    }
+  };
+
   const requestPlanPlaceReplace = async ({
     currentPlanIdCandidates,
     newGooglePlaceId,
@@ -1196,14 +1213,10 @@ export default function RecommendationResultScreen({
         replaceResult,
       });
 
-      const previewSchedulePayload = getPreviewSchedulePayload();
-
-      if (Object.keys(previewSchedulePayload).length > 0) {
-        await updatePlanSchedule(
-          replaceResult.tripPlaceId ?? usedCurrentPlanId,
-          previewSchedulePayload as any,
-        );
-      }
+      await updateReplacedScheduleMeta({
+        replaceResult,
+        usedCurrentPlanId,
+      });
 
       await handleReplaceSuccessSideEffects({
         place,
