@@ -817,6 +817,15 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const showReplaceErrorToast = (error: unknown) => {
+    const message =
+      error instanceof Error
+        ? error.message
+        : "일정 교체 요청에 실패했습니다.";
+
+    showWhiteToast("일정 교체 실패", message, "error");
+  };
+
   const showReplaceSuccessToast = (
     placeName: string,
     usedCurrentPlanId: string | number,
@@ -1242,12 +1251,7 @@ export default function RecommendationResultScreen({
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
 
-      const message =
-        error instanceof Error ?
-          error.message
-        : "일정 교체 요청에 실패했습니다.";
-
-      showWhiteToast("일정 교체 실패", message, "error");
+      showReplaceErrorToast(error);
     } finally {
       setSubmittingPlaceId(null);
     }
