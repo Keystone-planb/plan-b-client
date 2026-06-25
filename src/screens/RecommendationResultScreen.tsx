@@ -621,12 +621,6 @@ export default function RecommendationResultScreen({
     targetPlace?.endTime ??
     null;
 
-  const previewAfterTime =
-    [previewAppliedVisitTime, previewAppliedEndTime]
-      .filter(Boolean)
-      .join(" - ") ||
-    currentPlaceTime;
-
   const previewPreviousName =
     savedPreviousSchedulePlace?.name?.trim() || "장소 정보 없음";
 
