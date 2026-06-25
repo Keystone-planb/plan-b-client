@@ -202,3 +202,52 @@ export const updateStoredPlanAAfterReplace = async ({
   });
 };
 
+export const getCurrentPlanIdCandidates = ({
+  params,
+  targetPlace,
+}: {
+  params: any;
+  targetPlace?: any;
+}) => {
+  return [
+    params.currentPlanId,
+    params.tripPlaceId,
+    params.serverTripPlaceId,
+    targetPlace?.tripPlaceId,
+    targetPlace?.serverTripPlaceId,
+    targetPlace?.id,
+  ]
+    .filter((value): value is string | number => {
+      return value !== undefined && value !== null && value !== "";
+    })
+    .filter((value, index, array) => {
+      return array.findIndex((item) => String(item) === String(value)) === index;
+    });
+};
+
+export const getPreviewSchedulePayload = ({
+  previewVisitTime,
+  previewEndTime,
+  previewTransportMode,
+}: {
+  previewVisitTime?: string | null;
+  previewEndTime?: string | null;
+  previewTransportMode?: "WALK" | "TRANSIT" | "CAR" | null;
+}) => {
+  const payload: Record<string, unknown> = {};
+
+  if (previewVisitTime) {
+    payload.visitTime = previewVisitTime;
+  }
+
+  if (previewEndTime) {
+    payload.endTime = previewEndTime;
+  }
+
+  if (previewTransportMode) {
+    payload.transportMode = previewTransportMode;
+  }
+
+  return payload;
+};
+
