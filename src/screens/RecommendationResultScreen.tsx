@@ -817,6 +817,25 @@ export default function RecommendationResultScreen({
     setPreviewTimePickerVisible(false);
   };
 
+  const moveToPlanAAfterReplace = (
+    usedCurrentPlanId?: string | number | null,
+  ) => {
+    const selectedDay =
+      Number((targetPlace as { day?: number | string } | undefined)?.day) > 0
+        ? Number((targetPlace as { day?: number | string } | undefined)?.day)
+        : undefined;
+
+    navigation.replace("PlanA", {
+      ...getReplaceNavigationParams(),
+      selectedDay,
+      selectedPlace: undefined,
+      selectedPlaces: undefined,
+      refreshPlanAAt: Date.now(),
+      replacedTripPlaceId: usedCurrentPlanId,
+      isEditMode: true,
+    } as any);
+  };
+
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
 
@@ -1093,31 +1112,12 @@ export default function RecommendationResultScreen({
 
       const successMessage = `${place.name}으로 기존 일정이 교체되었습니다.`;
 
-      const moveToPlanA = () => {
-        const planAParams = {
-          ...getReplaceNavigationParams(),
-          selectedDay:
-            (
-              Number(
-                (targetPlace as { day?: number | string } | undefined)?.day,
-              ) > 0
-            ) ?
-              Number(
-                (targetPlace as { day?: number | string } | undefined)?.day,
-              )
-            : undefined,
-          selectedPlace: undefined,
-          selectedPlaces: undefined,
-          refreshPlanAAt: Date.now(),
-          replacedTripPlaceId: usedCurrentPlanId,
-          // 대안찾기로 진입해도 수정 페이지(시간/이동수단 편집 + 저장)와 동일하게 열리도록 한다.
-          isEditMode: true,
-        };
-
-        navigation.replace("PlanA", planAParams as any);
-      };
-
-      showWhiteToast("PLAN B 교체 완료", successMessage, "success", moveToPlanA);
+      showWhiteToast(
+        "PLAN B 교체 완료",
+        successMessage,
+        "success",
+        () => moveToPlanAAfterReplace(usedCurrentPlanId),
+      );
     } catch (error) {
       console.log("[RecommendationResult] replace failed:", error);
 
