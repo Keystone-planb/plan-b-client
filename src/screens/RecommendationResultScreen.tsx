@@ -49,6 +49,7 @@ import {
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationHeader from "../components/recommendation/RecommendationHeader";
 import RecommendationTimeline from "../components/recommendation/RecommendationTimeline";
+import RecommendationPreviewModal from "../components/recommendation/RecommendationPreviewModal";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
 import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
@@ -1345,149 +1346,78 @@ export default function RecommendationResultScreen({
         : null}
       </ScrollView>
 
-      <Modal
+      <RecommendationPreviewModal
         visible={Boolean(pendingPlace)}
-        transparent
-        animationType="fade"
-        onRequestClose={() =>
-          setPendingPlace(null)
+        pendingPlace={pendingPlace}
+        originalPlace={originalSchedulePlace}
+        nextPlace={savedNextSchedulePlace}
+        previousName={previewPreviousName}
+        previousTime={previewPreviousTime}
+        previousAddress={previewPreviousAddress}
+        alternativeName={pendingPlace?.name ?? "추천 장소"}
+        alternativeTime={previewAfterTime}
+        alternativeAddress={previewAlternativeAddress}
+        originalPlaceName={currentPlaceName}
+        nextName={previewNextName}
+        nextTime={previewNextTime}
+        nextAddress={previewNextAddress}
+        transportMode={previewTransportMode as RecommendationTransportMode}
+        moveTimeText={previewMoveTimeText}
+        timePickerVisible={previewTimePickerVisible}
+        timePickerPlaceName={pendingPlace?.name ?? "대안 장소"}
+        timePickerTarget={previewTimePickerTarget}
+        timePickerPreviewText={makePreviewTime(
+          previewTimePickerHour,
+          previewTimePickerMinute,
+        )}
+        visitTimeText={
+          draftPreviewVisitTime ??
+          previewAppliedVisitTime ??
+          "00:00"
         }
-      >
-        <View style={styles.previewOverlay}>
-          <View style={styles.previewModal}>
-            <RecommendationHeader
-              title="이렇게 바꿀까요?"
-              onClose={() => setPendingPlace(null)}
-            />
+        endTimeText={
+          draftPreviewEndTime ??
+          previewAppliedEndTime ??
+          "00:00"
+        }
+        hourText={padPreviewTime(previewTimePickerHour)}
+        minuteText={padPreviewTime(previewTimePickerMinute)}
+        onClose={() => setPendingPlace(null)}
+        onChangeTransportMode={(mode) => setPreviewTransportMode(mode)}
+        onPressTimeEdit={openPreviewTimePicker}
+        onTimePickerClose={closePreviewTimePicker}
+        onSwitchTimeTarget={switchPreviewTimePickerTarget}
+        onDecreaseHour={() =>
+          setPreviewTimePickerHour((prev) =>
+            prev <= 0 ? 23 : prev - 1,
+          )
+        }
+        onIncreaseHour={() =>
+          setPreviewTimePickerHour((prev) =>
+            prev >= 23 ? 0 : prev + 1,
+          )
+        }
+        onDecreaseMinute={() =>
+          setPreviewTimePickerMinute((prev) =>
+            prev <= 0 ? 59 : prev - 1,
+          )
+        }
+        onIncreaseMinute={() =>
+          setPreviewTimePickerMinute((prev) =>
+            prev >= 59 ? 0 : prev + 1,
+          )
+        }
+        onSaveTime={savePreviewTimePicker}
+        onConfirm={() => {
+          const placeToApply = pendingPlace;
 
-            {previewTimePickerVisible ? (
-              <View style={styles.previewTimePickerPanelOverlay}>
-                <VisitTimePickerPanel
-                  placeName={pendingPlace?.name ?? "대안 장소"}
-                  target={previewTimePickerTarget}
-                  previewText={makePreviewTime(
-                    previewTimePickerHour,
-                    previewTimePickerMinute,
-                  )}
-                  visitTimeText={
-                    draftPreviewVisitTime ??
-                    previewAppliedVisitTime ??
-                    "00:00"
-                  }
-                  endTimeText={
-                    draftPreviewEndTime ??
-                    previewAppliedEndTime ??
-                    "00:00"
-                  }
-                  hourText={padPreviewTime(previewTimePickerHour)}
-                  minuteText={padPreviewTime(previewTimePickerMinute)}
-                  onClose={closePreviewTimePicker}
-                  onSwitchTarget={switchPreviewTimePickerTarget}
-                  onDecreaseHour={() =>
-                    setPreviewTimePickerHour((prev) =>
-                      prev <= 0 ? 23 : prev - 1,
-                    )
-                  }
-                  onIncreaseHour={() =>
-                    setPreviewTimePickerHour((prev) =>
-                      prev >= 23 ? 0 : prev + 1,
-                    )
-                  }
-                  onDecreaseMinute={() =>
-                    setPreviewTimePickerMinute((prev) =>
-                      prev <= 0 ? 59 : prev - 1,
-                    )
-                  }
-                  onIncreaseMinute={() =>
-                    setPreviewTimePickerMinute((prev) =>
-                      prev >= 59 ? 0 : prev + 1,
-                    )
-                  }
-                  onSave={savePreviewTimePicker}
-                />
-              </View>
-            ) : null}
+          setPendingPlace(null);
 
-            <RecommendationMap
-              previous={originalSchedulePlace}
-              alternative={pendingPlace}
-              next={savedNextSchedulePlace}
-            />
-
-            <View style={styles.previewMapLegend}>
-              <View style={styles.previewLegendItem}>
-                <View
-                  style={[
-                    styles.previewLegendMarker,
-                    styles.previewLegendMarkerBefore,
-                  ]}
-                />
-
-                <Text style={styles.previewLegendText}>
-                  기존 장소
-                </Text>
-              </View>
-
-              <View style={styles.previewLegendItem}>
-                <View
-                  style={[
-                    styles.previewLegendMarker,
-                    styles.previewLegendMarkerAfter,
-                  ]}
-                />
-
-                <Text style={styles.previewLegendText}>
-                  대안 장소
-                </Text>
-              </View>
-            </View>
-
-            <RecommendationTimeline
-              previousName={previewPreviousName}
-              previousTime={previewPreviousTime}
-              previousAddress={previewPreviousAddress}
-              alternativeName={pendingPlace?.name ?? "추천 장소"}
-              alternativeTime={previewAfterTime}
-              alternativeAddress={previewAlternativeAddress}
-              originalPlaceName={currentPlaceName}
-              nextName={previewNextName}
-              nextTime={previewNextTime}
-              nextAddress={previewNextAddress}
-              transportMode={previewTransportMode as RecommendationTransportMode}
-              moveTimeText={previewMoveTimeText}
-              onChangeTransportMode={(mode) => setPreviewTransportMode(mode)}
-              onPressTimeEdit={openPreviewTimePicker}
-            />
-
-            <TouchableOpacity
-              style={
-                styles.previewConfirmButton
-              }
-              activeOpacity={0.86}
-              onPress={() => {
-                const placeToApply =
-                  pendingPlace;
-
-                setPendingPlace(null);
-
-                if (placeToApply) {
-                  void handleSelectPlace(
-                    placeToApply,
-                  );
-                }
-              }}
-            >
-              <Text
-                style={
-                  styles.previewConfirmButtonText
-                }
-              >
-                교체하기
-              </Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+          if (placeToApply) {
+            void handleSelectPlace(placeToApply);
+          }
+        }}
+      />
       <WhiteToast toast={whiteToast} />
     </SafeAreaView>
   );
