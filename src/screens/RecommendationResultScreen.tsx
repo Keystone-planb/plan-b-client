@@ -28,6 +28,7 @@ import { useRecommendationToast } from "../hooks/recommendation/useRecommendatio
 import {
   getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
   getPreviewSchedulePayload as getPreviewSchedulePayloadFromHook,
+  executeRecommendationReplace,
   updateStoredPlanAAfterReplace,
 } from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
