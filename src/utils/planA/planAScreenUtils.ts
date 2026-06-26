@@ -234,11 +234,32 @@ export const addOneHourToDisplayTime = (value: string) => {
 
 export const getMissingTimePlaceNames = (schedule: TravelSchedule) => {
   return schedule.days
-    .flatMap((day) => day.places)
-    .filter((place) => {
-      return !getPlaceVisitTime(place) || !getPlaceEndTime(place);
+    .flatMap((day, index) =>
+      day.places.map((place) => ({
+        day: day.day ?? index + 1,
+        place,
+      })),
+    )
+    .filter(({ day, place }) => {
+      const resolvedVisitTime = getPlaceVisitTime(place);
+      const resolvedEndTime = getPlaceEndTime(place);
+      const missing = !resolvedVisitTime || !resolvedEndTime;
+
+      console.log("[PlanA missing time check]", {
+        day,
+        id: place.id,
+        name: place.name,
+        time: place.time,
+        visitTime: place.visitTime,
+        endTime: place.endTime,
+        resolvedVisitTime,
+        resolvedEndTime,
+        missing,
+      });
+
+      return missing;
     })
-    .map((place) => place.name)
+    .map(({ place }) => place.name)
     .filter(Boolean);
 };
 

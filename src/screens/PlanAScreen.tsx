@@ -61,6 +61,7 @@ import { dismissNotification } from "../../api/notifications/notifications";
 import {
   updatePlanSchedule,
 } from "../../api/schedules/server";
+import { buildScheduleForTimeValidation } from "../utils/planA/planAValidationUtils";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -696,13 +697,50 @@ const handleCloseMemoSheet = () => {
       };
     };
 
+    const scheduleForTimeValidation = buildScheduleForTimeValidation(
+      schedule,
+      selectedDay,
+      currentPlaces,
+    );
+
     const scheduleForValidation: TravelSchedule = {
-      ...schedule,
-      days: schedule.days.map((day) => ({
+      ...scheduleForTimeValidation,
+      days: scheduleForTimeValidation.days.map((day) => ({
         ...day,
         places: day.places.map(normalizePlaceTimeForValidation),
       })),
     };
+
+    const toTimeValidationDebugPlace = (place: PlaceItem) => ({
+      id: place.id,
+      name: place.name,
+      time: place.time,
+      visitTime: place.visitTime,
+      endTime: place.endTime,
+      resolvedVisitTime: getPlaceVisitTime(place),
+      resolvedEndTime: getPlaceEndTime(place),
+    });
+
+    console.log("[PlanA 시간 검증 디버그]", {
+      selectedDay,
+      currentPlaces: currentPlaces.map(toTimeValidationDebugPlace),
+      scheduleDays: schedule.days.map((day, index) => ({
+        day: day.day ?? index + 1,
+        places: day.places.map(toTimeValidationDebugPlace),
+      })),
+      scheduleForTimeValidationDays: scheduleForTimeValidation.days.map(
+        (day, index) => ({
+          day: day.day ?? index + 1,
+          places: day.places.map(toTimeValidationDebugPlace),
+        }),
+      ),
+      scheduleForValidationDays: scheduleForValidation.days.map(
+        (day, index) => ({
+          day: day.day ?? index + 1,
+          places: day.places.map(toTimeValidationDebugPlace),
+        }),
+      ),
+    });
 
     const missingTimePlaceNames = getMissingTimePlaceNames(scheduleForValidation);
 
@@ -1208,6 +1246,8 @@ const handleCloseMemoSheet = () => {
                   {!isEditMode ?
                     <TouchableOpacity
                       activeOpacity={0.8}
+                      testID="plan-a-enter-edit-button"
+                      accessibilityLabel="Plan A enter edit mode"
                       onPress={() => {
                         resetEditingState();
                         setIsEditPreviewMode(true);

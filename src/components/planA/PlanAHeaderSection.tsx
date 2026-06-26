@@ -44,6 +44,8 @@ export default function PlanAHeaderSection({
       <View style={styles.topHeaderRow}>
         <TouchableOpacity
           style={styles.backButton}
+          testID="plan-a-back-button"
+          accessibilityLabel="Plan A back"
           onPress={onBack}
           activeOpacity={0.8}
         >
@@ -80,6 +82,8 @@ export default function PlanAHeaderSection({
                 isEditMode && styles.editModeButtonActive,
                 saving && styles.headerIconDisabled,
               ]}
+              testID="plan-a-final-save-button"
+              accessibilityLabel="Plan A final save"
               activeOpacity={0.8}
               disabled={saving}
               onPress={onSaveEdit}

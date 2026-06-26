@@ -77,11 +77,26 @@ export default function PlanAPlaceCard({
 }: Props) {
 
   return (
-    <View style={styles.placeCard}>
+    <View
+      style={styles.placeCard}
+      testID={`plan-a-place-card-${index}`}
+      accessibilityLabel={`Plan A place card ${index + 1}: ${place.name}`}
+    >
       <View style={styles.placeHeader}>
         <View style={styles.placeTitleBox}>
-          <Text style={styles.placeTitle}>{place.name}</Text>
-          <Text style={styles.placeTime}>{makeDisplayTime(place)}</Text>
+          <Text
+            style={styles.placeTitle}
+            testID={`plan-a-place-name-${index}`}
+          >
+            {place.name}
+          </Text>
+          <Text
+            style={styles.placeTime}
+            testID={`plan-a-place-time-${index}`}
+            accessibilityLabel={`Plan A place time ${index + 1}: ${makeDisplayTime(place)}`}
+          >
+            {makeDisplayTime(place)}
+          </Text>
         </View>
 
         <View style={styles.placeHeaderActions}>
@@ -110,6 +125,8 @@ export default function PlanAPlaceCard({
 
           <TouchableOpacity
             style={styles.placeTimeEditIconButton}
+            testID={`plan-a-place-time-edit-${index}`}
+            accessibilityLabel={`Plan A place time edit ${index + 1}`}
             activeOpacity={0.85}
             onPress={(event) => {
               event.stopPropagation();
