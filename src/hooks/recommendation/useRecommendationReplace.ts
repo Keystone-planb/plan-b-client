@@ -245,18 +245,12 @@ export const updateStoredPlanAAfterReplace = async ({
   previewTransportMode?: "WALK" | "TRANSIT" | "CAR" | null;
 }) => {
   if (!scheduleId) {
-    console.log(
-      "[RecommendationResult] scheduleId 없음 - 로컬 Plan.A 반영 생략",
-    );
     return;
   }
 
   const savedSchedule = await loadPlanASchedule(scheduleId);
 
   if (!savedSchedule) {
-    console.log("[RecommendationResult] 저장된 Plan.A 없음 - 로컬 반영 생략", {
-      scheduleId,
-    });
     return;
   }
 
@@ -313,12 +307,6 @@ export const updateStoredPlanAAfterReplace = async ({
   };
 
   await savePlanASchedule(nextSchedule);
-
-  console.log("[RecommendationResult] 로컬 Plan.A 교체 반영 완료", {
-    scheduleId,
-    currentPlanId,
-    newPlaceName: place.name,
-  });
 };
 
 export const handlePlanReplaceSuccessSideEffects = async ({
