@@ -2,6 +2,7 @@ import React, { forwardRef, useState } from "react";
 import { Image, StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getPlaceCategoryIcon } from "../../utils/placeCategoryIcon";
+import PlanBPlaceName from "../common/PlanBPlaceName";
 
 
 const getMemoText = (memo: any) => {
@@ -82,13 +83,14 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
         <View style={localStyles.contentArea}>
           <View style={localStyles.titleActionRow}>
             <View style={localStyles.titleTimeBox}>
-              <Text
-                style={[styles.placeName, localStyles.placeName]}
+              <PlanBPlaceName
+                name={place.name}
+                textStyle={[
+                  styles.placeName,
+                  localStyles.placeName,
+                ]}
                 numberOfLines={2}
-                ellipsizeMode="tail"
-              >
-                {place.name || "이름 없는 장소"}
-              </Text>
+              />
 
               <View style={localStyles.timeRow}>
                 <Ionicons name="time-outline" size={14} color="#8B95A1" />

@@ -10,6 +10,7 @@ import Ionicons from "@expo/vector-icons/Ionicons";
 
 import { MemoItem, PlaceItem } from "../../types/planA";
 import PlanAMemoList from "./PlanAMemoList";
+import PlanBPlaceName from "../common/PlanBPlaceName";
 
 type EditingMemoState = {
   placeId: string;
@@ -84,12 +85,11 @@ export default function PlanAPlaceCard({
     >
       <View style={styles.placeHeader}>
         <View style={styles.placeTitleBox}>
-          <Text
-            style={styles.placeTitle}
+          <PlanBPlaceName
+            name={place.name}
+            textStyle={styles.placeTitle}
             testID={`plan-a-place-name-${index}`}
-          >
-            {place.name}
-          </Text>
+          />
           <Text
             style={styles.placeTime}
             testID={`plan-a-place-time-${index}`}
