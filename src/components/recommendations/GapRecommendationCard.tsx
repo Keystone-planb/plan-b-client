@@ -140,7 +140,7 @@ export default function GapRecommendationCard({
     number | string | null
   >(null);
   const [selectedTransportMode, setSelectedTransportMode] =
-    useState<GapTransportMode>("TRANSIT");
+    useState<GapTransportMode | null>(null);
   const [expandedGapKey, setExpandedGapKey] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [hasLoadedGaps, setHasLoadedGaps] = useState(false);
@@ -250,6 +250,12 @@ export default function GapRecommendationCard({
   const handleRecommend = async (gap: TripScheduleGap) => {
     if (isLoading || requestLockRef.current) return;
 
+    if (!tripId) {
+      setStatus("error");
+      setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
+      return;
+    }
+
     requestLockRef.current = true;
     receivedPlaceCountRef.current = 0;
 
@@ -259,7 +265,7 @@ export default function GapRecommendationCard({
     setMessage("빈 시간에 들를 수 있는 장소를 분석 중입니다...");
 
     const safeTransportMode = getSafeGapTransportMode(
-      selectedTransportMode || gap.transportMode,
+      selectedTransportMode ?? gap.transportMode,
     );
 
     const payload: GapRecommendationRequest = {
@@ -268,12 +274,6 @@ export default function GapRecommendationCard({
       transportMode: safeTransportMode,
       radiusMinute: Math.max(gap.availableMinutes ?? 0, 30),
     };
-
-    if (!tripId) {
-      setStatus("error");
-      setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
-      return;
-    }
 
     try {
       await streamGapRecommendations(tripId, payload, {
@@ -413,11 +413,15 @@ export default function GapRecommendationCard({
                     isExpanded && styles.expandedGapButton,
                   ]}
                   activeOpacity={0.85}
-                  onPress={() =>
+                  onPress={() => {
                     setExpandedGapKey((prev) =>
                       prev === gapKey ? null : gapKey,
-                    )
-                  }
+                    );
+
+                    setSelectedTransportMode(
+                      getSafeGapTransportMode(gap.transportMode),
+                    );
+                  }}
                   disabled={isLoading}
                 >
                   <View style={styles.gapTextBox}>
