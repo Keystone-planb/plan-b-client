@@ -197,7 +197,11 @@ export default function VisitTimePickerPanel({
   );
 
   return (
-    <View style={styles.timeModalCard}>
+    <View
+      style={styles.timeModalCard}
+      testID="plan-a-time-picker"
+      accessibilityLabel="Plan A time picker"
+    >
       <View style={styles.timeModalHeader}>
         <Text style={styles.timeModalTitle}>방문 시간 설정</Text>
 
@@ -225,6 +229,8 @@ export default function VisitTimePickerPanel({
             styles.timeTargetTab,
             target === "visitTime" && styles.timeTargetTabActive,
           ]}
+          testID="plan-a-time-picker-start-tab"
+          accessibilityLabel="Plan A time picker start time tab"
           activeOpacity={0.8}
           onPress={() => onSwitchTarget("visitTime")}
         >
@@ -243,6 +249,8 @@ export default function VisitTimePickerPanel({
             styles.timeTargetTab,
             target === "endTime" && styles.timeTargetTabActive,
           ]}
+          testID="plan-a-time-picker-end-tab"
+          accessibilityLabel="Plan A time picker end time tab"
           activeOpacity={0.8}
           onPress={() => onSwitchTarget("endTime")}
         >
@@ -278,6 +286,8 @@ export default function VisitTimePickerPanel({
               styles.timePickerSummaryValue,
               target === "visitTime" && styles.timePickerSummaryValueActive,
             ]}
+            testID="plan-a-time-picker-start-value"
+            accessibilityLabel={`Plan A time picker start value ${target === "visitTime" ? previewText : visitTimeText}`}
           >
             {target === "visitTime" ? previewText : visitTimeText}
           </Text>
@@ -303,6 +313,8 @@ export default function VisitTimePickerPanel({
               styles.timePickerSummaryValue,
               target === "endTime" && styles.timePickerSummaryValueActive,
             ]}
+            testID="plan-a-time-picker-end-value"
+            accessibilityLabel={`Plan A time picker end value ${target === "endTime" ? previewText : endTimeText}`}
           >
             {target === "endTime" ? previewText : endTimeText}
           </Text>
@@ -314,6 +326,8 @@ export default function VisitTimePickerPanel({
 
         <ScrollView
           ref={hourRef}
+          testID="plan-a-time-picker-hour-wheel"
+          accessibilityLabel={`Plan A time picker hour wheel ${hourText}`}
           style={styles.wheelColumn}
           contentContainerStyle={styles.wheelContent}
           showsVerticalScrollIndicator={false}
@@ -330,6 +344,8 @@ export default function VisitTimePickerPanel({
 
         <ScrollView
           ref={minuteRef}
+          testID="plan-a-time-picker-minute-wheel"
+          accessibilityLabel={`Plan A time picker minute wheel ${minuteText}`}
           style={styles.wheelColumn}
           contentContainerStyle={styles.wheelContent}
           showsVerticalScrollIndicator={false}
@@ -359,6 +375,8 @@ export default function VisitTimePickerPanel({
             styles.timeModalSaveButton,
             !canSave && styles.timeModalSaveButtonDisabled,
           ]}
+          testID="plan-a-time-picker-save-button"
+          accessibilityLabel="Plan A time picker save"
           disabled={!canSave}
           activeOpacity={0.8}
           onPress={() => {
@@ -395,9 +413,12 @@ export default function VisitTimePickerPanel({
 
 const styles = StyleSheet.create({
   timeModalCard: {
+    width: "100%",
+    maxWidth: 360,
+    alignSelf: "center",
     borderRadius: 24,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 18,
   },
@@ -466,14 +487,14 @@ const styles = StyleSheet.create({
   timePickerPreview: {
     marginTop: 16,
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
   },
   timePickerSummaryCard: {
     flex: 1,
     minHeight: 92,
     borderRadius: 18,
     backgroundColor: "#F1F5F9",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 14,
     alignItems: "center",
     justifyContent: "center",
@@ -503,6 +524,8 @@ const styles = StyleSheet.create({
   },
   wheelPickerArea: {
     marginTop: 18,
+    width: 260,
+    alignSelf: "center",
     height: ITEM_HEIGHT * 5,
     borderRadius: 22,
     backgroundColor: "#F1F5F9",
@@ -510,19 +533,19 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 14,
+    gap: 6,
   },
   wheelSelectionBar: {
     position: "absolute",
-    left: 16,
-    right: 16,
+    left: 10,
+    right: 10,
     top: ITEM_HEIGHT * 2,
     height: ITEM_HEIGHT,
     borderRadius: 16,
     backgroundColor: "#EFF6FF",
   },
   wheelColumn: {
-    width: 86,
+    width: 60,
     height: ITEM_HEIGHT * 5,
   },
   wheelContent: {

@@ -1,0 +1,215 @@
+appId: host.exp.Exponent
+name: Plan A Time Picker E2E
+env:
+  PLANB_E2E_EMAIL: ${PLANB_E2E_EMAIL}
+  PLANB_E2E_PASSWORD: ${PLANB_E2E_PASSWORD}
+  PLAN_A_PLACE_INDEX: "1"
+  PLAN_A_EXPECTED_HOUR: "12"
+  PLAN_A_EXPECTED_START_TIME: "12:00"
+---
+- launchApp:
+    clearState: false
+
+- runFlow:
+    when:
+      visible: "http://localhost:8081"
+    commands:
+      - tapOn: "http://localhost:8081"
+
+- extendedWaitUntil:
+    visible: "Plan.B"
+    timeout: 30000
+
+- runFlow:
+    when:
+      visible:
+        id: "onboarding-skip-button"
+    commands:
+      - tapOn:
+          id: "onboarding-skip-button"
+
+- runFlow:
+    when:
+      visible: "날씨정보"
+    commands:
+      - tapOn:
+          point: "83%,11%"
+
+- runFlow:
+    when:
+      visible: "건너뛰기"
+    commands:
+      - tapOn: "건너뛰기"
+
+- extendedWaitUntil:
+    visible:
+      text: "Plan.B|이메일|진행중인 일정|일정|Plan A|Plan.A|방문 시간 설정"
+    timeout: 30000
+
+- runFlow:
+    when:
+      visible: "OK"
+    commands:
+      - tapOn: "OK"
+
+- runFlow:
+    when:
+      visible:
+        id: "planb-login-email-input"
+    commands:
+      - tapOn:
+          id: "planb-login-email-input"
+      - inputText: "${PLANB_E2E_EMAIL}"
+      - tapOn:
+          id: "planb-login-password-input"
+      - inputText: "${PLANB_E2E_PASSWORD}"
+      - tapOn:
+          id: "planb-login-submit-button"
+      - extendedWaitUntil:
+          visible:
+            text: "진행중인 일정|다음 여행|등록된 일정이 없습니다|Plan A|Plan.A|방문 시간 설정"
+          timeout: 30000
+
+- runFlow:
+    when:
+      visible: "이메일"
+    commands:
+      - tapOn: "example@planb.com"
+      - inputText: "${PLANB_E2E_EMAIL}"
+      - tapOn: "8자 이상"
+      - inputText: "${PLANB_E2E_PASSWORD}"
+      - tapOn: "로그인"
+      - extendedWaitUntil:
+          visible:
+            text: "진행중인 일정|다음 여행|등록된 일정이 없습니다|Plan A|Plan.A|방문 시간 설정"
+          timeout: 30000
+
+- assertNotVisible: "등록된 일정이 없습니다"
+
+- runFlow:
+    when:
+      visible:
+        id: "home-current-schedule-card"
+    commands:
+      - tapOn:
+          id: "home-current-schedule-card"
+
+- runFlow:
+    when:
+      visible:
+        id: "home-next-schedule-card-0"
+    commands:
+      - tapOn:
+          id: "home-next-schedule-card-0"
+
+- runFlow:
+    when:
+      visible:
+        id: "schedule-detail-edit-plan-a-button"
+    commands:
+      - tapOn:
+          id: "schedule-detail-edit-plan-a-button"
+      - extendedWaitUntil:
+          visible:
+            text: "완료|일정"
+          timeout: 30000
+
+# If the test build starts outside Plan A, this block tries the common app path.
+# For CI, prefer seeding a test account and navigating to the exact Plan A trip
+# before this flow, or replace this block with your team's stable route.
+- runFlow:
+    when:
+      visible: "대안 추천 보기"
+    commands:
+      - tapOn: "대안 추천 보기"
+      - extendedWaitUntil:
+          visible:
+            text: "AI 대안 추천|대안 장소|일정"
+          timeout: 15000
+
+- assertVisible:
+    id: "plan-a-place-card-0"
+- assertVisible:
+    id: "plan-a-place-time-0"
+
+- runFlow:
+    when:
+      visible:
+        id: "plan-a-enter-edit-button"
+    commands:
+      - tapOn:
+          id: "plan-a-enter-edit-button"
+      - extendedWaitUntil:
+          visible:
+            id: "plan-a-final-save-button"
+          timeout: 10000
+
+- tapOn:
+    id: "plan-a-place-time-edit-0"
+
+- extendedWaitUntil:
+    visible:
+      id: "plan-a-time-picker"
+    timeout: 10000
+
+- assertVisible: "방문 시간 설정"
+- assertVisible:
+    id: "plan-a-time-picker-start-value"
+- assertVisible:
+    id: "plan-a-time-picker-end-value"
+- assertVisible:
+    text: "Plan A time picker hour wheel ${PLAN_A_EXPECTED_HOUR}"
+
+- tapOn:
+    id: "plan-a-time-picker-start-tab"
+- assertVisible:
+    id: "plan-a-time-picker-start-value"
+
+# Move only the minute wheel. The hour wheel accessibility label should stay
+# on the expected hour, which catches the regression where minute updates
+# caused the hour wheel to re-scroll or jump.
+- swipe:
+    from:
+      id: "plan-a-time-picker-minute-wheel"
+    direction: UP
+    duration: 350
+
+- assertVisible:
+    text: "Plan A time picker hour wheel ${PLAN_A_EXPECTED_HOUR}"
+- assertVisible:
+    id: "plan-a-time-picker-start-value"
+
+- tapOn:
+    id: "plan-a-time-picker-end-tab"
+- assertVisible:
+    id: "plan-a-time-picker-end-value"
+- tapOn:
+    id: "plan-a-time-picker-start-tab"
+- assertVisible:
+    id: "plan-a-time-picker-start-value"
+
+- tapOn:
+    id: "plan-a-time-picker-save-button"
+
+- extendedWaitUntil:
+    notVisible:
+      id: "plan-a-time-picker"
+    timeout: 10000
+
+- tapOn:
+    id: "plan-a-final-save-button"
+
+- assertNotVisible: "시간 입력 필요"
+- assertNotVisible: "종료 시간은 시작 시간보다 늦어야 합니다."
+
+# Reopen the same place and verify the edited start time is still present.
+- tapOn:
+    id: "plan-a-place-time-edit-0"
+- extendedWaitUntil:
+    visible:
+      id: "plan-a-time-picker"
+    timeout: 10000
+- assertVisible:
+    id: "plan-a-time-picker-start-value"
+- tapOn:
+    id: "plan-a-time-picker-save-button"
