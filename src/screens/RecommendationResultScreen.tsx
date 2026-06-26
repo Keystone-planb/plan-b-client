@@ -13,14 +13,9 @@ import {
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
-import { reportPreferenceFeedback } from "../../api/preferences/preferences";
-import { replaceNotificationPlace } from "../../api/notifications/notifications";
-import { replacePlanPlace, updatePlanSchedule } from "../../api/schedules/server";
 import { trackEvent, AMP } from "../utils/amplitude";
-import { clearTripGapCache } from "../components/recommendations/GapRecommendationCard";
 import { loadPlanASchedule } from "../api/schedules/planAStorage";
 import type { RecommendedPlace } from "../types/recommendation";
 import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
@@ -28,8 +23,8 @@ import { useRecommendationToast } from "../hooks/recommendation/useRecommendatio
 import {
   getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
   getPreviewSchedulePayload as getPreviewSchedulePayloadFromHook,
-  executeRecommendationReplace,
-  updateStoredPlanAAfterReplace,
+  executePlanRecommendationReplace,
+  executeWeatherRecommendationReplace,
 } from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
@@ -39,14 +34,11 @@ import {
   formatOpeningHoursText,
   formatTodayOpeningHoursText,
   getMoodLabel,
-  getPreviewTimeMinutes,
   getPreviewTimeText,
   padPreviewTime,
   getSpaceLabel,
   getTypeLabel,
-  makePreviewTime,
   safeParseJson,
-  splitPreviewTime,
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationPreviewModal from "../components/recommendation/RecommendationPreviewModal";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
@@ -249,45 +241,6 @@ export default function RecommendationResultScreen({
     setSavedOriginalSchedulePlace,
   ] = useState<TodayPlace | null>(null);
 
-  const [
-    previewVisitTime,
-    setPreviewVisitTime,
-  ] = useState<string | null>(null);
-
-  const [
-    previewEndTime,
-    setPreviewEndTime,
-  ] = useState<string | null>(null);
-
-  const [
-    draftPreviewVisitTime,
-    setDraftPreviewVisitTime,
-  ] = useState<string | null>(null);
-
-  const [
-    draftPreviewEndTime,
-    setDraftPreviewEndTime,
-  ] = useState<string | null>(null);
-
-  const [
-    previewTimePickerVisible,
-    setPreviewTimePickerVisible,
-  ] = useState(false);
-
-  const [
-    previewTimePickerTarget,
-    setPreviewTimePickerTarget,
-  ] = useState<"visitTime" | "endTime">("visitTime");
-
-  const [
-    previewTimePickerHour,
-    setPreviewTimePickerHour,
-  ] = useState(0);
-
-  const [
-    previewTimePickerMinute,
-    setPreviewTimePickerMinute,
-  ] = useState(0);
 
 
   const [
@@ -332,6 +285,52 @@ export default function RecommendationResultScreen({
   });
 
   const targetPlace = params.targetPlace;
+
+  const previewData = useRecommendationPreview({
+    params,
+    previousPlace: savedPreviousSchedulePlace,
+    alternativePlace: pendingPlace,
+    nextPlace: savedNextSchedulePlace,
+    initialTransportMode: params.transportMode ?? "WALK",
+    initialVisitTime:
+      savedOriginalSchedulePlace?.visitTime ?? targetPlace?.visitTime ?? null,
+    initialEndTime:
+      savedOriginalSchedulePlace?.endTime ?? targetPlace?.endTime ?? null,
+    onTimeValidationError: () => {
+      showWhiteToast(
+        "시간 설정 확인",
+        "시작 시간은 종료 시간보다 빨라야 합니다.",
+        "error",
+      );
+    },
+  });
+
+  const {
+    previewBeforeTransportMode,
+    previewTransportMode,
+    changePreviewTransportMode,
+    changePreviewBeforeTransportMode,
+    changePreviewNextTransportMode,
+    previewVisitTime,
+    previewEndTime,
+    draftPreviewVisitTime,
+    draftPreviewEndTime,
+    previewTimePickerVisible,
+    previewTimePickerTarget,
+    previewTimePickerHour,
+    previewTimePickerMinute,
+    previewAppliedVisitTime,
+    previewAppliedEndTime,
+    initializePreviewTimes,
+    openPreviewTimePicker,
+    closePreviewTimePicker,
+    switchPreviewTimePickerTarget,
+    savePreviewTimePicker,
+    decreasePreviewTimePickerHour,
+    increasePreviewTimePickerHour,
+    decreasePreviewTimePickerMinute,
+    increasePreviewTimePickerMinute,
+  } = previewData;
 
   useEffect(() => {
     let cancelled = false;
@@ -467,8 +466,7 @@ export default function RecommendationResultScreen({
           time: combinedTime,
         });
 
-        setPreviewVisitTime((prev) => prev ?? visitTime);
-        setPreviewEndTime((prev) => prev ?? endTime);
+        initializePreviewTimes(visitTime, endTime);
 
         setSavedNextSchedulePlace(
           normalizeSchedulePlace(nextPlace),
@@ -547,38 +545,6 @@ export default function RecommendationResultScreen({
     "시간 미정";
 
 
-  const previewAppliedVisitTime =
-    previewVisitTime ??
-    savedOriginalSchedulePlace?.visitTime ??
-    targetPlace?.visitTime ??
-    null;
-
-  const previewAppliedEndTime =
-    previewEndTime ??
-    savedOriginalSchedulePlace?.endTime ??
-    targetPlace?.endTime ??
-    null;
-
-  const previewData = useRecommendationPreview({
-    params,
-    previousPlace: savedPreviousSchedulePlace,
-    alternativePlace: {
-      ...pendingPlace,
-      visitTime: previewVisitTime,
-      endTime: previewEndTime,
-    },
-    nextPlace: savedNextSchedulePlace,
-    initialTransportMode: params.transportMode ?? "WALK",
-    previewVisitTime,
-    previewEndTime,
-  });
-
-  const {
-    previewBeforeTransportMode,
-    setPreviewBeforeTransportMode,
-    previewTransportMode,
-    setPreviewTransportMode,
-  } = previewData;
 
 
   const handleBack = () => {
@@ -635,330 +601,7 @@ export default function RecommendationResultScreen({
     await fetchReviewDetail(place, placeId, true);
   };
 
-  const openPreviewTimePicker = () => {
-    const nextDraftVisitTime =
-      previewAppliedVisitTime ?? null;
 
-    const nextDraftEndTime =
-      previewAppliedEndTime ?? null;
-
-    setDraftPreviewVisitTime(nextDraftVisitTime);
-    setDraftPreviewEndTime(nextDraftEndTime);
-
-    const baseTime =
-      previewTimePickerTarget === "visitTime"
-        ? nextDraftVisitTime
-        : nextDraftEndTime;
-
-    const parsed = splitPreviewTime(baseTime);
-
-    setPreviewTimePickerHour(parsed.hour);
-    setPreviewTimePickerMinute(parsed.minute);
-    setPreviewTimePickerVisible(true);
-  };
-
-  const closePreviewTimePicker = () => {
-    setPreviewTimePickerVisible(false);
-  };
-
-  const getCurrentPickerTime = () =>
-    makePreviewTime(
-      previewTimePickerHour,
-      previewTimePickerMinute,
-    );
-
-  const switchPreviewTimePickerTarget = (
-    target:
-      | "visitTime"
-      | "endTime"
-      | "transportStartTime"
-      | "transportEndTime",
-  ) => {
-    if (
-      target !== "visitTime" &&
-      target !== "endTime"
-    ) {
-      return;
-    }
-
-    const currentPickerTime = getCurrentPickerTime();
-
-    const nextDraftVisitTime =
-      previewTimePickerTarget === "visitTime"
-        ? currentPickerTime
-        : draftPreviewVisitTime ??
-          previewAppliedVisitTime ??
-          null;
-
-    const nextDraftEndTime =
-      previewTimePickerTarget === "endTime"
-        ? currentPickerTime
-        : draftPreviewEndTime ??
-          previewAppliedEndTime ??
-          null;
-
-    setDraftPreviewVisitTime(nextDraftVisitTime);
-    setDraftPreviewEndTime(nextDraftEndTime);
-    setPreviewTimePickerTarget(target);
-
-    const parsed = splitPreviewTime(
-      target === "visitTime"
-        ? nextDraftVisitTime
-        : nextDraftEndTime,
-    );
-
-    setPreviewTimePickerHour(parsed.hour);
-    setPreviewTimePickerMinute(parsed.minute);
-  };
-
-  const savePreviewTimePicker = () => {
-    const currentPickerTime = getCurrentPickerTime();
-
-    const nextVisitTime =
-      previewTimePickerTarget === "visitTime"
-        ? currentPickerTime
-        : draftPreviewVisitTime ??
-          previewAppliedVisitTime ??
-          null;
-
-    const nextEndTime =
-      previewTimePickerTarget === "endTime"
-        ? currentPickerTime
-        : draftPreviewEndTime ??
-          previewAppliedEndTime ??
-          null;
-
-    const nextVisitMinutes =
-      getPreviewTimeMinutes(nextVisitTime);
-
-    const nextEndMinutes =
-      getPreviewTimeMinutes(nextEndTime);
-
-    if (
-      nextVisitMinutes == null ||
-      nextEndMinutes == null ||
-      nextVisitMinutes >= nextEndMinutes
-    ) {
-      showWhiteToast(
-        "시간 설정 확인",
-        "시작 시간은 종료 시간보다 빨라야 합니다.",
-        "error",
-      );
-      return;
-    }
-
-    setDraftPreviewVisitTime(nextVisitTime);
-    setDraftPreviewEndTime(nextEndTime);
-    setPreviewVisitTime(nextVisitTime);
-    setPreviewEndTime(nextEndTime);
-    setPreviewTimePickerVisible(false);
-  };
-
-  const showWeatherReplaceErrorToast = (error: unknown) => {
-    showWhiteToast(
-      "장소 교체 실패",
-      error instanceof Error
-        ? error.message
-        : "날씨 알림 기반 장소 교체 중 오류가 발생했습니다.",
-      "error",
-    );
-  };
-
-  const showReplaceErrorToast = (error: unknown) => {
-    const message =
-      error instanceof Error
-        ? error.message
-        : "일정 교체 요청에 실패했습니다.";
-
-    showWhiteToast("일정 교체 실패", message, "error");
-  };
-
-  const showReplaceSuccessToast = (
-    placeName: string,
-    usedCurrentPlanId: string | number,
-  ) => {
-    showWhiteToast(
-      "PLAN B 교체 완료",
-      `${placeName}으로 기존 일정이 교체되었습니다.`,
-      "success",
-      () => moveToPlanAAfterReplace(usedCurrentPlanId),
-    );
-  };
-
-  const updateReplacedScheduleMeta = async ({
-    replaceResult,
-    usedCurrentPlanId,
-  }: {
-    replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
-    usedCurrentPlanId: string | number;
-  }) => {
-    const previewSchedulePayload = getPreviewSchedulePayload();
-
-    if (Object.keys(previewSchedulePayload).length > 0) {
-      await updatePlanSchedule(
-        replaceResult.tripPlaceId ?? usedCurrentPlanId,
-        previewSchedulePayload as any,
-      );
-    }
-  };
-
-  const requestPlanPlaceReplace = async ({
-    currentPlanIdCandidates,
-    newGooglePlaceId,
-    newPlaceName,
-  }: {
-    currentPlanIdCandidates: Array<string | number>;
-    newGooglePlaceId: string;
-    newPlaceName: string;
-  }) => {
-    let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null =
-      null;
-    let lastReplaceError: unknown = null;
-    let usedCurrentPlanId: string | number | null = null;
-
-    for (const candidatePlanId of currentPlanIdCandidates) {
-      try {
-
-        replaceResult = await replacePlanPlace(candidatePlanId, {
-          newGooglePlaceId,
-          newPlaceName,
-        });
-
-        usedCurrentPlanId = candidatePlanId;
-        break;
-      } catch (replaceError: any) {
-        lastReplaceError = replaceError;
-
-        if (replaceError?.response?.status !== 404) {
-          throw replaceError;
-        }
-      }
-    }
-
-    if (!replaceResult || !usedCurrentPlanId) {
-      throw lastReplaceError ?? new Error("일정 교체에 실패했습니다.");
-    }
-
-    return {
-      replaceResult,
-      usedCurrentPlanId,
-    };
-  };
-
-  const validatePlanReplaceInput = ({
-    currentPlanIdCandidates,
-    newGooglePlaceId,
-    newPlaceName,
-  }: {
-    currentPlanIdCandidates: Array<string | number>;
-    newGooglePlaceId: string;
-    newPlaceName: string;
-  }) => {
-    if (currentPlanIdCandidates.length === 0) {
-      showWhiteToast(
-        "일정 교체 불가",
-        "현재 일정의 planId가 없어 PLAN B 교체를 진행할 수 없습니다.",
-        "error",
-      );
-      return false;
-    }
-
-    if (!newGooglePlaceId || !newPlaceName) {
-      showWhiteToast(
-        "장소 정보 부족",
-        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
-        "error",
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const validateWeatherReplaceInput = ({
-    notificationId,
-    newGooglePlaceId,
-    newPlaceName,
-  }: {
-    notificationId?: string | number;
-    newGooglePlaceId: string;
-    newPlaceName: string;
-  }) => {
-    if (!notificationId) {
-      showWhiteToast(
-        "알림 교체 불가",
-        "날씨 알림 ID가 없어 장소 교체를 진행할 수 없습니다.",
-        "error",
-      );
-      return false;
-    }
-
-    if (!newGooglePlaceId || !newPlaceName) {
-      showWhiteToast(
-        "장소 정보 부족",
-        "추천 장소의 Google Place ID 또는 장소명이 없습니다.",
-        "error",
-      );
-      return false;
-    }
-
-    return true;
-  };
-
-  const handleReplaceSuccessSideEffects = async ({
-    place,
-    placeId,
-    usedCurrentPlanId,
-    replaceResult,
-    selectedRank,
-  }: {
-    place: DisplayPlace;
-    placeId: string | number;
-    usedCurrentPlanId: string | number;
-    replaceResult: Awaited<ReturnType<typeof replacePlanPlace>>;
-    selectedRank: number;
-  }) => {
-    setSelectedPlaceId(placeId);
-
-    trackEvent(AMP.ALTERNATIVE_REPLACED, {
-      trip_id: params.tripId ? String(params.tripId) : undefined,
-      old_place_id: String(usedCurrentPlanId),
-      old_place_name: targetPlace?.name ?? "",
-      new_place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
-      new_place_name: place.name ?? "",
-      new_place_category: place.category ?? "",
-      rank: selectedRank,
-      recommendation_type: params.recommendationType ?? "PLACE",
-      source:
-        (params as any).source === "weather-notification" ||
-        (params as any).fromWeatherNotification
-          ? "weather"
-          : "manual",
-    });
-
-    clearTripGapCache(params.tripId ?? params.serverTripId);
-
-    await updateStoredPlanAAfterReplace({
-      scheduleId: params.scheduleId,
-      currentPlanId: usedCurrentPlanId,
-      place,
-      replaceResult,
-      previewVisitTime,
-      previewEndTime,
-      previewTransportMode,
-    });
-
-    const storedUserId = await AsyncStorage.getItem("user_id");
-
-    if (storedUserId) {
-      reportPreferenceFeedback({
-        userId: storedUserId,
-        shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
-        selectedPlaceId: placeId ?? "",
-      }).catch((feedbackError) => {
-      });
-    }
-  };
 
   const getPreviewSchedulePayload = () =>
     getPreviewSchedulePayloadFromHook({
@@ -1011,11 +654,9 @@ export default function RecommendationResultScreen({
 
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
+    const selectedRank =
+      places.findIndex((item) => (item.placeId ?? item.name) === placeId) + 1;
 
-    // 대안 선택 이벤트
-    const selectedRank = places.findIndex(
-      (p) => (p.placeId ?? p.name) === placeId,
-    ) + 1;
     trackEvent(AMP.ALTERNATIVE_SELECTED, {
       rank: selectedRank,
       place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
@@ -1026,137 +667,54 @@ export default function RecommendationResultScreen({
       time_to_select_ms: Date.now() - screenOpenedAtRef.current,
     });
 
-    const currentPlanIdCandidates = getCurrentPlanIdCandidates();
     const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
-    const newPlaceName = place.name;
-
     const isWeatherNotificationReplace =
       params.source === "weather-notification" ||
       params.fromWeatherNotification;
 
     if (isWeatherNotificationReplace) {
-      const notificationId = params.notificationId;
-
-      if (
-        !validateWeatherReplaceInput({
-          notificationId,
-          newGooglePlaceId,
-          newPlaceName,
-        })
-      ) {
-        return;
-      }
-
-      await executeRecommendationReplace({
-        execute: async () => {
-          setSubmittingPlaceId(placeId);
-
-        const confirmedNotificationId = notificationId;
-
-        if (confirmedNotificationId == null) {
-          throw new Error("날씨 알림 ID를 확인할 수 없습니다.");
-        }
-
-        const updatedTripPlace = await replaceNotificationPlace(
-          confirmedNotificationId,
-          place.placeId,
-        );
-
-        if (!updatedTripPlace) {
-          throw new Error("날씨 알림 대안 장소 교체에 실패했습니다.");
-        }
-
-        const weatherPreviewPayload = getPreviewSchedulePayload();
-        const weatherTripPlaceId =
-          (updatedTripPlace as any)?.tripPlaceId ??
-          (updatedTripPlace as any)?.id ??
-          place.placeId;
-
-        if (
-          weatherTripPlaceId != null &&
-          Object.keys(weatherPreviewPayload).length > 0
-        ) {
-          await updatePlanSchedule(
-            weatherTripPlaceId,
-            weatherPreviewPayload as any,
-          );
-        }
-
-        setSelectedPlaceId(placeId);
-
-        // 일정이 바뀌었으니 빈시간 추천 갭 캐시를 즉시 비워 새로 계산되게 한다.
-        clearTripGapCache(params.tripId ?? params.serverTripId);
-
-        showWhiteToast(
-          "장소 선택 완료",
-          "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
-          "success",
-          () =>
-            moveToPlanAAfterWeatherReplace(
-              updatedTripPlace as { day?: number | string },
-            ),
-        );
-
-        return;
-        },
-        onError: (error) => {
-
-          showWeatherReplaceErrorToast(error);
-        },
-        onFinally: () => {
-          setSubmittingPlaceId(null);
-        },
-      });
-
-      return;
-    }
-
-    if (
-      !validatePlanReplaceInput({
-        currentPlanIdCandidates,
-        newGooglePlaceId,
-        newPlaceName,
-      })
-    ) {
-      return;
-    }
-
-    await executeRecommendationReplace({
-      execute: async () => {
-        setSubmittingPlaceId(placeId);
-
-      const { replaceResult, usedCurrentPlanId } =
-        await requestPlanPlaceReplace({
-          currentPlanIdCandidates,
-          newGooglePlaceId,
-          newPlaceName,
-        });
-
-      if (usedCurrentPlanId == null) {
-        throw new Error("교체된 일정 ID를 확인할 수 없습니다.");
-      }
-
-      await updateReplacedScheduleMeta({
-        replaceResult,
-        usedCurrentPlanId,
-      });
-
-      await handleReplaceSuccessSideEffects({
-        place,
+      await executeWeatherRecommendationReplace({
         placeId,
-        usedCurrentPlanId,
-        replaceResult,
-        selectedRank,
+        notificationId: params.notificationId,
+        newGooglePlaceId,
+        newPlaceName: place.name,
+        newPlaceId: place.placeId,
+        previewSchedulePayload: getPreviewSchedulePayload(),
+        tripId: params.tripId,
+        serverTripId: params.serverTripId,
+        showToast: showWhiteToast,
+        setSubmittingPlaceId,
+        setSelectedPlaceId,
+        onSuccess: (updatedTripPlace) =>
+          moveToPlanAAfterWeatherReplace(
+            updatedTripPlace as { day?: number | string },
+          ),
       });
+      return;
+    }
 
-      showReplaceSuccessToast(place.name, usedCurrentPlanId);
-      },
-      onError: (error) => {
-        showReplaceErrorToast(error);
-      },
-      onFinally: () => {
-        setSubmittingPlaceId(null);
-      },
+    await executePlanRecommendationReplace({
+      place,
+      placeId,
+      selectedRank,
+      currentPlanIdCandidates: getCurrentPlanIdCandidates(),
+      newGooglePlaceId,
+      newPlaceName: place.name,
+      previewSchedulePayload: getPreviewSchedulePayload(),
+      tripId: params.tripId,
+      serverTripId: params.serverTripId,
+      scheduleId: params.scheduleId,
+      recommendationType: params.recommendationType,
+      source: "manual",
+      targetPlaceName: targetPlace?.name,
+      shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
+      previewVisitTime,
+      previewEndTime,
+      previewTransportMode,
+      showToast: showWhiteToast,
+      setSubmittingPlaceId,
+      setSelectedPlaceId,
+      onSuccess: moveToPlanAAfterReplace,
     });
   };
 
@@ -1290,10 +848,9 @@ export default function RecommendationResultScreen({
         timePickerVisible={previewTimePickerVisible}
         timePickerPlaceName={pendingPlace?.name ?? "대안 장소"}
         timePickerTarget={previewTimePickerTarget}
-        timePickerPreviewText={makePreviewTime(
-          previewTimePickerHour,
+        timePickerPreviewText={`${String(previewTimePickerHour).padStart(2, "0")}:${String(
           previewTimePickerMinute,
-        )}
+        ).padStart(2, "0")}`}
         visitTimeText={
           draftPreviewVisitTime ??
           previewAppliedVisitTime ??
@@ -1307,34 +864,16 @@ export default function RecommendationResultScreen({
         hourText={padPreviewTime(previewTimePickerHour)}
         minuteText={padPreviewTime(previewTimePickerMinute)}
         onClose={() => setPendingPlace(null)}
-        onChangeTransportMode={(mode) => setPreviewTransportMode(mode)}
-        onChangePreviousTransportMode={(mode) =>
-          setPreviewBeforeTransportMode(mode)
-        }
-        onChangeNextTransportMode={(mode) => setPreviewTransportMode(mode)}
+        onChangeTransportMode={changePreviewTransportMode}
+        onChangePreviousTransportMode={changePreviewBeforeTransportMode}
+        onChangeNextTransportMode={changePreviewNextTransportMode}
         onPressTimeEdit={openPreviewTimePicker}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}
-        onDecreaseHour={() =>
-          setPreviewTimePickerHour((prev) =>
-            prev <= 0 ? 23 : prev - 1,
-          )
-        }
-        onIncreaseHour={() =>
-          setPreviewTimePickerHour((prev) =>
-            prev >= 23 ? 0 : prev + 1,
-          )
-        }
-        onDecreaseMinute={() =>
-          setPreviewTimePickerMinute((prev) =>
-            prev <= 0 ? 59 : prev - 1,
-          )
-        }
-        onIncreaseMinute={() =>
-          setPreviewTimePickerMinute((prev) =>
-            prev >= 59 ? 0 : prev + 1,
-          )
-        }
+        onDecreaseHour={decreasePreviewTimePickerHour}
+        onIncreaseHour={increasePreviewTimePickerHour}
+        onDecreaseMinute={decreasePreviewTimePickerMinute}
+        onIncreaseMinute={increasePreviewTimePickerMinute}
         onSaveTime={savePreviewTimePicker}
         onConfirm={() => {
           const placeToApply = pendingPlace;
