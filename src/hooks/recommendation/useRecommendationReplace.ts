@@ -1,4 +1,3 @@
-import { useCallback, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import { reportPreferenceFeedback } from "../../../api/preferences/preferences";
@@ -20,90 +19,6 @@ export type ShowToast = (
   type?: RecommendationToastType,
   onDone?: () => void,
 ) => void;
-
-type UseRecommendationReplaceParams = {
-  showToast: ShowToast;
-};
-
-export function useRecommendationReplace({
-  showToast,
-}: UseRecommendationReplaceParams) {
-  const [isReplacing, setIsReplacing] = useState(false);
-
-  const runReplace = useCallback(
-    async (replaceTask: () => Promise<void>, successMessage?: string) => {
-      if (isReplacing) return;
-
-      try {
-        setIsReplacing(true);
-        await replaceTask();
-
-        if (successMessage) {
-          showToast("PLAN B 교체 완료", successMessage, "success");
-        }
-      } catch (error) {
-        const message =
-          error instanceof Error
-            ? error.message
-            : "일정 교체 중 오류가 발생했습니다.";
-
-        showToast("일정 교체 실패", message, "error");
-      } finally {
-        setIsReplacing(false);
-      }
-    },
-    [isReplacing, showToast],
-  );
-
-  return {
-    isReplacing,
-    runReplace,
-  };
-}
-
-export type RecommendationReplaceResult<T = unknown> = {
-  ok: boolean;
-  data?: T;
-  error?: unknown;
-};
-
-export async function runRecommendationReplaceTask<T>(
-  task: () => Promise<T>,
-): Promise<RecommendationReplaceResult<T>> {
-  try {
-    const data = await task();
-
-    return {
-      ok: true,
-      data,
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      error,
-    };
-  }
-}
-
-export type ExecuteRecommendationReplaceParams = {
-  execute: () => Promise<void>;
-  onError?: (error: unknown) => void;
-  onFinally?: () => void;
-};
-
-export async function executeRecommendationReplace({
-  execute,
-  onError,
-  onFinally,
-}: ExecuteRecommendationReplaceParams) {
-  try {
-    await execute();
-  } catch (error) {
-    onError?.(error);
-  } finally {
-    onFinally?.();
-  }
-}
 
 export const showWeatherReplaceErrorToast = (
   showToast: ShowToast,
@@ -525,37 +440,33 @@ export const executeWeatherRecommendationReplace = async ({
     return;
   }
 
-  await executeRecommendationReplace({
-    execute: async () => {
-      setSubmittingPlaceId(placeId);
+  try {
+    setSubmittingPlaceId(placeId);
 
-      if (notificationId == null) {
-        throw new Error("날씨 알림 ID를 확인할 수 없습니다.");
-      }
+    if (notificationId == null) {
+      throw new Error("날씨 알림 ID를 확인할 수 없습니다.");
+    }
 
-      const updatedTripPlace = await replaceWeatherNotificationAlternative({
-        notificationId,
-        newPlaceId,
-        previewSchedulePayload,
-      });
+    const updatedTripPlace = await replaceWeatherNotificationAlternative({
+      notificationId,
+      newPlaceId,
+      previewSchedulePayload,
+    });
 
-      setSelectedPlaceId(placeId);
-      clearTripGapCache(tripId ?? serverTripId);
+    setSelectedPlaceId(placeId);
+    clearTripGapCache(tripId ?? serverTripId);
 
-      showToast(
-        "장소 선택 완료",
-        "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
-        "success",
-        () => onSuccess(updatedTripPlace),
-      );
-    },
-    onError: (error) => {
-      showWeatherReplaceErrorToast(showToast, error);
-    },
-    onFinally: () => {
-      setSubmittingPlaceId(null);
-    },
-  });
+    showToast(
+      "장소 선택 완료",
+      "대안 장소를 반영했어요. 시간과 이동수단을 설정해주세요.",
+      "success",
+      () => onSuccess(updatedTripPlace),
+    );
+  } catch (error) {
+    showWeatherReplaceErrorToast(showToast, error);
+  } finally {
+    setSubmittingPlaceId(null);
+  }
 };
 
 export const executePlanRecommendationReplace = async ({
@@ -622,55 +533,51 @@ export const executePlanRecommendationReplace = async ({
     return;
   }
 
-  await executeRecommendationReplace({
-    execute: async () => {
-      setSubmittingPlaceId(placeId);
+  try {
+    setSubmittingPlaceId(placeId);
 
-      const { replaceResult, usedCurrentPlanId } =
-        await requestPlanPlaceReplace({
-          currentPlanIdCandidates,
-          newGooglePlaceId,
-          newPlaceName,
-        });
-
-      await updateReplacedScheduleMeta({
-        replaceResult,
-        usedCurrentPlanId,
-        previewSchedulePayload,
-      });
-
-      await handlePlanReplaceSuccessSideEffects({
-        place,
-        placeId,
-        usedCurrentPlanId,
-        replaceResult,
-        selectedRank,
-        tripId,
-        serverTripId,
-        scheduleId,
-        recommendationType,
-        source,
-        targetPlaceName,
-        shownPlaceIds,
-        previewVisitTime,
-        previewEndTime,
-        previewTransportMode,
-        setSelectedPlaceId,
-      });
-
-      showReplaceSuccessToast(
-        showToast,
+    const { replaceResult, usedCurrentPlanId } =
+      await requestPlanPlaceReplace({
+        currentPlanIdCandidates,
+        newGooglePlaceId,
         newPlaceName,
-        () => onSuccess(usedCurrentPlanId),
-      );
-    },
-    onError: (error) => {
-      showReplaceErrorToast(showToast, error);
-    },
-    onFinally: () => {
-      setSubmittingPlaceId(null);
-    },
-  });
+      });
+
+    await updateReplacedScheduleMeta({
+      replaceResult,
+      usedCurrentPlanId,
+      previewSchedulePayload,
+    });
+
+    await handlePlanReplaceSuccessSideEffects({
+      place,
+      placeId,
+      usedCurrentPlanId,
+      replaceResult,
+      selectedRank,
+      tripId,
+      serverTripId,
+      scheduleId,
+      recommendationType,
+      source,
+      targetPlaceName,
+      shownPlaceIds,
+      previewVisitTime,
+      previewEndTime,
+      previewTransportMode,
+      setSelectedPlaceId,
+    });
+
+    showReplaceSuccessToast(
+      showToast,
+      newPlaceName,
+      () => onSuccess(usedCurrentPlanId),
+    );
+  } catch (error) {
+    showReplaceErrorToast(showToast, error);
+  } finally {
+    setSubmittingPlaceId(null);
+  }
 };
 
 export const getCurrentPlanIdCandidates = ({
