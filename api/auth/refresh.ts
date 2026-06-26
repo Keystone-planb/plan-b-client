@@ -91,6 +91,7 @@ export const requestRefresh = async ({
       `${BASE_URL}/api/auth/refresh`,
       {
         refresh_token,
+        refreshToken: refresh_token,
       },
       {
         timeout: 10000,
