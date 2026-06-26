@@ -31,6 +31,7 @@ import { requestLogin } from "../../api/auth/login";
 import { createSocialAuthUrl, SocialProvider } from "../../api/auth/social";
 import { saveOAuthTokens } from "../utils/authToken";
 
+import { clearAuthFailureLog } from "../utils/authFailureLog";
 type LoginResult = {
   success?: boolean;
   message?: string;
@@ -92,6 +93,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLoginSuccess = async (result: LoginResult) => {
     await saveTokens(result);
+    await clearAuthFailureLog();
     moveToMain();
   };
 

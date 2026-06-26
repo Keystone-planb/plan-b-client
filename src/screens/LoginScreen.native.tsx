@@ -43,6 +43,7 @@ import {
 } from "../utils/authToken";
 import { setAmplitudeUser } from "../utils/amplitude";
 
+import { clearAuthFailureLog } from "../utils/authFailureLog";
 WebBrowser.maybeCompleteAuthSession();
 
 const DEV_AUTH_EMAIL = "";
@@ -111,6 +112,7 @@ export default function LoginScreen({ navigation }: any) {
 
   const handleLoginSuccess = async (result: LoginResult) => {
     await saveTokens(result);
+    await clearAuthFailureLog();
 
     // Amplitude 유저 식별 (이벤트 연결용, 로그인 이벤트는 제거)
     const userId = result.user_id ?? result.userId;

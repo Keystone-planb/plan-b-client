@@ -245,17 +245,6 @@ export const getMissingTimePlaceNames = (schedule: TravelSchedule) => {
       const resolvedEndTime = getPlaceEndTime(place);
       const missing = !resolvedVisitTime || !resolvedEndTime;
 
-      console.log("[PlanA missing time check]", {
-        day,
-        id: place.id,
-        name: place.name,
-        time: place.time,
-        visitTime: place.visitTime,
-        endTime: place.endTime,
-        resolvedVisitTime,
-        resolvedEndTime,
-        missing,
-      });
 
       return missing;
     })

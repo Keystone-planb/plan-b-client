@@ -721,26 +721,6 @@ const handleCloseMemoSheet = () => {
       resolvedEndTime: getPlaceEndTime(place),
     });
 
-    console.log("[PlanA 시간 검증 디버그]", {
-      selectedDay,
-      currentPlaces: currentPlaces.map(toTimeValidationDebugPlace),
-      scheduleDays: schedule.days.map((day, index) => ({
-        day: day.day ?? index + 1,
-        places: day.places.map(toTimeValidationDebugPlace),
-      })),
-      scheduleForTimeValidationDays: scheduleForTimeValidation.days.map(
-        (day, index) => ({
-          day: day.day ?? index + 1,
-          places: day.places.map(toTimeValidationDebugPlace),
-        }),
-      ),
-      scheduleForValidationDays: scheduleForValidation.days.map(
-        (day, index) => ({
-          day: day.day ?? index + 1,
-          places: day.places.map(toTimeValidationDebugPlace),
-        }),
-      ),
-    });
 
     const missingTimePlaceNames = getMissingTimePlaceNames(scheduleForValidation);
 

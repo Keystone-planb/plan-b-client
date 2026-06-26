@@ -1566,17 +1566,6 @@ export default function AddScheduleLocationScreen({
 
   const detailTags = serverDetailTags.slice(0, 3);
 
-  console.log("[DETAIL CATEGORY]", {
-    placeName: detailModalPlace?.name,
-    searchCategory: detailModalPlace?.category,
-    detailCategory: detailRaw?.category,
-    detailType: detailRaw?.type,
-    detailPlaceType: detailRaw?.placeType,
-    summaryCategory: summaryRaw?.category,
-    summaryType: summaryRaw?.type,
-    summaryPlaceType: summaryRaw?.placeType,
-    tags: detailTags,
-  });
 
   const hasAnyRealDetailContent = Boolean(
     detailModalAiSummary ||

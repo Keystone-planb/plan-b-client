@@ -232,12 +232,6 @@ export default function GapRecommendationCard({
         return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
       });
 
-      console.log("[GapRecommendationCard] gap debug", {
-        tripId,
-        allowedPairKeys: Array.from(allowedPairKeys),
-        serverGaps,
-        currentScreenGaps,
-      });
 
       applyGaps(currentScreenGaps);
     };
