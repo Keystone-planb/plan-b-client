@@ -11,6 +11,8 @@ type Props = {
 export default function OnboardingSkipButton({ onPress, topInset = 0 }: Props) {
   return (
     <TouchableOpacity
+      testID="onboarding-skip-button"
+      accessibilityLabel="Onboarding skip"
       activeOpacity={0.8}
       style={[styles.skipButton, { top: Math.max(topInset + 18, 58) }]}
       onPress={onPress}
