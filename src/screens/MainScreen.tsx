@@ -1621,6 +1621,8 @@ export default function MainScreen({ navigation }: Props) {
               overshootRight={false}
             >
               <TouchableOpacity
+                testID="home-current-schedule-card"
+                accessibilityLabel={`Home current schedule ${getScheduleTitle(currentSchedule)}`}
                 style={styles.ongoingCard}
                 activeOpacity={0.86}
                 onPress={() => handleOpenSchedule(currentSchedule)}
@@ -1686,11 +1688,13 @@ export default function MainScreen({ navigation }: Props) {
           <Text style={styles.homeSectionTitle}>다음 여행</Text>
 
           {nextSchedules.length > 0 ?
-            nextSchedules.map((schedule) => (
+            nextSchedules.map((schedule, index) => (
               <TouchableOpacity
                 key={String(
                   schedule.id ?? schedule.tripId ?? schedule.serverTripId,
                 )}
+                testID={`home-next-schedule-card-${index}`}
+                accessibilityLabel={`Home next schedule ${getScheduleTitle(schedule)}`}
                 style={[styles.nextTripCard, { marginBottom: 12 }]}
                 activeOpacity={0.86}
                 onPress={() => handleOpenSchedule(schedule)}

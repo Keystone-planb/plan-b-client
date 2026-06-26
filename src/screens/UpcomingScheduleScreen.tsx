@@ -1129,6 +1129,8 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
 
                 {canEditSchedule ?
                   <TouchableOpacity
+                    testID="schedule-detail-edit-plan-a-button"
+                    accessibilityLabel="Schedule detail edit Plan A"
                     disabled={isSavingEdit}
                     onPress={handleEdit}
                   >

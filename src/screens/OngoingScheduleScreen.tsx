@@ -1132,6 +1132,8 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
               {canEditSchedule ?
                 <TouchableOpacity
+                  testID="schedule-detail-edit-plan-a-button"
+                  accessibilityLabel="Schedule detail edit Plan A"
                   style={localStyles.editPillButton}
                   activeOpacity={0.85}
                   disabled={isSavingEdit}
