@@ -172,6 +172,8 @@ export default function LoginScreen({ navigation }: any) {
               <Text style={styles.inputLabel}>이메일</Text>
 
               <TextInput
+                testID="planb-login-email-input"
+                accessibilityLabel="PlanB login email input"
                 placeholder="example@planb.com"
                 placeholderTextColor="#8C9BB1"
                 value={email}
@@ -188,6 +190,8 @@ export default function LoginScreen({ navigation }: any) {
 
               <View style={styles.passwordInputWrapper}>
                 <TextInput
+                  testID="planb-login-password-input"
+                  accessibilityLabel="PlanB login password input"
                   placeholder="8자 이상"
                   placeholderTextColor="#8C9BB1"
                   value={password}
@@ -212,6 +216,8 @@ export default function LoginScreen({ navigation }: any) {
               </View>
 
               <TouchableOpacity
+                testID="planb-login-submit-button"
+                accessibilityLabel="PlanB login submit"
                 onPress={handleLogin}
                 style={[
                   styles.loginButton,
