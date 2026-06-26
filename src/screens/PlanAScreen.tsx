@@ -697,32 +697,23 @@ const handleCloseMemoSheet = () => {
       };
     };
 
-    const scheduleForTimeValidation = buildScheduleForTimeValidation(
-      schedule,
-      selectedDay,
-      currentPlaces,
+    const normalizedCurrentPlaces = currentPlaces.map(
+      normalizePlaceTimeForValidation,
     );
 
-    const scheduleForValidation: TravelSchedule = {
-      ...scheduleForTimeValidation,
-      days: scheduleForTimeValidation.days.map((day) => ({
-        ...day,
-        places: day.places.map(normalizePlaceTimeForValidation),
-      })),
+    const currentDayScheduleForValidation: TravelSchedule = {
+      ...schedule,
+      days: [
+        {
+          day: selectedDay,
+          places: normalizedCurrentPlaces,
+        },
+      ],
     };
 
-    const toTimeValidationDebugPlace = (place: PlaceItem) => ({
-      id: place.id,
-      name: place.name,
-      time: place.time,
-      visitTime: place.visitTime,
-      endTime: place.endTime,
-      resolvedVisitTime: getPlaceVisitTime(place),
-      resolvedEndTime: getPlaceEndTime(place),
-    });
-
-
-    const missingTimePlaceNames = getMissingTimePlaceNames(scheduleForValidation);
+    const missingTimePlaceNames = getMissingTimePlaceNames(
+      currentDayScheduleForValidation,
+    );
 
     if (missingTimePlaceNames.length > 0) {
       Alert.alert(
