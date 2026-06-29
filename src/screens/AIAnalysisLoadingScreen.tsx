@@ -1,7 +1,6 @@
-import React, { useEffect, useMemo } from "react";
+import React from "react";
 import {
   Animated,
-  Easing,
   Image,
   Text,
   TouchableOpacity,
@@ -11,6 +10,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { styles } from "./AIAnalysisLoadingScreen.styles";
 import { useAIAnalysisLoadingFlow } from "../hooks/recommendation/useAIAnalysisLoadingFlow";
+import { useAIAnalysisLoadingAnimations } from "../hooks/recommendation/useAIAnalysisLoadingAnimations";
 import {
   AI_ANALYSIS_DOT_COUNT as DOT_COUNT,
   AI_ANALYSIS_LOADING_STEPS as LOADING_STEPS,
@@ -36,95 +36,13 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     params,
   });
 
-  const floatValue = useMemo(
-    () => new Animated.Value(0),
-    [],
+  const {
+    iconFloat,
+    iconScale,
+    progressWidth,
+  } = useAIAnalysisLoadingAnimations(
+    progress,
   );
-
-  const pulseValue = useMemo(
-    () => new Animated.Value(0),
-    [],
-  );
-
-  const progressValue = useMemo(
-    () => new Animated.Value(2),
-    [],
-  );
-
-  const progressStepIndex = Math.min(
-    Math.floor(
-      (progress / 100) *
-        LOADING_STEPS.length,
-    ),
-    LOADING_STEPS.length - 1,
-  );
-
-  const currentStepIndex =
-    progress >= 94
-      ? displayStepIndex
-      : progressStepIndex;
-
-  const currentStep =
-    LOADING_STEPS[currentStepIndex];
-
-  const iconFloat =
-    floatValue.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [0, -8, 0],
-    });
-
-  const iconScale =
-    pulseValue.interpolate({
-      inputRange: [0, 0.5, 1],
-      outputRange: [1, 1.045, 1],
-    });
-
-  const progressWidth =
-    progressValue.interpolate({
-      inputRange: [0, 100],
-      outputRange: ["0%", "100%"],
-    });
-
-  useEffect(() => {
-    Animated.timing(progressValue, {
-      toValue: progress,
-      duration: 260,
-      easing: Easing.out(
-        Easing.cubic,
-      ),
-      useNativeDriver: false,
-    }).start();
-  }, [progress, progressValue]);
-
-  useEffect(() => {
-    const floatAnimation = Animated.loop(
-      Animated.timing(floatValue, {
-        toValue: 1,
-        duration: 1700,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-        isInteraction: false,
-      }),
-    );
-
-    const pulseAnimation = Animated.loop(
-      Animated.timing(pulseValue, {
-        toValue: 1,
-        duration: 1500,
-        easing: Easing.inOut(Easing.ease),
-        useNativeDriver: true,
-        isInteraction: false,
-      }),
-    );
-
-    floatAnimation.start();
-    pulseAnimation.start();
-
-    return () => {
-      floatAnimation.stop();
-      pulseAnimation.stop();
-    };
-  }, [floatValue, pulseValue]);
 
   const placeCountText =
     receivedPlaceCount > 0 ?
