@@ -13,7 +13,6 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { trackEvent, AMP } from "../utils/amplitude";
-import { loadPlanASchedule } from "../api/schedules/planAStorage";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
 import {
   getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
@@ -24,6 +23,7 @@ import {
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
+import { useRecommendationScheduleContext } from "../hooks/recommendation/useRecommendationScheduleContext";
 import {
   getPreviewTimeText,
   padPreviewTime,
@@ -43,7 +43,6 @@ import {
 import type {
   RecommendationResultDisplayPlace as DisplayPlace,
   RecommendationResultScreenProps as Props,
-  RecommendationResultTodayPlace as TodayPlace,
 } from "../types/recommendation/recommendationResult";
 
 import {
@@ -97,22 +96,6 @@ export default function RecommendationResultScreen({
   });
 
 
-  const [
-    savedPreviousSchedulePlace,
-    setSavedPreviousSchedulePlace,
-  ] = useState<TodayPlace | null>(null);
-
-  const [
-    savedOriginalSchedulePlace,
-    setSavedOriginalSchedulePlace,
-  ] = useState<TodayPlace | null>(null);
-
-
-  const [
-    savedNextSchedulePlace,
-    setSavedNextSchedulePlace,
-  ] = useState<TodayPlace | null>(null);
-
   // time_to_select_ms: 결과 화면 진입 시각 기록
   const screenOpenedAtRef = useRef(Date.now());
 
@@ -157,6 +140,19 @@ export default function RecommendationResultScreen({
   });
 
   const targetPlace = params.targetPlace;
+
+
+  const {
+    previousSchedulePlace: savedPreviousSchedulePlace,
+    originalSchedulePlaceFromStorage:
+      savedOriginalSchedulePlace,
+    originalSchedulePlace,
+    nextSchedulePlace: savedNextSchedulePlace,
+  } = useRecommendationScheduleContext({
+    params,
+    targetPlace,
+    showToast: showWhiteToast,
+  });
 
   const previewData = useRecommendationPreview({
     params,
@@ -205,209 +201,19 @@ export default function RecommendationResultScreen({
   } = previewData;
 
   useEffect(() => {
-    let cancelled = false;
-
-    const loadOriginalSchedulePlace = async () => {
-      const routeParams =
-        params as Record<string, unknown>;
-
-      const currentPlanId =
-        routeParams.currentPlanId ??
-        routeParams.tripPlaceId ??
-        routeParams.serverTripPlaceId ??
-        targetPlace?.serverTripPlaceId ??
-        targetPlace?.tripPlaceId ??
-        targetPlace?.id;
-
-      const scheduleId =
-        typeof routeParams.scheduleId === "string"
-          ? routeParams.scheduleId
-          : undefined;
-
-      if (!scheduleId || currentPlanId == null) {
-        return;
-      }
-
-      try {
-        const savedSchedule =
-          await loadPlanASchedule(scheduleId);
-
-        let matchedPlace: TodayPlace | undefined;
-        let previousPlace: TodayPlace | undefined;
-        let nextPlace: TodayPlace | undefined;
-
-        const targetIds = [
-          currentPlanId,
-          routeParams.currentPlanId,
-          routeParams.tripPlaceId,
-          routeParams.serverTripPlaceId,
-          targetPlace?.id,
-          targetPlace?.tripPlaceId,
-          targetPlace?.serverTripPlaceId,
-          targetPlace?.placeId,
-          targetPlace?.googlePlaceId,
-        ]
-          .filter((id) => id !== undefined && id !== null && id !== "")
-          .map((id) => String(id));
-
-        const targetName = targetPlace?.name?.trim();
-        const targetAddress = targetPlace?.address?.trim();
-
-        for (const day of savedSchedule?.days ?? []) {
-          const dayPlaces = day.places as TodayPlace[];
-
-          const matchedIndex = dayPlaces.findIndex((place) => {
-            const placeIds = [
-              place.id,
-              place.tripPlaceId,
-              place.serverTripPlaceId,
-              place.placeId,
-              place.googlePlaceId,
-            ]
-              .filter((id) => id !== undefined && id !== null && id !== "")
-              .map((id) => String(id));
-
-            const matchedById = placeIds.some((id) => targetIds.includes(id));
-
-            if (matchedById) {
-              return true;
-            }
-
-            const matchedByNameAndAddress =
-              Boolean(targetName) &&
-              place.name?.trim() === targetName &&
-              (
-                !targetAddress ||
-                place.address?.trim() === targetAddress
-              );
-
-            return matchedByNameAndAddress;
-          });
-
-          if (matchedIndex >= 0) {
-            matchedPlace = dayPlaces[matchedIndex];
-            previousPlace = dayPlaces[matchedIndex - 1];
-            nextPlace = dayPlaces[matchedIndex + 1];
-            break;
-          }
-        }
-
-        const normalizeSchedulePlace = (
-          place?: TodayPlace,
-        ): TodayPlace | null => {
-          if (!place) return null;
-
-          return {
-            ...place,
-            name: place.name?.trim() || "장소명 없음",
-            address: place.address?.trim() || "",
-            time: getPreviewTimeText(place),
-          };
-        };
-
-        if (cancelled || !matchedPlace) {
-          showWhiteToast(
-            "일정 정보 확인 필요",
-            "기존 일정 데이터를 찾지 못했습니다. 일정을 다시 불러온 뒤 시도해주세요.",
-            "error",
-          );
-          return;
-        }
-
-        const visitTime =
-          matchedPlace.visitTime ?? null;
-
-        const endTime =
-          matchedPlace.endTime ?? null;
-
-        const combinedTime =
-          getPreviewTimeText({
-            ...matchedPlace,
-            visitTime,
-            endTime,
-          });
-
-        setSavedPreviousSchedulePlace(
-          normalizeSchedulePlace(previousPlace),
-        );
-
-        setSavedOriginalSchedulePlace({
-          ...matchedPlace,
-          visitTime,
-          endTime,
-          time: combinedTime,
-        });
-
-        initializePreviewTimes(visitTime, endTime);
-
-        setSavedNextSchedulePlace(
-          normalizeSchedulePlace(nextPlace),
-        );
-      } catch (error) {
-      }
-    };
-
-    void loadOriginalSchedulePlace();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    params,
-    targetPlace,
-  ]);
-
-  const originalSchedulePlace = useMemo(() => {
-    const routePlace =
-      targetPlace as TodayPlace | undefined;
-
-    const sourcePlace =
-      savedOriginalSchedulePlace ??
-      routePlace;
-
-    if (!sourcePlace) {
-      return null;
-    }
-
-    const visitTime =
+    initializePreviewTimes(
       savedOriginalSchedulePlace?.visitTime ??
-      routePlace?.visitTime ??
-      null;
-
-    const endTime =
+        targetPlace?.visitTime ??
+        null,
       savedOriginalSchedulePlace?.endTime ??
-      routePlace?.endTime ??
-      null;
-
-    const time =
-      savedOriginalSchedulePlace?.time?.trim() ||
-      routePlace?.time?.trim() ||
-      [visitTime, endTime]
-        .filter(Boolean)
-        .join(" - ");
-
-    return {
-      ...routePlace,
-      ...savedOriginalSchedulePlace,
-      name:
-        savedOriginalSchedulePlace?.name ||
-        routePlace?.name ||
-        params.title ||
-        "현재 진행 중인 일정",
-      address:
-        savedOriginalSchedulePlace?.address ||
-        routePlace?.address ||
-        params.location ||
-        "",
-      visitTime,
-      endTime,
-      time,
-    };
+        targetPlace?.endTime ??
+        null,
+    );
   }, [
-    params.location,
-    params.title,
-    savedOriginalSchedulePlace,
-    targetPlace,
+    savedOriginalSchedulePlace?.endTime,
+    savedOriginalSchedulePlace?.visitTime,
+    targetPlace?.endTime,
+    targetPlace?.visitTime,
   ]);
 
   const currentPlaceName =
