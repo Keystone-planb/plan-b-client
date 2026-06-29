@@ -413,14 +413,19 @@ export default function VisitTimePickerPanel({
 
 const styles = StyleSheet.create({
   timeModalCard: {
-    width: "100%",
-    maxWidth: 360,
-    alignSelf: "center",
     borderRadius: 24,
     backgroundColor: "#FFFFFF",
     paddingHorizontal: 16,
     paddingTop: 20,
     paddingBottom: 18,
+
+    width: "90%",
+    maxWidth: 400,
+    maxHeight: "82%",
+    alignSelf: "center",
+    flexGrow: 0,
+    flexShrink: 1,
+
   },
   timeModalHeader: {
     flexDirection: "row",

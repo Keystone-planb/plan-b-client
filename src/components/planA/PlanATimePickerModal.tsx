@@ -51,7 +51,8 @@ export default function PlanATimePickerModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-    >
+    
+        presentationStyle="overFullScreen">
       <View style={styles.timeModalBackdrop}>
         <VisitTimePickerPanel
           placeName={place?.name ?? "장소"}
@@ -77,8 +78,10 @@ export default function PlanATimePickerModal({
 const styles = StyleSheet.create({
   timeModalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
     justifyContent: "center",
-    paddingHorizontal: 24,
+    paddingHorizontal: 20,
+    alignItems: "center",
+    paddingVertical: 24,
   },
 });

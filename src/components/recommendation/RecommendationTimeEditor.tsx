@@ -22,7 +22,8 @@ export default function RecommendationTimeEditor({
   onApply,
 }: Props) {
   return (
-    <Modal visible={visible} transparent animationType="fade">
+    <Modal visible={visible} transparent animationType="fade"
+        presentationStyle="overFullScreen">
       <View style={styles.backdrop}>
         <View style={styles.card}>
           <Text style={styles.title}>방문 시간 변경</Text>
