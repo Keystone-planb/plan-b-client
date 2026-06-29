@@ -28,6 +28,7 @@ const StepPinIcon = require("../assets/ai-loading/step-pin.png");
 const StepStarIcon = require("../assets/ai-loading/step-star.png");
 const StepInboxIcon = require("../assets/ai-loading/step-inbox.png");
 const StepWriteIcon = require("../assets/ai-loading/step-write.png");
+const EmptyResultImage = require("../assets/ai-loading/empty-result-preview.png");
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
@@ -787,6 +788,10 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const descriptionText =
     errorMessage || streamMessage || currentStep.description;
 
+  const isEmptyResult =
+    errorMessage.includes("현재 조건으로는 추천할 장소가 없어요") ||
+    errorMessage.includes("조건에 맞는 장소를 찾지 못했습니다");
+
   return (
     <SafeAreaView style={styles.safeArea} edges={["top", "left", "right"]}>
       <View style={styles.screen}>
@@ -794,79 +799,132 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           <Text style={styles.logoText}>Plan.B</Text>
         </View>
 
-        <View style={styles.centerContent}>
-          <View style={styles.progressBox}>
-            <View style={styles.progressTrack}>
-              <Animated.View
-                style={[styles.progressFill, { width: progressWidth }]}
-              />
-            </View>
-
-            <Text style={styles.progressText}>{Math.round(progress)}%</Text>
-          </View>
-
-          <Animated.View
-            style={[
-              styles.iconWrapper,
-              {
-                transform: [{ translateY: iconFloat }, { scale: iconScale }],
-              },
-            ]}
-          >
-            <View style={styles.iconGlow} />
-
+        {isEmptyResult ? (
+          <View style={styles.emptyResultContent}>
             <Image
-              source={currentStep.icon}
-              style={styles.stepIcon}
+              source={EmptyResultImage}
+              style={styles.emptyResultImage}
               resizeMode="contain"
             />
-          </Animated.View>
 
-          <Text style={styles.title}>
-            {errorMessage ? "추천 결과를 찾지 못했어요" : currentStep.title}
-          </Text>
+            <Text style={styles.emptyResultTitle}>
+              추천 결과를 찾지 못했어요
+            </Text>
 
-          <Text
-            style={[
-              styles.description,
-              errorMessage ? styles.errorDescription : null,
-            ]}
-          >
-            {descriptionText}
-          </Text>
+            <Text style={styles.emptyResultDescription}>
+              현재 조건으로는 추천할 장소가 없어요.
+            </Text>
 
-          {!errorMessage && placeCountText ?
-            <Text style={styles.placeCountText}>{placeCountText}</Text>
-          : null}
+            <TouchableOpacity
+              style={styles.resetConditionButton}
+              activeOpacity={0.85}
+              onPress={handleGoBack}
+            >
+              <Text style={styles.resetConditionButtonText}>
+                조건 다시 설정하기
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.centerContent}>
+            <View style={styles.progressBox}>
+              <View style={styles.progressTrack}>
+                <Animated.View
+                  style={[styles.progressFill, { width: progressWidth }]}
+                />
+              </View>
 
-          {errorMessage ?
-            <View style={styles.errorButtonRow}>
-              <TouchableOpacity
-                style={[styles.actionButton, styles.secondaryButton]}
-                activeOpacity={0.85}
-                onPress={handleGoBack}
-              >
-                <Text style={[styles.actionButtonText, styles.secondaryText]}>
-                  이전으로
+              <Text style={styles.progressText}>
+                {Math.round(progress)}%
+              </Text>
+            </View>
+
+            <Animated.View
+              style={[
+                styles.iconWrapper,
+                {
+                  transform: [
+                    { translateY: iconFloat },
+                    { scale: iconScale },
+                  ],
+                },
+              ]}
+            >
+              <View style={styles.iconGlow} />
+
+              <Image
+                source={currentStep.icon}
+                style={styles.stepIcon}
+                resizeMode="contain"
+              />
+            </Animated.View>
+
+            <Text style={styles.title}>
+              {errorMessage
+                ? "추천 요청을 완료하지 못했어요"
+                : currentStep.title}
+            </Text>
+
+            <Text
+              style={[
+                styles.description,
+                errorMessage ? styles.errorDescription : null,
+              ]}
+            >
+              {descriptionText}
+            </Text>
+
+            {!errorMessage && placeCountText ? (
+              <Text style={styles.placeCountText}>
+                {placeCountText}
+              </Text>
+            ) : null}
+
+            {errorMessage ? (
+              <View style={styles.errorButtonRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    styles.secondaryButton,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={handleGoBack}
+                >
+                  <Text
+                    style={[
+                      styles.actionButtonText,
+                      styles.secondaryText,
+                    ]}
+                  >
+                    이전으로
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.actionButton,
+                    styles.primaryButton,
+                  ]}
+                  activeOpacity={0.85}
+                  onPress={handleRetry}
+                >
+                  <Text style={styles.actionButtonText}>
+                    다시 시도
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.tipPill}>
+                <Text style={styles.tipPillEmoji}>💡</Text>
+                <Text style={styles.tipPillText}>
+                  {currentStep.tip}
                 </Text>
-              </TouchableOpacity>
+              </View>
+            )}
+          </View>
+        )}
 
-              <TouchableOpacity
-                style={[styles.actionButton, styles.primaryButton]}
-                activeOpacity={0.85}
-                onPress={handleRetry}
-              >
-                <Text style={styles.actionButtonText}>다시 시도</Text>
-              </TouchableOpacity>
-            </View>
-          : <View style={styles.tipPill}>
-              <Text style={styles.tipPillEmoji}>💡</Text>
-              <Text style={styles.tipPillText}>{currentStep.tip}</Text>
-            </View>
-          }
-        </View>
-
-        {!errorMessage ?
+        {!errorMessage && !isEmptyResult ?
           <View style={styles.dotsArea}>
             <View style={styles.dotsRow}>
               {Array.from({ length: DOT_COUNT }).map((_, index) => {
@@ -883,28 +941,52 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           </View>
         : null}
 
-        <View style={[styles.tipCard, errorMessage ? styles.errorCard : null]}>
-          <View style={styles.tipCardHeader}>
-            <Text
-              style={[
-                styles.tipCardLabel,
-                errorMessage ? styles.errorTipCardLabel : null,
-              ]}
-            >
-              {errorMessage ? "TIP" : "AI ANALYSIS"}
+        {isEmptyResult ? (
+          <View style={styles.emptyTipCard}>
+            <Text style={styles.emptyTipLabel}>TIP</Text>
+
+            <Text style={styles.emptyTipTitle}>
+              PLAN.B의 제안
+            </Text>
+
+            <Text style={styles.emptyTipDescription}>
+              조건을 조금 완화하면 더 많은{"\n"}
+              추천 결과를 확인할 수 있어요.
             </Text>
           </View>
+        ) : (
+          <View
+            style={[
+              styles.tipCard,
+              errorMessage ? styles.errorCard : null,
+            ]}
+          >
+            <View style={styles.tipCardHeader}>
+              <Text
+                style={[
+                  styles.tipCardLabel,
+                  errorMessage
+                    ? styles.errorTipCardLabel
+                    : null,
+                ]}
+              >
+                {errorMessage ? "TIP" : "AI ANALYSIS"}
+              </Text>
+            </View>
 
-          <Text style={styles.tipCardTitle}>
-            {errorMessage ? "PLAN.B의 제안" : currentStep.detailTitle}
-          </Text>
+            <Text style={styles.tipCardTitle}>
+              {errorMessage
+                ? "PLAN.B의 제안"
+                : currentStep.detailTitle}
+            </Text>
 
-          <Text style={styles.tipCardDescription}>
-            {errorMessage ?
-              "이동 시간, 이동수단, 실내/실외 조건을 완화하면\n추천 결과가 나올 수 있어요."
-            : currentStep.detailDescription}
-          </Text>
-        </View>
+            <Text style={styles.tipCardDescription}>
+              {errorMessage
+                ? "잠시 후 다시 시도하거나 이전 화면에서 조건을 확인해주세요."
+                : currentStep.detailDescription}
+            </Text>
+          </View>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -925,14 +1007,61 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "web" ? 54 : 62,
   },
   logoText: {
+    flex: 1,
     color: "#1C2534",
-    fontSize: 29,
+    fontSize: 34,
     fontWeight: "900",
-    letterSpacing: -0.8,
+    letterSpacing: -1,
+    textAlign: "center",
   },
   centerContent: {
     alignItems: "center",
     marginTop: 48,
+  },
+
+  emptyResultContent: {
+    alignItems: "center",
+    marginTop: 46,
+  },
+
+  emptyResultImage: {
+    width: 210,
+    height: 190,
+    marginBottom: 20,
+  },
+
+  emptyResultTitle: {
+    color: "#111827",
+    fontSize: 22,
+    fontWeight: "900",
+    letterSpacing: -0.5,
+    textAlign: "center",
+  },
+
+  emptyResultDescription: {
+    marginTop: 11,
+    color: "#8A9BB2",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 21,
+    textAlign: "center",
+  },
+
+  resetConditionButton: {
+    minWidth: 220,
+    minHeight: 50,
+    marginTop: 25,
+    paddingHorizontal: 24,
+    borderRadius: 14,
+    backgroundColor: "#2158E8",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  resetConditionButtonText: {
+    color: "#FFFFFF",
+    fontSize: 15,
+    fontWeight: "900",
   },
   progressBox: {
     width: "100%",
@@ -1045,6 +1174,41 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: "#2158E8",
   },
+  emptyTipCard: {
+    marginTop: 48,
+    minHeight: 152,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "#D8E5FF",
+    backgroundColor: "#F8FBFF",
+    paddingHorizontal: 22,
+    paddingVertical: 24,
+    justifyContent: "center",
+  },
+
+  emptyTipLabel: {
+    color: "#2158E8",
+    fontSize: 10,
+    fontWeight: "900",
+    letterSpacing: 0.9,
+    marginBottom: 12,
+  },
+
+  emptyTipTitle: {
+    color: "#1C2534",
+    fontSize: 16,
+    fontWeight: "900",
+    letterSpacing: -0.2,
+    marginBottom: 14,
+  },
+
+  emptyTipDescription: {
+    color: "#8A9BB2",
+    fontSize: 14,
+    fontWeight: "700",
+    lineHeight: 22,
+  },
+
   tipCard: {
     marginTop: 48,
     borderRadius: 20,
