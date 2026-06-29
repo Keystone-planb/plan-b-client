@@ -151,6 +151,44 @@ export interface ReplacePlanResponse {
   message: string;
 }
 
+export type AlternativeImpactTransportMode = "WALK" | "TRANSIT" | "CAR";
+
+export interface AlternativeImpactRequest {
+  newPlaceId: string;
+  newPlaceName: string;
+  newLatitude: number;
+  newLongitude: number;
+  selectedMode?: AlternativeImpactTransportMode;
+}
+
+export interface AlternativeImpactOption {
+  mode: AlternativeImpactTransportMode;
+  minutes: number;
+  label: string;
+}
+
+export interface AlternativeImpactPlace {
+  tripPlaceId: number;
+  name: string;
+  visitTime: string | null;
+  endTime: string | null;
+  newVisitTime: string | null;
+}
+
+export interface AlternativeImpactResponse {
+  calcStatus: "OK" | "NO_COORD";
+  travelInOptions: AlternativeImpactOption[];
+  travelOutOptions: AlternativeImpactOption[];
+  travelInMin: number | null;
+  travelInMode: AlternativeImpactTransportMode | null;
+  travelOutMin: number | null;
+  travelOutMode: AlternativeImpactTransportMode | null;
+  prevPlace: AlternativeImpactPlace | null;
+  nextPlace: AlternativeImpactPlace | null;
+  dayShiftMin: number;
+  affectedCount: number;
+}
+
 const isHtmlResponse = (data: unknown) => {
   if (typeof data !== "string") return false;
 
@@ -349,6 +387,44 @@ export const deletePlanPlace = async (
   await apiClient.delete(`/api/plans/${tripPlaceId}`);
 };
 
+
+/**
+ * 대안 장소 교체 영향도 조회
+ * POST /api/plans/{tripPlaceId}/alternatives/impact
+ */
+export const getAlternativeImpact = async (
+  tripPlaceId: number | string,
+  request: AlternativeImpactRequest,
+): Promise<AlternativeImpactResponse> => {
+  try {
+    console.log("[getAlternativeImpact] request:", {
+      tripPlaceId,
+      url: `/api/plans/${tripPlaceId}/alternatives/impact`,
+      selectedMode: request.selectedMode,
+      hasCoordinates:
+        Number.isFinite(request.newLatitude) &&
+        Number.isFinite(request.newLongitude),
+    });
+
+    const response = await apiClient.post<unknown>(
+      `/api/plans/${tripPlaceId}/alternatives/impact`,
+      request,
+    );
+
+    assertNotHtmlResponse(response.data, "대안 장소 이동시간 계산");
+
+    return response.data as AlternativeImpactResponse;
+  } catch (error: any) {
+    console.log("[getAlternativeImpact] failed:", {
+      tripPlaceId,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      request,
+    });
+
+    throw error;
+  }
+};
 
 /**
  * 일정 장소 PLAN B 대체

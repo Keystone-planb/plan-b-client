@@ -524,12 +524,12 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
           currentLng,
           latitude: currentLat,
           longitude: currentLng,
-          radiusMinute: Math.max(getRadiusMinute(params.moveTime), 30),
+          radiusMinute: getRadiusMinute(params.moveTime),
           transportMode: params.transportMode ?? "WALK",
           selectedType,
           selectedSpace,
           keepOriginalCategory: !params.changeCategory,
-          considerNextPlan: false,
+          considerNextPlan: Boolean(params.considerDistance),
         };
 
         const payload = removeUndefined(rawPayload) as RecommendRequest;
@@ -624,22 +624,11 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
 
             setStreamMessage("추천 결과를 불러왔어요");
 
-            requestAnimationFrame(() => {
-              if (cancelled) return;
-
-              setTimeout(() => {
-                if (cancelled) return;
-
-                console.log(
-                  "[AIAnalysisLoading] 결과 화면 이동:",
-                  {
-                    count: receivedPlaces.length,
-                  },
-                );
-
-                moveToResult(receivedPlaces);
-              }, 120);
+            console.log("[AIAnalysisLoading] 결과 화면 이동:", {
+              count: receivedPlaces.length,
             });
+
+            moveToResult(receivedPlaces);
           },
 
           onError: (error) => {

@@ -19,7 +19,8 @@ type Props = {
   transportMode: RecommendationTransportMode;
   previousTransportMode?: RecommendationTransportMode;
   nextTransportMode?: RecommendationTransportMode;
-  moveTimeText?: string;
+  previousMoveTimeText?: string;
+  nextMoveTimeText?: string;
   onChangeTransportMode: (mode: RecommendationTransportMode) => void;
   onChangePreviousTransportMode?: (mode: RecommendationTransportMode) => void;
   onChangeNextTransportMode?: (mode: RecommendationTransportMode) => void;
@@ -40,7 +41,8 @@ export default function RecommendationTimeline({
   transportMode,
   previousTransportMode,
   nextTransportMode,
-  moveTimeText,
+  previousMoveTimeText,
+  nextMoveTimeText,
   onChangeTransportMode,
   onChangePreviousTransportMode,
   onChangeNextTransportMode,
@@ -74,7 +76,7 @@ export default function RecommendationTimeline({
 
         <RecommendationTransportCard
           value={previousTransportMode ?? transportMode}
-          moveTimeText={moveTimeText}
+          moveTimeText={previousMoveTimeText}
           onChange={onChangePreviousTransportMode ?? onChangeTransportMode}
         />
 
@@ -91,7 +93,7 @@ export default function RecommendationTimeline({
 
         <RecommendationTransportCard
           value={nextTransportMode ?? transportMode}
-          moveTimeText={moveTimeText}
+          moveTimeText={nextMoveTimeText}
           isAlternative
           onChange={onChangeNextTransportMode ?? onChangeTransportMode}
         />

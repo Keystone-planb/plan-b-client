@@ -39,7 +39,8 @@ type Props = {
   transportMode: RecommendationTransportMode;
   previousTransportMode?: RecommendationTransportMode;
   nextTransportMode?: RecommendationTransportMode;
-  moveTimeText?: string;
+  previousMoveTimeText?: string;
+  nextMoveTimeText?: string;
 
   timePickerVisible: boolean;
   timePickerPlaceName: string;
@@ -89,7 +90,8 @@ export default function RecommendationPreviewModal({
   transportMode,
   previousTransportMode,
   nextTransportMode,
-  moveTimeText,
+  previousMoveTimeText,
+  nextMoveTimeText,
   timePickerVisible,
   timePickerPlaceName,
   timePickerTarget,
@@ -118,7 +120,8 @@ export default function RecommendationPreviewModal({
       transparent
       animationType="fade"
       onRequestClose={onClose}
-    >
+    
+        presentationStyle="overFullScreen">
       <View style={styles.previewOverlay}>
         <View style={styles.previewModal}>
           <RecommendationHeader title="이렇게 바꿀까요?" onClose={onClose} />
@@ -188,7 +191,8 @@ export default function RecommendationPreviewModal({
             transportMode={transportMode}
             previousTransportMode={previousTransportMode}
             nextTransportMode={nextTransportMode}
-            moveTimeText={moveTimeText}
+            previousMoveTimeText={previousMoveTimeText}
+            nextMoveTimeText={nextMoveTimeText}
             onChangeTransportMode={onChangeTransportMode}
             onChangePreviousTransportMode={onChangePreviousTransportMode}
             onChangeNextTransportMode={onChangeNextTransportMode}
@@ -297,8 +301,11 @@ const styles = StyleSheet.create({
     zIndex: 100,
     elevation: 100,
     borderRadius: 22,
-    backgroundColor: "#FFFFFF",
     justifyContent: "center",
-    paddingHorizontal: 0,
+    paddingHorizontal: 20,
+    flex: 1,
+    alignItems: "center",
+    paddingVertical: 24,
+    backgroundColor: "rgba(15, 23, 42, 0.4)",
   },
 });
