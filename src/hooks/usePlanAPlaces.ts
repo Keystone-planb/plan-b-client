@@ -1249,95 +1249,179 @@ export function usePlanAPlaces({
     });
   }, [hasLoadedSavedSchedule, selectedDay, selectedPlace, selectedPlaces]);
 
-  const handleUpdatePlaceTime = (
+  const handleUpdatePlaceTime = async (
     placeId: string,
     visitTime?: string | null,
     endTime?: string | null,
-  ) => {
-    const nextVisitTime = normalizeNullableTime(visitTime);
-    const nextEndTime = normalizeNullableTime(endTime);
-    const nextDisplayTime = makeDisplayTime(nextVisitTime, nextEndTime);
+  ): Promise<{
+    success: boolean;
+    errorMessage?: string;
+  }> => {
+    const nextVisitTime =
+      normalizeNullableTime(visitTime);
 
-    const parseHHmmToMinutes = (value?: string | null) => {
-      if (!value) return null;
+    const nextEndTime =
+      normalizeNullableTime(endTime);
 
-      const match = value.match(/^(\d{2}):(\d{2})$/);
-      if (!match) return null;
+    const nextDisplayTime =
+      makeDisplayTime(
+        nextVisitTime,
+        nextEndTime,
+      );
 
-      return Number(match[1]) * 60 + Number(match[2]);
+    const parseHHmmToMinutes = (
+      value?: string | null,
+    ) => {
+      if (!value) {
+        return null;
+      }
+
+      const match =
+        value.match(/^(\d{2}):(\d{2})$/);
+
+      if (!match) {
+        return null;
+      }
+
+      return (
+        Number(match[1]) * 60 +
+        Number(match[2])
+      );
     };
 
-    const visitMinutes = parseHHmmToMinutes(nextVisitTime);
-    const endMinutes = parseHHmmToMinutes(nextEndTime);
+    const visitMinutes =
+      parseHHmmToMinutes(nextVisitTime);
+
+    const endMinutes =
+      parseHHmmToMinutes(nextEndTime);
 
     if (
       visitMinutes !== null &&
       endMinutes !== null &&
       visitMinutes >= endMinutes
     ) {
-      Alert.alert(
-        "시간 설정 확인",
-        "종료 시간은 시작 시간보다 늦어야 합니다.",
-      );
-      return;
+      return {
+        success: false,
+        errorMessage:
+          "종료 시간은 시작 시간보다 늦어야 합니다.",
+      };
     }
 
-    const nextSchedule = updatePlacesForDay(selectedDay, (places) =>
-      places.map((place) =>
-        place.id === placeId
-          ? {
-              ...place,
-              visitTime: nextVisitTime,
-              endTime: nextEndTime,
-              time: nextDisplayTime,
-              updatedAt: createNow() ?? new Date().toISOString(),
-            }
-          : place,
-      ),
-    );
-
-    const updatedPlace = nextSchedule.days
-      .find((day) => day.day === selectedDay)
-      ?.places.find((place) => place.id === placeId);
-
-    console.log("[PlanA 장소 시간 변경 완료]", {
-      day: selectedDay,
-      placeId,
-      visitTime: nextVisitTime,
-      endTime: nextEndTime,
-      time: nextDisplayTime,
-    });
-
-    savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 시간 변경 로컬 저장 실패]", error);
-    });
+    const currentPlace =
+      scheduleRef.current.days
+        .find(
+          (day) =>
+            day.day === selectedDay,
+        )
+        ?.places.find(
+          (place) =>
+            place.id === placeId,
+        );
 
     const planId =
-      updatedPlace?.serverTripPlaceId ?? updatedPlace?.tripPlaceId;
+      currentPlace?.serverTripPlaceId ??
+      currentPlace?.tripPlaceId;
 
     if (planId) {
-      updatePlanSchedule(planId, {
-        visitTime: toServerTimeText(nextVisitTime),
-        endTime: toServerTimeText(nextEndTime),
-      }).then(() => {
-        clearTripGapCache(scheduleRef.current.serverTripId);
-      }).catch((error) => {
-        console.log("[PlanA 시간 변경 서버 반영 실패]", {
-          placeId,
+      try {
+        await updatePlanSchedule(
           planId,
-          visitTime: nextVisitTime,
-          endTime: nextEndTime,
-          error,
-        });
+          {
+            visitTime:
+              toServerTimeText(
+                nextVisitTime,
+              ),
+            endTime:
+              toServerTimeText(
+                nextEndTime,
+              ),
+          },
+        );
 
-        setSaveError(
+        clearTripGapCache(
+          scheduleRef.current.serverTripId,
+        );
+      } catch (error) {
+        const message =
           getServerErrorMessage(
             error,
             "시간 변경을 서버에 반영하지 못했습니다.",
-          ),
+          );
+
+        console.log(
+          "[PlanA 시간 변경 서버 반영 실패]",
+          {
+            placeId,
+            planId,
+            visitTime:
+              nextVisitTime,
+            endTime:
+              nextEndTime,
+            error,
+          },
         );
-      });
+
+        setSaveError(message);
+
+        return {
+          success: false,
+          errorMessage: message,
+        };
+      }
     }
+
+    const nextSchedule =
+      updatePlacesForDay(
+        selectedDay,
+        (places) =>
+          places.map((place) =>
+            place.id === placeId
+              ? {
+                  ...place,
+                  visitTime:
+                    nextVisitTime,
+                  endTime:
+                    nextEndTime,
+                  time:
+                    nextDisplayTime,
+                  updatedAt:
+                    createNow() ??
+                    new Date()
+                      .toISOString(),
+                }
+              : place,
+          ),
+      );
+
+    console.log(
+      "[PlanA 장소 시간 변경 완료]",
+      {
+        day: selectedDay,
+        placeId,
+        visitTime:
+          nextVisitTime,
+        endTime:
+          nextEndTime,
+        time: nextDisplayTime,
+      },
+    );
+
+    try {
+      await savePlanASchedule(
+        nextSchedule,
+      );
+    } catch (error) {
+      console.log(
+        "[PlanA 시간 변경 로컬 저장 실패]",
+        error,
+      );
+    }
+
+    setSaveError("");
+
+    return {
+      success: true,
+    };
   };
 
   const resetEditingState = () => {

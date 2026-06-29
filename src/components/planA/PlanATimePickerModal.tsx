@@ -21,13 +21,15 @@ type Props = {
   previewText: string;
   hourText: string;
   minuteText: string;
+  errorMessage?: string;
+  saving?: boolean;
   onClose: () => void;
   onSwitchTarget: (target: TimePickerTarget) => void;
   onDecreaseHour: () => void;
   onIncreaseHour: () => void;
   onDecreaseMinute: () => void;
   onIncreaseMinute: () => void;
-  onSave: () => void;
+  onSave: () => void | Promise<void>;
 };
 
 export default function PlanATimePickerModal({
@@ -37,6 +39,8 @@ export default function PlanATimePickerModal({
   previewText,
   hourText,
   minuteText,
+  errorMessage = "",
+  saving = false,
   onClose,
   onSwitchTarget,
   onDecreaseHour,
@@ -62,6 +66,8 @@ export default function PlanATimePickerModal({
           endTimeText={place ? getPlaceEndTime(place) : "00:00"}
           hourText={hourText}
           minuteText={minuteText}
+          errorMessage={errorMessage}
+          saving={saving}
           onClose={onClose}
           onSwitchTarget={onSwitchTarget}
           onDecreaseHour={onDecreaseHour}

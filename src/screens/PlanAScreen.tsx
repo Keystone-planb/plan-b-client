@@ -151,6 +151,8 @@ export default function PlanAScreen({ navigation, route }: Props) {
     useState<TimePickerTarget>("visitTime");
   const [timePickerHour, setTimePickerHour] = useState(12);
   const [timePickerMinute, setTimePickerMinute] = useState(0);
+  const [timePickerError, setTimePickerError] = useState("");
+  const [timePickerSaving, setTimePickerSaving] = useState(false);
 
   const scheduleId = route?.params?.scheduleId;
   const tripId = route?.params?.tripId ?? route?.params?.serverTripId;
@@ -903,6 +905,8 @@ const handleCloseMemoSheet = () => {
   ) => {
     const parsed = parseTimeForPicker(getTimeValueForTarget(place, target));
 
+    setTimePickerError("");
+    setTimePickerSaving(false);
     setTimePickerPlace(place);
     setTimePickerTarget(target);
     setTimePickerHour(parsed.hour);
@@ -910,6 +914,12 @@ const handleCloseMemoSheet = () => {
   };
 
   const closeTimePicker = () => {
+    if (timePickerSaving) {
+      return;
+    }
+
+    setTimePickerError("");
+    setTimePickerSaving(false);
     setTimePickerPlace(null);
   };
 
@@ -981,35 +991,102 @@ const handleCloseMemoSheet = () => {
     setTimePickerMinute(parsed.minute);
   };
 
-  const handleSaveTimePicker = () => {
-    if (!timePickerPlace) return;
+  const handleSaveTimePicker =
+    async () => {
+      if (
+        !timePickerPlace ||
+        timePickerSaving
+      ) {
+        return;
+      }
 
-    const selectedTime = `${padTimeUnit(
-      timePickerHour,
-    )}:${padTimeUnit(timePickerMinute)}`;
+      const selectedTime =
+        `${padTimeUnit(
+          timePickerHour,
+        )}:${padTimeUnit(
+          timePickerMinute,
+        )}`;
 
-    const currentVisitTime = getPlaceVisitTime(timePickerPlace);
-    const currentEndTime = getPlaceEndTime(timePickerPlace);
+      const currentVisitTime =
+        getPlaceVisitTime(
+          timePickerPlace,
+        );
 
-    const nextVisitTime =
-      timePickerTarget === "visitTime" ? selectedTime : currentVisitTime;
-    const nextEndTime =
-      timePickerTarget === "endTime" ? selectedTime
-      : currentEndTime ? currentEndTime
-      : timePickerTarget === "visitTime" ? addOneHourToDisplayTime(selectedTime)
-      : currentEndTime;
+      const currentEndTime =
+        getPlaceEndTime(
+          timePickerPlace,
+        );
 
-    if (!isValidVisitTimeRange(nextVisitTime, nextEndTime)) {
-      Alert.alert(
-        "시간 설정 확인",
-        "종료 시간은 시작 시간보다 늦어야 합니다.",
-      );
+      const nextVisitTime =
+        timePickerTarget ===
+        "visitTime"
+          ? selectedTime
+          : currentVisitTime;
+
+      const nextEndTime =
+        timePickerTarget ===
+        "endTime"
+          ? selectedTime
+          : currentEndTime
+            ? currentEndTime
+            : timePickerTarget ===
+                "visitTime"
+              ? addOneHourToDisplayTime(
+                  selectedTime,
+                )
+              : currentEndTime;
+
+      if (
+        !isValidVisitTimeRange(
+          nextVisitTime,
+          nextEndTime,
+        )
+      ) {
+        setTimePickerError(
+          "종료 시간은 시작 시간보다 늦어야 합니다.",
+        );
+
+        return;
+      }
+
+      setTimePickerError("");
+      setTimePickerSaving(true);
+
+      try {
+        const result =
+          await handleUpdatePlaceTime(
+            timePickerPlace.id,
+            nextVisitTime,
+            nextEndTime,
+          );
+
+        if (!result.success) {
+          setTimePickerError(
+            result.errorMessage ??
+              "시간을 저장하지 못했습니다.",
+          );
+
+          return;
+        }
+
+        setTimePickerPlace(null);
+        setTimePickerError("");
+      } finally {
+        setTimePickerSaving(false);
+      }
+    };
+
+  useEffect(() => {
+    if (!timePickerPlace) {
       return;
     }
 
-    handleUpdatePlaceTime(timePickerPlace.id, nextVisitTime, nextEndTime);
-    closeTimePicker();
-  };
+    setTimePickerError("");
+  }, [
+    timePickerHour,
+    timePickerMinute,
+    timePickerTarget,
+  ]);
 
   useEffect(() => {
     if (typeof routeSelectedDay !== "number") return;
@@ -1445,6 +1522,8 @@ const handleCloseMemoSheet = () => {
         previewText={timePickerPreviewText}
         hourText={padTimeUnit(timePickerHour)}
         minuteText={padTimeUnit(timePickerMinute)}
+        errorMessage={timePickerError}
+        saving={timePickerSaving}
         onClose={closeTimePicker}
         onSwitchTarget={handleSwitchTimeTarget}
         onDecreaseHour={decreaseHour}
@@ -1797,8 +1876,6 @@ const styles = StyleSheet.create({
   },
 
 
-
-
   sheet: {
     flexGrow: 1,
     minHeight: 320,
@@ -2023,30 +2100,6 @@ const styles = StyleSheet.create({
   },
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
   transportModeModalBackdrop: {
     flex: 1,
     justifyContent: "flex-end",
@@ -2134,31 +2187,6 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     color: "#475569",
   },
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
   viewTransportPickerBody: {
