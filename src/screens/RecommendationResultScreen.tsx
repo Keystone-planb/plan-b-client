@@ -6,13 +6,13 @@ import React, {
 } from "react";
 import {
   ActivityIndicator,
-  SafeAreaView,
   ScrollView,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { SafeAreaView } from "react-native-safe-area-context";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 
 import { trackEvent, AMP } from "../utils/amplitude";
@@ -54,6 +54,7 @@ import type { RecommendationTransportMode } from "../components/recommendation/R
 import { styles } from "./RecommendationResultScreen.styles";
 import {
   getAlternativeImpact,
+  updatePlanSchedule,
   type AlternativeImpactResponse,
 } from "../../api/schedules/server";
 
@@ -305,8 +306,8 @@ export default function RecommendationResultScreen({
     startDate: params.startDate,
     endDate: params.endDate,
     location: params.location,
-    transportMode: params.transportMode,
-    transportLabel: params.transportMode,
+    transportMode: nextImpactMode,
+    transportLabel: nextImpactMode,
   });
 
   const targetPlace = params.targetPlace;
@@ -841,7 +842,7 @@ export default function RecommendationResultScreen({
     getPreviewSchedulePayloadFromHook({
       previewVisitTime,
       previewEndTime,
-      previewTransportMode,
+      previewTransportMode: nextImpactMode,
     });
 
   const getCurrentPlanIdCandidates = () =>
@@ -886,6 +887,37 @@ export default function RecommendationResultScreen({
     } as any);
   };
 
+  const savePreviousImpactTransportMode = async () => {
+    const previousPlanId =
+      savedPreviousSchedulePlace?.serverTripPlaceId ??
+      savedPreviousSchedulePlace?.tripPlaceId ??
+      savedPreviousSchedulePlace?.id;
+
+    if (
+      previousPlanId === undefined ||
+      previousPlanId === null ||
+      String(previousPlanId).trim().length === 0
+    ) {
+      return;
+    }
+
+    console.log("[RecommendationResult] 이전 구간 이동수단 저장 요청:", {
+      previousPlanId,
+      transportMode: previousImpactMode,
+      from: savedPreviousSchedulePlace?.name,
+      to: pendingPlace?.name,
+    });
+
+    await updatePlanSchedule(previousPlanId, {
+      transportMode: previousImpactMode,
+    });
+
+    console.log("[RecommendationResult] 이전 구간 이동수단 저장 성공:", {
+      previousPlanId,
+      transportMode: previousImpactMode,
+    });
+  };
+
   const handleSelectPlace = async (place: DisplayPlace) => {
     const placeId = place.placeId ?? place.name;
     const selectedRank =
@@ -927,6 +959,22 @@ export default function RecommendationResultScreen({
       return;
     }
 
+    try {
+      await savePreviousImpactTransportMode();
+    } catch (error) {
+      console.log(
+        "[RecommendationResult] 이전 구간 이동수단 저장 실패:",
+        error,
+      );
+
+      showWhiteToast(
+        "이동수단 저장 실패",
+        "이전 일정과 대안 일정 사이의 이동수단을 저장하지 못했습니다.",
+        "error",
+      );
+      return;
+    }
+
     await executePlanRecommendationReplace({
       place,
       placeId,
@@ -944,7 +992,7 @@ export default function RecommendationResultScreen({
       shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
       previewVisitTime,
       previewEndTime,
-      previewTransportMode,
+      previewTransportMode: nextImpactMode,
       showToast: showWhiteToast,
       setSubmittingPlaceId,
       setSelectedPlaceId,
@@ -962,7 +1010,10 @@ export default function RecommendationResultScreen({
     : "현재 일정과 조건을 기준으로 추천했어요";
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView
+      style={styles.safeArea}
+      edges={["top", "left", "right"]}
+    >
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.backButton}
@@ -1065,15 +1116,33 @@ export default function RecommendationResultScreen({
         pendingPlace={pendingPlace}
         originalPlace={originalSchedulePlace}
         nextPlace={savedNextSchedulePlace}
-        previousName={previewData.previewPreviousName}
-        previousTime={previewData.previewPreviousTime}
+        hasPreviousSchedule={impactResult?.prevPlace !== null}
+        hasNextSchedule={impactResult?.nextPlace !== null}
+        previousName={
+          impactResult?.prevPlace === null
+            ? "이전 일정이 존재하지 않습니다"
+            : previewData.previewPreviousName
+        }
+        previousTime={
+          impactResult?.prevPlace === null
+            ? "이전 일정 없음"
+            : previewData.previewPreviousTime
+        }
         previousAddress={previewData.previewPreviousAddress}
         alternativeName={previewData.previewAlternativeName}
         alternativeTime={previewData.previewAppliedTimeText}
         alternativeAddress={previewData.previewAlternativeAddress}
         originalPlaceName={currentPlaceName}
-        nextName={previewData.previewNextName}
-        nextTime={impactNextTime}
+        nextName={
+          impactResult?.nextPlace === null
+            ? "다음 일정이 존재하지 않습니다"
+            : previewData.previewNextName
+        }
+        nextTime={
+          impactResult?.nextPlace === null
+            ? "다음 일정 없음"
+            : impactNextTime
+        }
         nextAddress={previewData.previewNextAddress}
         transportMode={nextImpactMode}
         previousTransportMode={previousImpactMode}
