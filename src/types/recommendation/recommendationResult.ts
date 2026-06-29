@@ -81,9 +81,13 @@ export type RecommendationResultRootStackParamList = {
     location?: string;
     transportMode?: RecommendationResultTransportMode;
     transportLabel?: string;
+    day?: number;
     selectedDay?: number;
     selectedPlace?: undefined;
     selectedPlaces?: undefined;
+    refreshPlanAAt?: number;
+    replacedTripPlaceId?: string | number;
+    isEditMode?: boolean;
   };
 
   OngoingSchedule: {

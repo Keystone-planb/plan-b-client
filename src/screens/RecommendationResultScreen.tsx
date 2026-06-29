@@ -1,7 +1,6 @@
 import React, {
   useEffect,
   useMemo,
-  useRef,
   useState,
 } from "react";
 import {
@@ -14,17 +13,12 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { trackEvent, AMP } from "../utils/amplitude";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
-import {
-  getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
-  getPreviewSchedulePayload as getPreviewSchedulePayloadFromHook,
-  executePlanRecommendationReplace,
-  executeWeatherRecommendationReplace,
-} from "../hooks/recommendation/useRecommendationReplace";
 import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
 import { useRecommendationScheduleContext } from "../hooks/recommendation/useRecommendationScheduleContext";
 import { useRecommendationImpact } from "../hooks/recommendation/useRecommendationImpact";
+import { useRecommendationReplaceFlow } from "../hooks/recommendation/useRecommendationReplaceFlow";
 import {
   getPreviewTimeText,
   padPreviewTime,
@@ -35,10 +29,6 @@ import RecommendationResultPlaceCard from "../components/recommendation/Recommen
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 import { styles } from "./RecommendationResultScreen.styles";
-import {
-  updatePlanSchedule,
-} from "../../api/schedules/server";
-
 import type {
   RecommendationResultDisplayPlace as DisplayPlace,
   RecommendationResultScreenProps as Props,
@@ -49,13 +39,6 @@ export default function RecommendationResultScreen({
   navigation,
   route,
 }: Props) {
-  const [selectedPlaceId, setSelectedPlaceId] = useState<
-    string | number | null
-  >(null);
-  const [submittingPlaceId, setSubmittingPlaceId] = useState<
-    string | number | null
-  >(null);
-
   const [pendingPlace, setPendingPlace] =
     useState<DisplayPlace | null>(null);
 
@@ -77,9 +60,6 @@ export default function RecommendationResultScreen({
   });
 
 
-  // time_to_select_ms: 결과 화면 진입 시각 기록
-  const screenOpenedAtRef = useRef(Date.now());
-
   const params = route.params ?? {};
 
   const parsedPlaces = useMemo<DisplayPlace[]>(() => {
@@ -100,18 +80,6 @@ export default function RecommendationResultScreen({
       .map((place, index) => place.placeId ?? `place-${index}`)
       .filter((id) => id !== undefined && id !== null && id !== "");
   }, [places]);
-
-  const getReplaceNavigationParams = () => ({
-    scheduleId: params.scheduleId,
-    tripId: params.tripId,
-    serverTripId: params.serverTripId ?? params.tripId,
-    tripName: params.tripName,
-    startDate: params.startDate,
-    endDate: params.endDate,
-    location: params.location,
-    transportMode: nextImpactMode,
-    transportLabel: nextImpactMode,
-  });
 
   const targetPlace = params.targetPlace;
 
@@ -282,167 +250,24 @@ export default function RecommendationResultScreen({
   };
 
 
-  const getPreviewSchedulePayload = () =>
-    getPreviewSchedulePayloadFromHook({
-      previewVisitTime,
-      previewEndTime,
-      previewTransportMode: nextImpactMode,
-    });
-
-  const getCurrentPlanIdCandidates = () =>
-    getCurrentPlanIdCandidatesFromHook({
-      params,
-      targetPlace,
-    });
-
-  const moveToPlanAAfterWeatherReplace = (
-    updatedTripPlace: { day?: number | string },
-  ) => {
-    const replacedDay =
-      Number(updatedTripPlace?.day) > 0
-        ? Number(updatedTripPlace.day)
-        : (params.day ?? params.selectedDay);
-
-    navigation.replace("PlanA", {
-      ...getReplaceNavigationParams(),
-      day: replacedDay,
-      selectedDay: replacedDay,
-      isEditMode: true,
-      refreshPlanAAt: Date.now(),
-    } as any);
-  };
-
-  const moveToPlanAAfterReplace = (
-    usedCurrentPlanId?: string | number | null,
-  ) => {
-    const selectedDay =
-      Number((targetPlace as { day?: number | string } | undefined)?.day) > 0
-        ? Number((targetPlace as { day?: number | string } | undefined)?.day)
-        : undefined;
-
-    navigation.replace("PlanA", {
-      ...getReplaceNavigationParams(),
-      selectedDay,
-      selectedPlace: undefined,
-      selectedPlaces: undefined,
-      refreshPlanAAt: Date.now(),
-      replacedTripPlaceId: usedCurrentPlanId,
-      isEditMode: true,
-    } as any);
-  };
-
-  const savePreviousImpactTransportMode = async () => {
-    const previousPlanId =
-      savedPreviousSchedulePlace?.serverTripPlaceId ??
-      savedPreviousSchedulePlace?.tripPlaceId ??
-      savedPreviousSchedulePlace?.id;
-
-    if (
-      previousPlanId === undefined ||
-      previousPlanId === null ||
-      String(previousPlanId).trim().length === 0
-    ) {
-      return;
-    }
-
-    console.log("[RecommendationResult] 이전 구간 이동수단 저장 요청:", {
-      previousPlanId,
-      transportMode: previousImpactMode,
-      from: savedPreviousSchedulePlace?.name,
-      to: pendingPlace?.name,
-    });
-
-    await updatePlanSchedule(previousPlanId, {
-      transportMode: previousImpactMode,
-    });
-
-    console.log("[RecommendationResult] 이전 구간 이동수단 저장 성공:", {
-      previousPlanId,
-      transportMode: previousImpactMode,
-    });
-  };
-
-  const handleSelectPlace = async (place: DisplayPlace) => {
-    const placeId = place.placeId ?? place.name;
-    const selectedRank =
-      places.findIndex((item) => (item.placeId ?? item.name) === placeId) + 1;
-
-    trackEvent(AMP.ALTERNATIVE_SELECTED, {
-      rank: selectedRank,
-      place_id: String(place.googlePlaceId ?? place.placeId ?? ""),
-      place_name: place.name ?? "",
-      place_category: place.category ?? "",
-      recommendation_type: params.recommendationType ?? "PLACE",
-      trip_id: params.tripId ? String(params.tripId) : undefined,
-      time_to_select_ms: Date.now() - screenOpenedAtRef.current,
-    });
-
-    const newGooglePlaceId = String(place.googlePlaceId ?? place.placeId ?? "");
-    const isWeatherNotificationReplace =
-      params.source === "weather-notification" ||
-      params.fromWeatherNotification;
-
-    if (isWeatherNotificationReplace) {
-      await executeWeatherRecommendationReplace({
-        placeId,
-        notificationId: params.notificationId,
-        newGooglePlaceId,
-        newPlaceName: place.name,
-        newPlaceId: place.placeId,
-        previewSchedulePayload: getPreviewSchedulePayload(),
-        tripId: params.tripId,
-        serverTripId: params.serverTripId,
-        showToast: showWhiteToast,
-        setSubmittingPlaceId,
-        setSelectedPlaceId,
-        onSuccess: (updatedTripPlace) =>
-          moveToPlanAAfterWeatherReplace(
-            updatedTripPlace as { day?: number | string },
-          ),
-      });
-      return;
-    }
-
-    try {
-      await savePreviousImpactTransportMode();
-    } catch (error) {
-      console.log(
-        "[RecommendationResult] 이전 구간 이동수단 저장 실패:",
-        error,
-      );
-
-      showWhiteToast(
-        "이동수단 저장 실패",
-        "이전 일정과 대안 일정 사이의 이동수단을 저장하지 못했습니다.",
-        "error",
-      );
-      return;
-    }
-
-    await executePlanRecommendationReplace({
-      place,
-      placeId,
-      selectedRank,
-      currentPlanIdCandidates: getCurrentPlanIdCandidates(),
-      newGooglePlaceId,
-      newPlaceName: place.name,
-      previewSchedulePayload: getPreviewSchedulePayload(),
-      tripId: params.tripId,
-      serverTripId: params.serverTripId,
-      scheduleId: params.scheduleId,
-      recommendationType: params.recommendationType,
-      source: "manual",
-      targetPlaceName: targetPlace?.name,
-      shownPlaceIds: Array.isArray(shownPlaceIds) ? shownPlaceIds : [],
-      previewVisitTime,
-      previewEndTime,
-      previewTransportMode: nextImpactMode,
-      showToast: showWhiteToast,
-      setSubmittingPlaceId,
-      setSelectedPlaceId,
-      onSuccess: moveToPlanAAfterReplace,
-    });
-  };
+  const {
+    selectedPlaceId,
+    submittingPlaceId,
+    handleSelectPlace,
+  } = useRecommendationReplaceFlow({
+    navigation,
+    params,
+    places,
+    shownPlaceIds,
+    targetPlace,
+    previousSchedulePlace:
+      savedPreviousSchedulePlace,
+    previewVisitTime,
+    previewEndTime,
+    previousImpactMode,
+    nextImpactMode,
+    showToast: showWhiteToast,
+  });
 
   const title = params.title ?? "AI 대안 추천";
   const isWeatherRecommendation =
