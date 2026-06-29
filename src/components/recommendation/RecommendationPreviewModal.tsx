@@ -1,6 +1,13 @@
 import React from "react";
-import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import {
+  Modal,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import VisitTimePickerPanel from "../common/VisitTimePickerPanel";
 import RecommendationHeader from "./RecommendationHeader";
@@ -21,6 +28,8 @@ type Props = {
   pendingPlace?: PreviewPlace | null;
   originalPlace?: PreviewPlace | null;
   nextPlace?: PreviewPlace | null;
+  hasPreviousSchedule?: boolean;
+  hasNextSchedule?: boolean;
 
   previousName: string;
   previousTime: string;
@@ -77,6 +86,8 @@ export default function RecommendationPreviewModal({
   pendingPlace,
   originalPlace,
   nextPlace,
+  hasPreviousSchedule = true,
+  hasNextSchedule = true,
   previousName,
   previousTime,
   previousAddress,
@@ -114,40 +125,56 @@ export default function RecommendationPreviewModal({
   onSaveTime,
   onConfirm,
 }: Props) {
+  const insets = useSafeAreaInsets();
+
+
   return (
     <Modal
       visible={visible}
       transparent
       animationType="fade"
+      presentationStyle="overFullScreen"
+      statusBarTranslucent
       onRequestClose={onClose}
-    
-        presentationStyle="overFullScreen">
-      <View style={styles.previewOverlay}>
+    >
+      <View
+        style={[
+          styles.previewOverlay,
+          {
+            paddingTop: insets.top + 10,
+            paddingBottom: Math.max(insets.bottom, 12) + 10,
+          },
+        ]}
+      >
+        {timePickerVisible ? (
+          <View style={styles.previewTimePickerBackdrop}>
+            <VisitTimePickerPanel
+              placeName={timePickerPlaceName}
+              target={timePickerTarget}
+              previewText={timePickerPreviewText}
+              visitTimeText={visitTimeText}
+              endTimeText={endTimeText}
+              hourText={hourText}
+              minuteText={minuteText}
+              onClose={onTimePickerClose}
+              onSwitchTarget={onSwitchTimeTarget}
+              onDecreaseHour={onDecreaseHour}
+              onIncreaseHour={onIncreaseHour}
+              onDecreaseMinute={onDecreaseMinute}
+              onIncreaseMinute={onIncreaseMinute}
+              onSave={onSaveTime}
+            />
+          </View>
+        ) : null}
+
         <View style={styles.previewModal}>
-          <RecommendationHeader title="이렇게 바꿀까요?" onClose={onClose} />
+          <View style={styles.previewContent}>
+            <RecommendationHeader
+              title="이렇게 바꿀까요?"
+              onClose={onClose}
+            />
 
-          {timePickerVisible ? (
-            <View style={styles.previewTimePickerPanelOverlay}>
-              <VisitTimePickerPanel
-                placeName={timePickerPlaceName}
-                target={timePickerTarget}
-                previewText={timePickerPreviewText}
-                visitTimeText={visitTimeText}
-                endTimeText={endTimeText}
-                hourText={hourText}
-                minuteText={minuteText}
-                onClose={onTimePickerClose}
-                onSwitchTarget={onSwitchTimeTarget}
-                onDecreaseHour={onDecreaseHour}
-                onIncreaseHour={onIncreaseHour}
-                onDecreaseMinute={onDecreaseMinute}
-                onIncreaseMinute={onIncreaseMinute}
-                onSave={onSaveTime}
-              />
-            </View>
-          ) : null}
-
-          <RecommendationMap
+            <RecommendationMap
             previous={originalPlace}
             alternative={pendingPlace}
             next={nextPlace}
@@ -188,6 +215,8 @@ export default function RecommendationPreviewModal({
             nextName={nextName}
             nextTime={nextTime}
             nextAddress={nextAddress}
+            hasPreviousSchedule={hasPreviousSchedule}
+            hasNextSchedule={hasNextSchedule}
             transportMode={transportMode}
             previousTransportMode={previousTransportMode}
             nextTransportMode={nextTransportMode}
@@ -198,14 +227,17 @@ export default function RecommendationPreviewModal({
             onChangeNextTransportMode={onChangeNextTransportMode}
             onPressTimeEdit={onPressTimeEdit}
           />
+          </View>
 
-          <TouchableOpacity
+          <View style={styles.previewFooter}>
+            <TouchableOpacity
             style={styles.previewConfirmButton}
             activeOpacity={0.86}
             onPress={onConfirm}
           >
             <Text style={styles.previewConfirmButtonText}>교체하기</Text>
-          </TouchableOpacity>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -218,23 +250,36 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15, 23, 42, 0.48)",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 18,
+    paddingHorizontal: 17,
   },
 
   previewModal: {
     position: "relative",
     overflow: "hidden",
-    width: "100%",
+    width: "96%",
     maxWidth: 390,
     borderRadius: 24,
     backgroundColor: "#FFFFFF",
-    paddingHorizontal: 18,
-    paddingTop: 18,
-    paddingBottom: 16,
+  },
+
+
+  previewContent: {
+    paddingHorizontal: 14,
+    paddingTop: 16,
+  },
+
+  previewFooter: {
+    marginTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: "#EEF2F7",
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 14,
+    backgroundColor: "#FFFFFF",
   },
 
   previewMapLegend: {
-    minHeight: 26,
+    minHeight: 25,
     marginTop: 6,
     flexDirection: "row",
     alignItems: "center",
@@ -271,7 +316,6 @@ const styles = StyleSheet.create({
 
   previewConfirmButton: {
     minHeight: 52,
-    marginTop: 12,
     borderRadius: 15,
     backgroundColor: "#2158E8",
     alignItems: "center",
@@ -292,20 +336,18 @@ const styles = StyleSheet.create({
     fontWeight: "900",
   },
 
-  previewTimePickerPanelOverlay: {
+  previewTimePickerBackdrop: {
     position: "absolute",
     left: 0,
     right: 0,
     top: 0,
     bottom: 0,
-    zIndex: 100,
-    elevation: 100,
-    borderRadius: 22,
+    zIndex: 200,
+    elevation: 200,
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    alignItems: "center",
     justifyContent: "center",
     paddingHorizontal: 20,
-    flex: 1,
-    alignItems: "center",
     paddingVertical: 24,
-    backgroundColor: "rgba(15, 23, 42, 0.4)",
   },
 });
