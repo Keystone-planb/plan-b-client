@@ -253,6 +253,8 @@ export default function RecommendationResultScreen({
   const {
     selectedPlaceId,
     submittingPlaceId,
+    replaceErrorMessage,
+    clearReplaceError,
     handleSelectPlace,
   } = useRecommendationReplaceFlow({
     navigation,
@@ -443,7 +445,10 @@ export default function RecommendationResultScreen({
         onChangeTransportMode={handleNextImpactModeChange}
         onChangePreviousTransportMode={handlePreviousImpactModeChange}
         onChangeNextTransportMode={handleNextImpactModeChange}
-        onPressTimeEdit={openPreviewTimePicker}
+        onPressTimeEdit={() => {
+          clearReplaceError();
+          openPreviewTimePicker();
+        }}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}
         onDecreaseHour={decreasePreviewTimePickerHour}
@@ -451,13 +456,20 @@ export default function RecommendationResultScreen({
         onDecreaseMinute={decreasePreviewTimePickerMinute}
         onIncreaseMinute={increasePreviewTimePickerMinute}
         onSaveTime={savePreviewTimePicker}
+        confirmErrorMessage={
+          replaceErrorMessage
+        }
+        confirming={
+          submittingPlaceId !== null
+        }
         onConfirm={() => {
-          const placeToApply = pendingPlace;
-
-          setPendingPlace(null);
-
-          if (placeToApply) {
-            void handleSelectPlace(placeToApply);
+          if (
+            pendingPlace &&
+            submittingPlaceId === null
+          ) {
+            void handleSelectPlace(
+              pendingPlace,
+            );
           }
         }}
       />

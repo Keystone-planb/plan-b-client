@@ -33,14 +33,77 @@ export const showWeatherReplaceErrorToast = (
   );
 };
 
+export const getRecommendationReplaceErrorMessage = (
+  error: unknown,
+) => {
+  if (
+    error &&
+    typeof error === "object" &&
+    "response" in error
+  ) {
+    const response = (
+      error as {
+        response?: {
+          data?: {
+            error?: string;
+            message?: string;
+          } | string;
+        };
+      }
+    ).response;
+
+    const data = response?.data;
+
+    if (
+      typeof data === "string" &&
+      data.trim().length > 0
+    ) {
+      return data;
+    }
+
+    if (
+      data &&
+      typeof data === "object"
+    ) {
+      if (
+        typeof data.error === "string" &&
+        data.error.trim().length > 0
+      ) {
+        return data.error;
+      }
+
+      if (
+        typeof data.message === "string" &&
+        data.message.trim().length > 0
+      ) {
+        return data.message;
+      }
+    }
+  }
+
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return "일정 교체 요청에 실패했습니다.";
+};
+
+export const isScheduleConflictMessage = (
+  message: string,
+) => {
+  return (
+    message.includes("겹칩니다") ||
+    message.includes("다른 시간대") ||
+    message.includes("시간대")
+  );
+};
+
 export const showReplaceErrorToast = (
   showToast: ShowToast,
   error: unknown,
 ) => {
   const message =
-    error instanceof Error
-      ? error.message
-      : "일정 교체 요청에 실패했습니다.";
+    getRecommendationReplaceErrorMessage(error);
 
   showToast("일정 교체 실패", message, "error");
 };
@@ -479,6 +542,7 @@ export const executePlanRecommendationReplace = async ({
   setSubmittingPlaceId,
   setSelectedPlaceId,
   onSuccess,
+  onScheduleConflict,
 }: {
   place: {
     googlePlaceId?: string | number;
@@ -509,6 +573,7 @@ export const executePlanRecommendationReplace = async ({
   setSubmittingPlaceId: (placeId: string | number | null) => void;
   setSelectedPlaceId: (placeId: string | number) => void;
   onSuccess: (usedCurrentPlanId: string | number) => void;
+  onScheduleConflict?: (message: string) => void;
 }) => {
   if (
     !validatePlanReplaceInput({
@@ -562,7 +627,20 @@ export const executePlanRecommendationReplace = async ({
       () => onSuccess(usedCurrentPlanId),
     );
   } catch (error) {
-    showReplaceErrorToast(showToast, error);
+    const message =
+      getRecommendationReplaceErrorMessage(error);
+
+    if (
+      isScheduleConflictMessage(message) &&
+      onScheduleConflict
+    ) {
+      onScheduleConflict(message);
+    } else {
+      showReplaceErrorToast(
+        showToast,
+        error,
+      );
+    }
   } finally {
     setSubmittingPlaceId(null);
   }

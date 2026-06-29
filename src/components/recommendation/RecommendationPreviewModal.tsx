@@ -59,6 +59,8 @@ type Props = {
   endTimeText: string;
   hourText: string;
   minuteText: string;
+  confirmErrorMessage?: string;
+  confirming?: boolean;
 
   onClose: () => void;
   onChangeTransportMode: (mode: RecommendationTransportMode) => void;
@@ -111,6 +113,8 @@ export default function RecommendationPreviewModal({
   endTimeText,
   hourText,
   minuteText,
+  confirmErrorMessage = "",
+  confirming = false,
   onClose,
   onChangeTransportMode,
   onChangePreviousTransportMode,
@@ -230,12 +234,47 @@ export default function RecommendationPreviewModal({
           </View>
 
           <View style={styles.previewFooter}>
+            {confirmErrorMessage ? (
+              <View
+                style={
+                  styles.previewErrorArea
+                }
+              >
+                <Ionicons
+                  name="alert-circle-outline"
+                  size={17}
+                  color="#DC2626"
+                />
+
+                <Text
+                  style={
+                    styles.previewErrorText
+                  }
+                >
+                  {confirmErrorMessage}
+                </Text>
+              </View>
+            ) : null}
+
             <TouchableOpacity
-            style={styles.previewConfirmButton}
+            style={[
+              styles.previewConfirmButton,
+              confirming &&
+                styles.previewConfirmButtonDisabled,
+            ]}
             activeOpacity={0.86}
+            disabled={confirming}
             onPress={onConfirm}
           >
-            <Text style={styles.previewConfirmButtonText}>교체하기</Text>
+            <Text
+              style={
+                styles.previewConfirmButtonText
+              }
+            >
+              {confirming
+                ? "교체 중..."
+                : "교체하기"}
+            </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -314,6 +353,24 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
+  previewErrorArea: {
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 6,
+    paddingHorizontal: 8,
+  },
+
+  previewErrorText: {
+    maxWidth: 290,
+    color: "#DC2626",
+    fontSize: 12,
+    fontWeight: "700",
+    lineHeight: 18,
+    textAlign: "center",
+  },
+
   previewConfirmButton: {
     minHeight: 52,
     borderRadius: 15,
@@ -328,6 +385,12 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 10,
     elevation: 5,
+  },
+
+  previewConfirmButtonDisabled: {
+    backgroundColor: "#94A3B8",
+    shadowOpacity: 0,
+    elevation: 0,
   },
 
   previewConfirmButtonText: {

@@ -69,6 +69,11 @@ export function useRecommendationReplaceFlow({
   const [submittingPlaceId, setSubmittingPlaceId] =
     useState<string | number | null>(null);
 
+  const [
+    replaceErrorMessage,
+    setReplaceErrorMessage,
+  ] = useState("");
+
   const screenOpenedAtRef = useRef(Date.now());
 
   const getReplaceNavigationParams = () => ({
@@ -177,6 +182,7 @@ export function useRecommendationReplaceFlow({
   const handleSelectPlace = async (
     place: RecommendationResultDisplayPlace,
   ) => {
+    setReplaceErrorMessage("");
     const placeId =
       place.placeId ?? place.name;
 
@@ -291,12 +297,23 @@ export function useRecommendationReplaceFlow({
       setSubmittingPlaceId,
       setSelectedPlaceId,
       onSuccess: moveToPlanAAfterReplace,
+      onScheduleConflict: (
+        message,
+      ) => {
+        setReplaceErrorMessage(
+          message,
+        );
+      },
     });
   };
 
   return {
     selectedPlaceId,
     submittingPlaceId,
+    replaceErrorMessage,
+    clearReplaceError: () => {
+      setReplaceErrorMessage("");
+    },
     handleSelectPlace,
   };
 }
