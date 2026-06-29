@@ -5,7 +5,6 @@ import React, {
   useState,
 } from "react";
 import {
-  ActivityIndicator,
   ScrollView,
   Text,
   TouchableOpacity,
@@ -13,12 +12,8 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-
 import { trackEvent, AMP } from "../utils/amplitude";
 import { loadPlanASchedule } from "../api/schedules/planAStorage";
-import type { RecommendedPlace } from "../types/recommendation";
-import { getPlaceCategoryIcon } from "../utils/placeCategoryIcon";
 import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
 import {
   getCurrentPlanIdCandidates as getCurrentPlanIdCandidatesFromHook,
@@ -30,25 +25,12 @@ import { useRecommendationPreview } from "../hooks/recommendation/useRecommendat
 import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
 import {
-  formatDateRange,
-  formatOpeningHoursText,
-  formatTodayOpeningHoursText,
-  getMoodLabel,
   getPreviewTimeText,
   padPreviewTime,
-  getSpaceLabel,
-  getTypeLabel,
-  safeParseJson,
 } from "../utils/recommendation/recommendationFormatters";
 import RecommendationPreviewModal from "../components/recommendation/RecommendationPreviewModal";
 import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
-import RecommendationPlaceMainInfo from "../components/recommendation/RecommendationPlaceMainInfo";
-import RecommendationTagRow from "../components/recommendation/RecommendationTagRow";
-import RecommendationOpeningHours from "../components/recommendation/RecommendationOpeningHours";
-import RecommendationAiSummaryBox from "../components/recommendation/RecommendationAiSummaryBox";
-import RecommendationReviewDetailBox from "../components/recommendation/RecommendationReviewDetailBox";
-import RecommendationSelectButton from "../components/recommendation/RecommendationSelectButton";
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 import { styles } from "./RecommendationResultScreen.styles";
@@ -58,156 +40,21 @@ import {
   type AlternativeImpactResponse,
 } from "../../api/schedules/server";
 
-type TransportMode = "WALK" | "TRANSIT" | "CAR";
-type MoveTime = "10" | "20" | "30" | "ANY";
-type PlaceScope = "INDOOR" | "OUTDOOR";
+import type {
+  RecommendationResultDisplayPlace as DisplayPlace,
+  RecommendationResultScreenProps as Props,
+  RecommendationResultTodayPlace as TodayPlace,
+} from "../types/recommendation/recommendationResult";
 
-const alternativeImpactCache = new Map<
-  string,
-  AlternativeImpactResponse
->();
-
-type TodayPlace = {
-  id?: string | number;
-  tripPlaceId?: string | number;
-  serverTripPlaceId?: string | number;
-  placeId?: string;
-  googlePlaceId?: string;
-  name?: string;
-  address?: string;
-  time?: string;
-  visitTime?: string | null;
-  endTime?: string | null;
-  latitude?: number;
-  longitude?: number;
-};
-
-type RootStackParamList = {
-  Main:
-    | {
-        refreshMainAt?: number;
-        replacedTripId?: string | number;
-        replacedTripPlaceId?: string | number;
-      }
-    | undefined;
-  PlanA: {
-    scheduleId?: string;
-    tripId?: string | number;
-    serverTripId?: string | number;
-    tripName?: string;
-    startDate?: string;
-    endDate?: string;
-    location?: string;
-    transportMode?: TransportMode;
-    transportLabel?: string;
-    selectedDay?: number;
-    selectedPlace?: undefined;
-    selectedPlaces?: undefined;
-  };
-  OngoingSchedule: {
-    scheduleId?: string;
-    tripId?: string | number;
-    serverTripId?: string | number;
-    tripName?: string;
-    startDate?: string;
-    endDate?: string;
-    location?: string;
-    transportMode?: TransportMode;
-    transportLabel?: string;
-  };
-  RecommendationResult: {
-    scheduleId?: string;
-    tripId?: string | number;
-    serverTripId?: string | number;
-    tripName?: string;
-    startDate?: string;
-    endDate?: string;
-    location?: string;
-    transportMode?: TransportMode;
-    transportLabel?: string;
-    moveTime?: MoveTime;
-    considerDistance?: boolean;
-    changeCategory?: boolean;
-    placeScope?: PlaceScope;
-    targetPlace?: TodayPlace;
-    currentPlanId?: string | number;
-    tripPlaceId?: string | number;
-    serverTripPlaceId?: string | number;
-
-    placesJson?: string;
-    source?: "weather-notification" | string;
-    fromWeatherNotification?: boolean;
-    notificationId?: string | number;
-    day?: number;
-    selectedDay?: number;
-    fromAIAnalysis?: boolean;
-    hasError?: boolean;
-    title?: string;
-    recommendationType?: "PLACE" | "GAP" | "WEATHER" | "alternative" | "gap" | "weather";
-  };
-};
-
-type Props = NativeStackScreenProps<RootStackParamList, "RecommendationResult">;
-
-type DisplayPlace = RecommendedPlace & {
-  placeId?: string | number;
-  name: string;
-  category?: string;
-  type?: string;
-  mood?: string;
-  space?: string;
-  rating?: number;
-  reviewCount?: number;
-  userRatingsTotal?: number;
-  address?: string;
-  reviewSummary?: string;
-  googleReview?: string;
-  naverReview?: string;
-  phone?: string;
-  phoneNumber?: string;
-  website?: string;
-  openingHours?: string | null;
-  reviewData?: string | null;
-  priceLevel?: number;
-  reason?: string;
-  suggestedVisitTime?: string | null;
-  suggestedEndTime?: string | null;
-  sourceSummary?: {
-    naver?: string;
-    google?: string;
-  };
-};
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-const getPlatformReviewSummary = (
-  value: unknown,
-  platform: "Naver" | "Google",
-) => {
-  const parsed = safeParseJson(value);
-  const summary = parsed?.platformSummaries?.[platform];
-
-  return typeof summary === "string" ? summary.trim() : "";
-};
-
-
-
-
-
+import {
+  createRecommendationImpactCacheKey,
+  getCachedRecommendationImpact,
+  getRecommendationImpactMinutes,
+  getRecommendationImpactNextTime,
+  getRecommendationImpactPlanId,
+  getRecommendationImpactTimeText,
+  setCachedRecommendationImpact,
+} from "../utils/recommendation/recommendationImpactUtils";
 
 
 export default function RecommendationResultScreen({
@@ -259,7 +106,6 @@ export default function RecommendationResultScreen({
     savedOriginalSchedulePlace,
     setSavedOriginalSchedulePlace,
   ] = useState<TodayPlace | null>(null);
-
 
 
   const [
@@ -571,8 +417,6 @@ export default function RecommendationResultScreen({
     "시간 미정";
 
 
-
-
   const handleBack = () => {
     // 선택 없이 이탈 시 alternative_dismissed
     if (!selectedPlaceId) {
@@ -628,29 +472,14 @@ export default function RecommendationResultScreen({
   };
 
 
-
-  const getImpactPlanId = () => {
-    const candidates = [
-      params.currentPlanId,
-      params.tripPlaceId,
-      params.serverTripPlaceId,
-      targetPlace?.serverTripPlaceId,
-      targetPlace?.tripPlaceId,
-      targetPlace?.id,
-    ];
-
-    return candidates.find(
-      (value) =>
-        value !== undefined &&
-        value !== null &&
-        String(value).trim().length > 0,
-    );
-  };
-
   const requestImpact = async (
     place: DisplayPlace,
   ) => {
-    const tripPlaceId = getImpactPlanId();
+    const tripPlaceId =
+      getRecommendationImpactPlanId({
+        params,
+        targetPlace,
+      });
     const newPlaceId = String(
       place.googlePlaceId ?? place.placeId ?? "",
     );
@@ -672,14 +501,16 @@ export default function RecommendationResultScreen({
       return;
     }
 
-    const cacheKey = [
-      String(tripPlaceId),
-      newPlaceId,
-      String(latitude),
-      String(longitude),
-    ].join(":");
+    const cacheKey =
+      createRecommendationImpactCacheKey({
+        tripPlaceId,
+        newPlaceId,
+        latitude,
+        longitude,
+      });
 
-    const cachedResult = alternativeImpactCache.get(cacheKey);
+    const cachedResult =
+      getCachedRecommendationImpact(cacheKey);
 
     if (cachedResult) {
       setImpactResult(cachedResult);
@@ -723,7 +554,7 @@ export default function RecommendationResultScreen({
         return;
       }
 
-      alternativeImpactCache.set(cacheKey, result);
+      setCachedRecommendationImpact(cacheKey, result);
       setImpactResult(result);
 
       const initialMode =
@@ -770,20 +601,6 @@ export default function RecommendationResultScreen({
     void requestImpact(pendingPlace);
   }, [pendingPlace]);
 
-  const getImpactMinutes = (
-    options:
-      | AlternativeImpactResponse["travelInOptions"]
-      | AlternativeImpactResponse["travelOutOptions"]
-      | undefined,
-    mode: RecommendationTransportMode,
-  ) => {
-    const matched = options?.find(
-      (option) => option.mode === mode,
-    );
-
-    return matched?.minutes;
-  };
-
   const handlePreviousImpactModeChange = (
     mode: RecommendationTransportMode,
   ) => {
@@ -799,44 +616,37 @@ export default function RecommendationResultScreen({
     changePreviewNextTransportMode(mode);
   };
 
-  const previousImpactMinutes = getImpactMinutes(
+  const previousImpactMinutes =
+    getRecommendationImpactMinutes(
     impactResult?.travelInOptions,
     previousImpactMode,
   );
 
-  const nextImpactMinutes = getImpactMinutes(
+  const nextImpactMinutes =
+    getRecommendationImpactMinutes(
     impactResult?.travelOutOptions,
     nextImpactMode,
   );
 
   const impactPreviousMoveTimeText =
-    impactLoading && !impactResult
-      ? "계산 중..."
-      : previousImpactMinutes != null
-        ? `${previousImpactMinutes}분`
-        : "시간 정보 없음";
+    getRecommendationImpactTimeText({
+      loading: impactLoading,
+      hasResult: Boolean(impactResult),
+      minutes: previousImpactMinutes,
+    });
 
   const impactNextMoveTimeText =
-    impactLoading && !impactResult
-      ? "계산 중..."
-      : nextImpactMinutes != null
-        ? `${nextImpactMinutes}분`
-        : "시간 정보 없음";
+    getRecommendationImpactTimeText({
+      loading: impactLoading,
+      hasResult: Boolean(impactResult),
+      minutes: nextImpactMinutes,
+    });
 
-  const impactNextTime = (() => {
-    const nextImpactPlace = impactResult?.nextPlace;
-
-    if (!nextImpactPlace?.newVisitTime) {
-      return previewData.previewNextTime;
-    }
-
-    return [
-      nextImpactPlace.newVisitTime,
-      nextImpactPlace.endTime,
-    ]
-      .filter(Boolean)
-      .join(" - ");
-  })();
+  const impactNextTime =
+    getRecommendationImpactNextTime({
+      impactResult,
+      fallbackTime: previewData.previewNextTime,
+    });
 
   const getPreviewSchedulePayload = () =>
     getPreviewSchedulePayloadFromHook({
