@@ -52,10 +52,19 @@ import RecommendationSelectButton from "../components/recommendation/Recommendat
 import WhiteToast from "../components/recommendation/WhiteToast";
 import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
 import { styles } from "./RecommendationResultScreen.styles";
+import {
+  getAlternativeImpact,
+  type AlternativeImpactResponse,
+} from "../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
 type PlaceScope = "INDOOR" | "OUTDOOR";
+
+const alternativeImpactCache = new Map<
+  string,
+  AlternativeImpactResponse
+>();
 
 type TodayPlace = {
   id?: string | number;
@@ -214,6 +223,15 @@ export default function RecommendationResultScreen({
   const [pendingPlace, setPendingPlace] =
     useState<DisplayPlace | null>(null);
 
+  const [impactResult, setImpactResult] =
+    useState<AlternativeImpactResponse | null>(null);
+  const [previousImpactMode, setPreviousImpactMode] =
+    useState<RecommendationTransportMode>("WALK");
+  const [nextImpactMode, setNextImpactMode] =
+    useState<RecommendationTransportMode>("WALK");
+  const [impactLoading, setImpactLoading] = useState(false);
+  const impactRequestIdRef = useRef(0);
+
   const { whiteToast, showWhiteToast } = useRecommendationToast();
 
   const {
@@ -252,6 +270,13 @@ export default function RecommendationResultScreen({
   const screenOpenedAtRef = useRef(Date.now());
 
   const params = route.params ?? {};
+
+  useEffect(() => {
+    const initialMode = params.transportMode ?? "WALK";
+
+    setPreviousImpactMode(initialMode);
+    setNextImpactMode(initialMode);
+  }, [params.transportMode]);
 
   const parsedPlaces = useMemo<DisplayPlace[]>(() => {
     try {
@@ -603,6 +628,215 @@ export default function RecommendationResultScreen({
 
 
 
+  const getImpactPlanId = () => {
+    const candidates = [
+      params.currentPlanId,
+      params.tripPlaceId,
+      params.serverTripPlaceId,
+      targetPlace?.serverTripPlaceId,
+      targetPlace?.tripPlaceId,
+      targetPlace?.id,
+    ];
+
+    return candidates.find(
+      (value) =>
+        value !== undefined &&
+        value !== null &&
+        String(value).trim().length > 0,
+    );
+  };
+
+  const requestImpact = async (
+    place: DisplayPlace,
+  ) => {
+    const tripPlaceId = getImpactPlanId();
+    const newPlaceId = String(
+      place.googlePlaceId ?? place.placeId ?? "",
+    );
+    const latitude = Number(place.latitude);
+    const longitude = Number(place.longitude);
+
+    if (!tripPlaceId || !newPlaceId) {
+      setImpactResult(null);
+      return;
+    }
+
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+      setImpactResult(null);
+      showWhiteToast(
+        "이동시간 계산 불가",
+        "추천 장소의 좌표 정보가 없습니다.",
+        "error",
+      );
+      return;
+    }
+
+    const cacheKey = [
+      String(tripPlaceId),
+      newPlaceId,
+      String(latitude),
+      String(longitude),
+    ].join(":");
+
+    const cachedResult = alternativeImpactCache.get(cacheKey);
+
+    if (cachedResult) {
+      setImpactResult(cachedResult);
+
+      const cachedInitialMode =
+        cachedResult.travelInMode ??
+        cachedResult.travelOutMode ??
+        params.transportMode ??
+        "WALK";
+
+      setPreviousImpactMode(cachedInitialMode);
+      setNextImpactMode(cachedInitialMode);
+      setImpactLoading(false);
+      return;
+    }
+
+    const requestId = impactRequestIdRef.current + 1;
+    impactRequestIdRef.current = requestId;
+
+    try {
+      setImpactLoading(true);
+
+      const result = await getAlternativeImpact(tripPlaceId, {
+        newPlaceId,
+        newPlaceName: place.name,
+        newLatitude: latitude,
+        newLongitude: longitude,
+      });
+
+      if (requestId !== impactRequestIdRef.current) {
+        return;
+      }
+
+      if (result.calcStatus === "NO_COORD") {
+        setImpactResult(null);
+        showWhiteToast(
+          "이동시간 계산 불가",
+          "추천 장소의 좌표 정보를 확인해주세요.",
+          "error",
+        );
+        return;
+      }
+
+      alternativeImpactCache.set(cacheKey, result);
+      setImpactResult(result);
+
+      const initialMode =
+        result.travelInMode ??
+        result.travelOutMode ??
+        params.transportMode ??
+        "WALK";
+
+      setPreviousImpactMode(initialMode);
+      setNextImpactMode(initialMode);
+    } catch (error) {
+      if (requestId !== impactRequestIdRef.current) {
+        return;
+      }
+
+      setImpactResult(null);
+
+      showWhiteToast(
+        "이동시간 조회 실패",
+        error instanceof Error
+          ? error.message
+          : "이동시간을 계산하지 못했습니다.",
+        "error",
+      );
+    } finally {
+      if (requestId === impactRequestIdRef.current) {
+        setImpactLoading(false);
+      }
+    }
+  };
+
+  useEffect(() => {
+    if (!pendingPlace) {
+      impactRequestIdRef.current += 1;
+      setImpactResult(null);
+      setImpactLoading(false);
+      return;
+    }
+
+    const initialMode = params.transportMode ?? "WALK";
+
+    setPreviousImpactMode(initialMode);
+    setNextImpactMode(initialMode);
+    void requestImpact(pendingPlace);
+  }, [pendingPlace]);
+
+  const getImpactMinutes = (
+    options:
+      | AlternativeImpactResponse["travelInOptions"]
+      | AlternativeImpactResponse["travelOutOptions"]
+      | undefined,
+    mode: RecommendationTransportMode,
+  ) => {
+    const matched = options?.find(
+      (option) => option.mode === mode,
+    );
+
+    return matched?.minutes;
+  };
+
+  const handlePreviousImpactModeChange = (
+    mode: RecommendationTransportMode,
+  ) => {
+    setPreviousImpactMode(mode);
+    changePreviewBeforeTransportMode(mode);
+  };
+
+  const handleNextImpactModeChange = (
+    mode: RecommendationTransportMode,
+  ) => {
+    setNextImpactMode(mode);
+    changePreviewTransportMode(mode);
+    changePreviewNextTransportMode(mode);
+  };
+
+  const previousImpactMinutes = getImpactMinutes(
+    impactResult?.travelInOptions,
+    previousImpactMode,
+  );
+
+  const nextImpactMinutes = getImpactMinutes(
+    impactResult?.travelOutOptions,
+    nextImpactMode,
+  );
+
+  const impactPreviousMoveTimeText =
+    impactLoading && !impactResult
+      ? "계산 중..."
+      : previousImpactMinutes != null
+        ? `${previousImpactMinutes}분`
+        : "시간 정보 없음";
+
+  const impactNextMoveTimeText =
+    impactLoading && !impactResult
+      ? "계산 중..."
+      : nextImpactMinutes != null
+        ? `${nextImpactMinutes}분`
+        : "시간 정보 없음";
+
+  const impactNextTime = (() => {
+    const nextImpactPlace = impactResult?.nextPlace;
+
+    if (!nextImpactPlace?.newVisitTime) {
+      return previewData.previewNextTime;
+    }
+
+    return [
+      nextImpactPlace.newVisitTime,
+      nextImpactPlace.endTime,
+    ]
+      .filter(Boolean)
+      .join(" - ");
+  })();
+
   const getPreviewSchedulePayload = () =>
     getPreviewSchedulePayloadFromHook({
       previewVisitTime,
@@ -839,12 +1073,13 @@ export default function RecommendationResultScreen({
         alternativeAddress={previewData.previewAlternativeAddress}
         originalPlaceName={currentPlaceName}
         nextName={previewData.previewNextName}
-        nextTime={previewData.previewNextTime}
+        nextTime={impactNextTime}
         nextAddress={previewData.previewNextAddress}
-        transportMode={previewTransportMode as RecommendationTransportMode}
-        previousTransportMode={previewBeforeTransportMode}
-        nextTransportMode={previewTransportMode}
-        moveTimeText={previewData.previewMoveTimeText}
+        transportMode={nextImpactMode}
+        previousTransportMode={previousImpactMode}
+        nextTransportMode={nextImpactMode}
+        previousMoveTimeText={impactPreviousMoveTimeText}
+        nextMoveTimeText={impactNextMoveTimeText}
         timePickerVisible={previewTimePickerVisible}
         timePickerPlaceName={pendingPlace?.name ?? "대안 장소"}
         timePickerTarget={previewTimePickerTarget}
@@ -863,10 +1098,15 @@ export default function RecommendationResultScreen({
         }
         hourText={padPreviewTime(previewTimePickerHour)}
         minuteText={padPreviewTime(previewTimePickerMinute)}
-        onClose={() => setPendingPlace(null)}
-        onChangeTransportMode={changePreviewTransportMode}
-        onChangePreviousTransportMode={changePreviewBeforeTransportMode}
-        onChangeNextTransportMode={changePreviewNextTransportMode}
+        onClose={() => {
+          impactRequestIdRef.current += 1;
+          setPendingPlace(null);
+          setImpactResult(null);
+          setImpactLoading(false);
+        }}
+        onChangeTransportMode={handleNextImpactModeChange}
+        onChangePreviousTransportMode={handlePreviousImpactModeChange}
+        onChangeNextTransportMode={handleNextImpactModeChange}
         onPressTimeEdit={openPreviewTimePicker}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}
