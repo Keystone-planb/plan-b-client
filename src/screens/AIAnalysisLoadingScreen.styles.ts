@@ -102,13 +102,7 @@ export const styles = StyleSheet.create({
     justifyContent: "center",
     marginBottom: 26,
   },
-  iconGlow: {
-    position: "absolute",
-    width: 194,
-    height: 194,
-    borderRadius: 97,
-    backgroundColor: "#F2F7FF",
-  },
+
   stepIcon: {
     width: 178,
     height: 178,
