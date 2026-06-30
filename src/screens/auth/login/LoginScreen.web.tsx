@@ -1,5 +1,5 @@
 /**
- * src/screens/LoginScreen.web.tsx
+ * src/screens/auth/login/LoginScreen.web.tsx
  *
  * - 웹 전용 로그인 화면
  * - 일반 로그인
@@ -24,14 +24,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import GoogleIcon from "../assets/google.svg";
-import KakaoIcon from "../assets/kakao.svg";
+import GoogleIcon from "../../../assets/google.svg";
+import KakaoIcon from "../../../assets/kakao.svg";
 
-import { requestLogin } from "../../api/auth/login";
-import { createSocialAuthUrl, SocialProvider } from "../../api/auth/social";
-import { saveOAuthTokens } from "../utils/authToken";
+import { requestLogin } from "../../../../api/auth/login";
+import { createSocialAuthUrl, SocialProvider } from "../../../../api/auth/social";
+import { saveOAuthTokens } from "../../../utils/authToken";
 
-import { clearAuthFailureLog } from "../utils/authFailureLog";
+import { clearAuthFailureLog } from "../../../utils/authFailureLog";
 type LoginResult = {
   success?: boolean;
   message?: string;

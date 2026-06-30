@@ -1,5 +1,5 @@
 /**
- * src/screens/LoginScreen.native.tsx
+ * src/screens/auth/login/LoginScreen.native.tsx
  *
  * - 앱 전용 로그인 화면
  * - 일반 로그인
@@ -25,25 +25,25 @@ import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import GoogleIcon from "../assets/google.svg";
-import KakaoIcon from "../assets/kakao.svg";
+import GoogleIcon from "../../../assets/google.svg";
+import KakaoIcon from "../../../assets/kakao.svg";
 
-import { requestLogin } from "../../api/auth/login";
+import { requestLogin } from "../../../../api/auth/login";
 import {
   createSocialAuthUrl,
   requestSocialTokenLogin,
   SocialProvider,
-} from "../../api/auth/social";
+} from "../../../../api/auth/social";
 import {
   getOAuthFailureMessage,
   handleOAuthSuccessUrl,
   isOAuthFailureUrl,
   isOAuthSuccessUrl,
   saveOAuthTokens,
-} from "../utils/authToken";
-import { setAmplitudeUser } from "../utils/amplitude";
+} from "../../../utils/authToken";
+import { setAmplitudeUser } from "../../../utils/amplitude";
 
-import { clearAuthFailureLog } from "../utils/authFailureLog";
+import { clearAuthFailureLog } from "../../../utils/authFailureLog";
 WebBrowser.maybeCompleteAuthSession();
 
 const DEV_AUTH_EMAIL = "";
