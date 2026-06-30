@@ -23,11 +23,13 @@ type Navigation =
 type Params = {
   navigation: Navigation;
   params: AIAnalysisLoadingParams;
+  enabled?: boolean;
 };
 
 export function useAIAnalysisLoadingFlow({
   navigation,
   params,
+  enabled = true,
 }: Params) {
   const [progress, setProgress] = useState(2);
 
@@ -143,7 +145,7 @@ export function useAIAnalysisLoadingFlow({
   };
 
   useEffect(() => {
-    if (errorMessage) {
+    if (!enabled || errorMessage) {
       return;
     }
 
@@ -160,10 +162,11 @@ export function useAIAnalysisLoadingFlow({
     return () => {
       clearInterval(progressTimer);
     };
-  }, [errorMessage, retryVersion]);
+  }, [enabled, errorMessage, retryVersion]);
 
   useEffect(() => {
     if (
+      !enabled ||
       progress < 94 ||
       errorMessage ||
       navigatedRef.current
@@ -183,6 +186,7 @@ export function useAIAnalysisLoadingFlow({
       clearInterval(stepCycleTimer);
     };
   }, [
+    enabled,
     progress,
     errorMessage,
     retryVersion,
@@ -190,6 +194,7 @@ export function useAIAnalysisLoadingFlow({
 
   useEffect(() => {
     if (
+      !enabled ||
       errorMessage ||
       navigatedRef.current ||
       progress < 94 ||
@@ -223,13 +228,14 @@ export function useAIAnalysisLoadingFlow({
       clearInterval(watchdog);
     };
   }, [
+    enabled,
     progress,
     errorMessage,
     retryVersion,
   ]);
 
   useEffect(() => {
-    if (errorMessage) {
+    if (!enabled || errorMessage) {
       return;
     }
 
@@ -437,6 +443,7 @@ export function useAIAnalysisLoadingFlow({
       cancelled = true;
     };
   }, [
+    enabled,
     retryVersion,
     errorMessage,
     params.tripId,
@@ -479,6 +486,7 @@ export function useAIAnalysisLoadingFlow({
       clearInterval(dotTimer);
     };
   }, [
+    enabled,
     dotDirection,
     errorMessage,
     retryVersion,

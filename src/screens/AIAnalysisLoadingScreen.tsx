@@ -10,6 +10,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { styles } from "./AIAnalysisLoadingScreen.styles";
 import { useAIAnalysisLoadingFlow } from "../hooks/recommendation/useAIAnalysisLoadingFlow";
+import {
+  useGapRecommendationLoadingFlow,
+  type GapAnalysisLoadingParams,
+} from "../hooks/recommendation/useGapRecommendationLoadingFlow";
 import { useAIAnalysisLoadingAnimations } from "../hooks/recommendation/useAIAnalysisLoadingAnimations";
 import {
   AI_ANALYSIS_DOT_COUNT as DOT_COUNT,
@@ -22,6 +26,24 @@ import {
 export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
   const params = route?.params ?? {};
 
+  const isGapRecommendation =
+    params.recommendationType === "GAP";
+
+  const regularFlow =
+    useAIAnalysisLoadingFlow({
+      navigation,
+      params,
+      enabled: !isGapRecommendation,
+    });
+
+  const gapFlow =
+    useGapRecommendationLoadingFlow({
+      navigation,
+      params:
+        params as GapAnalysisLoadingParams,
+      enabled: isGapRecommendation,
+    });
+
   const {
     progress,
     displayStepIndex,
@@ -31,10 +53,9 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     errorMessage,
     handleRetry,
     handleGoBack,
-  } = useAIAnalysisLoadingFlow({
-    navigation,
-    params,
-  });
+  } = isGapRecommendation
+    ? gapFlow
+    : regularFlow;
 
   const {
     iconFloat,
@@ -130,9 +151,7 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
                 },
               ]}
             >
-              <View style={styles.iconGlow} />
-
-              <Image
+                <Image
                 source={currentStep.icon}
                 style={styles.stepIcon}
                 resizeMode="contain"

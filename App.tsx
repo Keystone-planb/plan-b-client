@@ -33,6 +33,7 @@ import UpcomingScheduleScreen from "./src/screens/UpcomingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
+import GapRecommendationResultScreen from "./src/screens/GapRecommendationResultScreen";
 import ProfileEditScreen from "./src/screens/ProfileEditScreen";
 import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
@@ -276,6 +277,45 @@ type RootStackParamList = {
     fromAIAnalysis?: boolean;
     hasError?: boolean;
     title?: string;
+  };
+
+  GapRecommendationResult: {
+    scheduleId?: string;
+    tripId: string | number;
+    serverTripId?: string | number;
+
+    tripName?: string;
+    startDate?: string;
+    endDate?: string;
+    location?: string;
+
+    selectedDay?: number;
+    day?: number;
+
+    returnScreen:
+      | "OngoingSchedule"
+      | "UpcomingSchedule";
+
+    beforePlanId: string | number;
+    beforePlanTitle: string;
+    beforePlanEndTime?: string;
+
+    afterPlanId: string | number;
+    afterPlanTitle: string;
+    afterPlanStartTime?: string;
+
+    availableMinutes?: number;
+    gapMinutes?: number;
+
+    transportMode:
+      | "WALK"
+      | "TRANSIT"
+      | "CAR";
+    transportLabel?: string;
+
+    placesJson: string;
+    fromAIAnalysis?: boolean;
+    hasError?: boolean;
   };
 };
 
@@ -619,6 +659,13 @@ export default function App() {
               animationDuration: 260,
             }}
           />
+
+        <Stack.Screen
+          name="GapRecommendationResult"
+          component={
+            GapRecommendationResultScreen
+          }
+        />
         </Stack.Navigator>
       </NavigationContainer>
     </GestureHandlerRootView>
