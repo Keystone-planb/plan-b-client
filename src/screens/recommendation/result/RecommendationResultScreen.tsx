@@ -11,28 +11,28 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { trackEvent, AMP } from "../utils/amplitude";
-import { useRecommendationToast } from "../hooks/recommendation/useRecommendationToast";
-import { useRecommendationPreview } from "../hooks/recommendation/useRecommendationPreview";
-import { useRecommendationReviewDetails } from "../hooks/recommendation/useRecommendationReviewDetails";
-import { useRecommendationReviewActions } from "../hooks/recommendation/useRecommendationReviewActions";
-import { useRecommendationScheduleContext } from "../hooks/recommendation/useRecommendationScheduleContext";
-import { useRecommendationImpact } from "../hooks/recommendation/useRecommendationImpact";
-import { useRecommendationReplaceFlow } from "../hooks/recommendation/useRecommendationReplaceFlow";
+import { trackEvent, AMP } from "../../../utils/amplitude";
+import { useRecommendationToast } from "../../../hooks/recommendation/useRecommendationToast";
+import { useRecommendationPreview } from "../../../hooks/recommendation/useRecommendationPreview";
+import { useRecommendationReviewDetails } from "../../../hooks/recommendation/useRecommendationReviewDetails";
+import { useRecommendationReviewActions } from "../../../hooks/recommendation/useRecommendationReviewActions";
+import { useRecommendationScheduleContext } from "../../../hooks/recommendation/useRecommendationScheduleContext";
+import { useRecommendationImpact } from "../../../hooks/recommendation/useRecommendationImpact";
+import { useRecommendationReplaceFlow } from "../../../hooks/recommendation/useRecommendationReplaceFlow";
 import {
   getPreviewTimeText,
   padPreviewTime,
-} from "../utils/recommendation/recommendationFormatters";
-import RecommendationPreviewModal from "../components/recommendation/RecommendationPreviewModal";
-import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
-import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
-import WhiteToast from "../components/recommendation/WhiteToast";
-import type { RecommendationTransportMode } from "../components/recommendation/RecommendationTransportCard";
+} from "../../../utils/recommendation/recommendationFormatters";
+import RecommendationPreviewModal from "../../../components/recommendation/RecommendationPreviewModal";
+import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
+import RecommendationResultPlaceCard from "../../../components/recommendation/RecommendationResultPlaceCard";
+import WhiteToast from "../../../components/recommendation/WhiteToast";
+import type { RecommendationTransportMode } from "../../../components/recommendation/RecommendationTransportCard";
 import { styles } from "./RecommendationResultScreen.styles";
 import type {
   RecommendationResultDisplayPlace as DisplayPlace,
   RecommendationResultScreenProps as Props,
-} from "../types/recommendation/recommendationResult";
+} from "../../../types/recommendation/recommendationResult";
 
 
 export default function RecommendationResultScreen({

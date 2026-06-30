@@ -13,28 +13,28 @@ import {
   SafeAreaView,
 } from "react-native-safe-area-context";
 
-import RecommendationPlaceList from "../components/recommendation/RecommendationPlaceList";
-import RecommendationResultPlaceCard from "../components/recommendation/RecommendationResultPlaceCard";
+import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
+import RecommendationResultPlaceCard from "../../../components/recommendation/RecommendationResultPlaceCard";
 import {
   clearTripGapCache,
-} from "../components/recommendations/GapRecommendationCard";
+} from "../../../components/recommendations/GapRecommendationCard";
 
 import {
   addTripLocation,
-} from "../../api/schedules/server";
+} from "../../../../api/schedules/server";
 
 import {
   AMP,
   trackEvent,
-} from "../utils/amplitude";
+} from "../../../utils/amplitude";
 
 import {
   useRecommendationReviewDetails,
-} from "../hooks/recommendation/useRecommendationReviewDetails";
+} from "../../../hooks/recommendation/useRecommendationReviewDetails";
 
 import {
   useRecommendationReviewActions,
-} from "../hooks/recommendation/useRecommendationReviewActions";
+} from "../../../hooks/recommendation/useRecommendationReviewActions";
 
 import {
   styles,
@@ -43,7 +43,7 @@ import {
 import type {
   GapRecommendationDisplayPlace as DisplayPlace,
   GapRecommendationResultScreenProps,
-} from "../types/recommendation/gapRecommendationResult";
+} from "../../../types/recommendation/gapRecommendationResult";
 
 export default function GapRecommendationResultScreen({
   navigation,
