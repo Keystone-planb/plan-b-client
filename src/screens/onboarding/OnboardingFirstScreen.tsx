@@ -1,12 +1,12 @@
-// src/screens/OnboardingFirstScreen.tsx
+// src/screens/onboarding/OnboardingFirstScreen.tsx
 
 import React from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import OnboardingProgressDots from "../components/onboarding/OnboardingProgressDots";
-import OnboardingSkipButton from "../components/onboarding/OnboardingSkipButton";
-import OnboardingSwipe from "../components/onboarding/OnboardingSwipe";
-import MainScreen from "./MainScreen";
+import OnboardingProgressDots from "../../components/onboarding/OnboardingProgressDots";
+import OnboardingSkipButton from "../../components/onboarding/OnboardingSkipButton";
+import OnboardingSwipe from "../../components/onboarding/OnboardingSwipe";
+import MainScreen from "../MainScreen";
 
 type Props = {
   navigation: {

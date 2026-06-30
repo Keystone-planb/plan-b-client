@@ -1,9 +1,9 @@
-// src/screens/OnboardingFourthScreen.tsx
+// src/screens/onboarding/OnboardingFourthScreen.tsx
 
 import React from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import OnboardingSwipe from "../components/onboarding/OnboardingSwipe";
+import OnboardingSwipe from "../../components/onboarding/OnboardingSwipe";
 
 type Props = {
   navigation: {

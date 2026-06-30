@@ -17,10 +17,10 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Linking from "expo-linking";
 
-import OnboardingFirstScreen from "./src/screens/OnboardingFirstScreen";
-import OnboardingSecondScreen from "./src/screens/OnboardingSecondScreen";
-import OnboardingThirdScreen from "./src/screens/OnboardingThirdScreen";
-import OnboardingFourthScreen from "./src/screens/OnboardingFourthScreen";
+import OnboardingFirstScreen from "./src/screens/onboarding/OnboardingFirstScreen";
+import OnboardingSecondScreen from "./src/screens/onboarding/OnboardingSecondScreen";
+import OnboardingThirdScreen from "./src/screens/onboarding/OnboardingThirdScreen";
+import OnboardingFourthScreen from "./src/screens/onboarding/OnboardingFourthScreen";
 import LoginScreen from "./src/screens/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
