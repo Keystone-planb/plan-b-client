@@ -55,6 +55,23 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
   const visibleMemoTexts = getVisibleMemoTexts(place);
   const memoPreviewText = getMemoPreviewText(place);
 
+  const displayPlaceName =
+    String(place.name ?? "");
+
+  const placeNameLength =
+    displayPlaceName.replace(
+      /\s/g,
+      "",
+    ).length;
+
+  const dynamicPlaceNameStyle =
+    placeNameLength >= 16
+      ? localStyles.placeNameLong
+      : placeNameLength >= 10
+        ? localStyles.placeNameMedium
+        : null;
+
+
   return (
     <TouchableOpacity
       ref={ref as any}
@@ -88,8 +105,10 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
                 textStyle={[
                   styles.placeName,
                   localStyles.placeName,
+                  dynamicPlaceNameStyle,
                 ]}
                 numberOfLines={2}
+                stacked
               />
 
               <View style={localStyles.timeRow}>
@@ -247,14 +266,16 @@ const localStyles = StyleSheet.create({
 
   titleActionRow: {
     width: "100%",
+    minWidth: 0,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     justifyContent: "space-between",
     gap: 10,
   },
 
   titleTimeBox: {
     flex: 1,
+    flexBasis: 0,
     minWidth: 0,
     justifyContent: "center",
     paddingRight: 4,
@@ -270,6 +291,19 @@ const localStyles = StyleSheet.create({
     textAlign: "left",
     letterSpacing: -0.3,
   },
+
+
+  placeNameMedium: {
+    fontSize: 16,
+    lineHeight: 21,
+  },
+
+  placeNameLong: {
+    fontSize: 14,
+    lineHeight: 19,
+    letterSpacing: -0.4,
+  },
+
 
   timeRow: {
     marginTop: 2,
@@ -349,20 +383,22 @@ const localStyles = StyleSheet.create({
   },
 
   alternativeButton: {
+    minWidth: 92,
+    maxWidth: 104,
+    flexShrink: 0,
+    alignSelf: "center",
     marginTop: 0,
     width: 90,
-    minWidth: 90,
-    maxWidth: 90,
     height: 38,
     borderRadius: 11,
     backgroundColor: "#2158E8",
     paddingHorizontal: 8,
     alignItems: "center",
     justifyContent: "center",
-    flexShrink: 0,
   },
 
   alternativeButtonContent: {
+    gap: 4,
     width: "100%",
     alignItems: "center",
     justifyContent: "center",
@@ -371,13 +407,14 @@ const localStyles = StyleSheet.create({
   },
 
   alternativeButtonIcon: {
+    marginLeft: 0,
     position: "absolute",
     right: 0,
   },
 
   alternativeButtonText: {
-    color: "#FFFFFF",
     fontSize: 14,
+    color: "#FFFFFF",
     fontWeight: "900",
     lineHeight: 18,
     textAlign: "center",

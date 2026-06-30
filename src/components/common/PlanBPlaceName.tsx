@@ -11,6 +11,7 @@ type Props = {
   name?: string | null;
   textStyle?: StyleProp<TextStyle>;
   numberOfLines?: number;
+  stacked?: boolean;
   testID?: string;
 };
 
@@ -47,13 +48,19 @@ export default function PlanBPlaceName({
   name,
   textStyle,
   numberOfLines,
+  stacked = false,
   testID,
 }: Props) {
   const { displayName, isPlanB } =
     getPlanBPlaceDisplay(name);
 
   return (
-    <View style={styles.row}>
+    <View
+      style={[
+        styles.row,
+        stacked && styles.stackedRow,
+      ]}
+    >
       {isPlanB ? (
         <View style={styles.badge}>
           <Text style={styles.badgeText}>Plan.B</Text>
@@ -64,6 +71,8 @@ export default function PlanBPlaceName({
         style={[styles.name, textStyle]}
         numberOfLines={numberOfLines}
         ellipsizeMode="tail"
+        lineBreakStrategyIOS="hangul-word"
+        android_hyphenationFrequency="none"
         testID={testID}
       >
         {displayName}
@@ -74,15 +83,21 @@ export default function PlanBPlaceName({
 
 const styles = StyleSheet.create({
   row: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    columnGap: 6,
-    rowGap: 4,
+    width: "100%",
     minWidth: 0,
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+  },
+
+  stackedRow: {
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: 5,
   },
 
   badge: {
+    marginTop: 2,
     minHeight: 20,
     borderRadius: 999,
     backgroundColor: "#2158E8",
@@ -99,7 +114,8 @@ const styles = StyleSheet.create({
   },
 
   name: {
-    flexShrink: 1,
+    flex: 1,
     minWidth: 0,
+    flexShrink: 1,
   },
 });
