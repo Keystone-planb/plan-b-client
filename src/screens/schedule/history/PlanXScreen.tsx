@@ -13,14 +13,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { useFocusEffect } from "@react-navigation/native";
 
-import PlanXTripCard, { PlanXTrip } from "../components/PlanXTripCard";
-import RadialBackground from "../components/RadialBackground";
+import PlanXTripCard, { PlanXTrip } from "../../../components/PlanXTripCard";
+import RadialBackground from "../../../components/RadialBackground";
 import {
   deleteTrip,
   getTripDetail,
   getTrips,
   TripSummary,
-} from "../../api/schedules/server";
+} from "../../../../api/schedules/server";
 type Props = {
   navigation: any;
 };

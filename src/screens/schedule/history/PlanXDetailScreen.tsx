@@ -15,7 +15,7 @@ import {
   TripDetailResponse,
   TripItinerary,
   TripPlace,
-} from "../../api/schedules/server";
+} from "../../../../api/schedules/server";
 
 type Props = {
   navigation: any;

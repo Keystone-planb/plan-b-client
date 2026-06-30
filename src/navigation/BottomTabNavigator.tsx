@@ -8,8 +8,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import MainScreen from "../screens/MainScreen";
-import PlanXScreen from "../screens/PlanXScreen";
-import ProfileScreen from "../screens/ProfileScreen";
+import PlanXScreen from "../screens/schedule/history/PlanXScreen";
+import ProfileScreen from "../screens/profile/ProfileScreen";
 
 type BottomTabParamList = {
   PlanX: undefined;

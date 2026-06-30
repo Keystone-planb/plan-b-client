@@ -34,8 +34,8 @@ import AlternativeSettingsScreen from "./src/screens/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
 import GapRecommendationResultScreen from "./src/screens/GapRecommendationResultScreen";
-import ProfileEditScreen from "./src/screens/ProfileEditScreen";
-import PlanXDetailScreen from "./src/screens/PlanXDetailScreen";
+import ProfileEditScreen from "./src/screens/profile/ProfileEditScreen";
+import PlanXDetailScreen from "./src/screens/schedule/history/PlanXDetailScreen";
 import OAuthRedirectScreen from "./src/screens/OAuthRedirectScreen";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
