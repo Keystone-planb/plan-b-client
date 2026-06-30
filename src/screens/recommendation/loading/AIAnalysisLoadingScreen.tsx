@@ -9,18 +9,18 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { styles } from "./AIAnalysisLoadingScreen.styles";
-import { useAIAnalysisLoadingFlow } from "../hooks/recommendation/useAIAnalysisLoadingFlow";
+import { useAIAnalysisLoadingFlow } from "../../../hooks/recommendation/useAIAnalysisLoadingFlow";
 import {
   useGapRecommendationLoadingFlow,
   type GapAnalysisLoadingParams,
-} from "../hooks/recommendation/useGapRecommendationLoadingFlow";
-import { useAIAnalysisLoadingAnimations } from "../hooks/recommendation/useAIAnalysisLoadingAnimations";
+} from "../../../hooks/recommendation/useGapRecommendationLoadingFlow";
+import { useAIAnalysisLoadingAnimations } from "../../../hooks/recommendation/useAIAnalysisLoadingAnimations";
 import {
   AI_ANALYSIS_DOT_COUNT as DOT_COUNT,
   AI_ANALYSIS_LOADING_STEPS as LOADING_STEPS,
   EmptyResultImage,
   type AIAnalysisLoadingScreenProps as Props,
-} from "../utils/recommendation/aiAnalysisLoadingConfig";
+} from "../../../utils/recommendation/aiAnalysisLoadingConfig";
 
 
 export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {

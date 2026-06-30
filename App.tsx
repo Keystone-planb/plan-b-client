@@ -31,7 +31,7 @@ import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
 import UpcomingScheduleScreen from "./src/screens/UpcomingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/recommendation/settings/AlternativeSettingsScreen";
-import AIAnalysisLoadingScreen from "./src/screens/AIAnalysisLoadingScreen";
+import AIAnalysisLoadingScreen from "./src/screens/recommendation/loading/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/RecommendationResultScreen";
 import GapRecommendationResultScreen from "./src/screens/GapRecommendationResultScreen";
 import ProfileEditScreen from "./src/screens/profile/ProfileEditScreen";
