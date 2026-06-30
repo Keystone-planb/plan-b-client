@@ -16,6 +16,7 @@ type Props = {
   currentGapPlanPairs: { beforePlanId: any; afterPlanId: any }[];
   resolvedTripId?: string | number;
   scheduleId?: string;
+  selectedDay: number;
   localStyles: any;
   transportModesByPair: Record<string, any>;
   transportPickerTarget: {
@@ -51,6 +52,7 @@ export default function OngoingGapBetweenPlace({
   currentGapPlanPairs,
   resolvedTripId,
   scheduleId,
+  selectedDay,
   localStyles,
   transportModesByPair,
   transportPickerTarget,
@@ -80,13 +82,50 @@ export default function OngoingGapBetweenPlace({
     Number.isFinite(nextStartMinutes) &&
     nextStartMinutes > currentEndMinutes;
 
-  const hasGapRecommendation = currentGapPlanPairs.length > 0;
+  const hasGapCandidate =
+    currentGapPlanPairs.length > 0;
 
-  if (!hasMoveSlot && !hasGapRecommendation) return null;
+  const [
+    isGapCardVisible,
+    setIsGapCardVisible,
+  ] = React.useState<boolean | null>(
+    null,
+  );
 
-  const isTransportExpanded = transportPickerTarget?.pairKey === pairKey;
+  if (!hasMoveSlot && !hasGapCandidate) {
+    return null;
+  }
 
-  if (hasGapRecommendation) {
+  const isTransportExpanded =
+    transportPickerTarget?.pairKey ===
+    pairKey;
+
+  if (
+    hasGapCandidate &&
+    isGapCardVisible === false
+  ) {
+    return (
+      <View
+        style={
+          localStyles.transportCompactConnector
+        }
+      >
+        <View
+          style={
+            localStyles.transportCompactIconColumn
+          }
+        >
+          <View
+            style={
+              localStyles.transportCompactLine
+            }
+          />
+        </View>
+      </View>
+    );
+  }
+
+  if (hasGapCandidate) {
     return (
       <View style={localStyles.transportBetweenWrapper}>
         <View style={localStyles.transportIconColumn}>
@@ -111,8 +150,11 @@ export default function OngoingGapBetweenPlace({
         <View style={localStyles.transportCardColumn}>
           <GapRecommendationCard
             tripId={resolvedTripId ?? scheduleId}
+            selectedDay={selectedDay}
             allowedPlanPairs={currentGapPlanPairs}
-            onSelectPlace={onSelectGapPlace}
+            onVisibilityChange={
+              setIsGapCardVisible
+            }
           />
         </View>
       </View>

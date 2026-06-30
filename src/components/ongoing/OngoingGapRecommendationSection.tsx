@@ -50,59 +50,8 @@ export default function OngoingGapRecommendationSection({
     <View style={styles.gapRecommendationSection}>
       <GapRecommendationCard
         allowedPlanPairs={currentGapPlanPairs}
-        onSelectPlace={(place, gap) => {
-          const recommendedPlaceId = String(place.placeId);
-          const recommendedGooglePlaceId =
-            place.googlePlaceId ? String(place.googlePlaceId)
-            : recommendedPlaceId.startsWith("ChIJ") ?
-              recommendedPlaceId
-            : undefined;
-          const targetDay = gap.day ?? selectedDayIndex + 1;
-
-          if (!recommendedGooglePlaceId) {
-            showWhiteToast?.({
-              title: "장소 추가 실패",
-              message: "추천 장소의 Google Place ID가 없어 일정에 추가할 수 없습니다.",
-              type: "error",
-            });
-
-            return;
-          }
-
-          navigation.navigate("PlanA", {
-            scheduleId,
-            tripId: resolvedTripId,
-            serverTripId: resolvedTripId,
-            tripName,
-            startDate,
-            endDate,
-            location,
-            transportMode,
-            transportLabel,
-
-            gapSelectedPlace: {
-              day: targetDay,
-              id:
-                recommendedGooglePlaceId ??
-                `recommended-place-${recommendedPlaceId}`,
-              placeId: recommendedGooglePlaceId,
-              googlePlaceId: recommendedGooglePlaceId,
-
-              tripPlaceId: undefined,
-              serverTripPlaceId: undefined,
-
-              name: place.name,
-              address: place.address,
-              category: place.category,
-
-              latitude: place.latitude,
-              longitude: place.longitude,
-
-              time: "",
-            },
-          });
-        }}
         tripId={resolvedTripId}
+        selectedDay={selectedDayIndex + 1}
       />
     </View>
   );

@@ -1,25 +1,27 @@
-import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import React, {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
-  ActivityIndicator,
-  Image,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import {
+  useNavigation,
+  useRoute,
+} from "@react-navigation/native";
 
 import {
   getTripGaps,
-  streamGapRecommendations,
 } from "../../../api/recommendations/gaps";
 import type {
-  GapRecommendationRequest,
   TripScheduleGap,
 } from "../../types/gapRecommendation";
-import type { RecommendedPlace } from "../../types/recommendation";
-import { trackEvent, AMP } from "../../utils/amplitude";
-import { getPlaceCategoryIcon } from "../../utils/placeCategoryIcon";
+import { getPlanBPlaceDisplay } from "../common/PlanBPlaceName";
 
 type AllowedGapPlanPair = {
   beforePlanId?: number | string | null;
@@ -73,12 +75,13 @@ export const clearTripGapCache = (
 
 type Props = {
   tripId?: number | string | null;
+  selectedDay?: number;
   allowedPlanPairs?: AllowedGapPlanPair[];
-
-  onSelectPlace?: (place: RecommendedPlace, gap: TripScheduleGap) => void;
+  onVisibilityChange?: (
+    visible: boolean,
+  ) => void;
 };
 
-type Status = "idle" | "loading" | "done" | "error";
 
 type GapTransportMode = "WALK" | "TRANSIT" | "CAR";
 
@@ -129,48 +132,32 @@ const getSafeGapTransportMode = (mode?: string | null): GapTransportMode => {
 
 export default function GapRecommendationCard({
   tripId,
+  selectedDay,
   allowedPlanPairs = EMPTY_ALLOWED_PLAN_PAIRS,
-
-  onSelectPlace,
+  onVisibilityChange,
 }: Props) {
-  const [gaps, setGaps] = useState<TripScheduleGap[]>([]);
-  const [selectedGap, setSelectedGap] = useState<TripScheduleGap | null>(null);
-  const [places, setPlaces] = useState<RecommendedPlace[]>([]);
-  const [selectedPlaceId, setSelectedPlaceId] = useState<
-    number | string | null
-  >(null);
-  const [selectedTransportMode, setSelectedTransportMode] =
-    useState<GapTransportMode | null>(null);
-  const [expandedGapKey, setExpandedGapKey] = useState<string | null>(null);
-  const [status, setStatus] = useState<Status>("idle");
-  const [hasLoadedGaps, setHasLoadedGaps] = useState(false);
-  const [message, setMessage] = useState(
-    "일정 사이에 비는 시간을 활용할 장소를 추천받아보세요.",
+  const navigation = useNavigation<any>();
+  const route = useRoute<any>();
+  const [gaps, setGaps] =
+    useState<TripScheduleGap[]>([]);
+
+  const [
+    selectedTransportMode,
+    setSelectedTransportMode,
+  ] = useState<GapTransportMode | null>(
+    null,
   );
 
-  const requestLockRef = useRef(false);
-  const receivedPlaceCountRef = useRef(0);
-  const selectedPlaceIdRef = useRef<number | string | null>(null);
+  const [
+    expandedGapKey,
+    setExpandedGapKey,
+  ] = useState<string | null>(null);
 
-  // 갭 추천 보고 선택 안 하고 이탈할 때 측정
-  // useEffect cleanup: 컴포넌트 언마운트 시 선택 여부 확인
-  useEffect(() => {
-    return () => {
-      if (
-        receivedPlaceCountRef.current > 0 &&
-        selectedPlaceIdRef.current === null
-      ) {
-        trackEvent(AMP.GAP_RECOMMENDATION_VIEWED, {
-          trip_id: tripId ? String(tripId) : undefined,
-          recommendation_count: receivedPlaceCountRef.current,
-          selected: false, // 봤지만 선택 안 함
-        });
-      }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  const [
+    hasLoadedGaps,
+    setHasLoadedGaps,
+  ] = useState(false);
 
-  const isLoading = status === "loading";
 
   const allowedPairKeys = useMemo(() => {
     return new Set(
@@ -195,21 +182,13 @@ export default function GapRecommendationCard({
       setGaps(nextGaps);
       setHasLoadedGaps(true);
 
-      setSelectedGap(null);
+      onVisibilityChange?.(
+        nextGaps.length > 0,
+      );
+
       setExpandedGapKey(null);
 
-      setPlaces([]);
-      setSelectedPlaceId(null);
-      setStatus("idle");
 
-      if (nextGaps.length === 0) {
-        setMessage("현재 추천 가능한 빈 시간이 없습니다.");
-        return;
-      }
-
-      setMessage(
-        "비는 시간을 선택하면 이동수단 기준으로 주변 장소를 추천해드려요.",
-      );
     };
 
     const loadGaps = async () => {
@@ -247,124 +226,93 @@ export default function GapRecommendationCard({
     };
   }, [tripId, allowedPlanPairKey]);
 
-  const handleRecommend = async (gap: TripScheduleGap) => {
-    if (isLoading || requestLockRef.current) return;
-
+  const handleRecommend = (
+    gap: TripScheduleGap,
+  ) => {
     if (!tripId) {
-      setStatus("error");
-      setMessage("서버 일정 정보를 불러온 뒤 빈 시간 추천을 사용할 수 있어요.");
       return;
     }
 
-    requestLockRef.current = true;
-    receivedPlaceCountRef.current = 0;
+    const safeTransportMode =
+      getSafeGapTransportMode(
+        selectedTransportMode ??
+          gap.transportMode,
+      );
 
-    setSelectedGap(gap);
-    setPlaces([]);
-    setStatus("loading");
-    setMessage("빈 시간에 들를 수 있는 장소를 분석 중입니다...");
+    const routeParams =
+      route.params ?? {};
 
-    const safeTransportMode = getSafeGapTransportMode(
-      selectedTransportMode ?? gap.transportMode,
+    const targetDay =
+      selectedDay ??
+      gap.day ??
+      routeParams.selectedDay ??
+      routeParams.day;
+
+    const returnScreen =
+      route.name === "UpcomingSchedule"
+        ? "UpcomingSchedule"
+        : "OngoingSchedule";
+
+    navigation.navigate(
+      "AlternativeLoading",
+      {
+        scheduleId:
+          routeParams.scheduleId ??
+          String(tripId),
+
+        tripId,
+        serverTripId:
+          routeParams.serverTripId ??
+          tripId,
+
+        tripName:
+          routeParams.tripName,
+        startDate:
+          routeParams.startDate,
+        endDate:
+          routeParams.endDate,
+        location:
+          routeParams.location,
+
+        recommendationType: "GAP",
+
+        beforePlanId:
+          gap.beforePlanId,
+        beforePlanTitle:
+          gap.beforePlanTitle,
+        beforePlanEndTime:
+          gap.beforePlanEndTime,
+
+        afterPlanId:
+          gap.afterPlanId,
+        afterPlanTitle:
+          gap.afterPlanTitle,
+        afterPlanStartTime:
+          gap.afterPlanStartTime,
+
+        availableMinutes:
+          gap.availableMinutes,
+        gapMinutes:
+          gap.gapMinutes,
+
+        transportMode:
+          safeTransportMode,
+        transportLabel:
+          getGapTransportLabel(
+            safeTransportMode,
+          ),
+
+        selectedDay: targetDay,
+        day: targetDay,
+
+        returnScreen,
+      },
     );
-
-    const payload: GapRecommendationRequest = {
-      beforePlanId: gap.beforePlanId,
-      afterPlanId: gap.afterPlanId,
-      transportMode: safeTransportMode,
-      radiusMinute: Math.max(gap.availableMinutes ?? 0, 30),
-    };
-
-    try {
-      await streamGapRecommendations(tripId, payload, {
-        onProgress: (nextMessage) => {
-          setMessage(nextMessage);
-        },
-        onPlace: (place) => {
-          receivedPlaceCountRef.current += 1;
-
-          setPlaces((prev) => {
-            const exists = prev.some(
-              (item) => String(item.placeId) === String(place.placeId),
-            );
-
-            if (exists) return prev;
-
-            return [...prev, place];
-          });
-        },
-        onDone: () => {
-          if (receivedPlaceCountRef.current === 0) {
-            setStatus("done");
-            setMessage("조건에 맞는 추천 장소가 없습니다.");
-            return;
-          }
-
-          setStatus("done");
-          setMessage(
-            "추천 장소를 불러왔습니다. 원하는 장소를 Plan.A에 추가해보세요.",
-          );
-
-          // gap_recommendation_viewed: 결과 로드 완료 시 (선택 여부는 이탈 시 확정)
-          trackEvent(AMP.GAP_RECOMMENDATION_VIEWED, {
-            trip_id: tripId ? String(tripId) : undefined,
-            recommendation_count: receivedPlaceCountRef.current,
-            selected: true, // 로드 성공, 선택은 별도 추적
-          });
-        },
-        onWarning: (message: string) => {
-          setStatus("done");
-          setMessage(message || "조건에 맞는 추천 장소가 없습니다.");
-        },
-        onError: (error) => {
-          console.log("[GapRecommendationCard] stream failed:", error);
-
-          setStatus("error");
-          // 서버가 보낸 error 이벤트 메시지(예: "이미 추천이 진행 중입니다")를 그대로 노출
-          const serverMessage =
-            error instanceof Error ? error.message : "";
-          setMessage(
-            serverMessage && !serverMessage.includes("완료되기 전에 종료")
-              ? serverMessage
-              : "추천 결과를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
-          );
-        },
-      });
-    } finally {
-      requestLockRef.current = false;
-    }
-  };
-
-  const handleSelectPlace = (place: RecommendedPlace) => {
-    if (!selectedGap) {
-      setStatus("error");
-      setMessage("빈 시간을 먼저 선택해주세요.");
-      return;
-    }
-
-    setSelectedPlaceId(place.placeId);
-    selectedPlaceIdRef.current = place.placeId ?? null; // 이탈 감지용
-
-    console.log("[GapRecommendation] selected place:", {
-      placeId: place?.placeId,
-      googlePlaceId: place?.googlePlaceId,
-      name: place?.name,
-      gapDay: selectedGap.day,
-      beforePlanId: selectedGap.beforePlanId,
-      afterPlanId: selectedGap.afterPlanId,
-    });
-
-    setMessage(`${place.name}을(를) 일정에 추가하는 중입니다.`);
-
-    onSelectPlace?.(place, selectedGap);
   };
 
   const shouldHideCard =
     hasLoadedGaps &&
-    gaps.length === 0 &&
-    places.length === 0 &&
-    status !== "loading" &&
-    status !== "error";
+    gaps.length === 0;
 
   if (shouldHideCard) {
     // 추천 가능 시간이 60분 미만이라 추천할 구간이 없으면 카드를 표시하지 않는다.
@@ -382,21 +330,11 @@ export default function GapRecommendationCard({
           </View>
 
           <View style={styles.titleTextBox}>
-            <View style={styles.planBBadge}>
-              <Text style={styles.planBBadgeText}>Plan.B</Text>
-            </View>
+
             <Text style={styles.title}>빈 시간 대안 추천</Text>
           </View>
         </View>
-
-        {isLoading ?
-          <ActivityIndicator color="#2563EB" />
-        : null}
       </View>
-
-      {status === "loading" || status === "error" ?
-        <Text style={styles.message}>{message}</Text>
-      : null}
 
       {gaps.length > 0 ?
         <View style={styles.gapList}>
@@ -404,68 +342,152 @@ export default function GapRecommendationCard({
             const gapKey = `${gap.beforePlanId}-${gap.afterPlanId}`;
             const isExpanded = expandedGapKey === gapKey;
 
+            const beforePlaceDisplay =
+              getPlanBPlaceDisplay(
+                gap.beforePlanTitle,
+              );
+
+            const afterPlaceDisplay =
+              getPlanBPlaceDisplay(
+                gap.afterPlanTitle,
+              );
+
             return (
               <React.Fragment key={gapKey}>
-                <View style={styles.gapItem}>
-                  <TouchableOpacity
+                <View
                   style={[
-                    styles.gapButton,
-                    isExpanded && styles.expandedGapButton,
+                    styles.gapItem,
+                    isExpanded &&
+                      styles.gapItemExpanded,
                   ]}
-                  activeOpacity={0.85}
-                  onPress={() => {
-                    setExpandedGapKey((prev) =>
-                      prev === gapKey ? null : gapKey,
-                    );
-
-                    setSelectedTransportMode(
-                      getSafeGapTransportMode(gap.transportMode),
-                    );
-                  }}
-                  disabled={isLoading}
                 >
-                  <View style={styles.gapTextBox}>
-                    <Text style={styles.gapTitle}>
-                      {gap.beforePlanTitle} → {gap.afterPlanTitle}
-                    </Text>
-                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.gapButton,
+                      isExpanded &&
+                        styles.expandedGapButton,
+                    ]}
+                    activeOpacity={0.85}
+                    onPress={() => {
+                      setExpandedGapKey((prev) =>
+                        prev === gapKey
+                          ? null
+                          : gapKey,
+                      );
 
-                  <Ionicons
-                    name={isExpanded ? "chevron-up" : "chevron-down"}
-                    size={18}
-                    color="#94A3B8"
-                  />
-                </TouchableOpacity>
+                      setSelectedTransportMode(
+                        getSafeGapTransportMode(
+                          gap.transportMode,
+                        ),
+                      );
+                    }}
+                  >
+                    <View style={styles.gapTextBox}>
+                      <View style={styles.gapTitleRow}>
+                        <View style={styles.gapPlacePart}>
+                          <View style={styles.previousPlaceBadge}>
+                            <Text
+                              style={
+                                styles.previousPlaceBadgeText
+                              }
+                            >
+                              이전장소
+                            </Text>
+                          </View>
 
-                {isExpanded ?
-                  <View style={styles.expandedGapPanel}>
+                          <Text
+                            style={styles.gapTitle}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            lineBreakStrategyIOS="hangul-word"
+                            android_hyphenationFrequency="none"
+                          >
+                            {beforePlaceDisplay.displayName}
+                          </Text>
+                        </View>
+
+                        <Ionicons
+                          name="arrow-forward"
+                          size={23}
+                          color="#2158E8"
+                          style={styles.gapArrow}
+                        />
+
+                        <View style={styles.gapPlacePart}>
+                          <View style={styles.gapPlanBBadge}>
+                            <Text
+                              style={
+                                styles.gapPlanBBadgeText
+                              }
+                            >
+                              틈새추천
+                            </Text>
+                          </View>
+
+                          <Text
+                            style={[
+                              styles.gapTitle,
+                              styles.gapAlternativeTitle,
+                            ]}
+                            numberOfLines={2}
+                            ellipsizeMode="tail"
+                            lineBreakStrategyIOS="hangul-word"
+                            android_hyphenationFrequency="none"
+                          >
+                            {afterPlaceDisplay.displayName}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    <Ionicons
+                      name={
+                        isExpanded
+                          ? "chevron-up"
+                          : "chevron-down"
+                      }
+                      size={20}
+                      color="#64748B"
+                    />
+                  </TouchableOpacity>
+
+                  {isExpanded ? (
                     <View style={styles.transportSelector}>
                       {GAP_TRANSPORT_OPTIONS.map((option) => {
-                        const selected = selectedTransportMode === option.mode;
+                        const selected =
+                          selectedTransportMode ===
+                          option.mode;
 
                         return (
                           <TouchableOpacity
                             key={option.mode}
                             style={[
                               styles.transportButton,
-                              selected && styles.transportButtonActive,
+                              selected &&
+                                styles.transportButtonActive,
                             ]}
                             activeOpacity={0.85}
                             onPress={() =>
-                              setSelectedTransportMode(option.mode)
+                              setSelectedTransportMode(
+                                option.mode,
+                              )
                             }
-                            disabled={isLoading}
-                          >
+                                  >
                             <Ionicons
                               name={option.icon}
                               size={14}
-                              color={selected ? "#FFFFFF" : "#2158E8"}
+                              color={
+                                selected
+                                  ? "#FFFFFF"
+                                  : "#2158E8"
+                              }
                             />
 
                             <Text
                               style={[
                                 styles.transportButtonText,
-                                selected && styles.transportButtonTextActive,
+                                selected &&
+                                  styles.transportButtonTextActive,
                               ]}
                             >
                               {option.label}
@@ -474,32 +496,25 @@ export default function GapRecommendationCard({
                         );
                       })}
                     </View>
+                  ) : null}
 
+                  {isExpanded ? (
                     <TouchableOpacity
-                      style={[
-                        styles.recommendButton,
-                        isLoading && styles.recommendButtonDisabled,
-                      ]}
+                      style={styles.recommendButton}
                       activeOpacity={0.85}
-                      onPress={() => handleRecommend(gap)}
-                      disabled={isLoading}
-                    >
-                      {isLoading ?
-                        <ActivityIndicator size="small" color="#FFFFFF" />
-                      : <>
-                          <Text style={styles.recommendButtonText}>
-                            대안찾기
-                          </Text>
-                          <Ionicons
-                            name="chevron-forward"
-                            size={17}
-                            color="#FFFFFF"
-                          />
-                        </>
+                      onPress={() =>
+                        handleRecommend(gap)
                       }
+                      >
+                      <Text
+                        style={
+                          styles.recommendButtonText
+                        }
+                      >
+                        대안찾기
+                      </Text>
                     </TouchableOpacity>
-                  </View>
-                : null}
+                  ) : null}
                 </View>
               </React.Fragment>
             );
@@ -507,57 +522,6 @@ export default function GapRecommendationCard({
         </View>
       : null}
 
-      {places.length > 0 ?
-        <View style={styles.placeList}>
-          <View style={styles.placeListHeader}>
-            <View>
-              <Text style={styles.placeListTitle}>✨ 추천 결과 {places.length}개</Text>
-              <Text style={styles.placeListSubtitle}>
-                선택하면 일정에 추가할 수 있어요
-              </Text>
-            </View>
-            <Ionicons name="chevron-up" size={16} color="#94A3B8" />
-          </View>
-
-          {places.map((place) => {
-            const isSelectedPlace =
-              String(selectedPlaceId) === String(place.placeId);
-
-            return (
-              <TouchableOpacity
-                key={String(place.placeId)}
-                style={[
-                  styles.placeButton,
-                  isSelectedPlace && styles.selectedPlaceButton,
-                ]}
-                activeOpacity={0.85}
-                onPress={() => handleSelectPlace(place)}
-              >
-                <View style={styles.placeIconCircle}>
-                  <Image
-                    source={getPlaceCategoryIcon(place.category)}
-                    style={styles.placeCategoryIcon}
-                  />
-                </View>
-
-                <View style={styles.placeTextBox}>
-                  <Text style={styles.placeName} numberOfLines={1}>
-                    {place.name}
-                  </Text>
-
-                  <Text style={styles.placeMeta} numberOfLines={1}>
-                    {place.category || "추천 장소"}
-                  </Text>
-                </View>
-
-                <Text style={styles.placeActionText}>
-                  {isSelectedPlace ? "선택됨" : "이 장소 선택"}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      : null}
       </View>
     </>
   );
@@ -618,9 +582,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 14,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#F7FAFF",
     borderWidth: 1,
-    borderColor: "#E2E8F0",
+    borderColor: "#D7E6FF",
     alignSelf: "stretch",
     marginBottom: 8,
     zIndex: 1,
@@ -642,7 +606,7 @@ const styles = StyleSheet.create({
     width: 26,
     height: 26,
     borderRadius: 13,
-    backgroundColor: "#EFF6FF",
+    backgroundColor: "#EDF5FF",
     alignItems: "center",
     justifyContent: "center",
   },
@@ -681,27 +645,28 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   transportSelector: {
+    width: "100%",
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    gap: 5,
-    marginTop: 7,
+    gap: 6,
+    marginTop: 0,
+    marginBottom: 0,
     paddingHorizontal: 0,
-    marginBottom: 8,
   },
 
   transportButton: {
-    minHeight: 30,
-    paddingHorizontal: 8,
-    borderRadius: 999,
+    flex: 1,
+    minHeight: 36,
+    borderRadius: 10,
     borderWidth: 1,
-    borderColor: "#D6E2F5",
+    borderColor: "#D7E6FF",
     backgroundColor: "#FFFFFF",
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     gap: 4,
-    paddingVertical: 4,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
   },
 
   transportButtonActive: {
@@ -713,6 +678,7 @@ const styles = StyleSheet.create({
     color: "#2158E8",
     fontSize: 11,
     fontWeight: "800",
+    lineHeight: 14,
   },
 
   transportButtonTextActive: {
@@ -725,27 +691,31 @@ const styles = StyleSheet.create({
   },
 
   gapItem: {
-    borderRadius: 14,
-    overflow: "hidden",
+    width: "100%",
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    borderRadius: 0,
+    padding: 0,
+    gap: 8,
+    overflow: "visible",
   },
   gapButton: {
-    minHeight: 34,
-    borderRadius: 10,
-    backgroundColor: "#FFFFFF",
+    width: "100%",
+    minHeight: 82,
+    borderRadius: 14,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    borderColor: "#D7E6FF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 14,
+    paddingVertical: 9,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 10,
+    gap: 8,
   },
 
   expandedGapButton: {
-    borderBottomLeftRadius: 0,
-    borderBottomRightRadius: 0,
-    borderBottomColor: "#EEF2F7",
+    borderRadius: 14,
   },
   selectedGap: {
     backgroundColor: "#2563EB",
@@ -754,11 +724,90 @@ const styles = StyleSheet.create({
   gapTextBox: {
     flex: 1,
   },
-  gapTitle: {
-    color: "#1C2534",
-    fontSize: 11,
+  gapTitleRow: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+
+  gapPlacePart: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "flex-start",
+    justifyContent: "flex-start",
+    gap: 5,
+  },
+
+  gapAlternativeNameColumn: {
+    width: "100%",
+    minWidth: 0,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    gap: 4,
+  },
+
+  previousPlaceBadge: {
+    minHeight: 24,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#9FC7FF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 9,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  previousPlaceBadgeText: {
+    color: "#2158E8",
+    fontSize: 10,
     fontWeight: "900",
-    lineHeight: 15,
+  },
+
+  gapPlanBBadge: {
+    minHeight: 24,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#9FC7FF",
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 9,
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  gapPlanBBadgeText: {
+    color: "#2158E8",
+    fontSize: 10,
+    fontWeight: "900",
+  },
+
+  gapAlternativeTitle: {
+    width: "100%",
+    minWidth: 0,
+    flexShrink: 1,
+    color: "#172033",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 18,
+    letterSpacing: -0.25,
+  },
+
+  gapArrow: {
+    flexShrink: 0,
+    color: "#64748B",
+    fontSize: 12,
+    fontWeight: "900",
+  },
+
+  gapTitle: {
+    width: "100%",
+    color: "#172033",
+    fontSize: 14,
+    fontWeight: "800",
+    lineHeight: 18,
+    letterSpacing: -0.25,
   },
   selectedGapText: {
     color: "#FFFFFF",
@@ -791,15 +840,15 @@ const styles = StyleSheet.create({
   },
 
   recommendButton: {
-    marginTop: 8,
-    height: 36,
+    width: "100%",
+    minHeight: 46,
+    marginTop: 0,
     borderRadius: 12,
     backgroundColor: "#2158E8",
     alignItems: "center",
     justifyContent: "center",
     flexDirection: "row",
-    gap: 4,
-    minHeight: 36,
+    gap: 5,
   },
 
   recommendButtonDisabled: {
@@ -808,7 +857,7 @@ const styles = StyleSheet.create({
 
   recommendButtonText: {
     color: "#FFFFFF",
-    fontSize: 13,
+    fontSize: 15,
     fontWeight: "900",
   },
   selectedGapActionText: {
@@ -884,6 +933,7 @@ const styles = StyleSheet.create({
     color: "#1C2534",
     fontSize: 14,
     fontWeight: "900",
+    lineHeight: 19,
   },
   placeMeta: {
     marginTop: 4,
@@ -901,4 +951,10 @@ const styles = StyleSheet.create({
     backgroundColor: "#EFF6FF",
     overflow: "hidden",
   },
+
+  gapItemExpanded: {
+    paddingTop: 0,
+    paddingBottom: 0,
+  },
+
 });

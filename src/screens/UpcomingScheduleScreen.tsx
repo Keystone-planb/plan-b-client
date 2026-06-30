@@ -1260,8 +1260,8 @@ const placeKey = getEditablePlaceKey(place, index);
                                       </View>
                                     : <GapRecommendationCard
                                         tripId={resolvedTripId ?? scheduleId}
-                                        allowedPlanPairs={currentGapPlanPairs}
-                                        onSelectPlace={handleSelectGapPlace}
+
+                               selectedDay={selectedDayNumber}                                        allowedPlanPairs={currentGapPlanPairs}
                                       />
                                     }
                                   </View>
@@ -1327,8 +1327,8 @@ const placeKey = getEditablePlaceKey(place, index);
                                       </View>
                                     : <GapRecommendationCard
                                         tripId={resolvedTripId ?? scheduleId}
-                                        allowedPlanPairs={currentGapPlanPairs}
-                                        onSelectPlace={handleSelectGapPlace}
+
+                               selectedDay={selectedDayNumber}                                        allowedPlanPairs={currentGapPlanPairs}
                                       />
                                     }
                                   </View>

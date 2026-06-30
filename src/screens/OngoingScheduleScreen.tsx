@@ -1247,6 +1247,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
                       currentGapPlanPairs={currentGapPlanPairs}
                       resolvedTripId={resolvedTripId}
                       scheduleId={scheduleId}
+            selectedDay={selectedDayIndex + 1}
                       localStyles={localStyles}
                       transportModesByPair={transportModesByPair}
                       transportPickerTarget={transportPickerTarget}
