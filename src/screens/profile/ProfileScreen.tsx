@@ -11,11 +11,11 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 
-import { getMe, MeResponse } from "../../api/users/me";
+import { getMe, MeResponse } from "../../../api/users/me";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { requestLogout } from "../../api/auth/logout";
-import { getPreferenceSummary } from "../../api/preferences/preferences";
-import type { PreferenceSummary } from "../types/preference";
+import { requestLogout } from "../../../api/auth/logout";
+import { getPreferenceSummary } from "../../../api/preferences/preferences";
+import type { PreferenceSummary } from "../../types/preference";
 
 type Props = {
   navigation: any;

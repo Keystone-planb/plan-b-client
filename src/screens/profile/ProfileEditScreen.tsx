@@ -14,8 +14,8 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
-import { getMe, MeResponse } from "../../api/users/me";
-import { updateMyProfile } from "../../api/users/profile";
+import { getMe, MeResponse } from "../../../api/users/me";
+import { updateMyProfile } from "../../../api/users/profile";
 
 type Props = {
   navigation: any;
