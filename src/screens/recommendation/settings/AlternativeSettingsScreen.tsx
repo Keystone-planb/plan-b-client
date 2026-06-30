@@ -9,7 +9,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { trackEvent, AMP } from "../utils/amplitude";
+import { trackEvent, AMP } from "../../../utils/amplitude";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 type MoveTime = "10" | "20" | "30" | "ANY";
