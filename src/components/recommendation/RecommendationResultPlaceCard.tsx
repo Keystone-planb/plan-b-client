@@ -46,6 +46,7 @@ type Props = {
   isSelected: boolean;
   isSubmitting: boolean;
   isWeatherRecommendation: boolean;
+  selectButtonLabel?: string;
   extraDetail?: ExtraDetail;
   onToggleHours: (placeId: string | number) => void;
   onSelect: (place: PlaceLike) => void;
@@ -61,6 +62,7 @@ export default function RecommendationResultPlaceCard({
   isSelected,
   isSubmitting,
   isWeatherRecommendation,
+  selectButtonLabel,
   extraDetail,
   onToggleHours,
   onSelect,
@@ -128,6 +130,7 @@ export default function RecommendationResultPlaceCard({
         isSelected={isSelected}
         isSubmitting={isSubmitting}
         isWeatherRecommendation={isWeatherRecommendation}
+        defaultLabel={selectButtonLabel}
         onPress={() => onSelect(place)}
       />
 

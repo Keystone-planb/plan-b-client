@@ -5,6 +5,7 @@ type Props = {
   isSelected: boolean;
   isSubmitting: boolean;
   isWeatherRecommendation: boolean;
+  defaultLabel?: string;
   onPress: () => void;
 };
 
@@ -12,6 +13,7 @@ export default function RecommendationSelectButton({
   isSelected,
   isSubmitting,
   isWeatherRecommendation,
+  defaultLabel,
   onPress,
 }: Props) {
   return (
@@ -29,7 +31,7 @@ export default function RecommendationSelectButton({
             ? "선택 완료"
             : isWeatherRecommendation
               ? "이 장소로 대체"
-              : "일정에 추가"}
+              : defaultLabel ?? "일정에 추가"}
         </Text>
       )}
     </TouchableOpacity>

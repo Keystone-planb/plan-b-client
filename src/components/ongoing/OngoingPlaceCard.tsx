@@ -55,6 +55,23 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
   const visibleMemoTexts = getVisibleMemoTexts(place);
   const memoPreviewText = getMemoPreviewText(place);
 
+  const replacementSource = String(
+    place?.replacementSource ??
+      place?.recommendationSource ??
+      place?.alternativeSource ??
+      place?.source ??
+      "",
+  ).toLowerCase();
+
+  const isWeatherAlternative =
+    replacementSource === "weather" ||
+    replacementSource === "weather_notification" ||
+    Boolean(
+      place?.weatherNotificationId ??
+        place?.weatherAlertId ??
+        place?.isWeatherAlternative,
+    );
+
   const displayPlaceName =
     String(place.name ?? "");
 
@@ -100,6 +117,23 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
         <View style={localStyles.contentArea}>
           <View style={localStyles.titleActionRow}>
             <View style={localStyles.titleTimeBox}>
+              {isWeatherAlternative ? (
+                <View style={localStyles.weatherAlternativeBadge}>
+                  <Ionicons
+                    name="rainy-outline"
+                    size={12}
+                    color="#2158E8"
+                  />
+                  <Text
+                    style={
+                      localStyles.weatherAlternativeBadgeText
+                    }
+                  >
+                    날씨 대안
+                  </Text>
+                </View>
+              ) : null}
+
               <PlanBPlaceName
                 name={place.name}
                 textStyle={[
@@ -279,6 +313,26 @@ const localStyles = StyleSheet.create({
     minWidth: 0,
     justifyContent: "center",
     paddingRight: 4,
+  },
+
+  weatherAlternativeBadge: {
+    alignSelf: "flex-start",
+    minHeight: 22,
+    marginBottom: 5,
+    paddingHorizontal: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "#9FC7FF",
+    backgroundColor: "#EDF5FF",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+
+  weatherAlternativeBadgeText: {
+    color: "#2158E8",
+    fontSize: 11,
+    fontWeight: "900",
   },
 
   placeName: {
