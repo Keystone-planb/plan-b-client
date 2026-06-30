@@ -44,6 +44,22 @@ export default function AIAnalysisLoadingScreen({ navigation, route }: Props) {
     progress,
   );
 
+  const progressStepIndex = Math.min(
+    Math.floor(
+      (progress / 100) *
+        LOADING_STEPS.length,
+    ),
+    LOADING_STEPS.length - 1,
+  );
+
+  const currentStepIndex =
+    progress >= 94
+      ? displayStepIndex
+      : progressStepIndex;
+
+  const currentStep =
+    LOADING_STEPS[currentStepIndex];
+
   const placeCountText =
     receivedPlaceCount > 0 ?
       `현재 ${receivedPlaceCount}개의 추천 후보를 분석했어요`
