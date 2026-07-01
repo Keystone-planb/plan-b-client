@@ -91,9 +91,18 @@ export const updateTrip = async (
 export const deleteTrip = async (
   tripId: number | string,
 ): Promise<void> => {
-  await apiClient.delete(
-    `/api/trips/${tripId}`,
-  );
+  try {
+    await apiClient.delete(`/api/trips/${tripId}`);
+  } catch (error: any) {
+    console.log("[deleteTrip] 실패 응답:", {
+      tripId,
+      status: error?.response?.status,
+      data: error?.response?.data,
+      message: error?.message,
+    });
+
+    throw error;
+  }
 };
 
 export const addTripLocation = async (
