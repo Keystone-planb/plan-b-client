@@ -1256,7 +1256,7 @@ const handleCloseMemoSheet = () => {
                 isSheetCollapsed ? 420 : 220
               : 150
             }
-            mapInteractive={isSheetCollapsed}
+            mapInteractive={false}
           />
 
           <View
