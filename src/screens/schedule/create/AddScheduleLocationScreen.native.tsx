@@ -701,42 +701,52 @@ export default function AddScheduleLocationScreen({
     }
 
     const existingBookmark = favoritePlaces.find(
-      (item) =>
-        getReviewPlaceKey(item) === placeKey,
+      (item) => getReviewPlaceKey(item) === placeKey,
     );
+
+    const previousFavoritePlaces = favoritePlaces;
+
+    const optimisticBookmark: BookmarkPlace = {
+      ...place,
+      bookmarkId: -Date.now(),
+      placeId: placeKey,
+      googlePlaceId: placeKey,
+      createdAt: new Date().toISOString(),
+    };
 
     try {
       setBookmarkActionPlaceId(placeKey);
 
+      // 누르는 즉시 UI 반영
       if (existingBookmark) {
-        await deleteBookmark(
-          existingBookmark.bookmarkId,
-        );
-
         setFavoritePlaces((prev) =>
           prev.filter(
-            (item) =>
-              getReviewPlaceKey(item) !== placeKey,
+            (item) => getReviewPlaceKey(item) !== placeKey,
           ),
         );
+      } else {
+        setFavoritePlaces((prev) => [
+          optimisticBookmark,
+          ...prev.filter(
+            (item) => getReviewPlaceKey(item) !== placeKey,
+          ),
+        ]);
+      }
 
+      if (existingBookmark) {
+        await deleteBookmark(existingBookmark.bookmarkId);
         return;
       }
 
       let latitude = place.latitude;
       let longitude = place.longitude;
 
-      /*
-       * 검색 결과에 좌표가 없는 경우가 있으므로
-       * 상세 조회로 좌표를 보강한 뒤 저장한다.
-       */
       if (
         typeof latitude !== "number" ||
         typeof longitude !== "number"
       ) {
         try {
-          const detail =
-            await getPlaceDetail(placeKey);
+          const detail = await getPlaceDetail(placeKey);
 
           latitude =
             typeof detail.latitude === "number"
@@ -755,39 +765,35 @@ export default function AddScheduleLocationScreen({
         }
       }
 
-      const createdBookmark =
-        await createBookmark({
-          googlePlaceId: placeKey,
-          name: place.name,
-          category: place.category,
-          address: place.address,
-          lat:
-            typeof latitude === "number"
-              ? latitude
-              : undefined,
-          lng:
-            typeof longitude === "number"
-              ? longitude
-              : undefined,
-        });
+      const createdBookmark = await createBookmark({
+        googlePlaceId: placeKey,
+        name: place.name,
+        category: place.category,
+        address: place.address,
+        lat:
+          typeof latitude === "number"
+            ? latitude
+            : undefined,
+        lng:
+          typeof longitude === "number"
+            ? longitude
+            : undefined,
+      });
 
-      const nextFavorite =
-        normalizeBookmarkPlace(
-          createdBookmark,
-        );
+      const savedFavorite =
+        normalizeBookmarkPlace(createdBookmark);
 
-      /*
-       * 서버 명세상 최신 추가 순이므로
-       * 새 항목을 목록 맨 앞에 넣는다.
-       */
+      // 임시 즐겨찾기를 서버 응답 데이터로 교체
       setFavoritePlaces((prev) => [
-        nextFavorite,
+        savedFavorite,
         ...prev.filter(
-          (item) =>
-            getReviewPlaceKey(item) !== placeKey,
+          (item) => getReviewPlaceKey(item) !== placeKey,
         ),
       ]);
     } catch (error) {
+      // 실패 시 이전 상태로 복구
+      setFavoritePlaces(previousFavoritePlaces);
+
       console.log(
         "[Bookmarks] 추가/삭제 실패:",
         error,
@@ -803,7 +809,6 @@ export default function AddScheduleLocationScreen({
           "즐겨찾기",
           "이미 즐겨찾기에 추가된 장소입니다.",
         );
-
         return;
       }
 
@@ -817,7 +822,6 @@ export default function AddScheduleLocationScreen({
           "즐겨찾기",
           "이미 삭제된 즐겨찾기입니다.",
         );
-
         return;
       }
 

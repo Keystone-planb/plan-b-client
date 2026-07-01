@@ -68,7 +68,10 @@ export default function SearchResultCard({
     >
       {onFavoritePress ? (
         <TouchableOpacity
-          style={styles.favoriteButton}
+          style={[
+            styles.favoriteButton,
+            isFavoriteLoading && styles.favoriteButtonLoading,
+          ]}
           activeOpacity={0.75}
           hitSlop={{
             top: 10,
@@ -85,22 +88,15 @@ export default function SearchResultCard({
           disabled={isFavoriteLoading}
           onPress={onFavoritePress}
         >
-          {isFavoriteLoading ? (
-            <ActivityIndicator
-              size="small"
-              color="#2F66F3"
-            />
-          ) : (
-            <Ionicons
-              name={
-                isFavorite
-                  ? "heart"
-                  : "heart-outline"
-              }
-              size={24}
-              color="#2F66F3"
-            />
-          )}
+          <Ionicons
+            name={
+              isFavorite
+                ? "heart"
+                : "heart-outline"
+            }
+            size={24}
+            color="#2F66F3"
+          />
         </TouchableOpacity>
       ) : null}
 
@@ -348,6 +344,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     zIndex: 3,
+  },
+
+  favoriteButtonLoading: {
+    opacity: 0.55,
   },
   addressRow: {
     marginTop: 7,
