@@ -116,6 +116,10 @@ export default function RecommendationMap({
           longitudeDelta: 0.025,
         }}
         pointerEvents="none"
+        scrollEnabled={false}
+        zoomEnabled={false}
+        rotateEnabled={false}
+        pitchEnabled={false}
         onMapReady={() => {
           if (coordinates.length < 2) return;
 

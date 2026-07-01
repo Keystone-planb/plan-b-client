@@ -14,6 +14,7 @@ import RecommendationHeader from "./RecommendationHeader";
 import RecommendationMap from "./RecommendationMap";
 import RecommendationTimeline from "./RecommendationTimeline";
 import WhiteToast from "./WhiteToast";
+import { useRecommendationToast } from "../../hooks/recommendation/useRecommendationToast";
 import type { RecommendationTransportMode } from "./RecommendationTransportCard";
 
 type PreviewPlace = {
@@ -79,7 +80,7 @@ type Props = {
   onIncreaseHour: () => void;
   onDecreaseMinute: () => void;
   onIncreaseMinute: () => void;
-  onSaveTime: () => void;
+  onSaveTime: () => boolean;
   onConfirm: () => void;
 };
 
@@ -130,7 +131,27 @@ export default function RecommendationPreviewModal({
   onConfirm,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { whiteToast, showWhiteToast } =
+    useRecommendationToast();
 
+  const handleSaveTime = () => {
+    const saved = onSaveTime();
+
+    if (!saved) {
+      showWhiteToast(
+        "시간 설정 확인",
+        "시작 시간은 종료 시간보다 빨라야 합니다.",
+        "error",
+      );
+      return;
+    }
+
+    showWhiteToast(
+      "시간 변경 완료",
+      "변경한 시간이 적용되었습니다.",
+      "success",
+    );
+  };
 
   return (
     <Modal
@@ -166,7 +187,7 @@ export default function RecommendationPreviewModal({
               onIncreaseHour={onIncreaseHour}
               onDecreaseMinute={onDecreaseMinute}
               onIncreaseMinute={onIncreaseMinute}
-              onSave={onSaveTime}
+              onSave={handleSaveTime}
             />
           </View>
         ) : null}
@@ -279,6 +300,8 @@ export default function RecommendationPreviewModal({
           </View>
         </View>
       </View>
+
+      <WhiteToast toast={whiteToast} />
     </Modal>
   );
 }
