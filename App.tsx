@@ -29,7 +29,7 @@ import AddScheduleDateScreen from "./src/screens/schedule/create/AddScheduleDate
 import AddScheduleLocationScreen from "./src/screens/schedule/create/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/schedule/ongoing/OngoingScheduleScreen";
-import UpcomingScheduleScreen from "./src/screens/UpcomingScheduleScreen";
+import UpcomingScheduleScreen from "./src/screens/schedule/upcoming/UpcomingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/recommendation/settings/AlternativeSettingsScreen";
 import AIAnalysisLoadingScreen from "./src/screens/recommendation/loading/AIAnalysisLoadingScreen";
 import RecommendationResultScreen from "./src/screens/recommendation/result/RecommendationResultScreen";

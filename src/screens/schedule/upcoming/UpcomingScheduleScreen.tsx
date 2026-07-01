@@ -17,14 +17,14 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import UpcomingPlaceCard from "../components/ongoing/OngoingPlaceCard";
-import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
-import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
-import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
-import UpcomingDayTabs from "../components/ongoing/OngoingDayTabs";
-import OngoingHeader from "../components/ongoing/OngoingHeader";
-import OngoingMapSection from "../components/ongoing/OngoingMapSection";
-import styles from "../styles/ongoingScheduleStyles";
+import UpcomingPlaceCard from "../../../components/ongoing/OngoingPlaceCard";
+import OngoingGapRecommendationSection from "../../../components/ongoing/OngoingGapRecommendationSection";
+import OngoingEmptyDayCard from "../../../components/ongoing/OngoingEmptyDayCard";
+import GapRecommendationCard from "../../../components/recommendations/GapRecommendationCard";
+import UpcomingDayTabs from "../../../components/ongoing/OngoingDayTabs";
+import OngoingHeader from "../../../components/ongoing/OngoingHeader";
+import OngoingMapSection from "../../../components/ongoing/OngoingMapSection";
+import styles from "../../../styles/ongoingScheduleStyles";
 
 const getTransportIconName = (mode?: string | null) => {
   switch (mode) {
@@ -39,9 +39,9 @@ const getTransportIconName = (mode?: string | null) => {
   }
 };
 
-import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
-import { getPlaceDetail } from "../../api/places/place";
-import { addTripLocation, getTripDetail } from "../../api/schedules/server";
+import useOngoingPlaces from "../../../hooks/ongoing/useOngoingPlaces";
+import { getPlaceDetail } from "../../../../api/places/place";
+import { addTripLocation, getTripDetail } from "../../../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
