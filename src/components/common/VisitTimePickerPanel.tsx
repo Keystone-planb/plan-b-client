@@ -81,6 +81,9 @@ export default function VisitTimePickerPanel({
   const lastHandledMinuteValueRef =
     useRef<number | null>(null);
 
+  const animateHourSyncRef = useRef(false);
+  const animateMinuteSyncRef = useRef(false);
+
   const isVisitTarget =
     target === "visitTime" ||
     target === "transportStartTime";
@@ -116,7 +119,7 @@ export default function VisitTimePickerPanel({
 
   const validationMessage = canSave
     ? ""
-    : "종료 시간은 시작 시간보다 늦어야 합니다.";
+    : "시작 시간은 종료 시간보다 빨라야 합니다.";
 
   const displayedErrorMessage =
     validationMessage || errorMessage;
@@ -136,8 +139,10 @@ export default function VisitTimePickerPanel({
 
     hourRef.current?.scrollTo({
       y: hour * ITEM_HEIGHT,
-      animated: false,
+      animated: animateHourSyncRef.current,
     });
+
+    animateHourSyncRef.current = false;
   }, [hour]);
 
   useEffect(() => {
@@ -150,10 +155,17 @@ export default function VisitTimePickerPanel({
     lastSyncedMinuteRef.current = minute;
     lastHandledMinuteValueRef.current = null;
 
+    const minuteIndex = Math.max(
+      0,
+      MINUTES.indexOf(minute),
+    );
+
     minuteRef.current?.scrollTo({
-      y: minute * ITEM_HEIGHT,
-      animated: false,
+      y: minuteIndex * ITEM_HEIGHT,
+      animated: animateMinuteSyncRef.current,
     });
+
+    animateMinuteSyncRef.current = false;
   }, [minute]);
 
   const handleHourScrollEnd = (
@@ -195,30 +207,78 @@ export default function VisitTimePickerPanel({
       NativeScrollEvent
     >,
   ) => {
-    const next = Math.round(
+    const nextIndex = Math.round(
       event.nativeEvent.contentOffset.y /
         ITEM_HEIGHT,
     );
 
-    const normalized = Math.max(
+    const normalizedIndex = Math.max(
       0,
-      Math.min(59, next),
+      Math.min(MINUTES.length - 1, nextIndex),
     );
+
+    const nextMinute = MINUTES[normalizedIndex];
 
     if (
       lastHandledMinuteValueRef.current ===
-      normalized
+      nextMinute
     ) {
       return;
     }
 
     lastHandledMinuteValueRef.current =
-      normalized;
+      nextMinute;
+
+    const currentIndex = Math.max(
+      0,
+      MINUTES.indexOf(minute),
+    );
 
     moveByStep(
-      minute,
-      normalized,
-      60,
+      currentIndex,
+      normalizedIndex,
+      MINUTES.length,
+      onDecreaseMinute,
+      onIncreaseMinute,
+    );
+  };
+
+  const handleHourPress = (value: number) => {
+    if (value === hour) {
+      return;
+    }
+
+    lastHandledHourValueRef.current = value;
+    animateHourSyncRef.current = true;
+
+    moveByStep(
+      hour,
+      value,
+      24,
+      onDecreaseHour,
+      onIncreaseHour,
+    );
+  };
+
+  const handleMinutePress = (value: number) => {
+    const targetIndex = MINUTES.indexOf(value);
+    const currentIndex = MINUTES.indexOf(minute);
+
+    if (
+      targetIndex < 0 ||
+      currentIndex < 0 ||
+      value === minute
+    ) {
+      return;
+    }
+
+    lastHandledMinuteValueRef.current = value;
+    animateMinuteSyncRef.current = true;
+
+    moveByStep(
+      currentIndex,
+      targetIndex,
+      MINUTES.length,
       onDecreaseMinute,
       onIncreaseMinute,
     );
@@ -235,10 +295,15 @@ export default function VisitTimePickerPanel({
   const renderWheelItem = (
     value: number,
     active: boolean,
+    onPress: (value: number) => void,
   ) => (
-    <View
+    <TouchableOpacity
       key={value}
       style={styles.wheelItem}
+      activeOpacity={0.65}
+      onPress={() => onPress(value)}
+      accessibilityRole="button"
+      accessibilityLabel={`${padTimeUnit(value)} 선택`}
     >
       <Text
         style={[
@@ -249,7 +314,7 @@ export default function VisitTimePickerPanel({
       >
         {padTimeUnit(value)}
       </Text>
-    </View>
+    </TouchableOpacity>
   );
 
   return (
@@ -393,6 +458,7 @@ export default function VisitTimePickerPanel({
             renderWheelItem(
               value,
               value === hour,
+              handleHourPress,
             ),
           )}
         </ScrollView>
@@ -422,6 +488,7 @@ export default function VisitTimePickerPanel({
             renderWheelItem(
               value,
               value === minute,
+              handleMinutePress,
             ),
           )}
         </ScrollView>

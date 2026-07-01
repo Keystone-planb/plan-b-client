@@ -4,8 +4,8 @@ export const HOURS = Array.from(
 );
 
 export const MINUTES = Array.from(
-  { length: 60 },
-  (_, index) => index,
+  { length: 12 },
+  (_, index) => index * 5,
 );
 
 export const ITEM_HEIGHT = 34;
