@@ -20,30 +20,30 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import OngoingPlaceCard from "../components/ongoing/OngoingPlaceCard";
-import OngoingGapBetweenPlace from "../components/ongoing/OngoingGapBetweenPlace";
-import { buildAlternativeNavigationParams } from "../utils/ongoing/alternativeNavigation";
-import { trackEvent, AMP } from "../utils/amplitude";
-import { loadOngoingTripDetail } from "../utils/ongoing/loadTripDetail";
-import { useOngoingTripReload } from "../hooks/ongoing/useOngoingTripReload";
-import OngoingTimelineMarker from "../components/ongoing/OngoingTimelineMarker";
-import OngoingGapRecommendationSection from "../components/ongoing/OngoingGapRecommendationSection";
-import OngoingEmptyDayCard from "../components/ongoing/OngoingEmptyDayCard";
-import OngoingDayTabs from "../components/ongoing/OngoingDayTabs";
-import OngoingHeader from "../components/ongoing/OngoingHeader";
-import OngoingMapSection from "../components/ongoing/OngoingMapSection";
-import GapRecommendationCard from "../components/recommendations/GapRecommendationCard";
-import styles from "../styles/ongoingScheduleStyles";
-import useOngoingPlaces from "../hooks/ongoing/useOngoingPlaces";
-import type { TripScheduleGap } from "../types/gapRecommendation";
-import { getPlaceDetail } from "../../api/places/place";
+import OngoingPlaceCard from "../../../components/ongoing/OngoingPlaceCard";
+import OngoingGapBetweenPlace from "../../../components/ongoing/OngoingGapBetweenPlace";
+import { buildAlternativeNavigationParams } from "../../../utils/ongoing/alternativeNavigation";
+import { trackEvent, AMP } from "../../../utils/amplitude";
+import { loadOngoingTripDetail } from "../../../utils/ongoing/loadTripDetail";
+import { useOngoingTripReload } from "../../../hooks/ongoing/useOngoingTripReload";
+import OngoingTimelineMarker from "../../../components/ongoing/OngoingTimelineMarker";
+import OngoingGapRecommendationSection from "../../../components/ongoing/OngoingGapRecommendationSection";
+import OngoingEmptyDayCard from "../../../components/ongoing/OngoingEmptyDayCard";
+import OngoingDayTabs from "../../../components/ongoing/OngoingDayTabs";
+import OngoingHeader from "../../../components/ongoing/OngoingHeader";
+import OngoingMapSection from "../../../components/ongoing/OngoingMapSection";
+import GapRecommendationCard from "../../../components/recommendations/GapRecommendationCard";
+import styles from "../../../styles/ongoingScheduleStyles";
+import useOngoingPlaces from "../../../hooks/ongoing/useOngoingPlaces";
+import type { TripScheduleGap } from "../../../types/gapRecommendation";
+import { getPlaceDetail } from "../../../../api/places/place";
 import {
   addTripLocation,
   deletePlanPlace,
   getTripDay,
   getTripDetail,
   updatePlanSchedule,
-} from "../../api/schedules/server";
+} from "../../../../api/schedules/server";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 
