@@ -14,27 +14,28 @@ import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect } from "@react-navigation/native";
 import { Swipeable } from "react-native-gesture-handler";
 
-import RadialBackground from "../components/RadialBackground";
-import WeatherNotificationCard from "../components/notifications/WeatherNotificationCard";
-import { removePlanASchedule } from "../api/schedules/planAStorage";
-import { getPlaceDetail } from "../../api/places/place";
+import RadialBackground from "../../components/RadialBackground";
+import EmptyCurrentScheduleState from "../../components/home/EmptyCurrentScheduleState";
+import WeatherNotificationCard from "../../components/notifications/WeatherNotificationCard";
+import { removePlanASchedule } from "../../api/schedules/planAStorage";
+import { getPlaceDetail } from "../../../api/places/place";
 import {
   deleteTrip,
   getTripDetail,
   getTrips,
   TripSummary,
-} from "../../api/schedules/server";
+} from "../../../api/schedules/server";
 import {
   dismissNotification,
   getWeatherNotifications,
-} from "../../api/notifications/notifications";
-import type { WeatherNotification } from "../types/notification";
+} from "../../../api/notifications/notifications";
+import type { WeatherNotification } from "../../types/notification";
 import {
   registerNotificationClickListener,
   removeNotificationClickListener,
   requestExpoPushToken,
-} from "../utils/pushNotifications";
-import { registerPushToken } from "../../api/notifications/pushToken";
+} from "../../utils/pushNotifications";
+import { registerPushToken } from "../../../api/notifications/pushToken";
 
 type Props = {
   navigation: any;
@@ -1318,31 +1319,9 @@ export default function MainScreen({ navigation }: Props) {
 
   const renderEmptyState = () => {
     return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.radialLayer} pointerEvents="none">
-          <RadialBackground />
-        </View>
-
-        <View style={styles.foregroundContent}>
-          <View style={styles.emptyIconCircle}>
-            <View style={styles.calendarIcon}>
-              <View style={styles.calendarTopBar}>
-                <View style={styles.calendarRing} />
-                <View style={styles.calendarRing} />
-              </View>
-
-              <View style={styles.calendarBody}>
-                <View style={styles.calendarDateBlock} />
-              </View>
-            </View>
-          </View>
-
-          <Text style={styles.emptyTitle}>등록된 일정이 없습니다</Text>
-
-          <Text style={styles.emptyDescription}>
-            새로운 여행 일정을 추가해보세요
-          </Text>
-
+      <EmptyCurrentScheduleState
+        onPressPastTrips={() => navigation.navigate("PlanX")}
+        addButton={
           <TouchableOpacity
             style={styles.addButton}
             activeOpacity={0.85}
@@ -1350,8 +1329,8 @@ export default function MainScreen({ navigation }: Props) {
           >
             <Text style={styles.addButtonText}>일정 추가하기</Text>
           </TouchableOpacity>
-        </View>
-      </View>
+        }
+      />
     );
   };
 

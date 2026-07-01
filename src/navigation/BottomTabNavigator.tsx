@@ -7,7 +7,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import MainScreen from "../screens/MainScreen";
+import MainScreen from "../screens/home/MainScreen";
 import PlanXScreen from "../screens/schedule/history/PlanXScreen";
 import ProfileScreen from "../screens/profile/ProfileScreen";
 
