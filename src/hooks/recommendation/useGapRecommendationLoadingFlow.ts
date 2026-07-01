@@ -165,7 +165,7 @@ export function useGapRecommendationLoadingFlow({
     setErrorMessage("");
     setStreamMessage("");
     setReceivedPlaceCount(0);
-    setProgress(2);
+    setProgress(6);
     setDisplayStepIndex(0);
     setActiveDotIndex(0);
     setDotDirection(1);
