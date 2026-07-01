@@ -3,9 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
-  Dimensions,
   Keyboard,
-  KeyboardAvoidingView,
   PanResponder,
   ScrollView,
   StyleSheet,
@@ -14,6 +12,7 @@ import {
   TouchableOpacity,
   View,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
@@ -140,19 +139,6 @@ const INITIAL_REGION = {
  */
 const MAP_HEIGHT_WHEN_SHEET_EXPANDED = 335;
 
-const MAP_HEIGHT_WHEN_SHEET_COLLAPSED =
-  Math.min(
-    Math.max(
-      Dimensions.get("window").height - 185,
-      515,
-    ),
-    680,
-  );
-
-const MAP_HEIGHT_SNAP_MIDPOINT =
-  (MAP_HEIGHT_WHEN_SHEET_COLLAPSED +
-    MAP_HEIGHT_WHEN_SHEET_EXPANDED) /
-  2;
 
 const REVIEW_TEXT_MAX_LENGTH = 80;
 
@@ -340,9 +326,30 @@ export default function AddScheduleLocationScreen({
   navigation,
   route,
 }: Props) {
+  const { height: windowHeight } = useWindowDimensions();
+
   const inputRef = useRef<TextInput>(null);
   const submitLockRef = useRef(false);
   const mapRef = useRef<MapView>(null);
+  const keyboardVisibleRef = useRef(false);
+
+  const mapHeightWhenSheetCollapsed = useMemo(
+    () =>
+      Math.min(
+        Math.max(windowHeight - 185, 515),
+        680,
+      ),
+    [windowHeight],
+  );
+
+  const mapHeightSnapMidpoint = useMemo(
+    () =>
+      (
+        mapHeightWhenSheetCollapsed +
+        MAP_HEIGHT_WHEN_SHEET_EXPANDED
+      ) / 2,
+    [mapHeightWhenSheetCollapsed],
+  );
 
   const mapSectionHeight = useRef(
     new Animated.Value(
@@ -361,8 +368,18 @@ export default function AddScheduleLocationScreen({
   const animateBottomSheetTo = (
     mapHeight: number,
   ) => {
+    const safeMapHeight = Math.max(
+      MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+      Math.min(
+        mapHeightWhenSheetCollapsed,
+        mapHeight,
+      ),
+    );
+
+    mapSectionHeight.stopAnimation();
+
     Animated.spring(mapSectionHeight, {
-      toValue: mapHeight,
+      toValue: safeMapHeight,
       useNativeDriver: false,
       damping: 22,
       stiffness: 220,
@@ -374,12 +391,12 @@ export default function AddScheduleLocationScreen({
   const toggleBottomSheet = () => {
     const shouldExpand =
       mapSectionHeightValueRef.current >=
-      MAP_HEIGHT_SNAP_MIDPOINT;
+      mapHeightSnapMidpoint;
 
     animateBottomSheetTo(
       shouldExpand
         ? MAP_HEIGHT_WHEN_SHEET_EXPANDED
-        : MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+        : mapHeightWhenSheetCollapsed,
     );
   };
 
@@ -393,12 +410,12 @@ export default function AddScheduleLocationScreen({
       velocityY < -0.35 ||
       (velocityY <= 0.35 &&
         currentHeight <
-          MAP_HEIGHT_SNAP_MIDPOINT);
+          mapHeightSnapMidpoint);
 
     animateBottomSheetTo(
       shouldExpand
         ? MAP_HEIGHT_WHEN_SHEET_EXPANDED
-        : MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+        : mapHeightWhenSheetCollapsed,
     );
   };
 
@@ -410,18 +427,32 @@ export default function AddScheduleLocationScreen({
       onMoveShouldSetPanResponder: (
         _,
         gestureState,
-      ) =>
-        Math.abs(gestureState.dy) > 4 &&
-        Math.abs(gestureState.dy) >
-          Math.abs(gestureState.dx),
+      ) => {
+        if (keyboardVisibleRef.current) {
+          return false;
+        }
+
+        return (
+          Math.abs(gestureState.dy) > 6 &&
+          Math.abs(gestureState.dy) >
+            Math.abs(gestureState.dx)
+        );
+      },
 
       onMoveShouldSetPanResponderCapture: (
         _,
         gestureState,
-      ) =>
-        Math.abs(gestureState.dy) > 4 &&
-        Math.abs(gestureState.dy) >
-          Math.abs(gestureState.dx),
+      ) => {
+        if (keyboardVisibleRef.current) {
+          return false;
+        }
+
+        return (
+          Math.abs(gestureState.dy) > 6 &&
+          Math.abs(gestureState.dy) >
+            Math.abs(gestureState.dx)
+        );
+      },
 
       onPanResponderGrant: () => {
         sheetDragStartHeightRef.current =
@@ -435,7 +466,7 @@ export default function AddScheduleLocationScreen({
         const nextHeight = Math.max(
           MAP_HEIGHT_WHEN_SHEET_EXPANDED,
           Math.min(
-            MAP_HEIGHT_WHEN_SHEET_COLLAPSED,
+            mapHeightWhenSheetCollapsed,
             sheetDragStartHeightRef.current +
               gestureState.dy,
           ),
@@ -485,6 +516,60 @@ export default function AddScheduleLocationScreen({
     };
   }, [mapSectionHeight]);
 
+  useEffect(() => {
+    const showEvent =
+      Platform.OS === "ios"
+        ? "keyboardWillShow"
+        : "keyboardDidShow";
+
+    const hideEvent =
+      Platform.OS === "ios"
+        ? "keyboardWillHide"
+        : "keyboardDidHide";
+
+    const showSubscription = Keyboard.addListener(
+      showEvent,
+      () => {
+        keyboardVisibleRef.current = true;
+      },
+    );
+
+    const hideSubscription = Keyboard.addListener(
+      hideEvent,
+      () => {
+        keyboardVisibleRef.current = false;
+      },
+    );
+
+    return () => {
+      showSubscription.remove();
+      hideSubscription.remove();
+    };
+  }, []);
+
+  useEffect(() => {
+    const currentHeight =
+      mapSectionHeightValueRef.current;
+
+    const nextHeight = Math.max(
+      MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+      Math.min(
+        mapHeightWhenSheetCollapsed,
+        currentHeight,
+      ),
+    );
+
+    if (nextHeight !== currentHeight) {
+      mapSectionHeight.stopAnimation();
+      mapSectionHeight.setValue(nextHeight);
+      mapSectionHeightValueRef.current =
+        nextHeight;
+    }
+  }, [
+    mapHeightWhenSheetCollapsed,
+    mapSectionHeight,
+  ]);
+
   const tripName = route?.params?.tripName ?? "";
   const startDate = route?.params?.startDate ?? "";
   const endDate = route?.params?.endDate ?? "";
@@ -525,6 +610,8 @@ export default function AddScheduleLocationScreen({
   >([]);
 
   const [favoriteListLoading, setFavoriteListLoading] =
+    useState(false);
+  const [favoriteListLoaded, setFavoriteListLoaded] =
     useState(false);
 
   const [
@@ -660,10 +747,16 @@ export default function AddScheduleLocationScreen({
       setFavoriteListLoading(true);
 
       const bookmarks = await getBookmarks();
+      const normalizedBookmarks =
+        bookmarks.map(normalizeBookmarkPlace);
 
-      setFavoritePlaces(
-        bookmarks.map(normalizeBookmarkPlace),
-      );
+      console.log("[Bookmarks] 목록 조회 완료:", {
+        selectedDay,
+        count: normalizedBookmarks.length,
+      });
+
+      setFavoritePlaces(normalizedBookmarks);
+      setFavoriteListLoaded(true);
     } catch (error) {
       console.log(
         "[Bookmarks] 목록 조회 실패:",
@@ -688,8 +781,21 @@ export default function AddScheduleLocationScreen({
   };
 
   useEffect(() => {
+    // 즐겨찾기는 일자별 목록이 아니므로
+    // 일자 변경 후에도 서버 전체 목록을 다시 불러온다.
     void loadFavoritePlaces();
-  }, []);
+  }, [selectedDay]);
+
+  useEffect(() => {
+    const unsubscribe = navigation.addListener(
+      "focus",
+      () => {
+        void loadFavoritePlaces();
+      },
+    );
+
+    return unsubscribe;
+  }, [navigation]);
 
   const toggleFavoritePlace = async (
     place: PlaceSearchResult,
@@ -1599,7 +1705,10 @@ export default function AddScheduleLocationScreen({
           showsUserLocation
           showsMyLocationButton={false}
           showsCompass={false}
+          scrollEnabled
+          zoomEnabled
           rotateEnabled={false}
+          pitchEnabled={false}
         >
           {mapPlaces
             .filter(
@@ -1687,11 +1796,7 @@ export default function AddScheduleLocationScreen({
         </SafeAreaView>
       </Animated.View>
 
-      <KeyboardAvoidingView
-        style={styles.bottomSheet}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
-      >
+      <View style={styles.bottomSheet}>
         <View
           style={styles.handleTouchArea}
           {...bottomSheetPanResponder.panHandlers}
@@ -1763,7 +1868,9 @@ export default function AddScheduleLocationScreen({
                   styles.resultTabTextActive,
               ]}
             >
-              즐겨찾기 {favoritePlaces.length}
+              즐겨찾기{favoriteListLoaded
+                ? ` ${favoritePlaces.length}`
+                : ""}
             </Text>
           </TouchableOpacity>
         </View>
@@ -1788,7 +1895,8 @@ export default function AddScheduleLocationScreen({
           : null}
 
           {activeResultTab === "favorites" &&
-          favoriteListLoading ? (
+          favoriteListLoading &&
+          favoritePlaces.length === 0 ? (
             <View style={styles.favoriteEmptyCard}>
               <ActivityIndicator
                 size="large"
@@ -1917,7 +2025,7 @@ export default function AddScheduleLocationScreen({
             );
           })}
         </ScrollView>
-      </KeyboardAvoidingView>
+      </View>
 
       <PlaceDetailBottomSheet
         visible={Boolean(detailModalPlace)}
@@ -2123,6 +2231,8 @@ const styles = StyleSheet.create({
   },
 
   resultContent: {
+    flexGrow: 1,
+    minHeight: 320,
     paddingHorizontal: 16,
     paddingBottom: 120,
   },
