@@ -106,13 +106,6 @@ export default function RecommendationResultScreen({
       savedOriginalSchedulePlace?.visitTime ?? targetPlace?.visitTime ?? null,
     initialEndTime:
       savedOriginalSchedulePlace?.endTime ?? targetPlace?.endTime ?? null,
-    onTimeValidationError: () => {
-      showWhiteToast(
-        "시간 설정 확인",
-        "시작 시간은 종료 시간보다 빨라야 합니다.",
-        "error",
-      );
-    },
   });
 
   const {
@@ -187,6 +180,20 @@ export default function RecommendationResultScreen({
     targetPlace?.endTime,
     targetPlace?.visitTime,
   ]);
+
+  const hasPreviousSchedule = Boolean(
+    savedPreviousSchedulePlace?.name?.trim() ||
+      savedPreviousSchedulePlace?.id ||
+      savedPreviousSchedulePlace?.tripPlaceId ||
+      savedPreviousSchedulePlace?.serverTripPlaceId,
+  );
+
+  const hasNextSchedule = Boolean(
+    savedNextSchedulePlace?.name?.trim() ||
+      savedNextSchedulePlace?.id ||
+      savedNextSchedulePlace?.tripPlaceId ||
+      savedNextSchedulePlace?.serverTripPlaceId,
+  );
 
   const currentPlaceName =
     originalSchedulePlace?.name || params.title || "현재 진행 중인 일정";
@@ -387,17 +394,17 @@ export default function RecommendationResultScreen({
         pendingPlace={pendingPlace}
         originalPlace={originalSchedulePlace}
         nextPlace={savedNextSchedulePlace}
-        hasPreviousSchedule={impactResult?.prevPlace !== null}
-        hasNextSchedule={impactResult?.nextPlace !== null}
+        hasPreviousSchedule={hasPreviousSchedule}
+        hasNextSchedule={hasNextSchedule}
         previousName={
-          impactResult?.prevPlace === null
-            ? "이전 일정이 존재하지 않습니다"
-            : previewData.previewPreviousName
+          hasPreviousSchedule
+            ? previewData.previewPreviousName
+            : "이전 일정이 없습니다"
         }
         previousTime={
-          impactResult?.prevPlace === null
-            ? "이전 일정 없음"
-            : previewData.previewPreviousTime
+          hasPreviousSchedule
+            ? previewData.previewPreviousTime
+            : "시간 미정"
         }
         previousAddress={previewData.previewPreviousAddress}
         alternativeName={previewData.previewAlternativeName}
@@ -405,14 +412,14 @@ export default function RecommendationResultScreen({
         alternativeAddress={previewData.previewAlternativeAddress}
         originalPlaceName={currentPlaceName}
         nextName={
-          impactResult?.nextPlace === null
-            ? "다음 일정이 존재하지 않습니다"
-            : previewData.previewNextName
+          hasNextSchedule
+            ? previewData.previewNextName
+            : "다음 일정이 없습니다"
         }
         nextTime={
-          impactResult?.nextPlace === null
-            ? "다음 일정 없음"
-            : impactNextTime
+          hasNextSchedule
+            ? impactNextTime
+            : "시간 미정"
         }
         nextAddress={previewData.previewNextAddress}
         transportMode={nextImpactMode}
@@ -464,13 +471,19 @@ export default function RecommendationResultScreen({
         }
         onConfirm={() => {
           if (
-            pendingPlace &&
-            submittingPlaceId === null
+            !pendingPlace ||
+            submittingPlaceId !== null
           ) {
-            void handleSelectPlace(
-              pendingPlace,
-            );
+            return;
           }
+
+          const placeToApply = pendingPlace;
+
+          // 교체 요청 중 프리뷰 모달에 갇히지 않도록
+          // 요청 시작과 동시에 모달을 닫는다.
+          setPendingPlace(null);
+
+          void handleSelectPlace(placeToApply);
         }}
       />
       <WhiteToast toast={whiteToast} />

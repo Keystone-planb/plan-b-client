@@ -621,11 +621,8 @@ export const executePlanRecommendationReplace = async ({
       setSelectedPlaceId,
     });
 
-    showReplaceSuccessToast(
-      showToast,
-      newPlaceName,
-      () => onSuccess(usedCurrentPlanId),
-    );
+    // 교체 완료 토스트 없이 성공 즉시 다음 화면으로 이동
+    onSuccess(usedCurrentPlanId);
   } catch (error) {
     const message =
       getRecommendationReplaceErrorMessage(error);
