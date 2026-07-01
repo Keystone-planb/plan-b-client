@@ -101,6 +101,19 @@ export default function PlanAPlaceCard({
 
         <View style={styles.placeHeaderActions}>
           <TouchableOpacity
+            style={styles.placeTimeEditIconButton}
+            testID={`plan-a-place-time-edit-${index}`}
+            accessibilityLabel={`Plan A place time edit ${index + 1}`}
+            activeOpacity={0.85}
+            onPress={(event) => {
+              event.stopPropagation();
+              onQuickEditTime(place);
+            }}
+          >
+            <Ionicons name="time-outline" size={15} color="#2563EB" />
+          </TouchableOpacity>
+
+          <TouchableOpacity
             style={styles.placeDeleteIconButton}
             activeOpacity={0.85}
             onPress={(event) => {
@@ -121,19 +134,6 @@ export default function PlanAPlaceCard({
             }}
           >
             <Ionicons name="trash-outline" size={15} color="#EF4444" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.placeTimeEditIconButton}
-            testID={`plan-a-place-time-edit-${index}`}
-            accessibilityLabel={`Plan A place time edit ${index + 1}`}
-            activeOpacity={0.85}
-            onPress={(event) => {
-              event.stopPropagation();
-              onQuickEditTime(place);
-            }}
-          >
-            <Ionicons name="time-outline" size={15} color="#2563EB" />
           </TouchableOpacity>
         </View>
       </View>
