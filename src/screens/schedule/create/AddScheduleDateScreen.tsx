@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import TravelDateRangeModal from "../components/TravelDateRangeModal";
+import TravelDateRangeModal from "../../../components/TravelDateRangeModal";
 
 const WEEKDAY_LABELS = [
   "일",

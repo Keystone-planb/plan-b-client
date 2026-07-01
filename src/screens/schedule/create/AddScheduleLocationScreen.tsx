@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { getAnalyzedPlaceDetail } from "../../api/places/place";
+import { getAnalyzedPlaceDetail } from "../../../../api/places/place";
 import { MapContainer, Marker, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 
@@ -24,14 +24,14 @@ import {
   getPlaceSummary,
   searchPlaces,
   getPlaceAnalysisStatus,
-} from "../../api/places/searchPlaces";
+} from "../../../../api/places/searchPlaces";
 import {
   PlaceFreshnessResponse,
   PlaceSearchResult,
   PlaceSummaryResponse,
-} from "../../api/places/place";
-import { addTripLocation, createTrip } from "../../api/schedules/server";
-import { reportPreferenceFeedback } from "../../api/preferences/preferences";
+} from "../../../../api/places/place";
+import { addTripLocation, createTrip } from "../../../../api/schedules/server";
+import { reportPreferenceFeedback } from "../../../../api/preferences/preferences";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Props = {

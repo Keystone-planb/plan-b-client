@@ -18,7 +18,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { getAnalyzedPlaceDetail } from "../../api/places/place";
+import { getAnalyzedPlaceDetail } from "../../../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   BookmarkApiError,
@@ -26,7 +26,7 @@ import {
   createBookmark,
   deleteBookmark,
   getBookmarks,
-} from "../../api/bookmarks/bookmarks";
+} from "../../../../api/bookmarks/bookmarks";
 
 import {
   getPlaceDetail,
@@ -34,19 +34,19 @@ import {
   getPlaceSummary,
   searchPlaces,
   getPlaceAnalysisStatus,
-} from "../../api/places/searchPlaces";
-import { reanalyzePlace } from "../../api/places/place";
+} from "../../../../api/places/searchPlaces";
+import { reanalyzePlace } from "../../../../api/places/place";
 import {
   PlaceFreshnessResponse,
   PlaceSearchResult,
   PlaceSummaryResponse,
-} from "../../api/places/place";
-import { reportPreferenceFeedback } from "../../api/preferences/preferences";
-import { addTripLocation, createTrip } from "../../api/schedules/server";
-import { trackEvent, AMP } from "../utils/amplitude";
-import SearchResultCard from "../components/location/SearchResultCard";
-import PlaceDetailBottomSheet from "../components/location/PlaceDetailBottomSheet";
-import { usePlaceReview } from "../hooks/location/usePlaceReview";
+} from "../../../../api/places/place";
+import { reportPreferenceFeedback } from "../../../../api/preferences/preferences";
+import { addTripLocation, createTrip } from "../../../../api/schedules/server";
+import { trackEvent, AMP } from "../../../utils/amplitude";
+import SearchResultCard from "../../../components/location/SearchResultCard";
+import PlaceDetailBottomSheet from "../../../components/location/PlaceDetailBottomSheet";
+import { usePlaceReview } from "../../../hooks/location/usePlaceReview";
 import {
   createKeywordsFromReviews,
   createReviewSummaryFromReviews,
@@ -59,7 +59,7 @@ import {
   isMockLikeSummary,
   isUsefulReviewText,
   shortenAddress,
-} from "../utils/location/reviewUtils";
+} from "../../../utils/location/reviewUtils";
 
 type Props = {
   navigation: any;

@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 
-import AddScheduleMainSvg from "../assets/add-schedule-main.svg";
+import AddScheduleMainSvg from "../../../assets/add-schedule-main.svg";
 
 type Props = {
   navigation: any;

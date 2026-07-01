@@ -24,9 +24,9 @@ import OnboardingFourthScreen from "./src/screens/onboarding/OnboardingFourthScr
 import LoginScreen from "./src/screens/auth/login/LoginScreen";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
-import AddScheduleNameScreen from "./src/screens/AddScheduleNameScreen";
-import AddScheduleDateScreen from "./src/screens/AddScheduleDateScreen";
-import AddScheduleLocationScreen from "./src/screens/AddScheduleLocationScreen";
+import AddScheduleNameScreen from "./src/screens/schedule/create/AddScheduleNameScreen";
+import AddScheduleDateScreen from "./src/screens/schedule/create/AddScheduleDateScreen";
+import AddScheduleLocationScreen from "./src/screens/schedule/create/AddScheduleLocationScreen";
 import PlanAScreen from "./src/screens/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/OngoingScheduleScreen";
 import UpcomingScheduleScreen from "./src/screens/UpcomingScheduleScreen";
