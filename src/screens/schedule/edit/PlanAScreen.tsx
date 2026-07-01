@@ -17,24 +17,24 @@ import {
 } from "react-native-safe-area-context";
 import Ionicons from "@expo/vector-icons/Ionicons";
 
-import PlanADayTabs from "../components/planA/PlanADayTabs";
-import PlanAMapPreview from "../components/planA/PlanAMapPreview";
-import { getPlaceDetail } from "../../api/places/place";
-import PlanAEmptyPlaceCard from "../components/planA/PlanAEmptyPlaceCard";
-import PlanAPlaceCard from "../components/planA/PlanAPlaceCard";
-import PlanATimePickerModal from "../components/planA/PlanATimePickerModal";
-import PlanAHeaderSection from "../components/planA/PlanAHeaderSection";
-import PlanAViewPlaceCardRow from "../components/planA/PlanAViewPlaceCardRow";
-import PlanAEditPlaceCardRow from "../components/planA/PlanAEditPlaceCardRow";
+import PlanADayTabs from "../../../components/planA/PlanADayTabs";
+import PlanAMapPreview from "../../../components/planA/PlanAMapPreview";
+import { getPlaceDetail } from "../../../../api/places/place";
+import PlanAEmptyPlaceCard from "../../../components/planA/PlanAEmptyPlaceCard";
+import PlanAPlaceCard from "../../../components/planA/PlanAPlaceCard";
+import PlanATimePickerModal from "../../../components/planA/PlanATimePickerModal";
+import PlanAHeaderSection from "../../../components/planA/PlanAHeaderSection";
+import PlanAViewPlaceCardRow from "../../../components/planA/PlanAViewPlaceCardRow";
+import PlanAEditPlaceCardRow from "../../../components/planA/PlanAEditPlaceCardRow";
 
 import {
   DayOption,
   PlaceItem,
   SelectedPlaceParam,
   SelectedPlacesParam,
-} from "../types/planA";
-import { TravelSchedule } from "../types/schedule";
-import { usePlanAPlaces } from "../hooks/usePlanAPlaces";
+} from "../../../types/planA";
+import { TravelSchedule } from "../../../types/schedule";
+import { usePlanAPlaces } from "../../../hooks/usePlanAPlaces";
 import {
   addOneHourToDisplayTime,
   formatPickerTimeValue,
@@ -51,17 +51,17 @@ import {
   parsePickerTimeValue,
   pickCoordinate,
   sortPlacesByTime,
-} from "../utils/planA/planAScreenUtils";
+} from "../../../utils/planA/planAScreenUtils";
 
 import {
   getTripTransportMode,
   updateTripTransportMode,
-} from "../../api/schedules/transportMode";
-import { dismissNotification } from "../../api/notifications/notifications";
+} from "../../../../api/schedules/transportMode";
+import { dismissNotification } from "../../../../api/notifications/notifications";
 import {
   updatePlanSchedule,
-} from "../../api/schedules/server";
-import { buildScheduleForTimeValidation } from "../utils/planA/planAValidationUtils";
+} from "../../../../api/schedules/server";
+import { buildScheduleForTimeValidation } from "../../../utils/planA/planAValidationUtils";
 
 type TransportMode = "WALK" | "TRANSIT" | "CAR";
 

@@ -27,7 +27,7 @@ import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 import AddScheduleNameScreen from "./src/screens/schedule/create/AddScheduleNameScreen";
 import AddScheduleDateScreen from "./src/screens/schedule/create/AddScheduleDateScreen";
 import AddScheduleLocationScreen from "./src/screens/schedule/create/AddScheduleLocationScreen";
-import PlanAScreen from "./src/screens/PlanAScreen";
+import PlanAScreen from "./src/screens/schedule/edit/PlanAScreen";
 import OngoingScheduleScreen from "./src/screens/schedule/ongoing/OngoingScheduleScreen";
 import UpcomingScheduleScreen from "./src/screens/schedule/upcoming/UpcomingScheduleScreen";
 import AlternativeSettingsScreen from "./src/screens/recommendation/settings/AlternativeSettingsScreen";
