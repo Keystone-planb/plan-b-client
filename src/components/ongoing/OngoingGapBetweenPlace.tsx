@@ -105,21 +105,26 @@ export default function OngoingGapBetweenPlace({
     isGapCardVisible === false
   ) {
     return (
-      <View
-        style={
-          localStyles.transportCompactConnector
-        }
-      >
-        <View
-          style={
-            localStyles.transportCompactIconColumn
-          }
-        >
-          <View
-            style={
-              localStyles.transportCompactLine
-            }
+      <View style={localStyles.transportCompactConnector}>
+        <View style={localStyles.transportCompactIconColumn}>
+          <View style={localStyles.transportDotLineCompact}>
+            {Array.from({ length: 3 }).map((_, dotIndex) => (
+              <View key={`top-${dotIndex}`} style={localStyles.transportDot} />
+            ))}
+          </View>
+
+          <Ionicons
+            name={selectedTransportOption.icon}
+            size={18}
+            color="#94A3B8"
+            style={localStyles.transportIconCompact}
           />
+
+          <View style={localStyles.transportDotLineCompact}>
+            {Array.from({ length: 3 }).map((_, dotIndex) => (
+              <View key={`bottom-${dotIndex}`} style={localStyles.transportDot} />
+            ))}
+          </View>
         </View>
       </View>
     );
@@ -163,12 +168,24 @@ export default function OngoingGapBetweenPlace({
 
   return (
     <View style={localStyles.transportEmptyRow}>
-      <Ionicons
-        name={selectedTransportOption.icon}
-        size={18}
-        color="#94A3B8"
-        style={localStyles.transportIconCompact}
-      />
+      <View style={localStyles.transportEmptyIconColumn}>
+        <View style={localStyles.transportSolidLineTop} />
+
+        <Ionicons
+          name={selectedTransportOption.icon}
+          size={18}
+          color="#94A3B8"
+          style={localStyles.transportIconCompact}
+        />
+
+        <View style={localStyles.transportDotLine}>
+          {Array.from({ length: 4 }).map((_, dotIndex) => (
+            <View key={dotIndex} style={localStyles.transportDot} />
+          ))}
+        </View>
+
+        <View style={localStyles.transportSolidLineBottom} />
+      </View>
 
       <View style={localStyles.transportEmptyCardWrapper}>
         <View style={localStyles.transportAccordionCard}>

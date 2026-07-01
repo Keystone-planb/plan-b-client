@@ -1500,8 +1500,8 @@ const localStyles = StyleSheet.create({
   },
 
   transportIconCompact: {
-    marginVertical: 0,
-    transform: [{ scale: 1.15 }],
+    marginVertical: 4,
+    transform: [{ scale: 1.35 }],
   },
 
   transportDotLine: {
@@ -1515,7 +1515,7 @@ const localStyles = StyleSheet.create({
 
   transportDot: {
     width: 3,
-    height: 10,
+    height: 8,
     borderRadius: 999,
     backgroundColor: "#CBD5E1",
   },
@@ -1530,13 +1530,20 @@ const localStyles = StyleSheet.create({
 
   transportEmptyRow: {
     flexDirection: "row",
-    marginTop: 15,
-    marginBottom: 15,
+    marginTop: 8,
+    marginBottom: 8,
     alignItems: "center",
-    minHeight: 26,
-    height: 26,
-    paddingLeft: 18,
+    minHeight: 74,
+    paddingLeft: 118,
     zIndex: 10,
+  },
+
+  transportEmptyIconColumn: {
+    width: 28,
+    minHeight: 74,
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: 0,
   },
 
   transportEmptyCardWrapper: {
