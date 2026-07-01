@@ -1,5 +1,6 @@
 import axios from "axios";
 import { API_CONFIG } from "../config";
+import { saveRefreshFailureLog } from "../../src/utils/auth/refreshFailureLog";
 
 const BASE_URL = API_CONFIG.BASE_URL;
 
@@ -131,15 +132,29 @@ export const requestRefresh = async ({
         );
       }
 
-      console.log("[requestRefresh] failed:", {
-        status: error.response?.status,
-        statusText: error.response?.statusText,
+      const refreshFailureLog = {
+        occurredAt: new Date().toISOString(),
+        status: error.response?.status ?? null,
+        statusText: error.response?.statusText ?? null,
         requestedUrl: `${BASE_URL}/api/auth/refresh`,
-        method: error.config?.method,
-        contentType: error.response?.headers?.["content-type"],
-        server: error.response?.headers?.server,
-        data: errorData,
-      });
+        method: error.config?.method ?? null,
+        contentType:
+          error.response?.headers?.["content-type"] != null
+            ? String(error.response.headers["content-type"])
+            : null,
+        server:
+          error.response?.headers?.server != null
+            ? String(error.response.headers.server)
+            : null,
+        data:
+          typeof errorData === "string"
+            ? errorData.slice(0, 1000)
+            : errorData ?? null,
+      };
+
+      console.log("[requestRefresh] failed:", refreshFailureLog);
+
+      await saveRefreshFailureLog(refreshFailureLog);
 
       if (isHtmlResponse(errorData)) {
         throw createRefreshError(
