@@ -202,6 +202,32 @@ export function useGapRecommendationLoadingFlow({
     retryVersion,
   ]);
 
+  // 실제 추천 요청과 별개로 로딩 화면 진행률을 움직인다.
+  // API를 추가 호출하지 않는 순수 UI 타이머다.
+  useEffect(() => {
+    if (!enabled || errorMessage || navigatedRef.current) {
+      return;
+    }
+
+    const progressTimer = setInterval(() => {
+      setProgress((previous) => {
+        if (previous >= 94) {
+          return previous;
+        }
+
+        return Math.min(previous + 2, 94);
+      });
+    }, 180);
+
+    return () => {
+      clearInterval(progressTimer);
+    };
+  }, [
+    enabled,
+    errorMessage,
+    retryVersion,
+  ]);
+
   useEffect(() => {
     if (
       !enabled ||
@@ -480,6 +506,25 @@ export function useGapRecommendationLoadingFlow({
               },
             },
           );
+
+
+          // 서버가 장소 결과를 보냈지만 SSE done 이벤트를
+          // 누락한 경우에도 로딩 화면에 머물지 않도록 처리한다.
+          const fallbackPlaces = [
+            ...receivedPlacesRef.current,
+          ];
+
+          if (
+            !cancelled &&
+            !navigatedRef.current &&
+            fallbackPlaces.length > 0
+          ) {
+            setProgress(100);
+            setStreamMessage(
+              "빈 시간 추천 결과를 불러왔어요",
+            );
+            moveToResult(fallbackPlaces);
+          }
         } catch (error) {
           if (cancelled) {
             return;
