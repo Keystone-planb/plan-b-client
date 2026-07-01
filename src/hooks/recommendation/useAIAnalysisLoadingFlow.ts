@@ -31,7 +31,7 @@ export function useAIAnalysisLoadingFlow({
   params,
   enabled = true,
 }: Params) {
-  const [progress, setProgress] = useState(2);
+  const [progress, setProgress] = useState(6);
 
   const [
     displayStepIndex,
@@ -136,7 +136,7 @@ export function useAIAnalysisLoadingFlow({
     setErrorMessage("");
     setStreamMessage("");
     setReceivedPlaceCount(0);
-    setProgress(2);
+    setProgress(6);
     setDisplayStepIndex(0);
     setActiveDotIndex(0);
     setDotDirection(1);
@@ -155,9 +155,17 @@ export function useAIAnalysisLoadingFlow({
           return prev;
         }
 
-        return Math.min(prev + 2, 94);
+        if (prev < 35) {
+          return Math.min(prev + 3, 35);
+        }
+
+        if (prev < 75) {
+          return Math.min(prev + 2, 75);
+        }
+
+        return Math.min(prev + 1, 94);
       });
-    }, 180);
+    }, 220);
 
     return () => {
       clearInterval(progressTimer);
@@ -252,10 +260,16 @@ export function useAIAnalysisLoadingFlow({
           requestStartAtRef.current =
             Date.now();
 
+          setProgress((prev) => Math.max(prev, 12));
+          setStreamMessage("추천 조건을 정리하고 있어요");
+
           const payload =
             await createRecommendationPayload({
               params,
             });
+
+          setProgress((prev) => Math.max(prev, 28));
+          setStreamMessage("추천 가능한 장소를 찾고 있어요");
 
           await streamRecommendations(
             payload,
