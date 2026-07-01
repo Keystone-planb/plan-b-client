@@ -1364,6 +1364,59 @@ export default function MainScreen({ navigation }: Props) {
     );
   };
 
+  const renderHomeSkeleton = () => {
+    return (
+      <ScrollView
+        style={styles.scheduleList}
+        contentContainerStyle={styles.homeContent}
+        showsVerticalScrollIndicator={false}
+        scrollEnabled={false}
+      >
+        <View style={styles.skeletonTodayInfoPill}>
+          <View style={styles.skeletonTodayItem} />
+          <View style={styles.skeletonTodayDivider} />
+          <View style={styles.skeletonTodayItem} />
+          <View style={styles.skeletonTodayDivider} />
+          <View style={styles.skeletonTodayItemSmall} />
+        </View>
+
+        <View style={styles.skeletonOngoingSection}>
+          <View style={styles.skeletonSectionTitle} />
+
+          <View style={styles.skeletonOngoingCard}>
+            <View style={styles.skeletonCircle} />
+
+            <View style={styles.skeletonOngoingInfo}>
+              <View style={styles.skeletonLineTitle} />
+              <View style={styles.skeletonLineMedium} />
+              <View style={styles.skeletonLineLong} />
+            </View>
+
+            <View style={styles.skeletonChevron} />
+          </View>
+        </View>
+
+        <View style={styles.skeletonAddButton} />
+
+        <View style={styles.skeletonNextTripSection}>
+          <View style={styles.skeletonSectionTitle} />
+
+          <View style={styles.skeletonNextTripCard}>
+            <View style={styles.skeletonThumbnail} />
+
+            <View style={styles.skeletonNextTripInfo}>
+              <View style={styles.skeletonLineTitle} />
+              <View style={styles.skeletonLineLong} />
+              <View style={styles.skeletonLineMedium} />
+            </View>
+
+            <View style={styles.skeletonChevron} />
+          </View>
+        </View>
+      </ScrollView>
+    );
+  };
+
   const renderHomeContent = () => {
     const activeSchedules = schedules
       .filter((schedule) => !isPastSchedule(schedule))
@@ -1741,9 +1794,7 @@ export default function MainScreen({ navigation }: Props) {
         </View>
 
         {loading ?
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color="#2158E8" />
-          </View>
+          renderHomeSkeleton()
         : scheduleLoadError ?
           renderScheduleLoadErrorState()
         : schedules.length === 0 ?
@@ -1783,6 +1834,145 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     paddingBottom: 110,
+  },
+
+  skeletonTodayInfoPill: {
+    height: 48,
+    marginTop: 10,
+    marginBottom: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E8EDF3",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+
+  skeletonTodayItem: {
+    width: 74,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E7ECF2",
+  },
+
+  skeletonTodayItemSmall: {
+    width: 54,
+    height: 14,
+    borderRadius: 7,
+    backgroundColor: "#E7ECF2",
+  },
+
+  skeletonTodayDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: "#E2E8F0",
+  },
+
+  skeletonOngoingSection: {
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1.5,
+    borderColor: "#D8E8F8",
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 18,
+    marginBottom: 14,
+  },
+
+  skeletonNextTripSection: {
+    borderRadius: 22,
+    backgroundColor: "#FFFFFF",
+    paddingHorizontal: 22,
+    paddingTop: 20,
+    paddingBottom: 18,
+  },
+
+  skeletonSectionTitle: {
+    width: 112,
+    height: 20,
+    borderRadius: 8,
+    backgroundColor: "#E4EAF1",
+    marginBottom: 16,
+  },
+
+  skeletonOngoingCard: {
+    minHeight: 72,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 12,
+    paddingVertical: 6,
+  },
+
+  skeletonCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: "#E7ECF2",
+    marginRight: 18,
+  },
+
+  skeletonOngoingInfo: {
+    flex: 1,
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  skeletonLineTitle: {
+    width: "62%",
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#DDE4EC",
+  },
+
+  skeletonLineMedium: {
+    width: "48%",
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: "#E7ECF2",
+  },
+
+  skeletonLineLong: {
+    width: "78%",
+    height: 13,
+    borderRadius: 7,
+    backgroundColor: "#E7ECF2",
+  },
+
+  skeletonChevron: {
+    width: 10,
+    height: 18,
+    borderRadius: 5,
+    backgroundColor: "#E7ECF2",
+    marginLeft: 12,
+  },
+
+  skeletonAddButton: {
+    height: 60,
+    marginBottom: 14,
+    borderRadius: 14,
+    backgroundColor: "#D8E2F2",
+  },
+
+  skeletonNextTripCard: {
+    minHeight: 92,
+    flexDirection: "row",
+    alignItems: "center",
+    paddingRight: 12,
+  },
+
+  skeletonThumbnail: {
+    width: 82,
+    height: 82,
+    borderRadius: 14,
+    backgroundColor: "#DDE8F5",
+    marginRight: 18,
+  },
+
+  skeletonNextTripInfo: {
+    flex: 1,
+    gap: 9,
   },
 
   seedWeatherButton: {
