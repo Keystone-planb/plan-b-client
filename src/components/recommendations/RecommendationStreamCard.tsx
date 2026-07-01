@@ -109,8 +109,7 @@ export default function RecommendationStreamCard() {
       setStatus("replaced");
       setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
     } catch (error) {
-      console.log("[recommendation replace] ignored:", error);
-      setSelectedPlaceId(nextPlaceId);
+            setSelectedPlaceId(nextPlaceId);
       setStatus("replaced");
       setMessage(`${place.name}으로 일정 대체가 완료되었습니다.`);
     } finally {

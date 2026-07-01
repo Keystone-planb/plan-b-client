@@ -157,10 +157,7 @@ export default function PlanXScreen({ navigation }: Props) {
 
       const serverTrips = await getTrips("PAST");
 
-      console.log("[PlanX] getTrips PAST response:", {
-        count: serverTrips.length,
-      });
-
+      
       const baseTrips = serverTrips
         .filter((trip) => trip.startDate && trip.endDate)
         .filter(isPastTrip)
@@ -184,11 +181,7 @@ export default function PlanXScreen({ navigation }: Props) {
               placeCount,
             };
           } catch (error) {
-            console.log("[PlanX] 상세 장소 개수 조회 실패:", {
-              tripId: trip.tripId,
-              error,
-            });
-
+            
             return trip;
           }
         }),
@@ -196,8 +189,7 @@ export default function PlanXScreen({ navigation }: Props) {
 
       setTrips(tripsWithDetailCount);
     } catch (error) {
-      console.log("Plan.X 여행 목록 조회 실패:", error);
-      setTrips([]);
+            setTrips([]);
     } finally {
       setLoading(false);
     }
@@ -240,39 +232,25 @@ export default function PlanXScreen({ navigation }: Props) {
 
   const executeDeleteTrip = async (trip: PlanXDisplayTrip) => {
     try {
-      console.log("[PlanX] deleteTrip 요청:", {
-        tripId: trip.tripId,
-        title: trip.title,
-      });
-
+      
       setDeletingTripId(trip.tripId);
 
       await deleteTrip(trip.tripId);
 
-      console.log("[PlanX] sync after delete");
-
-      console.log("[PlanX] deleteTrip 성공:", {
-        tripId: trip.tripId,
-      });
-
+      
+      
       setTrips((prev) =>
         prev.filter((item) => String(item.tripId) !== String(trip.tripId)),
       );
     } catch (error) {
-      console.log("[PlanX] 지난 여행 삭제 실패:", error);
-      Alert.alert("삭제 실패", "지난 여행을 삭제하지 못했습니다.");
+            Alert.alert("삭제 실패", "지난 여행을 삭제하지 못했습니다.");
     } finally {
       setDeletingTripId(null);
     }
   };
 
   const handleDeleteTrip = (trip: PlanXDisplayTrip) => {
-    console.log("[PlanX] handleDeleteTrip 호출:", {
-      tripId: trip.tripId,
-      title: trip.title,
-      platform: Platform.OS,
-    });
-
+    
     if (Platform.OS === "web") {
       const confirmed = window.confirm(
         `"${trip.title}" 여행을 삭제할까요?
@@ -280,10 +258,7 @@ export default function PlanXScreen({ navigation }: Props) {
       );
 
       if (!confirmed) {
-        console.log("[PlanX] 웹 삭제 취소:", {
-          tripId: trip.tripId,
-        });
-        return;
+                return;
       }
 
       executeDeleteTrip(trip);

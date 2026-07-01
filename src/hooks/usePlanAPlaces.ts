@@ -677,22 +677,7 @@ const normalizeServerTripDetailToSchedule = ({
             const day = rawDay ?? 1;
 
             if (__DEV__) {
-              console.log("[PlanA Day Debug] flat place day mapping:", {
-                rawDay,
-                resolvedDay: day,
-                placeIndex,
-                placeName:
-                  getServerValueByPath(place, "name") ??
-                  getServerValueByPath(place, "placeName"),
-                placeId:
-                  getServerValueByPath(place, "placeId") ??
-                  getServerValueByPath(place, "googlePlaceId"),
-                rawKeys:
-                  place && typeof place === "object" ?
-                    Object.keys(place as Record<string, unknown>)
-                  : [],
-              });
-            }
+                          }
 
             const normalizedPlace = normalizeServerPlaceForPlanA(
               place,
@@ -944,11 +929,7 @@ export function usePlanAPlaces({
         );
 
         if (cachedPlaceCount > 0) {
-          console.log("[PlanA hook draft cache 사용]", {
-            scheduleId: cachedDraft.id,
-            placeCount: cachedPlaceCount,
-          });
-
+          
           scheduleRef.current = cachedDraft;
           setSchedule(cachedDraft);
           setLoadedSavedSchedule(true);
@@ -957,11 +938,7 @@ export function usePlanAPlaces({
           return;
         }
 
-        console.log("[PlanA hook 빈 draft cache 무시]", {
-          scheduleId: cachedDraft.id,
-          placeCount: cachedPlaceCount,
-        });
-      }
+              }
 
       try {
         setLoadingSchedule(true);
@@ -971,8 +948,7 @@ export function usePlanAPlaces({
           ? await loadPlanASchedule(scheduleId)
           : null;
 
-        console.log("[PlanA hook 저장 일정 조회 결과]", savedSchedule);
-
+        
         const fallbackSchedule = savedSchedule ?? initialSchedule;
         const resolvedServerTripId =
           serverTripId ??
@@ -1046,27 +1022,11 @@ export function usePlanAPlaces({
                 }),
               }));
 
-              console.log("[PlanA hook 서버 상세 우선 적용]", {
-                scheduleId: serverSchedule.id,
-                serverTripId: serverSchedule.serverTripId,
-                places: serverSchedule.days.flatMap((day) =>
-                  day.places.map((place) => ({
-                    day: day.day,
-                    name: place.name,
-                    tripPlaceId: place.tripPlaceId,
-                    placeId: place.placeId,
-                  })),
-                ),
-              });
-
+              
               await savePlanASchedule(serverSchedule);
             }
           } catch (serverError) {
-            console.log("[PlanA hook 서버 상세 조회 실패 - 로컬 사용]", {
-              serverTripId: resolvedServerTripId,
-              error: serverError,
-            });
-          }
+                      }
         }
 
         const nextSchedule = serverSchedule ?? fallbackSchedule;
@@ -1078,8 +1038,7 @@ export function usePlanAPlaces({
         loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } catch (error) {
-        console.log("Plan.A 일정 불러오기 실패:", error);
-
+        
         setLoadError("저장된 Plan.A 일정을 불러오지 못했습니다.");
         scheduleRef.current = initialSchedule;
         cacheDraftSchedule(initialSchedule);
@@ -1214,12 +1173,7 @@ export function usePlanAPlaces({
           return targetPlaces;
         }
 
-        console.log("[PlanA 선택 장소 추가 완료]", {
-          day: targetDay,
-          placeId: placeToAdd.id,
-          placeName: placeToAdd.name,
-        });
-
+        
         return [
           ...targetPlaces,
           createPlace({
@@ -1348,19 +1302,7 @@ export function usePlanAPlaces({
             "시간 변경을 서버에 반영하지 못했습니다.",
           );
 
-        console.log(
-          "[PlanA 시간 변경 서버 반영 실패]",
-          {
-            placeId,
-            planId,
-            visitTime:
-              nextVisitTime,
-            endTime:
-              nextEndTime,
-            error,
-          },
-        );
-
+        
         setSaveError(message);
 
         return {
@@ -1393,29 +1335,13 @@ export function usePlanAPlaces({
           ),
       );
 
-    console.log(
-      "[PlanA 장소 시간 변경 완료]",
-      {
-        day: selectedDay,
-        placeId,
-        visitTime:
-          nextVisitTime,
-        endTime:
-          nextEndTime,
-        time: nextDisplayTime,
-      },
-    );
-
+    
     try {
       await savePlanASchedule(
         nextSchedule,
       );
     } catch (error) {
-      console.log(
-        "[PlanA 시간 변경 로컬 저장 실패]",
-        error,
-      );
-    }
+          }
 
     setSaveError("");
 
@@ -1466,12 +1392,7 @@ export function usePlanAPlaces({
       const accessToken = await AsyncStorage.getItem("access_token");
 
       if (!accessToken) {
-        console.log("[PlanA 로컬 저장]", {
-          reason: "access_token 없음",
-          localScheduleId: scheduleBase.id,
-          tripName: scheduleBase.tripName,
-        });
-
+        
         await savePlanASchedule(scheduleBase);
 
         scheduleRef.current = scheduleBase;
@@ -1483,12 +1404,7 @@ export function usePlanAPlaces({
         return scheduleBase;
       }
 
-      console.log("[PlanA 서버 저장 시도]", {
-        localScheduleId: scheduleBase.id,
-        serverTripId: scheduleBase.serverTripId,
-        tripName: scheduleBase.tripName,
-      });
-
+      
       const createdTrip = scheduleBase.serverTripId
         ? await updateTrip(
             scheduleBase.serverTripId,
@@ -1496,13 +1412,7 @@ export function usePlanAPlaces({
           )
         : await createTrip(toCreateTripRequest(scheduleBase));
 
-      console.log(
-        scheduleBase.serverTripId
-          ? "[PlanA 기존 서버 여행 수정 완료]"
-          : "[PlanA 서버 여행 생성 완료]",
-        createdTrip,
-      );
-
+      
       const createdTripRecord = createdTrip as unknown as {
         tripId?: number | string;
         id?: number | string;
@@ -1544,13 +1454,9 @@ export function usePlanAPlaces({
 
             await savePlanASchedule(refreshedSchedule);
 
-            console.log("[PlanA 저장 후 서버 재동기화 완료]", {
-              tripId: refreshedTripId,
-            });
-          }
+                      }
         } catch (refreshError) {
-          console.log("[PlanA 저장 후 서버 재조회 실패]", refreshError);
-        }
+                  }
       }
 
       const existingScheduleUpdateRequests: Array<{
@@ -1569,13 +1475,7 @@ export function usePlanAPlaces({
       const locationRequests = toAddLocationRequests(scheduleBase)
         .filter((item) => {
           if (Number(item.day) > maxServerDay) {
-            console.log("[PlanA 서버 장소 추가 차단 - 여행 기간 초과 Day]", {
-              day: item.day,
-              maxServerDay,
-              placeName: item.payload.name,
-              placeId: item.payload.place_id,
-            });
-
+            
             return false;
           }
 
@@ -1657,12 +1557,7 @@ export function usePlanAPlaces({
                   placeName: existingPlace?.name,
                 });
               } else {
-                console.log("[PlanA 기존 서버 장소 PATCH 생략 - 변경 없음]", {
-                  day: item.day,
-                  placeName: existingPlace?.name,
-                  tripPlaceId: existingTripPlaceId,
-                });
-              }
+                              }
             }
           }
 
@@ -1688,13 +1583,7 @@ export function usePlanAPlaces({
             clearTripGapCache(scheduleRef.current.serverTripId);
 
           } catch (error) {
-            console.log("[PlanA 기존 서버 장소 시간/메모 수정 실패]", {
-              tripPlaceId: item.tripPlaceId,
-              placeName: item.placeName,
-              payload: updatePayload,
-              error,
-            });
-          }
+                      }
         }
       }
 
@@ -1713,8 +1602,7 @@ export function usePlanAPlaces({
           createdLocation,
         });
 
-        console.log("[PlanA 서버 장소 추가 완료]", createdLocation);
-      }
+              }
 
       const scheduleWithServerPlaces = applyServerPlaceIdsToSchedule({
         schedule: scheduleBase,
@@ -1738,29 +1626,12 @@ export function usePlanAPlaces({
       setLoadedSavedSchedule(true);
       setSaveSuccessMessage("Plan.A 변경사항이 서버와 로컬에 저장되었습니다.");
 
-      console.log("[PlanA 서버/로컬 저장 완료]", {
-        scheduleId: scheduleToSave.id,
-        serverTripId: scheduleToSave.serverTripId,
-        places: scheduleToSave.days.flatMap((day) =>
-          day.places.map((place) => ({
-            day: day.day,
-            name: place.name,
-            placeId: place.placeId,
-            googlePlaceId: place.googlePlaceId,
-            tripPlaceId: place.tripPlaceId,
-            serverTripPlaceId: place.serverTripPlaceId,
-            visitTime: place.visitTime,
-            endTime: place.endTime,
-          })),
-        ),
-      });
-
+      
       clearCachedDraftSchedule(scheduleBase.id);
 
       return scheduleToSave;
     } catch (error) {
-      console.log("Plan.A 서버 저장 실패:", error);
-
+      
       try {
         await savePlanASchedule(scheduleBase);
 
@@ -1774,8 +1645,7 @@ export function usePlanAPlaces({
 
         return scheduleBase;
       } catch (localSaveError) {
-        console.log("Plan.A 로컬 백업 저장 실패:", localSaveError);
-        setSaveError("Plan.A 변경사항 저장에 실패했습니다.");
+                setSaveError("Plan.A 변경사항 저장에 실패했습니다.");
 
         throw localSaveError;
       }
@@ -1852,8 +1722,7 @@ export function usePlanAPlaces({
       ?.places.find((place) => place.id === editingPlaceId);
 
     savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 장소 편집 로컬 저장 실패]", error);
-    });
+          });
 
     const planId =
       updatedPlace?.serverTripPlaceId ?? updatedPlace?.tripPlaceId;
@@ -1863,14 +1732,7 @@ export function usePlanAPlaces({
         visitTime: toServerTimeText(nextVisitTime),
         endTime: toServerTimeText(nextEndTime),
       }).catch((error) => {
-        console.log("[PlanA 장소 편집 서버 시간 반영 실패]", {
-          editingPlaceId,
-          planId,
-          visitTime: nextVisitTime,
-          endTime: nextEndTime,
-          error,
-        });
-
+        
         setSaveError(
           getServerErrorMessage(
             error,
@@ -1889,27 +1751,11 @@ export function usePlanAPlaces({
 
     if (planId) {
       try {
-        console.log("[PlanA 장소 삭제 서버 요청]", {
-          placeId,
-          planId,
-          placeName: targetPlace?.name,
-        });
-
+        
         await deletePlanPlace(planId);
 
-        console.log("[PlanA 장소 삭제 서버 완료]", {
-          placeId,
-          planId,
-          placeName: targetPlace?.name,
-        });
-      } catch (error) {
-        console.log("[PlanA 장소 삭제 서버 실패 - 로컬 삭제로 계속 진행]", {
-          placeId,
-          planId,
-          placeName: targetPlace?.name,
-          error,
-        });
-
+              } catch (error) {
+        
         setSaveError(
           getServerErrorMessage(
             error,
@@ -1924,8 +1770,7 @@ export function usePlanAPlaces({
     );
 
     savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 장소 삭제 로컬 저장 실패]", error);
-    });
+          });
 
     setMemoDrafts((prev) => {
       const next = { ...prev };
@@ -1973,18 +1818,8 @@ export function usePlanAPlaces({
           updatedAt: serverMemo.updatedAt ?? createNow(),
         };
 
-        console.log("[PlanA 메모 추가 서버 완료]", {
-          placeId,
-          planId,
-          memoId: nextMemo.id,
-        });
-      } catch (error) {
-        console.log("[PlanA 메모 추가 서버 실패 - 로컬 저장으로 계속 진행]", {
-          placeId,
-          planId,
-          error,
-        });
-
+              } catch (error) {
+        
         setSaveError(
           getServerErrorMessage(
             error,
@@ -2007,8 +1842,7 @@ export function usePlanAPlaces({
     );
 
     savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 메모 추가 로컬 저장 실패]", error);
-    });
+          });
 
     setMemoDrafts((prev) => ({
       ...prev,
@@ -2058,19 +1892,8 @@ export function usePlanAPlaces({
           content: trimmedText,
         });
 
-        console.log("[PlanA 메모 수정 서버 완료]", {
-          placeId: editingMemo.placeId,
-          planId,
-          memoId: editingMemo.memoId,
-        });
-      } catch (error) {
-        console.log("[PlanA 메모 수정 서버 실패 - 로컬 저장으로 계속 진행]", {
-          placeId: editingMemo.placeId,
-          planId,
-          memoId: editingMemo.memoId,
-          error,
-        });
-
+              } catch (error) {
+        
         setSaveError(
           getServerErrorMessage(
             error,
@@ -2101,8 +1924,7 @@ export function usePlanAPlaces({
     );
 
     savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 메모 수정 로컬 저장 실패]", error);
-    });
+          });
 
     handleCancelEditMemo();
   };
@@ -2115,19 +1937,8 @@ export function usePlanAPlaces({
       try {
         await deletePlanMemo(planId, memoId);
 
-        console.log("[PlanA 메모 삭제 서버 완료]", {
-          placeId,
-          planId,
-          memoId,
-        });
-      } catch (error) {
-        console.log("[PlanA 메모 삭제 서버 실패 - 로컬 삭제로 계속 진행]", {
-          placeId,
-          planId,
-          memoId,
-          error,
-        });
-
+              } catch (error) {
+        
         setSaveError(
           getServerErrorMessage(
             error,
@@ -2150,8 +1961,7 @@ export function usePlanAPlaces({
     );
 
     savePlanASchedule(nextSchedule).catch((error) => {
-      console.log("[PlanA 메모 삭제 로컬 저장 실패]", error);
-    });
+          });
 
     if (editingMemo?.placeId === placeId && editingMemo.memoId === memoId) {
       handleCancelEditMemo();

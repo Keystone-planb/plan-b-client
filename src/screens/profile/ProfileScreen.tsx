@@ -64,15 +64,13 @@ export default function ProfileScreen({ navigation }: Props) {
         const storedUserId = await AsyncStorage.getItem("user_id");
 
         if (!storedUserId) {
-          console.log("[Profile] user_id 없음 - 선호도 요약 조회 생략");
-          return;
+                    return;
         }
 
         const summary = await getPreferenceSummary(storedUserId);
         setPreferenceSummary(summary);
       } catch (error) {
-        console.log("[Profile] 선호 여행 스타일 조회 실패:", error);
-        setPreferenceSummary(null);
+                setPreferenceSummary(null);
       }
     };
 
@@ -84,15 +82,9 @@ export default function ProfileScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
-      console.log("[Profile] getMe success:", {
-        hasEmail: Boolean(result?.email),
-        hasNickname: Boolean(result?.nickname),
-        provider: result?.provider,
-      });
-      setMe(result);
+            setMe(result);
     } catch (error) {
-      console.log("[Profile] 프로필 유저 정보 조회 실패:", error);
-      setMe(null);
+            setMe(null);
     } finally {
       setLoading(false);
     }
@@ -121,8 +113,7 @@ export default function ProfileScreen({ navigation }: Props) {
       setLogoutLoading(true);
       await requestLogout();
     } catch (error) {
-      console.log("[Profile] 로그아웃 요청 실패:", error);
-    } finally {
+          } finally {
       setLogoutLoading(false);
 
       navigation.reset({

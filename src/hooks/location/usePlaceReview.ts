@@ -68,13 +68,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
   const handleTogglePlaceReview = async (place: TPlace) => {
     const placeKey = getReviewPlaceKey(place);
 
-    console.log("[AddScheduleLocation] review button clicked:", {
-      placeName: place.name,
-      placeId: place.placeId,
-      googlePlaceId: place.googlePlaceId,
-      placeKey,
-    });
-
+    
     if (reviewLoadingPlaceId || reanalyzeLoadingPlaceId === placeKey) {
       return;
     }
@@ -129,15 +123,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         const hasTags = hasAnalyzedTagsInDetail(detail);
         const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
 
-        console.log("[AddScheduleLocation] analysis polling:", {
-          placeKey,
-          attempt: attempt + 1,
-          hasUsefulReview,
-          hasTags,
-          statusCompleted,
-          analysisStatus,
-        });
-
+        
         if (statusCompleted || hasTags || hasUsefulReview) {
           analysisCompleted = true;
           break;
@@ -187,11 +173,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
             }
           }
         } catch (reanalyzeError) {
-          console.log(
-            "[AddScheduleLocation] 자동 재분석 실패:",
-            reanalyzeError,
-          );
-        } finally {
+                  } finally {
           if (reanalyzeMessageTimerRef.current) {
             clearInterval(reanalyzeMessageTimerRef.current);
             reanalyzeMessageTimerRef.current = null;
@@ -201,39 +183,10 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         }
       }
 
-      console.log("[AddScheduleLocation] review response:", {
-        placeKey,
-        analysisCompleted,
-        detail,
-        summary,
-        freshness,
-      });
-
-      console.log("[AddScheduleLocation] review response keys:", {
-        detailKeys:
-          detail && typeof detail === "object" ?
-            Object.keys(detail as object)
-          : [],
-        summaryKeys:
-          summary && typeof summary === "object" ?
-            Object.keys(summary as object)
-          : [],
-        freshnessKeys:
-          freshness && typeof freshness === "object" ?
-            Object.keys(freshness as object)
-          : [],
-      });
-
-      console.log(
-        "[AddScheduleLocation] detail full json:",
-        JSON.stringify(detail, null, 2),
-      );
-
-      console.log(
-        "[AddScheduleLocation] summary full json:",
-        JSON.stringify(summary, null, 2),
-      );
-
+      
+      
+      
+      
       if (!analysisCompleted) {
         const elapsed = Date.now() - detailLoadingStartedAt;
 
@@ -260,8 +213,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       setReviewLoadingPlaceId(null);
       setExpandedPlaceId(placeKey);
     } catch (error) {
-      console.log("장소 상세 정보 조회 실패:", error);
-
+      
       const elapsed = Date.now() - detailLoadingStartedAt;
 
       if (elapsed < 1000) {
@@ -338,8 +290,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         setReanalyzeSuccessMessage("");
       }, 3200);
     } catch (error) {
-      console.log("[AddScheduleLocation] reanalyze failed:", error);
-
+      
       Alert.alert("재분석 실패", "잠시 후 다시 시도해주세요.");
     } finally {
       if (reanalyzeMessageTimerRef.current) {

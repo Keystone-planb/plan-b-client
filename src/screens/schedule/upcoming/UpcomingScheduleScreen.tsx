@@ -588,11 +588,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
 
         if (lastTripDetailLoadKeyRef.current === loadKey) {
           if (__DEV__) {
-            console.log("[UpcomingSchedule'] getTripDetail 중복 호출 생략:", {
-              resolvedTripId,
-              refreshKey,
-            });
-          }
+                      }
           return;
         }
 
@@ -613,8 +609,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
 
           setServerDays(mappedDays);
         } catch (error) {
-          console.log("[UpcomingSchedule] getTripDetail 재조회 실패:", error);
-        }
+                  }
       };
 
       loadTripDetail();
@@ -939,8 +934,7 @@ export default function UpcomingScheduleScreen({ navigation, route }: Props) {
         memo: null,
       });
     } catch (error) {
-      console.log("[Upcoming] 갭 추천 장소 추가 실패:", error);
-      Alert.alert(
+            Alert.alert(
         "추가 실패",
         "장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해주세요.",
       );

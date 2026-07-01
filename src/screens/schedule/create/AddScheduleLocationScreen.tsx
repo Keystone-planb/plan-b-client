@@ -404,8 +404,7 @@ export default function AddScheduleLocationScreen({
         feedbackType: "SELECT",
         reason: "ADD_SCHEDULE_LOCATION_SELECT",
       }).catch((error) => {
-        console.log("[preference feedback] ignored:", error);
-      });
+              });
 
       return nextPlace;
     } catch {
@@ -561,16 +560,7 @@ export default function AddScheduleLocationScreen({
         const hasTags = hasAnalyzedTagsInDetail(detail);
         const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
 
-        console.log("[AddScheduleLocation] analysis polling:", {
-          file: "AddScheduleLocationScreen.tsx",
-          placeId,
-          attempt: attempt + 1,
-          hasUseful,
-          hasTags,
-          statusCompleted,
-          analysisStatus,
-        });
-
+        
         if (statusCompleted || (hasTags && hasUseful)) {
           analysisCompleted = true;
           break;
@@ -606,8 +596,7 @@ export default function AddScheduleLocationScreen({
 
       setExpandedPlaceId(placeId);
     } catch (error) {
-      console.log("장소 요약 정보 조회 실패:", error);
-
+      
       Alert.alert(
         "상세 정보 조회 실패",
         "리뷰 요약을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
@@ -629,15 +618,7 @@ export default function AddScheduleLocationScreen({
     }
 
     const selectedDay = route?.params?.day ?? route?.params?.selectedDay ?? 1;
-    console.log("[AddScheduleLocation] 선택 장소 목록:", {
-      count: placesToSubmit.length,
-      places: placesToSubmit.map((place) => ({
-        placeId: place.placeId,
-        googlePlaceId: place.googlePlaceId,
-        name: place.name,
-      })),
-    });
-
+    
     const primaryPlace = placesToSubmit[0];
 
     const nextLocation =
@@ -684,19 +665,8 @@ export default function AddScheduleLocationScreen({
           }
         }
 
-        console.log("[AddScheduleLocation] 서버 일정/장소 생성 완료:", {
-          serverTripId,
-          selectedDay,
-          count: placesToSubmit.length,
-          serverPlaceMap,
-          placeNames: placesToSubmit.map((place) => place.name),
-        });
-      } catch (serverError) {
-        console.log(
-          "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",
-          serverError,
-        );
-      }
+              } catch (serverError) {
+              }
 
       const selectedPlacesForRoute = placesToSubmit.map((place) => ({
         id: place.placeId,
@@ -738,8 +708,7 @@ export default function AddScheduleLocationScreen({
 
       navigation.navigate("PlanA", commonRouteParams);
     } catch (error) {
-      console.log("일정 생성 실패:", error);
-
+      
       const message =
         error instanceof Error ?
           error.message

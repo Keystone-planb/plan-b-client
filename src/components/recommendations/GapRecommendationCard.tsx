@@ -216,8 +216,7 @@ export default function GapRecommendationCard({
     };
 
     loadGaps().catch((error) => {
-      console.log("[GapRecommendationCard] gap load failed:", error);
-
+      
       applyGaps([]);
     });
 

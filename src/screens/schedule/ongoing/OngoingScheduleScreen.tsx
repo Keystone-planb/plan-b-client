@@ -607,12 +607,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
     setSelectedDayIndex(initialSelectedDayIndex);
 
     if (__DEV__) {
-      console.log("[OngoingSchedule] selectedDay 동기화:", {
-        initialSelectedDayIndex,
-        selectedDay: route?.params?.selectedDay,
-        selectedDayIndex: route?.params?.selectedDayIndex,
-      });
-    }
+          }
   }, [
     initialSelectedDayIndex,
     route?.params?.selectedDay,
@@ -991,8 +986,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         memo: null,
       });
     } catch (error) {
-      console.log("[Ongoing] 갭 추천 장소 추가 실패:", error);
-      Alert.alert(
+            Alert.alert(
         "추가 실패",
         "장소를 일정에 추가하지 못했어요. 잠시 후 다시 시도해주세요.",
       );

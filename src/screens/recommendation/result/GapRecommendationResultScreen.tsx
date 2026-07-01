@@ -100,12 +100,7 @@ export default function GapRecommendationResultScreen({
           ? parsed
           : [];
       } catch (error) {
-        console.log(
-          "[GapRecommendationResult] " +
-            "places parse failed:",
-          error,
-        );
-
+        
         return [];
       }
     }, [
@@ -270,18 +265,7 @@ export default function GapRecommendationResultScreen({
             params.transportMode,
         };
 
-        console.log(
-          "[GapRecommendationResult] 장소 추가 요청:",
-          {
-            tripId:
-              params.serverTripId ??
-              params.tripId,
-            selectedDay,
-            payload:
-              addLocationPayload,
-          },
-        );
-
+        
         await addTripLocation(
           params.serverTripId ??
             params.tripId,
@@ -378,31 +362,7 @@ export default function GapRecommendationResultScreen({
           };
         };
 
-        console.log(
-          "[GapRecommendationResult] 장소 추가 실패:",
-          {
-            message: axiosError?.message,
-            status: axiosError?.response?.status,
-            data: axiosError?.response?.data,
-            selectedPlace: {
-              name:
-                selectedPlace.name,
-              suggestedVisitTime:
-                selectedPlace.suggestedVisitTime,
-              suggestedEndTime:
-                selectedPlace.suggestedEndTime,
-            },
-            gap: {
-              beforePlanEndTime:
-                params.beforePlanEndTime,
-              afterPlanStartTime:
-                params.afterPlanStartTime,
-              availableMinutes:
-                params.availableMinutes,
-            },
-          },
-        );
-
+        
         setSelectedPlaceId(null);
 
         setSubmitErrorMessage(

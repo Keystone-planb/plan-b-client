@@ -71,13 +71,11 @@ export default function ProfileEditScreen({ navigation }: Props) {
       setLoading(true);
 
       const result = await getMe();
-      console.log("[ProfileEdit] getMe success:", { hasEmail: Boolean(result?.email), hasNickname: Boolean(result?.nickname), provider: result?.provider });
-
+      
       setMe(result);
       setNicknameDraft(result.nickname ?? "");
     } catch (error) {
-      console.log("프로필 수정 화면 유저 정보 조회 실패:", error);
-      setMe(null);
+            setMe(null);
 
       if (storedNickname) {
         setNicknameDraft(storedNickname);
@@ -177,12 +175,7 @@ export default function ProfileEditScreen({ navigation }: Props) {
         : {}),
       };
 
-      console.log("[ProfileEdit updateMyProfile request]", {
-        hasNickname: Boolean(request.nickname),
-        hasCurrentPassword: Boolean(request.currentPassword),
-        hasNewPassword: Boolean(request.newPassword),
-      });
-
+      
       const response = await updateMyProfile(request);
 
       await AsyncStorage.setItem("nickname", response.nickname);

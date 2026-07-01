@@ -247,9 +247,7 @@ export default function LoginScreen({ navigation }: any) {
       const { authUrl, redirectUri } = createSocialAuthUrl(provider);
 
       if (__DEV__) {
-        console.log(`[${provider} OAuth] authUrl:`, authUrl);
-        console.log(`[${provider} OAuth] redirectUri:`, redirectUri);
-      }
+                      }
 
       oauthHandlingRef.current = false;
       setSocialLoadingProvider(provider);
@@ -260,12 +258,7 @@ export default function LoginScreen({ navigation }: any) {
       );
 
       if (__DEV__) {
-        console.log(`[${provider} OAuth] result:`, {
-          type: result.type,
-          hasUrl: "url" in result && Boolean(result.url),
-          hasError: "error" in result && Boolean(result.error),
-        });
-      }
+              }
 
       if (result.type === "success") {
         await handleOAuthRedirect(result.url);

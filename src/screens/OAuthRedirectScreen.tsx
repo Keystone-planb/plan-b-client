@@ -102,8 +102,7 @@ export default function OAuthRedirectScreen({ navigation, route }: Props) {
     const isFailure = isOAuthFailureUrl(url);
 
     if (__DEV__) {
-      console.log("[OAuthRedirect] received url:", { isSuccess, isFailure });
-    }
+          }
 
     // oauth 리다이렉트가 아닌 url(앱 실행 url 등)은 처리하지 않는다.
     if (!isSuccess && !isFailure) {

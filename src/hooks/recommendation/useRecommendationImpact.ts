@@ -209,16 +209,7 @@ export function useRecommendationImpact({
           result,
         );
 
-        console.log(
-          "[RecommendationImpact] options:",
-          {
-            travelInOptions:
-              result.travelInOptions,
-            travelOutOptions:
-              result.travelOutOptions,
-          },
-        );
-
+        
         setImpactResult(result);
 
         const initialMode =

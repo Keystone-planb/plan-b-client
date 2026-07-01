@@ -220,11 +220,7 @@ export function useAIAnalysisLoadingFlow({
         return;
       }
 
-      console.log(
-        "[AIAnalysisLoading] watchdog timeout:",
-        idleMs,
-      );
-
+      
       setProgress(100);
 
       setErrorMessage(
@@ -327,11 +323,7 @@ export function useAIAnalysisLoadingFlow({
                 lastActivityAtRef.current =
                   Date.now();
 
-                console.log(
-                  "[AIAnalysisLoading] stream warning:",
-                  message,
-                );
-
+                
                 setStreamMessage(
                   message ||
                     "조건에 맞는 장소를 찾지 못했습니다.",
@@ -350,11 +342,7 @@ export function useAIAnalysisLoadingFlow({
                   return;
                 }
 
-                console.log(
-                  "[AIAnalysisLoading] stream server error:",
-                  message,
-                );
-
+                
                 setProgress((prev) =>
                   Math.max(prev, 98),
                 );
@@ -374,14 +362,7 @@ export function useAIAnalysisLoadingFlow({
                   ...receivedPlacesRef.current,
                 ];
 
-                console.log(
-                  "[AIAnalysisLoading] stream done:",
-                  {
-                    count:
-                      receivedPlaces.length,
-                  },
-                );
-
+                
                 setProgress(100);
 
                 if (
@@ -398,14 +379,7 @@ export function useAIAnalysisLoadingFlow({
                   "추천 결과를 불러왔어요",
                 );
 
-                console.log(
-                  "[AIAnalysisLoading] 결과 화면 이동:",
-                  {
-                    count:
-                      receivedPlaces.length,
-                  },
-                );
-
+                
                 moveToResult(
                   receivedPlaces,
                 );
@@ -416,11 +390,7 @@ export function useAIAnalysisLoadingFlow({
                   return;
                 }
 
-                console.log(
-                  "[AIAnalysisLoading] stream error:",
-                  error,
-                );
-
+                
                 setProgress(100);
 
                 setErrorMessage(
@@ -436,11 +406,7 @@ export function useAIAnalysisLoadingFlow({
             return;
           }
 
-          console.log(
-            "[AIAnalysisLoading] run stream failed:",
-            error,
-          );
-
+          
           setProgress(100);
 
           setErrorMessage(

@@ -224,8 +224,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
         `${getTransportLabel(nextMode)}로 변경되었습니다.`,
       );
     } catch (error) {
-      console.log("[transport-mode/patch] failed:", error);
-      Alert.alert("이동수단 변경 실패", "잠시 후 다시 시도해주세요.");
+            Alert.alert("이동수단 변경 실패", "잠시 후 다시 시도해주세요.");
     }
   };
 
@@ -318,8 +317,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
 
   
   const handleOpenMemoSheet = (placeId: string) => {
-    console.log("[MEMO] SHEET OPEN", placeId);
-    setMemoSheetPlaceId(placeId);
+        setMemoSheetPlaceId(placeId);
     setMemoEditorPlaceId(null);
   };
 
@@ -330,8 +328,7 @@ const handleCloseMemoSheet = () => {
   };
 
   const handleOpenMemoEditor = (placeId: string) => {
-    console.log("[MEMO] EDITOR OPEN", placeId);
-    handleChangeMemoDraft(placeId, "");
+        handleChangeMemoDraft(placeId, "");
     setMemoSheetPlaceId(null);
     setMemoEditorPlaceId(placeId);
   };
@@ -528,8 +525,7 @@ const handleCloseMemoSheet = () => {
           setTransportLabel(getTransportLabel(serverMode));
         }
       } catch (error) {
-        console.log("[PlanA] transport mode load failed:", error);
-      }
+              }
     };
 
     loadTransportMode();
@@ -662,20 +658,10 @@ const handleCloseMemoSheet = () => {
         const planId = getPlacePlanId(place);
         if (!planId) return;
 
-        console.log("[PlanA 이동수단 저장 요청]", {
-          planId,
-          transportMode,
-          from: place.name,
-          to: nextPlace.name,
-        });
-
+        
         await updatePlanSchedule(planId, { transportMode });
 
-        console.log("[PlanA 이동수단 저장 성공]", {
-          planId,
-          transportMode,
-        });
-      }),
+              }),
     );
   };
 
@@ -749,22 +735,14 @@ const handleCloseMemoSheet = () => {
 
       const savedSchedule = await handleSaveSchedule();
 
-      console.log("[PlanA] 저장 완료:", {
-        scheduleId: savedSchedule.id,
-        tripId: savedSchedule.serverTripId,
-        tripName: savedSchedule.tripName,
-        moveToMainAfterSave,
-      });
-
+      
       // 날씨 알림 "일정 조정"으로 진입한 경우, 저장(시간/장소 수정) 완료 시 해당 알림 삭제
       const dismissNotificationId = route?.params?.dismissNotificationId;
       if (dismissNotificationId) {
         try {
           await dismissNotification(dismissNotificationId);
-          console.log("[PlanA] 날씨 알림 삭제 완료:", { dismissNotificationId });
-        } catch (dismissError) {
-          console.log("[PlanA] 날씨 알림 삭제 실패:", dismissError);
-        }
+                  } catch (dismissError) {
+                  }
       }
 
       if (Platform.OS === "web") {
@@ -820,8 +798,7 @@ const handleCloseMemoSheet = () => {
 
         return true;
     } catch (error) {
-      console.log("[PlanA] 저장 실패:", error);
-
+      
       Alert.alert(
         "저장 실패",
         "일정을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",

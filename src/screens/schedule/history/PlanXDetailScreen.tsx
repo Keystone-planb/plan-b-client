@@ -148,20 +148,14 @@ export default function PlanXDetailScreen({ navigation, route }: Props) {
           return;
         }
 
-        console.log("[PlanXDetail] 여행 상세 조회 완료:", {
-          tripId: detail.tripId,
-          title: detail.title,
-          itineraryCount: detail.itineraries.length,
-        });
-
+        
         setTripDetail(detail);
       } catch (error) {
         if (cancelled) {
           return;
         }
 
-        console.log("[PlanXDetail] 여행 상세 조회 실패:", error);
-        setLoadError("지난 여행 상세 정보를 불러오지 못했습니다.");
+                setLoadError("지난 여행 상세 정보를 불러오지 못했습니다.");
       } finally {
         if (!cancelled) {
           setLoading(false);

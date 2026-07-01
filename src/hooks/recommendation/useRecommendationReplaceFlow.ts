@@ -156,28 +156,12 @@ export function useRecommendationReplaceFlow({
         return;
       }
 
-      console.log(
-        "[RecommendationResult] 이전 구간 이동수단 저장 요청:",
-        {
-          previousPlanId,
-          transportMode: previousImpactMode,
-          from: previousSchedulePlace?.name,
-          to: selectedPlace.name,
-        },
-      );
-
+      
       await updatePlanSchedule(previousPlanId, {
         transportMode: previousImpactMode,
       });
 
-      console.log(
-        "[RecommendationResult] 이전 구간 이동수단 저장 성공:",
-        {
-          previousPlanId,
-          transportMode: previousImpactMode,
-        },
-      );
-    };
+          };
 
   const handleSelectPlace = async (
     place: RecommendationResultDisplayPlace,
@@ -251,11 +235,7 @@ export function useRecommendationReplaceFlow({
         place,
       );
     } catch (error) {
-      console.log(
-        "[RecommendationResult] 이전 구간 이동수단 저장 실패:",
-        error,
-      );
-
+      
       showToast(
         "이동수단 저장 실패",
         "이전 일정과 대안 일정 사이의 이동수단을 저장하지 못했습니다.",

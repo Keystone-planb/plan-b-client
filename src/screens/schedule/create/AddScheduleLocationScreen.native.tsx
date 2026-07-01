@@ -694,12 +694,10 @@ export default function AddScheduleLocationScreen({
       if (typeof lat === "number" && typeof lng === "number") {
         moveTo(lat, lng);
       } else if (__DEV__) {
-        console.log("[MAP MOVE] detail에 좌표 없음:", { detailId, lat, lng });
-      }
+              }
     } catch (error) {
       if (__DEV__) {
-        console.log("[MAP MOVE] getPlaceDetail 실패:", error);
-      }
+              }
     }
   };
 
@@ -750,19 +748,11 @@ export default function AddScheduleLocationScreen({
       const normalizedBookmarks =
         bookmarks.map(normalizeBookmarkPlace);
 
-      console.log("[Bookmarks] 목록 조회 완료:", {
-        selectedDay,
-        count: normalizedBookmarks.length,
-      });
-
+      
       setFavoritePlaces(normalizedBookmarks);
       setFavoriteListLoaded(true);
     } catch (error) {
-      console.log(
-        "[Bookmarks] 목록 조회 실패:",
-        error,
-      );
-
+      
       if (showErrorAlert) {
         const message =
           error instanceof BookmarkApiError &&
@@ -864,11 +854,7 @@ export default function AddScheduleLocationScreen({
               ? detail.longitude
               : detail.lng;
         } catch (detailError) {
-          console.log(
-            "[Bookmarks] 좌표 상세 조회 실패:",
-            detailError,
-          );
-        }
+                  }
       }
 
       const createdBookmark = await createBookmark({
@@ -900,11 +886,7 @@ export default function AddScheduleLocationScreen({
       // 실패 시 이전 상태로 복구
       setFavoritePlaces(previousFavoritePlaces);
 
-      console.log(
-        "[Bookmarks] 추가/삭제 실패:",
-        error,
-      );
-
+      
       if (
         error instanceof BookmarkApiError &&
         error.status === 409
@@ -954,13 +936,7 @@ export default function AddScheduleLocationScreen({
   const handleSearch = async () => {
     const trimmedKeyword = keyword.trim();
 
-    console.log("[AddScheduleLocation] handleSearch start:", {
-      keyword,
-      trimmedKeyword,
-      searchLoading,
-      submitLoading,
-    });
-
+    
     if (!trimmedKeyword || searchLoading || submitLoading) {
       return;
     }
@@ -971,10 +947,7 @@ export default function AddScheduleLocationScreen({
 
       const places = await searchPlaces(trimmedKeyword);
 
-      console.log("[AddScheduleLocation] searchPlaces result:", {
-        count: places.length,
-      });
-
+      
       setSearchResults(places);
       setActiveResultTab("search");
       Keyboard.dismiss();
@@ -984,8 +957,7 @@ export default function AddScheduleLocationScreen({
         focusMapOnPlace(places[0]);
       }
     } catch (error) {
-      console.log("[AddScheduleLocation] searchPlaces failed:", error);
-
+      
       setSearchResults([]);
       setExpandedPlaceId(null);
     } finally {
@@ -1051,8 +1023,7 @@ export default function AddScheduleLocationScreen({
         console.warn("[preferences/feedback] 호출 실패", error);
       });
     } catch (error) {
-      console.log("[AddScheduleLocation] getPlaceDetail failed:", error);
-
+      
       const fallbackPlace: SelectedPlace = {
         placeId,
         googlePlaceId,
@@ -1178,11 +1149,7 @@ export default function AddScheduleLocationScreen({
 
   const handleNext = async (overridePlaces?: SelectedPlace[]) => {
     if (submitLoading || submitLockRef.current) {
-      console.log("[AddScheduleLocation] 중복 저장 실행 차단:", {
-        submitLoading,
-        locked: submitLockRef.current,
-      });
-      return;
+            return;
     }
 
     submitLockRef.current = true;
@@ -1296,20 +1263,8 @@ export default function AddScheduleLocationScreen({
           }
         }
 
-        console.log("[AddScheduleLocation] 서버 일정/장소 저장 완료:", {
-          targetTripId,
-          targetServerTripId,
-          selectedDay,
-          count: placesToSubmit.length,
-          serverPlaceMap,
-          placesToNavigate: placesToSubmit,
-        });
-      } catch (serverError) {
-        console.log(
-          "[AddScheduleLocation] 서버 저장 실패. 로컬 Plan.A 흐름으로 계속 진행:",
-          serverError,
-        );
-      }
+              } catch (serverError) {
+              }
 
       navigateToPlanAWithPlaces({
         targetScheduleId: scheduleId,
@@ -1320,8 +1275,7 @@ export default function AddScheduleLocationScreen({
         placesToNavigate: placesToSubmit,
       });
     } catch (error) {
-      console.log("일정 저장 실패:", error);
-
+      
       const message =
         error instanceof Error ?
           error.message

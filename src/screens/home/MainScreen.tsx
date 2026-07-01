@@ -582,11 +582,7 @@ const hydrateMainScheduleWithDetail = async (
       location: firstPlaceName || schedule.location || "장소 미정",
     };
   } catch (error) {
-    console.log("[Main] 메인 카드 상세 보강 실패:", {
-      tripId: resolvedTripId,
-      error,
-    });
-
+    
     return schedule;
   }
 };
@@ -603,15 +599,7 @@ const enrichDaysWithServerTripPlaceIds = async (
   const serverItineraries = detail.itineraries ?? [];
 
   if (__DEV__) {
-    console.log("[Main] 서버 상세 조회 성공:", {
-      tripId: detail.tripId,
-      itineraryCount: serverItineraries.length,
-      placeCount: serverItineraries.reduce(
-        (count, itinerary) => count + itinerary.places.length,
-        0,
-      ),
-    });
-  }
+      }
 
   if (serverItineraries.length === 0) {
     return localDays ?? [];
@@ -699,8 +687,7 @@ export default function MainScreen({ navigation }: Props) {
 
   const registerDevicePushToken = async () => {
     if (didRegisterPushTokenRef.current) {
-      console.log("[push] 이미 push token 등록을 시도했습니다. 생략합니다.");
-      return;
+            return;
     }
 
     didRegisterPushTokenRef.current = true;
@@ -709,25 +696,20 @@ export default function MainScreen({ navigation }: Props) {
       const storedUserId = await AsyncStorage.getItem("user_id");
 
       if (!storedUserId) {
-        console.log("[push] user_id 없음 - push token 등록 생략");
-        return;
+                return;
       }
 
       const tokenResult = await requestExpoPushToken();
 
       if (!tokenResult.granted || !tokenResult.expoPushToken) {
-        console.log("[push] push token 없음 - 서버 등록 생략:", {
-          reason: tokenResult.reason,
-        });
-        return;
+                return;
       }
 
       await registerPushToken({
         expoPushToken: tokenResult.expoPushToken,
       });
     } catch (error) {
-      console.log("[push] push token 등록 흐름 실패:", error);
-    }
+          }
   };
 
   const loadNotifications = async (
@@ -752,13 +734,7 @@ export default function MainScreen({ navigation }: Props) {
 
       if (serverNotifications.length > 0) {
         if (__DEV__) {
-          console.log("[Main] 날씨 알림 조회:", {
-            userId: storedUserId,
-            count: serverNotifications.length,
-            notifications: serverNotifications,
-            source: "server",
-          });
-        }
+                  }
 
         setNotifications(serverNotifications);
         setActiveNotificationIndex(0);
@@ -766,19 +742,12 @@ export default function MainScreen({ navigation }: Props) {
       }
 
       if (__DEV__) {
-        console.log("[Main] 날씨 알림 조회:", {
-          userId: storedUserId,
-          count: 0,
-          notifications: [],
-          source: "empty",
-        });
-      }
+              }
 
       setNotifications([]);
     } catch (error) {
       if (__DEV__) {
-        console.log("[Main] 날씨 알림 조회 실패:", error);
-      }
+              }
       setNotifications([]);
     } finally {
       setNotificationsLoading(false);
@@ -804,8 +773,7 @@ export default function MainScreen({ navigation }: Props) {
         try {
           return JSON.parse(value) as StoredSchedule;
         } catch (error) {
-          console.log("[Main] 일정 파싱 실패:", error);
-          return null;
+                    return null;
         }
       })
       .filter((item): item is StoredSchedule => Boolean(item))
@@ -826,8 +794,7 @@ export default function MainScreen({ navigation }: Props) {
       const refreshToken = await AsyncStorage.getItem("refresh_token");
 
       if (!accessToken && !refreshToken) {
-        console.log("[Main] 토큰 없음. 서버 일정 조회 생략");
-        setSchedules([]);
+                setSchedules([]);
         setScheduleLoadError("");
         await loadNotifications([]);
         return;
@@ -857,10 +824,7 @@ export default function MainScreen({ navigation }: Props) {
         );
 
         if (serverTrips.length > 0 && serverSchedules.length === 0) {
-          console.log("[Main] 서버 일정은 있지만 진행중/예정 일정 없음:", {
-            totalCount: serverTrips.length,
-          });
-
+          
           setSchedules([]);
           await loadNotifications([]);
           return;
@@ -868,30 +832,24 @@ export default function MainScreen({ navigation }: Props) {
 
         if (serverSchedules.length > 0) {
           if (__DEV__) {
-            console.log("[Main] 서버 일정 목록 사용:", {
-              count: serverSchedules.length,
-            });
-          }
+                      }
 
           setSchedules(serverSchedules);
           await loadNotifications(serverSchedules);
           return;
         }
 
-        console.log("[Main] 서버 일정 없음 - 빈 화면 표시");
-        setSchedules([]);
+                setSchedules([]);
         await loadNotifications([]);
         return;
       } catch (serverError) {
-        console.log("[Main] 서버 일정 조회 실패:", serverError);
-        setSchedules([]);
+                setSchedules([]);
         await loadNotifications([]);
         setScheduleLoadError("일정 조회에 실패했습니다.");
         return;
       }
     } catch (error) {
-      console.log("[Main] 일정 불러오기 실패:", error);
-      setSchedules([]);
+            setSchedules([]);
       setScheduleLoadError("일정 조회에 실패했습니다.");
     } finally {
       setLoading(false);
@@ -904,19 +862,13 @@ export default function MainScreen({ navigation }: Props) {
       registerDevicePushToken();
 
       registerNotificationClickListener((data) => {
-        console.log("[push] MainScreen notification click data:", data);
-
+        
         const notificationId = data.notificationId;
         const tripId = data.tripId;
         const tripPlaceId = data.tripPlaceId;
 
         if (notificationId || tripId || tripPlaceId) {
-          console.log("[push] weather notification click:", {
-            notificationId,
-            tripId,
-            tripPlaceId,
-          });
-
+          
           navigation.navigate("Main", {
             openedFromPush: true,
             notificationId,
@@ -957,12 +909,8 @@ export default function MainScreen({ navigation }: Props) {
         }),
       );
 
-      console.log("[Main] 날씨 알림 dismiss 완료:", {
-        notificationId,
-      });
-    } catch (error) {
-      console.log("[Main] 날씨 알림 dismiss 실패:", error);
-    }
+          } catch (error) {
+          }
   };
 
   const handleOpenNotificationRecommendation = async (
@@ -1111,8 +1059,7 @@ export default function MainScreen({ navigation }: Props) {
           currentLat = currentLat ?? detail?.latitude ?? detail?.lat;
           currentLng = currentLng ?? detail?.longitude ?? detail?.lng;
         } catch (error) {
-          console.log("[Main] 대안추천 좌표 보강 실패:", error);
-        }
+                  }
       }
     }
 
@@ -1195,8 +1142,7 @@ export default function MainScreen({ navigation }: Props) {
         "날씨 변화로 인해 기존 일정 대신 방문하기 좋은 대안 장소를 추천해주세요.",
     };
 
-    console.log("[Main] 날씨 알림 AI 대안 추천 payload:", nextParams);
-
+    
     navigation.navigate("AIAnalysisLoading", nextParams);
   };
 
@@ -1216,11 +1162,7 @@ export default function MainScreen({ navigation }: Props) {
           schedule.days,
         );
       } catch (error) {
-        console.log("[Main] 서버 상세 조회 실패 - 로컬 days로 이동:", {
-          resolvedTripId,
-          error,
-        });
-      }
+              }
     }
 
     const commonParams = {
@@ -1278,22 +1220,15 @@ export default function MainScreen({ navigation }: Props) {
         onPress: async () => {
           try {
             if (resolvedTripId) {
-              console.log("[Main] 서버 일정 삭제 요청:", resolvedTripId);
-              await deleteTrip(resolvedTripId);
+                            await deleteTrip(resolvedTripId);
             }
 
-            console.log("[Main] 로컬 일정 삭제 요청:", scheduleId);
-            await removePlanASchedule(scheduleId);
+                        await removePlanASchedule(scheduleId);
 
             await loadSchedules();
 
-            console.log("[Main] 일정 삭제 완료:", {
-              scheduleId,
-              tripId: resolvedTripId,
-            });
-          } catch (error) {
-            console.log("[Main] 일정 삭제 실패:", error);
-
+                      } catch (error) {
+            
             Alert.alert(
               "삭제 실패",
               "일정을 삭제하지 못했습니다. 잠시 후 다시 시도해주세요.",
@@ -1501,44 +1436,10 @@ export default function MainScreen({ navigation }: Props) {
       );
 
       if (__DEV__ && currentPlanId && !affectedPlace) {
-        console.log("[Main] 날씨 알림 planId 매칭 실패:", {
-          currentPlanId,
-          tripId: notificationTripId,
-          scheduleTitle: getScheduleTitle(baseSchedule ?? {}),
-          placeIds:
-            Array.isArray(baseSchedule?.days) ?
-              (baseSchedule?.days as any[]).flatMap((day) =>
-                Array.isArray(day?.places) ?
-                  day.places.map((place: any) => ({
-                    day: day?.day,
-                    id: place?.id,
-                    tripPlaceId: place?.tripPlaceId,
-                    serverTripPlaceId: place?.serverTripPlaceId,
-                    placeId: place?.placeId,
-                    googlePlaceId: place?.googlePlaceId,
-                    name: place?.name,
-                    visitTime: place?.visitTime,
-                    endTime: place?.endTime,
-                  }))
-                : [],
-              )
-            : [],
-        });
-      }
+              }
 
       if (__DEV__) {
-        console.log("[Main] 날씨 알림 표시 데이터:", {
-          notificationId: rawNotification.notificationId ?? rawNotification.id,
-          currentPlanId,
-          scheduleTitle: getScheduleTitle(baseSchedule ?? {}),
-          matchedDay: matchedDay?.day,
-          affectedPlaceName: affectedPlace?.name,
-          visitTime: affectedPlace?.visitTime,
-          endTime: affectedPlace?.endTime,
-          rawVisitTime: rawNotification.visitTime,
-          rawEndTime: rawNotification.endTime,
-        });
-      }
+              }
 
       return {
         ...notification,
