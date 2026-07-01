@@ -6,7 +6,7 @@ import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import OnboardingProgressDots from "../../components/onboarding/OnboardingProgressDots";
 import OnboardingSkipButton from "../../components/onboarding/OnboardingSkipButton";
 import OnboardingSwipe from "../../components/onboarding/OnboardingSwipe";
-import MainScreen from "../MainScreen";
+import MainScreen from "../home/MainScreen";
 
 type Props = {
   navigation: {
