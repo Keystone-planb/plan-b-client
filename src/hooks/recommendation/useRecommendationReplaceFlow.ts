@@ -256,6 +256,7 @@ export function useRecommendationReplaceFlow({
         }),
       newGooglePlaceId,
       newPlaceName: place.name,
+      newCategory: place.category,
       previewSchedulePayload:
         getSchedulePayload(),
       tripId: params.tripId,

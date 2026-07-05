@@ -130,6 +130,7 @@ export const validatePlanReplaceInput = ({
   currentPlanIdCandidates: Array<string | number>;
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
   showToast: ShowToast;
 }) => {
   if (currentPlanIdCandidates.length === 0) {
@@ -162,6 +163,7 @@ export const validateWeatherReplaceInput = ({
   notificationId?: string | number;
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
   showToast: ShowToast;
 }) => {
   if (!notificationId) {
@@ -189,10 +191,12 @@ export const requestPlanPlaceReplace = async ({
   currentPlanIdCandidates,
   newGooglePlaceId,
   newPlaceName,
+  newCategory,
 }: {
   currentPlanIdCandidates: Array<string | number>;
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
 }) => {
   let replaceResult: Awaited<ReturnType<typeof replacePlanPlace>> | null = null;
   let lastReplaceError: unknown = null;
@@ -203,6 +207,7 @@ export const requestPlanPlaceReplace = async ({
       replaceResult = await replacePlanPlace(candidatePlanId, {
         newGooglePlaceId,
         newPlaceName,
+        newCategory,
       });
 
       usedCurrentPlanId = candidatePlanId;
@@ -471,6 +476,7 @@ export const executeWeatherRecommendationReplace = async ({
   notificationId?: string | number;
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
   newPlaceId?: string | number;
   previewSchedulePayload: Record<string, unknown>;
   tripId?: string | number;
@@ -527,6 +533,7 @@ export const executePlanRecommendationReplace = async ({
   currentPlanIdCandidates,
   newGooglePlaceId,
   newPlaceName,
+  newCategory,
   previewSchedulePayload,
   tripId,
   serverTripId,
@@ -558,6 +565,7 @@ export const executePlanRecommendationReplace = async ({
   currentPlanIdCandidates: Array<string | number>;
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
   previewSchedulePayload: Record<string, unknown>;
   tripId?: string | number;
   serverTripId?: string | number;
@@ -594,6 +602,7 @@ export const executePlanRecommendationReplace = async ({
         currentPlanIdCandidates,
         newGooglePlaceId,
         newPlaceName,
+        newCategory,
       });
 
     await updateReplacedScheduleMeta({

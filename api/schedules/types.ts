@@ -149,6 +149,7 @@ export interface UpdatePlanMemoRequest {
 export interface ReplacePlanRequest {
   newGooglePlaceId: string;
   newPlaceName: string;
+  newCategory?: string;
 }
 
 export interface ReplacePlanResponse {
