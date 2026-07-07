@@ -21,7 +21,7 @@ import OnboardingFirstScreen from "./src/screens/onboarding/OnboardingFirstScree
 import OnboardingSecondScreen from "./src/screens/onboarding/OnboardingSecondScreen";
 import OnboardingThirdScreen from "./src/screens/onboarding/OnboardingThirdScreen";
 import OnboardingFourthScreen from "./src/screens/onboarding/OnboardingFourthScreen";
-import LoginScreen from "./src/screens/auth/login/LoginScreen";
+import LoginScreen from "./src/screens/auth/login/LoginScreen.native";
 import SignUpScreen from "./src/screens/SignUpScreen";
 import BottomTabNavigator from "./src/navigation/BottomTabNavigator";
 import AddScheduleNameScreen from "./src/screens/schedule/create/AddScheduleNameScreen";

@@ -138,6 +138,7 @@ const INITIAL_REGION = {
  * 바텀시트가 화면 아래 방향으로 내려간다.
  */
 const MAP_HEIGHT_WHEN_SHEET_EXPANDED = 335;
+const MIN_VISIBLE_RESULT_SHEET_HEIGHT = 260;
 
 
 const REVIEW_TEXT_MAX_LENGTH = 80;
@@ -334,11 +335,21 @@ export default function AddScheduleLocationScreen({
   const keyboardVisibleRef = useRef(false);
 
   const mapHeightWhenSheetCollapsed = useMemo(
-    () =>
-      Math.min(
+    () => {
+      const preferredCollapsedHeight = Math.min(
         Math.max(windowHeight - 185, 515),
         680,
-      ),
+      );
+      const maxCollapsedHeight = Math.max(
+        MAP_HEIGHT_WHEN_SHEET_EXPANDED,
+        windowHeight - MIN_VISIBLE_RESULT_SHEET_HEIGHT,
+      );
+
+      return Math.min(
+        preferredCollapsedHeight,
+        maxCollapsedHeight,
+      );
+    },
     [windowHeight],
   );
 
@@ -771,10 +782,10 @@ export default function AddScheduleLocationScreen({
   };
 
   useEffect(() => {
-    // 즐겨찾기는 일자별 목록이 아니므로
-    // 일자 변경 후에도 서버 전체 목록을 다시 불러온다.
-    void loadFavoritePlaces();
-  }, [selectedDay]);
+    if (!favoriteListLoaded && !favoriteListLoading) {
+      void loadFavoritePlaces();
+    }
+  }, [favoriteListLoaded, favoriteListLoading]);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener(
@@ -1798,7 +1809,10 @@ export default function AddScheduleLocationScreen({
             activeOpacity={0.8}
             onPress={() => {
               setActiveResultTab("favorites");
-              void loadFavoritePlaces(true);
+
+              if (!favoriteListLoaded && !favoriteListLoading) {
+                void loadFavoritePlaces(true);
+              }
             }}
           >
             <Ionicons
@@ -2136,6 +2150,7 @@ const styles = StyleSheet.create({
 
   resultTabBar: {
     height: 48,
+    flexShrink: 0,
     marginHorizontal: 16,
     marginBottom: 14,
     padding: 4,
@@ -2182,6 +2197,7 @@ const styles = StyleSheet.create({
 
   resultScroll: {
     flex: 1,
+    minHeight: 0,
   },
 
   resultContent: {
