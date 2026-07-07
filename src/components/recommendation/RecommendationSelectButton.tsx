@@ -1,5 +1,11 @@
 import React from "react";
-import { ActivityIndicator, StyleSheet, Text, TouchableOpacity } from "react-native";
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+} from "react-native";
 
 type Props = {
   isSelected: boolean;
@@ -17,11 +23,20 @@ export default function RecommendationSelectButton({
   onPress,
 }: Props) {
   return (
-    <TouchableOpacity
-      style={[styles.selectButton, isSelected && styles.selectedButton]}
-      activeOpacity={0.85}
+    <Pressable
+      style={({ pressed }) => [
+        styles.selectButton,
+        isSelected && styles.selectedButton,
+        pressed && !isSubmitting && !isSelected && styles.pressedButton,
+      ]}
+      android_ripple={{
+        color: "rgba(255, 255, 255, 0.16)",
+        borderless: false,
+      }}
       disabled={isSubmitting || isSelected}
       onPress={onPress}
+      hitSlop={Platform.OS === "android" ? 8 : undefined}
+      pressRetentionOffset={12}
     >
       {isSubmitting ? (
         <ActivityIndicator size="small" color="#FFFFFF" />
@@ -34,7 +49,7 @@ export default function RecommendationSelectButton({
               : defaultLabel ?? "일정에 추가"}
         </Text>
       )}
-    </TouchableOpacity>
+    </Pressable>
   );
 }
 
@@ -50,6 +65,10 @@ const styles = StyleSheet.create({
 
   selectedButton: {
     backgroundColor: "#2158E8",
+  },
+
+  pressedButton: {
+    opacity: 0.88,
   },
 
   selectButtonText: {

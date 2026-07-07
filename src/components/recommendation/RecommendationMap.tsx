@@ -1,8 +1,14 @@
 import React, { useEffect, useRef } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import {
+  Platform,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 import MapView, {
   Marker,
   Polyline,
+  PROVIDER_GOOGLE,
 } from "react-native-maps";
 
 type Point = {
@@ -109,6 +115,7 @@ export default function RecommendationMap({
       <MapView
         ref={mapRef}
         style={styles.map}
+        provider={Platform.OS === "android" ? PROVIDER_GOOGLE : undefined}
         initialRegion={{
           latitude,
           longitude,

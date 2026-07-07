@@ -14,6 +14,7 @@ import {
 } from "react-native-safe-area-context";
 
 import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
+import RecommendationPreviewModal from "../../../components/recommendation/RecommendationPreviewModal";
 import RecommendationResultPlaceCard from "../../../components/recommendation/RecommendationResultPlaceCard";
 import {
   clearTripGapCache,
@@ -35,6 +36,14 @@ import {
 import {
   useRecommendationReviewActions,
 } from "../../../hooks/recommendation/useRecommendationReviewActions";
+
+import {
+  useRecommendationPreview,
+} from "../../../hooks/recommendation/useRecommendationPreview";
+
+import {
+  padPreviewTime,
+} from "../../../utils/recommendation/recommendationFormatters";
 
 import {
   styles,
@@ -67,6 +76,14 @@ export default function GapRecommendationResultScreen({
     submitErrorMessage,
     setSubmitErrorMessage,
   ] = useState("");
+
+  const [
+    pendingSelection,
+    setPendingSelection,
+  ] = useState<{
+    place: DisplayPlace;
+    index: number;
+  } | null>(null);
 
   const {
     expandedPlaceId,
@@ -106,6 +123,92 @@ export default function GapRecommendationResultScreen({
     }, [
       params.placesJson,
     ]);
+
+  const previousPreviewPlace =
+    useMemo(
+      () => ({
+        name: params.beforePlanTitle,
+        time:
+          params.beforePlanEndTime ??
+          null,
+      }),
+      [
+        params.beforePlanEndTime,
+        params.beforePlanTitle,
+      ],
+    );
+
+  const nextPreviewPlace =
+    useMemo(
+      () => ({
+        name: params.afterPlanTitle,
+        time:
+          params.afterPlanStartTime ??
+          null,
+      }),
+      [
+        params.afterPlanStartTime,
+        params.afterPlanTitle,
+      ],
+    );
+
+  const pendingPlace =
+    pendingSelection?.place ??
+    null;
+
+  const previewData =
+    useRecommendationPreview({
+      params: {
+        moveTime:
+          typeof params.availableMinutes ===
+          "number"
+            ? String(params.availableMinutes)
+            : typeof params.gapMinutes ===
+                "number"
+              ? String(params.gapMinutes)
+              : null,
+      },
+      previousPlace:
+        previousPreviewPlace,
+      alternativePlace:
+        pendingPlace,
+      nextPlace:
+        nextPreviewPlace,
+      initialTransportMode:
+        params.transportMode,
+      initialVisitTime:
+        pendingPlace?.suggestedVisitTime ??
+        null,
+      initialEndTime:
+        pendingPlace?.suggestedEndTime ??
+        null,
+    });
+
+  const {
+    previewBeforeTransportMode,
+    previewTransportMode,
+    changePreviewTransportMode,
+    changePreviewBeforeTransportMode,
+    changePreviewNextTransportMode,
+    previewVisitTime,
+    previewEndTime,
+    draftPreviewVisitTime,
+    draftPreviewEndTime,
+    previewTimePickerVisible,
+    previewTimePickerTarget,
+    previewTimePickerHour,
+    previewTimePickerMinute,
+    previewAppliedVisitTime,
+    previewAppliedEndTime,
+    openPreviewTimePicker,
+    closePreviewTimePicker,
+    switchPreviewTimePickerTarget,
+    savePreviewTimePicker,
+    decreasePreviewTimePickerHour,
+    increasePreviewTimePickerHour,
+    decreasePreviewTimePickerMinute,
+    increasePreviewTimePickerMinute,
+  } = previewData;
 
   const handleBack = () => {
     if (
@@ -189,6 +292,8 @@ export default function GapRecommendationResultScreen({
     async (
       selectedPlace: DisplayPlace,
       index: number,
+      selectedVisitTime?: string | null,
+      selectedEndTime?: string | null,
     ) => {
       if (isSubmitting) {
         return;
@@ -253,16 +358,16 @@ export default function GapRecommendationResultScreen({
           category:
             selectedPlace.category,
           visitTime:
-            selectedPlace
-              .suggestedVisitTime ??
+            selectedVisitTime ??
+            selectedPlace.suggestedVisitTime ??
             null,
           endTime:
-            selectedPlace
-              .suggestedEndTime ??
+            selectedEndTime ??
+            selectedPlace.suggestedEndTime ??
             null,
           memo: null,
           transportMode:
-            params.transportMode,
+            previewTransportMode,
         };
 
         
@@ -636,11 +741,12 @@ export default function GapRecommendationResultScreen({
                             : targetPlaceId,
                       );
                     }}
-                    onSelect={() => {
-                      void handleConfirmPlace(
+        onSelect={() => {
+                      setSubmitErrorMessage("");
+                      setPendingSelection({
                         place,
                         index,
-                      );
+                      });
                     }}
                     onRetryReview={(
                       targetPlace,
@@ -692,6 +798,82 @@ export default function GapRecommendationResultScreen({
 
       </ScrollView>
 
+      <RecommendationPreviewModal
+        visible={Boolean(pendingSelection)}
+        pendingPlace={pendingPlace}
+        originalPlace={previousPreviewPlace}
+        nextPlace={nextPreviewPlace}
+        hasPreviousSchedule
+        hasNextSchedule
+        previousName={previewData.previewPreviousName}
+        previousTime={previewData.previewPreviousTime}
+        previousAddress={previewData.previewPreviousAddress}
+        alternativeName={previewData.previewAlternativeName}
+        alternativeTime={previewData.previewAppliedTimeText}
+        alternativeAddress={previewData.previewAlternativeAddress}
+        originalPlaceName="빈 시간"
+        nextName={previewData.previewNextName}
+        nextTime={previewData.previewNextTime}
+        nextAddress={previewData.previewNextAddress}
+        transportMode={previewTransportMode}
+        previousTransportMode={previewBeforeTransportMode}
+        nextTransportMode={previewTransportMode}
+        previousMoveTimeText={previewData.previewMoveTimeText}
+        nextMoveTimeText={previewData.previewMoveTimeText}
+        timePickerVisible={previewTimePickerVisible}
+        timePickerPlaceName={pendingPlace?.name ?? "추천 장소"}
+        timePickerTarget={previewTimePickerTarget}
+        timePickerPreviewText={`${String(previewTimePickerHour).padStart(2, "0")}:${String(
+          previewTimePickerMinute,
+        ).padStart(2, "0")}`}
+        visitTimeText={
+          draftPreviewVisitTime ??
+          previewAppliedVisitTime ??
+          "00:00"
+        }
+        endTimeText={
+          draftPreviewEndTime ??
+          previewAppliedEndTime ??
+          "00:00"
+        }
+        hourText={padPreviewTime(previewTimePickerHour)}
+        minuteText={padPreviewTime(previewTimePickerMinute)}
+        onClose={() => {
+          setPendingSelection(null);
+          closePreviewTimePicker();
+        }}
+        onChangeTransportMode={changePreviewTransportMode}
+        onChangePreviousTransportMode={changePreviewBeforeTransportMode}
+        onChangeNextTransportMode={changePreviewNextTransportMode}
+        onPressTimeEdit={openPreviewTimePicker}
+        onTimePickerClose={closePreviewTimePicker}
+        onSwitchTimeTarget={switchPreviewTimePickerTarget}
+        onDecreaseHour={decreasePreviewTimePickerHour}
+        onIncreaseHour={increasePreviewTimePickerHour}
+        onDecreaseMinute={decreasePreviewTimePickerMinute}
+        onIncreaseMinute={increasePreviewTimePickerMinute}
+        onSaveTime={savePreviewTimePicker}
+        confirmErrorMessage={submitErrorMessage}
+        confirming={isSubmitting}
+        confirmLabel="선택하기"
+        confirmingLabel="추가 중..."
+        onConfirm={() => {
+          if (!pendingSelection || isSubmitting) {
+            return;
+          }
+
+          void handleConfirmPlace(
+            pendingSelection.place,
+            pendingSelection.index,
+            previewVisitTime ??
+              pendingSelection.place.suggestedVisitTime ??
+              null,
+            previewEndTime ??
+              pendingSelection.place.suggestedEndTime ??
+              null,
+          );
+        }}
+      />
     </SafeAreaView>
   );
 }

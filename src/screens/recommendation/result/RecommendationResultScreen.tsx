@@ -1,7 +1,5 @@
 import React, {
-  useEffect,
   useMemo,
-  useState,
 } from "react";
 import {
   ScrollView,
@@ -13,21 +11,13 @@ import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { trackEvent, AMP } from "../../../utils/amplitude";
 import { useRecommendationToast } from "../../../hooks/recommendation/useRecommendationToast";
-import { useRecommendationPreview } from "../../../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationReviewDetails } from "../../../hooks/recommendation/useRecommendationReviewDetails";
 import { useRecommendationReviewActions } from "../../../hooks/recommendation/useRecommendationReviewActions";
 import { useRecommendationScheduleContext } from "../../../hooks/recommendation/useRecommendationScheduleContext";
-import { useRecommendationImpact } from "../../../hooks/recommendation/useRecommendationImpact";
 import { useRecommendationReplaceFlow } from "../../../hooks/recommendation/useRecommendationReplaceFlow";
-import {
-  getPreviewTimeText,
-  padPreviewTime,
-} from "../../../utils/recommendation/recommendationFormatters";
-import RecommendationPreviewModal from "../../../components/recommendation/RecommendationPreviewModal";
 import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
 import RecommendationResultPlaceCard from "../../../components/recommendation/RecommendationResultPlaceCard";
 import WhiteToast from "../../../components/recommendation/WhiteToast";
-import type { RecommendationTransportMode } from "../../../components/recommendation/RecommendationTransportCard";
 import { styles } from "./RecommendationResultScreen.styles";
 import type {
   RecommendationResultDisplayPlace as DisplayPlace,
@@ -39,10 +29,6 @@ export default function RecommendationResultScreen({
   navigation,
   route,
 }: Props) {
-  const [pendingPlace, setPendingPlace] =
-    useState<DisplayPlace | null>(null);
-
-
   const { whiteToast, showWhiteToast } = useRecommendationToast();
 
   const {
@@ -86,114 +72,12 @@ export default function RecommendationResultScreen({
 
   const {
     previousSchedulePlace: savedPreviousSchedulePlace,
-    originalSchedulePlaceFromStorage:
-      savedOriginalSchedulePlace,
     originalSchedulePlace,
-    nextSchedulePlace: savedNextSchedulePlace,
   } = useRecommendationScheduleContext({
     params,
     targetPlace,
     showToast: showWhiteToast,
   });
-
-  const previewData = useRecommendationPreview({
-    params,
-    previousPlace: savedPreviousSchedulePlace,
-    alternativePlace: pendingPlace,
-    nextPlace: savedNextSchedulePlace,
-    initialTransportMode: params.transportMode ?? "WALK",
-    initialVisitTime:
-      savedOriginalSchedulePlace?.visitTime ?? targetPlace?.visitTime ?? null,
-    initialEndTime:
-      savedOriginalSchedulePlace?.endTime ?? targetPlace?.endTime ?? null,
-  });
-
-  const {
-    previewBeforeTransportMode,
-    previewTransportMode,
-    changePreviewTransportMode,
-    changePreviewBeforeTransportMode,
-    changePreviewNextTransportMode,
-    previewVisitTime,
-    previewEndTime,
-    draftPreviewVisitTime,
-    draftPreviewEndTime,
-    previewTimePickerVisible,
-    previewTimePickerTarget,
-    previewTimePickerHour,
-    previewTimePickerMinute,
-    previewAppliedVisitTime,
-    previewAppliedEndTime,
-    initializePreviewTimes,
-    openPreviewTimePicker,
-    closePreviewTimePicker,
-    switchPreviewTimePickerTarget,
-    savePreviewTimePicker,
-    decreasePreviewTimePickerHour,
-    increasePreviewTimePickerHour,
-    decreasePreviewTimePickerMinute,
-    increasePreviewTimePickerMinute,
-  } = previewData;
-
-  const {
-    impactResult,
-    previousImpactMode,
-    nextImpactMode,
-    previousMoveTimeText:
-      impactPreviousMoveTimeText,
-    nextMoveTimeText:
-      impactNextMoveTimeText,
-    nextTime: impactNextTime,
-    changePreviousImpactMode:
-      handlePreviousImpactModeChange,
-    changeNextImpactMode:
-      handleNextImpactModeChange,
-    closeImpactPreview,
-  } = useRecommendationImpact({
-    pendingPlace,
-    routeParams: params,
-    targetPlace,
-    fallbackNextTime:
-      previewData.previewNextTime,
-    showToast: showWhiteToast,
-    onChangePreviousTransportMode:
-      changePreviewBeforeTransportMode,
-    onChangeNextTransportMode: (mode) => {
-      changePreviewTransportMode(mode);
-      changePreviewNextTransportMode(mode);
-    },
-  });
-
-
-  useEffect(() => {
-    initializePreviewTimes(
-      savedOriginalSchedulePlace?.visitTime ??
-        targetPlace?.visitTime ??
-        null,
-      savedOriginalSchedulePlace?.endTime ??
-        targetPlace?.endTime ??
-        null,
-    );
-  }, [
-    savedOriginalSchedulePlace?.endTime,
-    savedOriginalSchedulePlace?.visitTime,
-    targetPlace?.endTime,
-    targetPlace?.visitTime,
-  ]);
-
-  const hasPreviousSchedule = Boolean(
-    savedPreviousSchedulePlace?.name?.trim() ||
-      savedPreviousSchedulePlace?.id ||
-      savedPreviousSchedulePlace?.tripPlaceId ||
-      savedPreviousSchedulePlace?.serverTripPlaceId,
-  );
-
-  const hasNextSchedule = Boolean(
-    savedNextSchedulePlace?.name?.trim() ||
-      savedNextSchedulePlace?.id ||
-      savedNextSchedulePlace?.tripPlaceId ||
-      savedNextSchedulePlace?.serverTripPlaceId,
-  );
 
   const currentPlaceName =
     originalSchedulePlace?.name || params.title || "현재 진행 중인 일정";
@@ -260,8 +144,6 @@ export default function RecommendationResultScreen({
   const {
     selectedPlaceId,
     submittingPlaceId,
-    replaceErrorMessage,
-    clearReplaceError,
     handleSelectPlace,
   } = useRecommendationReplaceFlow({
     navigation,
@@ -271,10 +153,8 @@ export default function RecommendationResultScreen({
     targetPlace,
     previousSchedulePlace:
       savedPreviousSchedulePlace,
-    previewVisitTime,
-    previewEndTime,
-    previousImpactMode,
-    nextImpactMode,
+    previousImpactMode: params.transportMode ?? "WALK",
+    nextImpactMode: params.transportMode ?? "WALK",
     showToast: showWhiteToast,
   });
 
@@ -356,6 +236,7 @@ export default function RecommendationResultScreen({
                   isSelected={isSelected}
                   isSubmitting={isSubmitting}
                   isWeatherRecommendation={Boolean(isWeatherRecommendation)}
+                  selectButtonLabel="이 장소로 대체"
                   extraDetail={extraDetail}
                   onToggleHours={(targetPlaceId) =>
                     setExpandedHoursPlaceId((prev: string | number | null) =>
@@ -365,7 +246,7 @@ export default function RecommendationResultScreen({
                     )
                   }
                   onSelect={(selectedPlace) => {
-                    setPendingPlace(selectedPlace as DisplayPlace);
+                    void handleSelectPlace(selectedPlace as DisplayPlace);
                   }}
                   onRetryReview={(targetPlace, targetPlaceId) =>
                     handleRetryReview(targetPlace as DisplayPlace, targetPlaceId)
@@ -389,103 +270,6 @@ export default function RecommendationResultScreen({
         : null}
       </ScrollView>
 
-      <RecommendationPreviewModal
-        visible={Boolean(pendingPlace)}
-        pendingPlace={pendingPlace}
-        originalPlace={originalSchedulePlace}
-        nextPlace={savedNextSchedulePlace}
-        hasPreviousSchedule={hasPreviousSchedule}
-        hasNextSchedule={hasNextSchedule}
-        previousName={
-          hasPreviousSchedule
-            ? previewData.previewPreviousName
-            : "이전 일정이 없습니다"
-        }
-        previousTime={
-          hasPreviousSchedule
-            ? previewData.previewPreviousTime
-            : "시간 미정"
-        }
-        previousAddress={previewData.previewPreviousAddress}
-        alternativeName={previewData.previewAlternativeName}
-        alternativeTime={previewData.previewAppliedTimeText}
-        alternativeAddress={previewData.previewAlternativeAddress}
-        originalPlaceName={currentPlaceName}
-        nextName={
-          hasNextSchedule
-            ? previewData.previewNextName
-            : "다음 일정이 없습니다"
-        }
-        nextTime={
-          hasNextSchedule
-            ? impactNextTime
-            : "시간 미정"
-        }
-        nextAddress={previewData.previewNextAddress}
-        transportMode={nextImpactMode}
-        previousTransportMode={previousImpactMode}
-        nextTransportMode={nextImpactMode}
-        previousMoveTimeText={impactPreviousMoveTimeText}
-        nextMoveTimeText={impactNextMoveTimeText}
-        timePickerVisible={previewTimePickerVisible}
-        timePickerPlaceName={pendingPlace?.name ?? "대안 장소"}
-        timePickerTarget={previewTimePickerTarget}
-        timePickerPreviewText={`${String(previewTimePickerHour).padStart(2, "0")}:${String(
-          previewTimePickerMinute,
-        ).padStart(2, "0")}`}
-        visitTimeText={
-          draftPreviewVisitTime ??
-          previewAppliedVisitTime ??
-          "00:00"
-        }
-        endTimeText={
-          draftPreviewEndTime ??
-          previewAppliedEndTime ??
-          "00:00"
-        }
-        hourText={padPreviewTime(previewTimePickerHour)}
-        minuteText={padPreviewTime(previewTimePickerMinute)}
-        onClose={() => {
-          closeImpactPreview();
-          setPendingPlace(null);
-        }}
-        onChangeTransportMode={handleNextImpactModeChange}
-        onChangePreviousTransportMode={handlePreviousImpactModeChange}
-        onChangeNextTransportMode={handleNextImpactModeChange}
-        onPressTimeEdit={() => {
-          clearReplaceError();
-          openPreviewTimePicker();
-        }}
-        onTimePickerClose={closePreviewTimePicker}
-        onSwitchTimeTarget={switchPreviewTimePickerTarget}
-        onDecreaseHour={decreasePreviewTimePickerHour}
-        onIncreaseHour={increasePreviewTimePickerHour}
-        onDecreaseMinute={decreasePreviewTimePickerMinute}
-        onIncreaseMinute={increasePreviewTimePickerMinute}
-        onSaveTime={savePreviewTimePicker}
-        confirmErrorMessage={
-          replaceErrorMessage
-        }
-        confirming={
-          submittingPlaceId !== null
-        }
-        onConfirm={() => {
-          if (
-            !pendingPlace ||
-            submittingPlaceId !== null
-          ) {
-            return;
-          }
-
-          const placeToApply = pendingPlace;
-
-          // 교체 요청 중 프리뷰 모달에 갇히지 않도록
-          // 요청 시작과 동시에 모달을 닫는다.
-          setPendingPlace(null);
-
-          void handleSelectPlace(placeToApply);
-        }}
-      />
       <WhiteToast toast={whiteToast} />
     </SafeAreaView>
   );

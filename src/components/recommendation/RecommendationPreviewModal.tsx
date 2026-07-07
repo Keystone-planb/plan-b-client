@@ -1,9 +1,11 @@
 import React from "react";
 import {
   Modal,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
+  useWindowDimensions,
   View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -62,6 +64,8 @@ type Props = {
   minuteText: string;
   confirmErrorMessage?: string;
   confirming?: boolean;
+  confirmLabel?: string;
+  confirmingLabel?: string;
 
   onClose: () => void;
   onChangeTransportMode: (mode: RecommendationTransportMode) => void;
@@ -116,6 +120,8 @@ export default function RecommendationPreviewModal({
   minuteText,
   confirmErrorMessage = "",
   confirming = false,
+  confirmLabel = "교체하기",
+  confirmingLabel = "교체 중...",
   onClose,
   onChangeTransportMode,
   onChangePreviousTransportMode,
@@ -131,8 +137,13 @@ export default function RecommendationPreviewModal({
   onConfirm,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const { height: windowHeight } = useWindowDimensions();
   const { whiteToast, showWhiteToast } =
     useRecommendationToast();
+  const modalMaxHeight = Math.max(
+    460,
+    windowHeight - insets.top - insets.bottom - 44,
+  );
 
   const handleSaveTime = () => {
     const saved = onSaveTime();
@@ -158,6 +169,8 @@ export default function RecommendationPreviewModal({
       visible={visible}
       transparent
       animationType="fade"
+      hardwareAccelerated
+      navigationBarTranslucent
       presentationStyle="overFullScreen"
       statusBarTranslucent
       onRequestClose={onClose}
@@ -192,8 +205,21 @@ export default function RecommendationPreviewModal({
           </View>
         ) : null}
 
-        <View style={styles.previewModal}>
-          <View style={styles.previewContent}>
+        <View
+          style={[
+            styles.previewModal,
+            {
+              maxHeight: modalMaxHeight,
+            },
+          ]}
+        >
+          <ScrollView
+            style={styles.previewScroll}
+            contentContainerStyle={styles.previewContent}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            nestedScrollEnabled
+          >
             <RecommendationHeader
               title="이렇게 바꿀까요?"
               onClose={onClose}
@@ -252,7 +278,7 @@ export default function RecommendationPreviewModal({
             onChangeNextTransportMode={onChangeNextTransportMode}
             onPressTimeEdit={onPressTimeEdit}
           />
-          </View>
+          </ScrollView>
 
           <View style={styles.previewFooter}>
             {confirmErrorMessage ? (
@@ -293,8 +319,8 @@ export default function RecommendationPreviewModal({
               }
             >
               {confirming
-                ? "교체 중..."
-                : "교체하기"}
+                ? confirmingLabel
+                : confirmLabel}
             </Text>
             </TouchableOpacity>
           </View>
@@ -322,12 +348,18 @@ const styles = StyleSheet.create({
     maxWidth: 390,
     borderRadius: 24,
     backgroundColor: "#FFFFFF",
+    elevation: 24,
   },
 
+
+  previewScroll: {
+    flexGrow: 0,
+  },
 
   previewContent: {
     paddingHorizontal: 14,
     paddingTop: 16,
+    paddingBottom: 4,
   },
 
   previewFooter: {
