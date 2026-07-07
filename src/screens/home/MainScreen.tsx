@@ -1991,7 +1991,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.22,
     shadowRadius: 8,
     elevation: 5,
-    overflow: "hidden",
   },
 
   homeSectionTitle: {
@@ -2073,20 +2072,20 @@ const styles = StyleSheet.create({
   },
 
   deleteAction: {
-    width: 84,
-    minHeight: 84,
-    borderRadius: 18,
+    width: 96,
+    minHeight: "100%",
+    borderTopRightRadius: 18,
+    borderBottomRightRadius: 18,
     backgroundColor: "#EF4444",
     alignItems: "center",
     justifyContent: "center",
-    marginLeft: 12,
+    gap: 6,
   },
 
   deleteActionText: {
     color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
-    marginTop: 4,
+    fontSize: 15,
+    fontWeight: "800",
   },
 
   nextTripSection: {
@@ -2235,7 +2234,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingBottom: 130,
     position: "relative",
-    overflow: "hidden",
   },
 
   radialLayer: {
@@ -2278,7 +2276,6 @@ const styles = StyleSheet.create({
     borderWidth: 4,
     borderColor: "#2158E8",
     backgroundColor: "#D7E9FF",
-    overflow: "hidden",
   },
 
   calendarTopBar: {
