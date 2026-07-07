@@ -2,7 +2,10 @@ import type {
   ImageSourcePropType,
 } from "react-native";
 
-import { getAnalyzedPlaceDetail } from "../../../api/places/place";
+import {
+  getAnalyzedPlaceDetail,
+  waitForPlaceSummaryAnalyzed,
+} from "../../../api/places/place";
 
 import type {
   PlaceSpace,
@@ -300,6 +303,14 @@ export const fetchPlaceDetailForRecommendation =
         await getAnalyzedPlaceDetail(
           String(googlePlaceId),
         );
+
+      await waitForPlaceSummaryAnalyzed(
+        String(googlePlaceId),
+        {
+          intervalMs: 2000,
+          timeoutMs: 30000,
+        },
+      );
 
       return placeDetail as
         PlaceDetailForRecommendation;

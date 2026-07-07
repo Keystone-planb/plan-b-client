@@ -355,6 +355,49 @@ export const waitForPlaceAnalysisComplete = async (
   return false;
 };
 
+const isPlaceSummaryAnalyzed = (
+  summary?: PlaceReviewSummaryResponse | null,
+) => {
+  if (!summary) return false;
+
+  return (
+    summary.analyzed === true ||
+    Boolean(
+      summary.aiSummary ||
+        summary.summary ||
+        summary.reviewSummary ||
+        summary.googleReview ||
+        summary.naverReview
+    )
+  );
+};
+
+export const waitForPlaceSummaryAnalyzed = async (
+  placeId: string,
+  options: {
+    intervalMs?: number;
+    timeoutMs?: number;
+  } = {},
+): Promise<PlaceReviewSummaryResponse | null> => {
+  const intervalMs = options.intervalMs ?? 2000;
+  const timeoutMs = options.timeoutMs ?? 30000;
+  const startedAt = Date.now();
+
+  while (Date.now() - startedAt < timeoutMs) {
+    const summary = await getPlaceReviewSummary(placeId, {
+      forceRefresh: true,
+    });
+
+    if (isPlaceSummaryAnalyzed(summary)) {
+      return summary;
+    }
+
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  return null;
+};
+
 export const getAnalyzedPlaceDetail = async (placeId: string) => {
   await getPlaceDetail(placeId);
 

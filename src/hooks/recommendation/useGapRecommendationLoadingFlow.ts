@@ -220,7 +220,7 @@ export function useGapRecommendationLoadingFlow({
     }, 180);
 
     return () => {
-      clearInterval(progressTimer);
+      
     };
   }, [
     enabled,
@@ -460,6 +460,8 @@ export function useGapRecommendationLoadingFlow({
               },
 
               onDone: () => {
+                
+
                 if (cancelled) {
                   return;
                 }
@@ -526,6 +528,8 @@ export function useGapRecommendationLoadingFlow({
             moveToResult(fallbackPlaces);
           }
         } catch (error) {
+          
+
           if (cancelled) {
             return;
           }

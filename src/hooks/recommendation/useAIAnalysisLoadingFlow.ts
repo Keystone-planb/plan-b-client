@@ -168,7 +168,7 @@ export function useAIAnalysisLoadingFlow({
     }, 220);
 
     return () => {
-      clearInterval(progressTimer);
+      
     };
   }, [enabled, errorMessage, retryVersion]);
 
@@ -354,6 +354,8 @@ export function useAIAnalysisLoadingFlow({
               },
 
               onDone: () => {
+                
+
                 if (cancelled) {
                   return;
                 }
@@ -402,6 +404,8 @@ export function useAIAnalysisLoadingFlow({
             },
           );
         } catch (error) {
+          
+
           if (cancelled) {
             return;
           }
