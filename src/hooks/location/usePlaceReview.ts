@@ -4,6 +4,38 @@ import { useRef, useState } from "react";
 import { Alert } from "react-native";
 import { trackEvent, AMP } from "../../utils/amplitude";
 
+
+const getReviewPayloadData = (payload: unknown) => {
+  const record = payload as any;
+  return record?.data ?? record?.result ?? record?.payload ?? record;
+};
+
+const isReviewAnalysisCompleted = (payload: unknown) => {
+  const data = getReviewPayloadData(payload);
+  if (!data || typeof data !== "object") return false;
+
+  return (
+    data.analyzed === true ||
+    Boolean(data.aiSummary || data.reviewSummary || data.summary)
+  );
+};
+
+const isReviewEmptyAfterAnalysis = (payload: unknown) => {
+  const data = getReviewPayloadData(payload);
+  if (!data || typeof data !== "object") return false;
+
+  return (
+    data.analyzed === true &&
+    !data.aiSummary &&
+    !data.reviewSummary &&
+    !data.summary &&
+    !data.googleReview &&
+    !data.naverReview &&
+    !data.instaReview &&
+    !data.instagramReview
+  );
+};
+
 type PlaceLike = {
   name?: string;
   placeId?: string | number;
@@ -119,7 +151,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
           : null;
 
         const hasUsefulReview =
-          hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
+          isReviewAnalysisCompleted(summary) || hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
         const hasTags = hasAnalyzedTagsInDetail(detail);
         const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
 
@@ -137,7 +169,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       // 백엔드가 fallback(space=MIX 등)으로 COMPLETE를 반환하지만 리뷰 요약(reviewData)이
       // 비어 있는 경우가 있다. 이때는 자동으로 1회 재분석 후 다시 조회해 제대로 된 리뷰를 채운다.
       const usefulReviewReady =
-        hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
+        isReviewAnalysisCompleted(summary) || hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
 
       if (analysisCompleted && !usefulReviewReady) {
         try {
@@ -162,7 +194,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
               summary = summaryRetry.value;
 
             if (
-              hasUsefulReviewPayload(summary) ||
+              isReviewAnalysisCompleted(summary) || hasUsefulReviewPayload(summary) ||
               hasUsefulReviewPayload(detail)
             ) {
               break;
@@ -205,7 +237,12 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         ...prev,
         [placeKey]: {
           detail,
-          summary,
+          summary: isReviewEmptyAfterAnalysis(summary)
+            ? {
+                ...(getReviewPayloadData(summary) as object),
+                aiSummary: "아직 리뷰 데이터가 없어요.",
+              }
+            : summary,
           freshness,
         },
       }));

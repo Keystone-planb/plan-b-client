@@ -45,6 +45,7 @@ export type PlaceDetail = {
 };
 
 export type PlaceSummary = {
+  analyzed?: boolean | null;
   placeId: number | string;
   aiSummary?: string;
   reviewSummary?: string;
@@ -119,6 +120,7 @@ export type PlaceDetailTagGroup = {
  * - freshnessBadge / freshnessScore 등은 신선도 배지 UI에 사용
  */
 export type PlaceReviewSummaryResponse = {
+  analyzed?: boolean | null;
   placeId?: string;
   googlePlaceId?: string;
 
