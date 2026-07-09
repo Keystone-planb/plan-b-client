@@ -1528,7 +1528,7 @@ const localStyles = StyleSheet.create({
     marginBottom: 8,
     alignItems: "center",
     minHeight: 74,
-    paddingLeft: 118,
+    paddingLeft: 22,
     zIndex: 10,
   },
 
