@@ -276,16 +276,19 @@ const styles = StyleSheet.create({
   wrap: {
     marginTop: 10,
     gap: 8,
+    minWidth: 0,
   },
 
   scheduleRow: {
     flexDirection: "row",
     alignItems: "stretch",
+    minWidth: 0,
   },
 
   transportRow: {
     flexDirection: "row",
     alignItems: "stretch",
+    minWidth: 0,
   },
 
   content: {
@@ -299,6 +302,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     position: "relative",
+    flexShrink: 0,
   },
 
   node: {
@@ -344,6 +348,7 @@ const styles = StyleSheet.create({
     width: 40,
     marginRight: 8,
     alignItems: "center",
+    flexShrink: 0,
   },
 
   transportLine: {

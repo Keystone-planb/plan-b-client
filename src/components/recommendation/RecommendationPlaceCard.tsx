@@ -57,7 +57,9 @@ export default function RecommendationPlaceCard({
             onPress={onPressTimeEdit}
           >
             <Ionicons name="time-outline" size={13} color="#2158E8" />
-            <Text style={styles.timeEditText}>시간 변경</Text>
+            <Text style={styles.timeEditText} numberOfLines={1}>
+              시간 변경
+            </Text>
           </TouchableOpacity>
         ) : null}
       </View>
@@ -97,6 +99,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 13,
     paddingVertical: 12,
     justifyContent: "center",
+    minWidth: 0,
   },
 
   alternativeCard: {
@@ -111,6 +114,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     gap: 8,
     marginBottom: 8,
+    minWidth: 0,
   },
 
   metaLeft: {
@@ -118,6 +122,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 8,
     flexShrink: 1,
+    minWidth: 0,
   },
 
   badge: {
@@ -128,6 +133,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 9,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
 
   badgeText: {
@@ -143,6 +149,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
 
   alternativeBadgeText: {
@@ -155,9 +162,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    flexShrink: 1,
+    minWidth: 0,
   },
 
   timeText: {
+    flexShrink: 1,
+    minWidth: 0,
     color: "#1C2534",
     fontSize: 14,
     fontWeight: "900",
@@ -168,12 +179,14 @@ const styles = StyleSheet.create({
   },
 
   placeText: {
+    minWidth: 0,
     color: "#111827",
     fontSize: 16,
     fontWeight: "900",
   },
 
   alternativePlaceText: {
+    minWidth: 0,
     color: "#2158E8",
     fontSize: 20,
     fontWeight: "900",
@@ -185,6 +198,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 5,
+    minWidth: 0,
   },
 
   addressText: {
@@ -199,6 +213,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 4,
     marginTop: 8,
+    minWidth: 0,
   },
 
   originalReferenceText: {
@@ -221,9 +236,11 @@ const styles = StyleSheet.create({
     gap: 4,
     zIndex: 10,
     elevation: 10,
+    flexShrink: 0,
   },
 
   timeEditText: {
+    flexShrink: 1,
     color: "#2158E8",
     fontSize: 11,
     fontWeight: "900",

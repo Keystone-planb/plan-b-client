@@ -447,6 +447,7 @@ export default function GapRecommendationCard({
                       }
                       size={20}
                       color="#64748B"
+                      style={styles.gapChevron}
                     />
                   </TouchableOpacity>
 
@@ -480,6 +481,7 @@ export default function GapRecommendationCard({
                                   ? "#FFFFFF"
                                   : "#2158E8"
                               }
+                              style={styles.transportButtonIcon}
                             />
 
                             <Text
@@ -488,6 +490,8 @@ export default function GapRecommendationCard({
                                 selected &&
                                   styles.transportButtonTextActive,
                               ]}
+                              numberOfLines={1}
+                              ellipsizeMode="tail"
                             >
                               {option.label}
                             </Text>
@@ -608,12 +612,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#EDF5FF",
     alignItems: "center",
     justifyContent: "center",
+    flexShrink: 0,
   },
   titleTextBox: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     flexShrink: 1,
+    minWidth: 0,
   },
 
   planBBadge: {
@@ -655,6 +661,7 @@ const styles = StyleSheet.create({
 
   transportButton: {
     flex: 1,
+    minWidth: 0,
     minHeight: 36,
     borderRadius: 10,
     borderWidth: 1,
@@ -668,12 +675,18 @@ const styles = StyleSheet.create({
     paddingVertical: 3,
   },
 
+  transportButtonIcon: {
+    flexShrink: 0,
+  },
+
   transportButtonActive: {
     backgroundColor: "#2158E8",
     borderColor: "#2158E8",
   },
 
   transportButtonText: {
+    flexShrink: 1,
+    minWidth: 0,
     color: "#2158E8",
     fontSize: 11,
     fontWeight: "800",
@@ -722,18 +735,20 @@ const styles = StyleSheet.create({
   },
   gapTextBox: {
     flex: 1,
+    minWidth: 0,
   },
   gapTitleRow: {
     flex: 1,
     minWidth: 0,
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
     gap: 10,
   },
 
   gapPlacePart: {
     flex: 1,
     minWidth: 0,
+    maxWidth: "46%",
     alignItems: "flex-start",
     justifyContent: "flex-start",
     gap: 5,
@@ -795,13 +810,20 @@ const styles = StyleSheet.create({
 
   gapArrow: {
     flexShrink: 0,
+    marginTop: 27,
     color: "#64748B",
     fontSize: 12,
     fontWeight: "900",
   },
 
+  gapChevron: {
+    flexShrink: 0,
+  },
+
   gapTitle: {
     width: "100%",
+    minWidth: 0,
+    flexShrink: 1,
     color: "#172033",
     fontSize: 14,
     fontWeight: "800",

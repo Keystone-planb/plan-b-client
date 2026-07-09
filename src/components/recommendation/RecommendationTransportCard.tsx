@@ -42,9 +42,14 @@ export default function RecommendationTransportCard({
                 name={option.icon as any}
                 size={15}
                 color={isActive ? "#2158E8" : "#1C2534"}
+                style={styles.chipIcon}
               />
 
-              <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
+              <Text
+                style={[styles.chipText, isActive && styles.chipTextActive]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
                 {option.label}
               </Text>
             </TouchableOpacity>
@@ -54,8 +59,13 @@ export default function RecommendationTransportCard({
 
       {moveTimeText ? (
         <View style={styles.moveTimeRow}>
-          <Ionicons name={selected.icon as any} size={15} color="#2158E8" />
-          <Text style={styles.moveTimeText}>
+          <Ionicons
+            name={selected.icon as any}
+            size={15}
+            color="#2158E8"
+            style={styles.moveTimeIcon}
+          />
+          <Text style={styles.moveTimeText} numberOfLines={1}>
             예상 이동시간 <Text style={styles.moveTimeValue}>{moveTimeText}</Text>
           </Text>
         </View>
@@ -82,10 +92,12 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: "row",
     gap: 8,
+    minWidth: 0,
   },
 
   chip: {
     flex: 1,
+    minWidth: 0,
     height: 32,
     minHeight: 32,
     borderRadius: 10,
@@ -99,12 +111,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
   },
 
+  chipIcon: {
+    flexShrink: 0,
+  },
+
   chipActive: {
     borderColor: "#2158E8",
     backgroundColor: "#F8FBFF",
   },
 
   chipText: {
+    flexShrink: 1,
+    minWidth: 0,
     color: "#1C2534",
     fontSize: 12,
     fontWeight: "900",
@@ -121,9 +139,16 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 6,
+    minWidth: 0,
+  },
+
+  moveTimeIcon: {
+    flexShrink: 0,
   },
 
   moveTimeText: {
+    flexShrink: 1,
+    minWidth: 0,
     color: "#64748B",
     fontSize: 12,
     fontWeight: "800",
