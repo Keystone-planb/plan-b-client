@@ -4,36 +4,110 @@ import { useRef, useState } from "react";
 import { Alert } from "react-native";
 import { trackEvent, AMP } from "../../utils/amplitude";
 
+const COMPLETED_ANALYSIS_STATUSES = new Set([
+  "COMPLETE",
+  "COMPLETED",
+  "DONE",
+  "SUCCESS",
+  "READY",
+]);
 
 const getReviewPayloadData = (payload: unknown) => {
   const record = payload as any;
-  return record?.data ?? record?.result ?? record?.payload ?? record;
+  return (
+    record?.data ??
+    record?.result ??
+    record?.payload ??
+    record?.response ??
+    record?.body ??
+    record
+  );
+};
+
+const getReviewField = (source: unknown, fieldNames: string[]) => {
+  const data = getReviewPayloadData(source) as any;
+  if (!data || typeof data !== "object") return undefined;
+
+  for (const fieldName of fieldNames) {
+    const value = data[fieldName];
+    if (value !== undefined && value !== null) return value;
+  }
+
+  return undefined;
+};
+
+const hasReviewContent = (payload: unknown) => {
+  const data = getReviewPayloadData(payload) as any;
+  if (!data || typeof data !== "object") return false;
+
+  const summaryLikeFields = [
+    "aiSummary",
+    "ai_summary",
+    "reviewSummary",
+    "review_summary",
+    "summary",
+  ];
+
+  const rawReviewFields = [
+    "googleReview",
+    "google_review",
+    "naverReview",
+    "naver_review",
+    "instaReview",
+    "instagramReview",
+    "instagram_review",
+  ];
+
+  const hasTextReview = [...summaryLikeFields, ...rawReviewFields].some(
+    (fieldName) => {
+      const value = data[fieldName];
+      return typeof value === "string" && value.trim().length > 0;
+    },
+  );
+
+  const hasReviewList = ["reviews", "googleReviews", "naverReviews"].some(
+    (fieldName) => Array.isArray(data[fieldName]) && data[fieldName].length > 0,
+  );
+
+  return hasTextReview || hasReviewList;
+};
+
+const isLocalAnalysisStatusCompleted = (payload: unknown) => {
+  const data = getReviewPayloadData(payload) as any;
+
+  if (typeof data === "string") {
+    return COMPLETED_ANALYSIS_STATUSES.has(data.toUpperCase());
+  }
+
+  if (!data || typeof data !== "object") return false;
+
+  const status = String(
+    getReviewField(data, ["status", "analysisStatus", "analysis_status"]) ??
+      "",
+  ).toUpperCase();
+
+  return (
+    COMPLETED_ANALYSIS_STATUSES.has(status) ||
+    data.ready === true ||
+    data.completed === true ||
+    data.isCompleted === true ||
+    data.isAnalyzed === true ||
+    data.analyzed === true
+  );
 };
 
 const isReviewAnalysisCompleted = (payload: unknown) => {
   const data = getReviewPayloadData(payload);
   if (!data || typeof data !== "object") return false;
 
-  return (
-    data.analyzed === true ||
-    Boolean(data.aiSummary || data.reviewSummary || data.summary)
-  );
+  return isLocalAnalysisStatusCompleted(payload) || hasReviewContent(payload);
 };
 
 const isReviewEmptyAfterAnalysis = (payload: unknown) => {
   const data = getReviewPayloadData(payload);
   if (!data || typeof data !== "object") return false;
 
-  return (
-    data.analyzed === true &&
-    !data.aiSummary &&
-    !data.reviewSummary &&
-    !data.summary &&
-    !data.googleReview &&
-    !data.naverReview &&
-    !data.instaReview &&
-    !data.instagramReview
-  );
+  return isLocalAnalysisStatusCompleted(payload) && !hasReviewContent(payload);
 };
 
 type PlaceLike = {
@@ -131,6 +205,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       let summary: unknown = null;
       let freshness: unknown = null;
       let analysisCompleted = false;
+      let analysisStatusCompleted = false;
 
       for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
         const [detailResult, summaryResult, analysisStatusResult] =
@@ -153,11 +228,27 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         const hasUsefulReview =
           isReviewAnalysisCompleted(summary) || hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
         const hasTags = hasAnalyzedTagsInDetail(detail);
-        const statusCompleted = isAnalysisStatusCompleted(analysisStatus);
+        const statusCompleted =
+          isAnalysisStatusCompleted(analysisStatus) ||
+          isLocalAnalysisStatusCompleted(analysisStatus);
 
         
         if (statusCompleted || hasTags || hasUsefulReview) {
           analysisCompleted = true;
+          analysisStatusCompleted = analysisStatusCompleted || statusCompleted;
+
+          if (statusCompleted && !hasUsefulReview) {
+            const [detailRefresh, summaryRefresh] = await Promise.allSettled([
+              getPlaceDetail(placeKey),
+              getPlaceSummary(placeKey),
+            ]);
+
+            if (detailRefresh.status === "fulfilled")
+              detail = detailRefresh.value;
+            if (summaryRefresh.status === "fulfilled")
+              summary = summaryRefresh.value;
+          }
+
           break;
         }
 
@@ -171,7 +262,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       const usefulReviewReady =
         isReviewAnalysisCompleted(summary) || hasUsefulReviewPayload(summary) || hasUsefulReviewPayload(detail);
 
-      if (analysisCompleted && !usefulReviewReady) {
+      if (analysisCompleted && !usefulReviewReady && !analysisStatusCompleted) {
         try {
           setReanalyzeLoadingPlaceId(placeKey);
           setReanalyzeMessageIndex(0);
@@ -237,9 +328,11 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         ...prev,
         [placeKey]: {
           detail,
-          summary: isReviewEmptyAfterAnalysis(summary)
+          summary: isReviewEmptyAfterAnalysis(summary) ||
+            (analysisStatusCompleted && !usefulReviewReady)
             ? {
                 ...(getReviewPayloadData(summary) as object),
+                analyzed: true,
                 aiSummary: "아직 리뷰 데이터가 없어요.",
               }
             : summary,
