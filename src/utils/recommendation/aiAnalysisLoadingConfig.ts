@@ -84,6 +84,8 @@ export type AIAnalysisLoadingParams = {
   placeScope?: AIAnalysisPlaceScope;
   selectedType?: PlaceType;
   targetPlace?: AIAnalysisTodayPlace;
+  previousPlace?: AIAnalysisTodayPlace;
+  nextPlace?: AIAnalysisTodayPlace;
   recommendationType?: AIAnalysisRecommendationType;
   beforePlanId?: string | number;
   afterPlanId?: string | number;
