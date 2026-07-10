@@ -12,6 +12,7 @@ type BuildAlternativeNavigationParamsInput = {
   transportMode?: string;
   transportLabel?: string;
   selectedDay: number;
+  returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
 };
 
 const getValueCandidates = (place: any) => {
@@ -36,6 +37,7 @@ export const buildAlternativeNavigationParams = ({
   transportMode,
   transportLabel,
   selectedDay,
+  returnScreen,
 }: BuildAlternativeNavigationParamsInput) => {
   const placeCandidates = getValueCandidates(place);
 

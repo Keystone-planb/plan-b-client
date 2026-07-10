@@ -131,6 +131,7 @@ type EditingTimePlace = {
   endTime: string;
 } | null;
 
+
 const getTripDayCount = (startDate?: string, endDate?: string) => {
   if (!startDate || !endDate) return 1;
 
@@ -363,9 +364,44 @@ const getEditablePlaceKey = (place: TodayPlace, index: number) => {
   );
 };
 
+const pickPlaceTimeText = (place: TodayPlace, keys: string[]) => {
+  const source = place as Record<string, unknown>;
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 const getPlaceDisplayTime = (place: TodayPlace) => {
-  const visitTime = normalizeDisplayTime(place.visitTime);
-  const endTime = normalizeDisplayTime(place.endTime);
+  const visitTime = normalizeDisplayTime(
+    pickPlaceTimeText(place, [
+      "visitTime",
+      "startTime",
+      "scheduledStartTime",
+      "visitStartTime",
+      "newVisitTime",
+      "beforePlanStartTime",
+      "afterPlanStartTime",
+    ]),
+  );
+  const endTime = normalizeDisplayTime(
+    pickPlaceTimeText(place, [
+      "endTime",
+      "finishTime",
+      "toTime",
+      "scheduledEndTime",
+      "visitEndTime",
+      "newEndTime",
+      "beforePlanEndTime",
+      "afterPlanEndTime",
+    ]),
+  );
 
   if (visitTime && endTime) return `${visitTime} - ${endTime}`;
   if (visitTime) return visitTime;
@@ -660,6 +696,21 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
 
   const [serverDays, setServerDays] = useState<ScheduleDay[]>([]);
 
+  /*
+   * 추천 추가·교체 후 서버 일정을 다시 불러올 때
+   * 이전 화면의 로컬 편집 상태가 최신 서버 시간을 덮어쓰지 않게 한다.
+   */
+  useEffect(() => {
+    if (!route?.params?.refreshPlanAAt) {
+      return;
+    }
+
+    setEditedPlacesByDay({});
+    setDeletedPlaceKeysByDay({});
+    setDeletedPlaceRequestsByDay({});
+    setTransportModesByPair({});
+  }, [route?.params?.refreshPlanAAt]);
+
   useOngoingTripReload({
     resolvedTripId,
     refreshPlanAAt: route?.params?.refreshPlanAAt,
@@ -868,6 +919,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       transportLabel,
       day: selectedDayIndex + 1,
       selectedDay: selectedDayIndex + 1,
+      returnScreen: "OngoingSchedule",
     });
   };
 
@@ -1022,7 +1074,6 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       refreshPlanAAt: Date.now(),
     });
   };
-
   const handleAlternative = (place: TodayPlace) => {
     const { serverPlanId, navigationParams } = buildAlternativeNavigationParams({
       place,
@@ -1036,6 +1087,7 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
       transportMode,
       transportLabel,
       selectedDay: selectedDayIndex + 1,
+      returnScreen: "OngoingSchedule",
     });
 
     if (!isValidServerPlanId(serverPlanId)) {

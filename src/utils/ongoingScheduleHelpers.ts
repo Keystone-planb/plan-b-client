@@ -134,9 +134,44 @@ export const getEditablePlaceKey = (place: TodayPlace, index: number) => {
   );
 };
 
+const pickPlaceTimeText = (place: TodayPlace, keys: string[]) => {
+  const source = place as Record<string, unknown>;
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value;
+    }
+  }
+
+  return null;
+};
+
 export const getPlaceDisplayTime = (place: TodayPlace) => {
-  const visitTime = normalizeDisplayTime(place.visitTime);
-  const endTime = normalizeDisplayTime(place.endTime);
+  const visitTime = normalizeDisplayTime(
+    pickPlaceTimeText(place, [
+      "visitTime",
+      "startTime",
+      "scheduledStartTime",
+      "visitStartTime",
+      "newVisitTime",
+      "beforePlanStartTime",
+      "afterPlanStartTime",
+    ]),
+  );
+  const endTime = normalizeDisplayTime(
+    pickPlaceTimeText(place, [
+      "endTime",
+      "finishTime",
+      "toTime",
+      "scheduledEndTime",
+      "visitEndTime",
+      "newEndTime",
+      "beforePlanEndTime",
+      "afterPlanEndTime",
+    ]),
+  );
 
   if (visitTime && endTime) return `${visitTime} - ${endTime}`;
   if (visitTime) return visitTime;

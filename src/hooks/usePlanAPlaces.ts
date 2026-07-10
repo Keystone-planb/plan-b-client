@@ -597,9 +597,26 @@ const normalizeServerPlaceForPlanA = (
     "google_place_id",
   ]);
 
-  const visitTime = getServerTextByPaths(source, ["visitTime", "startTime"]);
+  const visitTime = getServerTextByPaths(source, [
+    "visitTime",
+    "startTime",
+    "scheduledStartTime",
+    "visitStartTime",
+    "newVisitTime",
+    "beforePlanStartTime",
+    "afterPlanStartTime",
+  ]);
 
-  const endTime = getServerTextByPaths(source, ["endTime"]);
+  const endTime = getServerTextByPaths(source, [
+    "endTime",
+    "finishTime",
+    "toTime",
+    "scheduledEndTime",
+    "visitEndTime",
+    "newEndTime",
+    "beforePlanEndTime",
+    "afterPlanEndTime",
+  ]);
 
   const rawTransportMode =
     getServerTextByPaths(source, [
