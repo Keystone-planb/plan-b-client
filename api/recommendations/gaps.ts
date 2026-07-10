@@ -199,20 +199,6 @@ let receivedLength = 0;
 
     const refreshed = await runRefreshOnce(refreshToken);
 
-    await AsyncStorage.setItem("access_token", refreshed.access_token);
-
-    if (refreshed.refresh_token) {
-      await AsyncStorage.setItem("refresh_token", refreshed.refresh_token);
-    }
-
-    if (refreshed.user_id) {
-      await AsyncStorage.setItem("user_id", String(refreshed.user_id));
-    }
-
-    if (refreshed.nickname) {
-      await AsyncStorage.setItem("nickname", refreshed.nickname);
-    }
-
     return refreshed.access_token;
   };
 

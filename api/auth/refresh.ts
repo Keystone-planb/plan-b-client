@@ -25,15 +25,19 @@ export interface RefreshResponse {
 interface RefreshErrorResponse {
   message?: string;
   error?: string;
+  error_code?: string;
+  errorCode?: string;
 }
 
-type RefreshErrorWithStatus = Error & {
+export type RefreshErrorWithStatus = Error & {
   refreshStatus?: number;
+  refreshErrorCode?: string;
 };
 
 const createRefreshError = (
   message: string,
   refreshStatus?: number,
+  refreshErrorCode?: string,
 ): RefreshErrorWithStatus => {
   const error =
     new Error(
@@ -45,6 +49,14 @@ const createRefreshError = (
   ) {
     error.refreshStatus =
       refreshStatus;
+  }
+
+  if (
+    typeof refreshErrorCode === "string" &&
+    refreshErrorCode.trim().length > 0
+  ) {
+    error.refreshErrorCode =
+      refreshErrorCode.trim();
   }
 
   return error;
@@ -173,11 +185,18 @@ export const requestRefresh = async ({
       }
 
       const errorMessage =
-        errorData?.message || errorData?.error || "토큰 재발급에 실패했습니다.";
+        errorData?.message ||
+        errorData?.error ||
+        "토큰 재발급에 실패했습니다.";
+
+      const refreshErrorCode =
+        errorData?.error_code ??
+        errorData?.errorCode;
 
       throw createRefreshError(
         errorMessage,
         error.response?.status,
+        refreshErrorCode,
       );
     }
 

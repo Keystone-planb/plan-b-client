@@ -12,6 +12,11 @@ import { saveAuthFailureLog } from "../src/utils/authFailureLog";
 const REFRESH_COOLDOWN_MS = 30000;
 let lastRefreshFailureAt = 0;
 
+const INVALID_REFRESH_TOKEN_ERROR_CODES = new Set([
+  "REFRESH_TOKEN_EXPIRED",
+  "REFRESH_TOKEN_INVALID",
+]);
+
 type RetryableRequestConfig = InternalAxiosRequestConfig & {
   _retry?: boolean;
 };
@@ -247,7 +252,6 @@ apiClient.interceptors.response.use(
         }
 
         const newAccessToken = data?.access_token;
-        const newRefreshToken = data?.refresh_token;
 
         if (!newAccessToken || newAccessToken.length === 0) {
           throw new Error("새 access_token이 없습니다.");
@@ -255,20 +259,6 @@ apiClient.interceptors.response.use(
 
         // refresh 성공 → 쿨다운 해제
         lastRefreshFailureAt = 0;
-
-        await setStoredValue("access_token", newAccessToken);
-
-        if (newRefreshToken && newRefreshToken.trim().length > 0) {
-          await setStoredValue("refresh_token", newRefreshToken);
-        }
-
-        if (data.user_id) {
-          await setStoredValue("user_id", String(data.user_id));
-        }
-
-        if (data.nickname) {
-          await setStoredValue("nickname", data.nickname);
-        }
 
         const headers = (originalRequest.headers ?? {}) as AxiosRequestHeaders;
         headers.Authorization = `Bearer ${newAccessToken}`;
@@ -311,44 +301,50 @@ apiClient.interceptors.response.use(
             refreshError.refreshStatus
           : undefined);
 
-        // refresh 요청이 ELB/WAF 등 게이트웨이에 막혀(비-API 응답) 실패한 경우에도
-        // 토큰을 유지하면 화면이 계속 재시도 → refresh 폭주 → WAF 차단의 무한 루프가 발생한다.
-        // 이 경우에도 토큰을 정리해 루프를 끊고 재로그인하도록 한다.
         const refreshErrorMessage =
           refreshError instanceof Error ?
             refreshError.message
           : String(refreshError ?? "");
 
-        // 토큰을 정리(=강제 로그아웃)하는 건 "refresh 토큰이 실제로 무효"일 때만 한다.
-        // ELB/WAF 일시 차단(HTML 403)·네트워크 블립 등 일시적 실패로는 로그아웃시키지 않는다.
-        // (그렇지 않으면 토큰이 멀쩡한데도 잦은 강제 로그아웃이 발생함)
+        const refreshErrorCode =
+          (
+            refreshError &&
+            typeof refreshError === "object" &&
+            "refreshErrorCode" in refreshError &&
+            typeof refreshError.refreshErrorCode === "string"
+          ) ?
+            refreshError.refreshErrorCode
+          : undefined;
+
+        // 서버가 명시한 error_code 또는 로컬 Refresh Token 부재일 때만
+        // 인증 정보를 정리한다. 네트워크·게이트웨이 실패는 강제 로그아웃하지 않는다.
         const refreshTokenInvalid =
-          refreshResponseStatus === 401 ||
-          refreshErrorMessage.includes("유효하지 않은") ||
-          refreshErrorMessage.includes("만료") ||
-          refreshErrorMessage.includes("Refresh Token") ||
-          refreshErrorMessage.includes("Invalid");
+          Boolean(
+            refreshErrorCode &&
+            INVALID_REFRESH_TOKEN_ERROR_CODES.has(refreshErrorCode),
+          );
 
-        const isGatewayBlocked =
-          refreshErrorMessage.includes("다른 서버로 전달") ||
-          refreshErrorMessage.includes("HTML을 반환");
-
-        const shouldClearAuth = refreshTokenInvalid && !isGatewayBlocked;
+        const shouldClearAuth =
+          !refreshTokenExistsForFailureLog ||
+          refreshTokenInvalid;
 
         if (shouldClearAuth) {
           console.log("[apiClient] clearing tokens after refresh failure:", {
             originalUrl: originalRequest?.url,
             reason: "refresh_failed",
             refreshResponseStatus,
+            refreshErrorCode,
           });
 
           const authFailureReason =
             !refreshTokenExistsForFailureLog ?
               "refresh_token_missing"
+            : refreshErrorCode === "REFRESH_TOKEN_EXPIRED" ?
+              "refresh_token_expired"
+            : refreshErrorCode === "REFRESH_TOKEN_INVALID" ?
+              "refresh_token_invalid"
             : refreshDiagnosticStatus === 401 ?
               "refresh_api_401"
-            : refreshErrorMessage.includes("만료") ?
-              "refresh_token_expired"
             : "refresh_token_invalid";
 
           try {
