@@ -66,6 +66,27 @@ type StoredSchedule = {
   createdAt?: string;
 };
 
+type MainSchedulePlace = {
+  id?: string | number;
+  tripPlaceId?: string | number;
+  serverTripPlaceId?: string | number;
+  placeId?: string;
+  googlePlaceId?: string;
+  name?: string;
+  address?: string;
+  category?: string;
+  latitude?: number;
+  longitude?: number;
+  visitTime?: string | null;
+  endTime?: string | null;
+  time?: string;
+};
+
+type MainScheduleDay = {
+  day?: number | string;
+  places?: MainSchedulePlace[];
+};
+
 const normalizeMainDateOnlyText = (value?: string | null) => {
   const normalized = String(value ?? "")
     .trim()
@@ -149,6 +170,46 @@ const getScheduleTitle = (schedule: StoredSchedule) => {
   return (
     schedule.tripName || schedule.title || schedule.name || "이름 없는 여행"
   );
+};
+
+const getWeatherPreviewPlace = (
+  place?: MainSchedulePlace,
+) => {
+  if (!place) {
+    return undefined;
+  }
+
+  const tripPlaceId =
+    place.tripPlaceId ??
+    place.serverTripPlaceId ??
+    place.id;
+
+  return {
+    id: tripPlaceId,
+    tripPlaceId,
+    serverTripPlaceId: tripPlaceId,
+    placeId:
+      place.googlePlaceId ??
+      place.placeId,
+    googlePlaceId:
+      place.googlePlaceId,
+    name: place.name,
+    address: place.address,
+    category: place.category,
+    latitude: place.latitude,
+    longitude: place.longitude,
+    time:
+      place.time ??
+      [place.visitTime, place.endTime]
+        .filter(Boolean)
+        .join(" - "),
+    visitTime:
+      place.visitTime ??
+      null,
+    endTime:
+      place.endTime ??
+      null,
+  };
 };
 
 const getScheduleDate = (schedule: StoredSchedule) => {
@@ -1047,38 +1108,95 @@ export default function MainScreen({ navigation }: Props) {
       return;
     }
 
+    const scheduleDays =
+      Array.isArray(baseSchedule?.days)
+        ? (baseSchedule.days as MainScheduleDay[])
+        : [];
+
+    const matchedDay =
+      scheduleDays.find(
+        (day) =>
+          Array.isArray(day?.places) &&
+          day.places.some((place) =>
+            [
+              place.id,
+              place.tripPlaceId,
+              place.serverTripPlaceId,
+            ].some(
+              (id) =>
+                id !== undefined &&
+                id !== null &&
+                String(id) === String(currentPlanId),
+            ),
+          ),
+      );
+
+    const matchedPlaces =
+      Array.isArray(matchedDay?.places)
+        ? matchedDay.places
+        : [];
+
+    const affectedPlaceIndex =
+      matchedPlaces.findIndex((place) =>
+        [
+          place.id,
+          place.tripPlaceId,
+          place.serverTripPlaceId,
+        ].some(
+          (id) =>
+            id !== undefined &&
+            id !== null &&
+            String(id) === String(currentPlanId),
+        ),
+      );
+
+    const affectedPlace =
+      affectedPlaceIndex >= 0
+        ? matchedPlaces[affectedPlaceIndex]
+        : undefined;
+
+    const previousSchedulePlace =
+      affectedPlaceIndex > 0
+        ? matchedPlaces[affectedPlaceIndex - 1]
+        : undefined;
+
+    const nextSchedulePlace =
+      affectedPlaceIndex >= 0
+        ? matchedPlaces[affectedPlaceIndex + 1]
+        : undefined;
+
     const alternatives =
       rawNotification.recommendedPlaces ?? rawNotification.alternatives ?? [];
 
-    const originalPlace = rawNotification.originalPlace;
+    const originalPlace =
+      rawNotification.originalPlace ??
+      affectedPlace;
+
+    const resolvedCurrentPlanId =
+      originalPlace?.tripPlaceId ??
+      originalPlace?.serverTripPlaceId ??
+      currentPlanId;
+
+    const resolvedDay =
+      Number(matchedDay?.day) > 0
+        ? Number(matchedDay?.day)
+        : Number(rawNotification.day) > 0
+          ? Number(rawNotification.day)
+          : undefined;
 
     if (alternatives.length > 0) {
       navigation.navigate("RecommendationResult", {
         source: "weather-notification",
         fromWeatherNotification: true,
         notificationId,
-        day: Number(rawNotification.day) > 0 ? Number(rawNotification.day) : undefined,
+        day: resolvedDay,
+        selectedDay: resolvedDay,
         placesJson: JSON.stringify(alternatives),
-        currentPlanId: Number(
-          originalPlace?.tripPlaceId ??
-            originalPlace?.serverTripPlaceId ??
-            originalPlace?.placeId ??
-            currentPlanId,
-        ),
-        tripPlaceId: Number(
-          originalPlace?.tripPlaceId ??
-            originalPlace?.serverTripPlaceId ??
-            originalPlace?.placeId ??
-            currentPlanId,
-        ),
-        serverTripPlaceId: Number(
-          originalPlace?.tripPlaceId ??
-            originalPlace?.serverTripPlaceId ??
-            originalPlace?.placeId ??
-            currentPlanId,
-        ),
-        tripId: Number(tripId),
-        serverTripId: Number(tripId),
+        currentPlanId: resolvedCurrentPlanId,
+        tripPlaceId: resolvedCurrentPlanId,
+        serverTripPlaceId: resolvedCurrentPlanId,
+        tripId,
+        serverTripId: tripId,
         scheduleId: getScheduleId(baseSchedule ?? {}),
         tripName: getScheduleTitle(baseSchedule ?? {}),
         startDate: baseSchedule?.startDate,
@@ -1087,46 +1205,20 @@ export default function MainScreen({ navigation }: Props) {
         targetPlace:
           originalPlace ?
             {
-              id:
-                originalPlace.tripPlaceId ??
-                originalPlace.serverTripPlaceId ??
-                originalPlace.placeId ??
-                currentPlanId,
-              tripPlaceId:
-                originalPlace.tripPlaceId ??
-                originalPlace.serverTripPlaceId ??
-                originalPlace.placeId ??
-                currentPlanId,
-              serverTripPlaceId:
-                originalPlace.tripPlaceId ??
-                originalPlace.serverTripPlaceId ??
-                originalPlace.placeId ??
-                currentPlanId,
-              placeId: originalPlace.googlePlaceId,
-              googlePlaceId: originalPlace.googlePlaceId,
-              name: originalPlace.name,
-              address: originalPlace.address,
-              category: originalPlace.category,
-              latitude: originalPlace.latitude,
-              longitude: originalPlace.longitude,
-              time:
-                originalPlace.time ??
-                [originalPlace.visitTime, originalPlace.endTime]
-                  .filter(Boolean)
-                  .join(" - "),
+              ...getWeatherPreviewPlace(originalPlace),
+              id: resolvedCurrentPlanId,
+              tripPlaceId: resolvedCurrentPlanId,
+              serverTripPlaceId: resolvedCurrentPlanId,
+              day: resolvedDay,
             }
           : undefined,
+        previousPlace:
+          getWeatherPreviewPlace(previousSchedulePlace),
+        nextPlace:
+          getWeatherPreviewPlace(nextSchedulePlace),
       });
       return;
     }
-
-    const affectedPlace = baseSchedule?.days
-      ?.flatMap((day: any) => day.places ?? [])
-      .find((place: any) =>
-        [place.id, place.tripPlaceId, place.serverTripPlaceId].some(
-          (id) => String(id) === String(currentPlanId),
-        ),
-      );
 
     let currentLat =
       rawNotification.currentLat ??
@@ -1198,11 +1290,11 @@ export default function MainScreen({ navigation }: Props) {
     const nextParams = {
       source: "weather-notification",
 
-      tripId: Number(tripId),
-      serverTripId: Number(tripId),
-      currentPlanId: Number(currentPlanId),
-      tripPlaceId: Number(currentPlanId),
-      serverTripPlaceId: Number(currentPlanId),
+      tripId,
+      serverTripId: tripId,
+      currentPlanId: resolvedCurrentPlanId,
+      tripPlaceId: resolvedCurrentPlanId,
+      serverTripPlaceId: resolvedCurrentPlanId,
 
       currentLat: Number(currentLat),
       currentLng: Number(currentLng),
@@ -1218,6 +1310,8 @@ export default function MainScreen({ navigation }: Props) {
 
       notificationId,
       fromWeatherNotification: true,
+      day: resolvedDay,
+      selectedDay: resolvedDay,
 
       scheduleId: getScheduleId(baseSchedule ?? {}),
       tripName: getScheduleTitle(baseSchedule ?? {}),
@@ -1226,13 +1320,42 @@ export default function MainScreen({ navigation }: Props) {
       location: baseSchedule?.location,
 
       targetPlace: {
-        id: currentPlanId,
-        tripPlaceId: currentPlanId,
-        serverTripPlaceId: currentPlanId,
+        ...getWeatherPreviewPlace(originalPlace ?? affectedPlace),
+        id: resolvedCurrentPlanId,
+        tripPlaceId: resolvedCurrentPlanId,
+        serverTripPlaceId: resolvedCurrentPlanId,
+        placeId:
+          originalPlace?.googlePlaceId ??
+          originalPlace?.placeId ??
+          affectedPlace?.googlePlaceId ??
+          affectedPlace?.placeId,
+        googlePlaceId:
+          originalPlace?.googlePlaceId ??
+          affectedPlace?.googlePlaceId,
         name: rawNotification.placeName ?? affectedPlace?.name,
+        address:
+          rawNotification.address ??
+          rawNotification.placeAddress ??
+          affectedPlace?.address,
+        visitTime:
+          originalPlace?.visitTime ??
+          affectedPlace?.visitTime ??
+          null,
+        endTime:
+          originalPlace?.endTime ??
+          affectedPlace?.endTime ??
+          null,
+        time:
+          originalPlace?.time ??
+          affectedPlace?.time,
         latitude: Number(currentLat),
         longitude: Number(currentLng),
+        day: resolvedDay,
       },
+      previousPlace:
+        getWeatherPreviewPlace(previousSchedulePlace),
+      nextPlace:
+        getWeatherPreviewPlace(nextSchedulePlace),
 
       reason:
         rawNotification.message ??
@@ -1971,23 +2094,6 @@ const styles = StyleSheet.create({
   skeletonNextTripInfo: {
     flex: 1,
     gap: 9,
-  },
-
-  seedWeatherButton: {
-    height: 44,
-    borderRadius: 12,
-    backgroundColor: "#2563EB",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    marginBottom: 14,
-  },
-
-  seedWeatherButtonText: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "900",
   },
 
   scheduleList: {
