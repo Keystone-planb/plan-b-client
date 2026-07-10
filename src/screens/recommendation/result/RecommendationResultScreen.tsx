@@ -16,6 +16,7 @@ import { useRecommendationReviewDetails } from "../../../hooks/recommendation/us
 import { useRecommendationReviewActions } from "../../../hooks/recommendation/useRecommendationReviewActions";
 import { useRecommendationScheduleContext } from "../../../hooks/recommendation/useRecommendationScheduleContext";
 import { useRecommendationPreview } from "../../../hooks/recommendation/useRecommendationPreview";
+import { useRecommendationImpact } from "../../../hooks/recommendation/useRecommendationImpact";
 import { useRecommendationReplaceFlow } from "../../../hooks/recommendation/useRecommendationReplaceFlow";
 import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
 import RecommendationPreviewModal from "../../../components/recommendation/RecommendationPreviewModal";
@@ -111,8 +112,6 @@ export default function RecommendationResultScreen({
   });
 
   const {
-    previewBeforeTransportMode,
-    previewTransportMode,
     changePreviewTransportMode,
     changePreviewBeforeTransportMode,
     changePreviewNextTransportMode,
@@ -133,6 +132,27 @@ export default function RecommendationResultScreen({
     decreasePreviewTimePickerMinute,
     increasePreviewTimePickerMinute,
   } = previewData;
+
+  const {
+    previousImpactMode,
+    nextImpactMode,
+    previousMoveTimeText,
+    nextMoveTimeText,
+    nextTime: impactNextTime,
+    changePreviousImpactMode,
+    changeNextImpactMode,
+    closeImpactPreview,
+  } = useRecommendationImpact({
+    pendingPlace,
+    routeParams: params,
+    targetPlace,
+    fallbackNextTime: previewData.previewNextTime,
+    showToast: showWhiteToast,
+    onChangePreviousTransportMode:
+      changePreviewBeforeTransportMode,
+    onChangeNextTransportMode:
+      changePreviewNextTransportMode,
+  });
 
   const handleBack = () => {
     // 선택 없이 이탈 시 alternative_dismissed
@@ -205,8 +225,8 @@ export default function RecommendationResultScreen({
       savedPreviousSchedulePlace,
     previewVisitTime: previewAppliedVisitTime,
     previewEndTime: previewAppliedEndTime,
-    previousImpactMode: previewBeforeTransportMode,
-    nextImpactMode: previewTransportMode,
+    previousImpactMode,
+    nextImpactMode,
     showToast: showWhiteToast,
   });
 
@@ -214,6 +234,7 @@ export default function RecommendationResultScreen({
     setPendingPlace(null);
     clearReplaceError();
     closePreviewTimePicker();
+    closeImpactPreview();
   };
 
   const title = params.title ?? "AI 대안 추천";
@@ -344,13 +365,13 @@ export default function RecommendationResultScreen({
         alternativeAddress={previewData.previewAlternativeAddress}
         originalPlaceName={currentPlaceName}
         nextName={previewData.previewNextName}
-        nextTime={previewData.previewNextTime}
+        nextTime={impactNextTime}
         nextAddress={previewData.previewNextAddress}
-        transportMode={previewTransportMode}
-        previousTransportMode={previewBeforeTransportMode}
-        nextTransportMode={previewTransportMode}
-        previousMoveTimeText={previewData.previewMoveTimeText}
-        nextMoveTimeText={previewData.previewMoveTimeText}
+        transportMode={nextImpactMode}
+        previousTransportMode={previousImpactMode}
+        nextTransportMode={nextImpactMode}
+        previousMoveTimeText={previousMoveTimeText}
+        nextMoveTimeText={nextMoveTimeText}
         timePickerVisible={previewTimePickerVisible}
         timePickerPlaceName={pendingPlace?.name ?? "추천 장소"}
         timePickerTarget={previewTimePickerTarget}
@@ -373,8 +394,8 @@ export default function RecommendationResultScreen({
         confirming={Boolean(submittingPlaceId)}
         onClose={handleClosePreview}
         onChangeTransportMode={changePreviewTransportMode}
-        onChangePreviousTransportMode={changePreviewBeforeTransportMode}
-        onChangeNextTransportMode={changePreviewNextTransportMode}
+        onChangePreviousTransportMode={changePreviousImpactMode}
+        onChangeNextTransportMode={changeNextImpactMode}
         onPressTimeEdit={openPreviewTimePicker}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}
