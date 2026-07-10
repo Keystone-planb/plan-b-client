@@ -387,6 +387,14 @@ const streamRecommendationsWithXHR = ({
     let buffer = "";
     let finished = false;
 
+    const cleanupXhrHandlers = () => {
+      xhr.onreadystatechange = null;
+      xhr.onprogress = null;
+      xhr.onerror = null;
+      xhr.ontimeout = null;
+      xhr.onabort = null;
+    };
+
     const finishOnce = (shouldCallDone = true) => {
       if (finished) return;
 
@@ -396,10 +404,14 @@ const streamRecommendationsWithXHR = ({
         safe.finishOnce();
       }
 
+      const receivedText = xhr.responseText ?? "";
+
+      cleanupXhrHandlers();
+
       resolve({
         completed: true,
         receivedPlaceCount: safe.getReceivedPlaceCount(),
-        receivedText: xhr.responseText ?? "",
+        receivedText,
       });
     };
 
@@ -412,6 +424,7 @@ const streamRecommendationsWithXHR = ({
       }
 
       finished = true;
+      cleanupXhrHandlers();
       reject(error);
     };
 

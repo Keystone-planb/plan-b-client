@@ -168,7 +168,7 @@ export function useAIAnalysisLoadingFlow({
     }, 220);
 
     return () => {
-      
+      clearInterval(progressTimer);
     };
   }, [enabled, errorMessage, retryVersion]);
 
