@@ -40,6 +40,9 @@ import {
 import {
   useRecommendationPreview,
 } from "../../../hooks/recommendation/useRecommendationPreview";
+import {
+  useGapRecommendationImpact,
+} from "../../../hooks/recommendation/useRecommendationImpact";
 
 import {
   padPreviewTime,
@@ -128,12 +131,16 @@ export default function GapRecommendationResultScreen({
     useMemo(
       () => ({
         name: params.beforePlanTitle,
-        time:
+        visitTime:
+          params.beforePlanStartTime ??
+          null,
+        endTime:
           params.beforePlanEndTime ??
           null,
       }),
       [
         params.beforePlanEndTime,
+        params.beforePlanStartTime,
         params.beforePlanTitle,
       ],
     );
@@ -142,15 +149,23 @@ export default function GapRecommendationResultScreen({
     useMemo(
       () => ({
         name: params.afterPlanTitle,
-        time:
+        visitTime:
           params.afterPlanStartTime ??
+          null,
+        endTime:
+          params.afterPlanEndTime ??
           null,
       }),
       [
+        params.afterPlanEndTime,
         params.afterPlanStartTime,
         params.afterPlanTitle,
       ],
     );
+
+  const gapOriginalPlaceName =
+    params.beforePlanTitle?.trim() ??
+    "";
 
   const pendingPlace =
     pendingSelection?.place ??
@@ -185,9 +200,6 @@ export default function GapRecommendationResultScreen({
     });
 
   const {
-    previewBeforeTransportMode,
-    previewTransportMode,
-    changePreviewTransportMode,
     changePreviewBeforeTransportMode,
     changePreviewNextTransportMode,
     previewVisitTime,
@@ -196,6 +208,7 @@ export default function GapRecommendationResultScreen({
     draftPreviewEndTime,
     previewTimePickerVisible,
     previewTimePickerTarget,
+    previewTimePickerPlaceName,
     previewTimePickerHour,
     previewTimePickerMinute,
     previewAppliedVisitTime,
@@ -209,6 +222,25 @@ export default function GapRecommendationResultScreen({
     decreasePreviewTimePickerMinute,
     increasePreviewTimePickerMinute,
   } = previewData;
+
+  const {
+    previousImpactMode,
+    nextImpactMode,
+    previousMoveTimeText,
+    nextMoveTimeText,
+    changePreviousImpactMode,
+    changeNextImpactMode,
+    closeImpactPreview,
+  } = useGapRecommendationImpact({
+    pendingPlace,
+    beforePlanId: params.beforePlanId,
+    afterPlanId: params.afterPlanId,
+    initialTransportMode: params.transportMode,
+    onChangePreviousTransportMode:
+      changePreviewBeforeTransportMode,
+    onChangeNextTransportMode:
+      changePreviewNextTransportMode,
+  });
 
   const handleBack = () => {
     if (
@@ -382,7 +414,7 @@ export default function GapRecommendationResultScreen({
             null,
           memo: null,
           transportMode:
-            previewTransportMode,
+            nextImpactMode,
         };
 
         
@@ -444,7 +476,7 @@ export default function GapRecommendationResultScreen({
                 params.afterPlanId,
               ),
             transport_mode:
-              params.transportMode,
+              nextImpactMode,
           },
         );
 
@@ -826,17 +858,17 @@ export default function GapRecommendationResultScreen({
         alternativeName={previewData.previewAlternativeName}
         alternativeTime={previewData.previewAppliedTimeText}
         alternativeAddress={previewData.previewAlternativeAddress}
-        originalPlaceName="빈 시간"
+        originalPlaceName={gapOriginalPlaceName}
         nextName={previewData.previewNextName}
         nextTime={previewData.previewNextTime}
         nextAddress={previewData.previewNextAddress}
-        transportMode={previewTransportMode}
-        previousTransportMode={previewBeforeTransportMode}
-        nextTransportMode={previewTransportMode}
-        previousMoveTimeText={previewData.previewMoveTimeText}
-        nextMoveTimeText={previewData.previewMoveTimeText}
+        transportMode={nextImpactMode}
+        previousTransportMode={previousImpactMode}
+        nextTransportMode={nextImpactMode}
+        previousMoveTimeText={previousMoveTimeText}
+        nextMoveTimeText={nextMoveTimeText}
         timePickerVisible={previewTimePickerVisible}
-        timePickerPlaceName={pendingPlace?.name ?? "추천 장소"}
+        timePickerPlaceName={previewTimePickerPlaceName}
         timePickerTarget={previewTimePickerTarget}
         timePickerPreviewText={`${String(previewTimePickerHour).padStart(2, "0")}:${String(
           previewTimePickerMinute,
@@ -856,10 +888,11 @@ export default function GapRecommendationResultScreen({
         onClose={() => {
           setPendingSelection(null);
           closePreviewTimePicker();
+          closeImpactPreview();
         }}
-        onChangeTransportMode={changePreviewTransportMode}
-        onChangePreviousTransportMode={changePreviewBeforeTransportMode}
-        onChangeNextTransportMode={changePreviewNextTransportMode}
+        onChangeTransportMode={changeNextImpactMode}
+        onChangePreviousTransportMode={changePreviousImpactMode}
+        onChangeNextTransportMode={changeNextImpactMode}
         onPressTimeEdit={openPreviewTimePicker}
         onTimePickerClose={closePreviewTimePicker}
         onSwitchTimeTarget={switchPreviewTimePickerTarget}

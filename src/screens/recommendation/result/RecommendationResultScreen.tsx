@@ -117,6 +117,7 @@ export default function RecommendationResultScreen({
     changePreviewNextTransportMode,
     previewTimePickerVisible,
     previewTimePickerTarget,
+    previewTimePickerPlaceName,
     previewTimePickerHour,
     previewTimePickerMinute,
     previewAppliedVisitTime,
@@ -373,7 +374,7 @@ export default function RecommendationResultScreen({
         previousMoveTimeText={previousMoveTimeText}
         nextMoveTimeText={nextMoveTimeText}
         timePickerVisible={previewTimePickerVisible}
-        timePickerPlaceName={pendingPlace?.name ?? "추천 장소"}
+        timePickerPlaceName={previewTimePickerPlaceName}
         timePickerTarget={previewTimePickerTarget}
         timePickerPreviewText={`${padPreviewTime(
           previewTimePickerHour,
