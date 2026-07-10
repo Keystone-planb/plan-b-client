@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import {
   Modal,
   ScrollView,
@@ -15,8 +15,6 @@ import VisitTimePickerPanel from "../common/VisitTimePickerPanel";
 import RecommendationHeader from "./RecommendationHeader";
 import RecommendationMap from "./RecommendationMap";
 import RecommendationTimeline from "./RecommendationTimeline";
-import WhiteToast from "./WhiteToast";
-import { useRecommendationToast } from "../../hooks/recommendation/useRecommendationToast";
 import {
   normalizeDisplayTime,
   normalizeDisplayTimeRange,
@@ -65,6 +63,7 @@ type Props = {
   timePickerPlaceName: string;
   timePickerTarget: "visitTime" | "endTime";
   timePickerPreviewText: string;
+  timePickerErrorMessage?: string;
   visitTimeText: string;
   endTimeText: string;
   hourText: string;
@@ -93,7 +92,7 @@ type Props = {
   onIncreaseHour: () => void;
   onDecreaseMinute: () => void;
   onIncreaseMinute: () => void;
-  onSaveTime: () => boolean;
+  onSaveTime: () => boolean | Promise<boolean>;
   onConfirm: () => void;
 };
 
@@ -123,6 +122,7 @@ export default function RecommendationPreviewModal({
   timePickerPlaceName,
   timePickerTarget,
   timePickerPreviewText,
+  timePickerErrorMessage = "",
   visitTimeText,
   endTimeText,
   hourText,
@@ -154,30 +154,24 @@ export default function RecommendationPreviewModal({
 
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
-  const { whiteToast, showWhiteToast } =
-    useRecommendationToast();
+  const [isSavingTime, setIsSavingTime] = useState(false);
   const modalMaxHeight = Math.max(
     460,
     windowHeight - insets.top - insets.bottom - 44,
   );
 
-  const handleSaveTime = () => {
-    const saved = onSaveTime();
-
-    if (!saved) {
-      showWhiteToast(
-        "시간 설정 확인",
-        "시작 시간은 종료 시간보다 빨라야 합니다.",
-        "error",
-      );
+  const handleSaveTime = async () => {
+    if (isSavingTime || confirming) {
       return;
     }
 
-    showWhiteToast(
-      "시간 변경 완료",
-      "변경한 시간이 적용되었습니다.",
-      "success",
-    );
+    setIsSavingTime(true);
+
+    try {
+      await onSaveTime();
+    } finally {
+      setIsSavingTime(false);
+    }
   };
 
   return (
@@ -210,6 +204,8 @@ export default function RecommendationPreviewModal({
               endTimeText={displayEndTimeText}
               hourText={hourText}
               minuteText={minuteText}
+              errorMessage={timePickerErrorMessage}
+              saving={confirming || isSavingTime}
               onClose={onTimePickerClose}
               onSwitchTarget={onSwitchTimeTarget}
               onDecreaseHour={onDecreaseHour}
@@ -346,7 +342,6 @@ export default function RecommendationPreviewModal({
         </View>
       </View>
 
-      <WhiteToast toast={whiteToast} />
     </Modal>
   );
 }

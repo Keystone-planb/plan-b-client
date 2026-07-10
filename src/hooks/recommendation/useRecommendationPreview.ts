@@ -80,6 +80,8 @@ export function useRecommendationPreview({
     useState<PreviewScheduleTimeTarget>("alternative");
   const [previewTimePickerHour, setPreviewTimePickerHour] = useState(0);
   const [previewTimePickerMinute, setPreviewTimePickerMinute] = useState(0);
+  const [previewTimePickerErrorMessage, setPreviewTimePickerErrorMessage] =
+    useState("");
 
   const previewPreviousName = useMemo(
     () => previousPlace?.name?.trim() || "장소 정보 없음",
@@ -233,6 +235,7 @@ export function useRecommendationPreview({
 
     setDraftPreviewVisitTime(nextDraftVisitTime);
     setDraftPreviewEndTime(nextDraftEndTime);
+    setPreviewTimePickerErrorMessage("");
 
     const baseTime =
       previewTimePickerTarget === "visitTime"
@@ -247,6 +250,7 @@ export function useRecommendationPreview({
 
   const closePreviewTimePicker = () => {
     setPreviewTimePickerVisible(false);
+    setPreviewTimePickerErrorMessage("");
   };
 
   const switchPreviewTimePickerTarget = (
@@ -256,6 +260,8 @@ export function useRecommendationPreview({
       | "transportEndTime",
   ) => {
     if (target !== "visitTime" && target !== "endTime") return;
+
+    setPreviewTimePickerErrorMessage("");
 
     const currentPickerTime = getCurrentPickerTime();
     const targetTimes = getTargetTimeValues(
@@ -303,6 +309,9 @@ export function useRecommendationPreview({
       nextEndMinutes == null ||
       nextVisitMinutes >= nextEndMinutes
     ) {
+      setPreviewTimePickerErrorMessage(
+        "종료 시간은 시작 시간보다 늦어야 합니다.",
+      );
       onTimeValidationError?.();
       return false;
     }
@@ -326,14 +335,17 @@ export function useRecommendationPreview({
   };
 
   const decreasePreviewTimePickerHour = () => {
+    setPreviewTimePickerErrorMessage("");
     setPreviewTimePickerHour((current) => (current <= 0 ? 23 : current - 1));
   };
 
   const increasePreviewTimePickerHour = () => {
+    setPreviewTimePickerErrorMessage("");
     setPreviewTimePickerHour((current) => (current >= 23 ? 0 : current + 1));
   };
 
   const decreasePreviewTimePickerMinute = () => {
+    setPreviewTimePickerErrorMessage("");
     setPreviewTimePickerMinute((current) => {
       if (current <= 0) {
         setPreviewTimePickerHour(
@@ -347,6 +359,7 @@ export function useRecommendationPreview({
   };
 
   const increasePreviewTimePickerMinute = () => {
+    setPreviewTimePickerErrorMessage("");
     setPreviewTimePickerMinute((current) => {
       if (current >= 55) {
         setPreviewTimePickerHour(
@@ -384,12 +397,17 @@ export function useRecommendationPreview({
 
     previewVisitTime,
     previewEndTime,
+    previewPreviousVisitTime,
+    previewPreviousEndTime,
+    previewNextVisitTime,
+    previewNextEndTime,
     draftPreviewVisitTime,
     draftPreviewEndTime,
     previewTimePickerVisible,
     previewTimePickerTarget,
     previewScheduleTimeTarget,
     previewTimePickerPlaceName,
+    previewTimePickerErrorMessage,
     previewTimePickerHour,
     previewTimePickerMinute,
     previewAppliedVisitTime,

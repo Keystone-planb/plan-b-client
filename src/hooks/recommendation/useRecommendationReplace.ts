@@ -33,59 +33,165 @@ export const showWeatherReplaceErrorToast = (
   );
 };
 
-export const getRecommendationReplaceErrorMessage = (
-  error: unknown,
-) => {
+type ErrorPayload = Record<string, unknown>;
+
+const isErrorPayload = (value: unknown): value is ErrorPayload => {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+};
+
+const getErrorResponseData = (error: unknown) => {
   if (
     error &&
     typeof error === "object" &&
     "response" in error
   ) {
-    const response = (
+    return (
       error as {
         response?: {
-          data?: {
-            error?: string;
-            message?: string;
-          } | string;
+          data?: unknown;
         };
       }
-    ).response;
+    ).response?.data;
+  }
 
-    const data = response?.data;
+  return null;
+};
 
-    if (
-      typeof data === "string" &&
-      data.trim().length > 0
-    ) {
-      return data;
+const getStringField = (
+  source: ErrorPayload | null | undefined,
+  keys: string[],
+) => {
+  if (!source) {
+    return "";
+  }
+
+  for (const key of keys) {
+    const value = source[key];
+
+    if (typeof value === "string" && value.trim().length > 0) {
+      return value.trim();
     }
 
-    if (
-      data &&
-      typeof data === "object"
-    ) {
-      if (
-        typeof data.error === "string" &&
-        data.error.trim().length > 0
-      ) {
-        return data.error;
-      }
-
-      if (
-        typeof data.message === "string" &&
-        data.message.trim().length > 0
-      ) {
-        return data.message;
-      }
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
     }
   }
 
-  if (error instanceof Error) {
+  return "";
+};
+
+const getNestedErrorPayload = (
+  source: ErrorPayload,
+) => {
+  const nestedCandidates = [
+    source.conflict,
+    source.conflictingSchedule,
+    source.conflictingPlan,
+    source.overlap,
+    source.data,
+  ];
+
+  for (const candidate of nestedCandidates) {
+    if (isErrorPayload(candidate)) {
+      return candidate;
+    }
+  }
+
+  for (const key of ["conflicts", "overlaps", "items"]) {
+    const value = source[key];
+
+    if (Array.isArray(value) && isErrorPayload(value[0])) {
+      return value[0];
+    }
+  }
+
+  return source;
+};
+
+const getScheduleConflictDetailMessage = (
+  data: unknown,
+) => {
+  if (!isErrorPayload(data)) {
+    return "";
+  }
+
+  const source = getNestedErrorPayload(data);
+  const placeName = getStringField(source, [
+    "placeName",
+    "conflictingPlaceName",
+    "planTitle",
+    "title",
+    "name",
+  ]);
+  const rangeText = getStringField(source, [
+    "timeRange",
+    "range",
+    "conflictingTimeRange",
+  ]);
+  const startTime = getStringField(source, [
+    "startTime",
+    "visitTime",
+    "conflictingStartTime",
+    "beforePlanStartTime",
+  ]);
+  const endTime = getStringField(source, [
+    "endTime",
+    "conflictingEndTime",
+    "beforePlanEndTime",
+  ]);
+  const resolvedRange =
+    rangeText ||
+    (startTime && endTime ? `${startTime} ~ ${endTime}` : "");
+
+  if (!placeName || !resolvedRange) {
+    return "";
+  }
+
+  return `'${placeName}'의 시간대(${resolvedRange})와 겹칩니다.\n다른 시간대를 선택해 주세요.`;
+};
+
+export const getRecommendationReplaceErrorMessage = (
+  error: unknown,
+) => {
+  const data = getErrorResponseData(error);
+
+  if (
+    typeof data === "string" &&
+    data.trim().length > 0
+  ) {
+    return data.trim();
+  }
+
+  if (isErrorPayload(data)) {
+    const explicitMessage = getStringField(data, [
+      "message",
+      "error",
+      "detail",
+      "reason",
+    ]);
+
+    const conflictMessage = getScheduleConflictDetailMessage(data);
+
+    if (
+      conflictMessage &&
+      (
+        !explicitMessage ||
+        !explicitMessage.includes("겹칩니다")
+      )
+    ) {
+      return conflictMessage;
+    }
+
+    if (explicitMessage) {
+      return explicitMessage;
+    }
+  }
+
+  if (error instanceof Error && error.message.trim().length > 0) {
     return error.message;
   }
 
-  return "일정 교체 요청에 실패했습니다.";
+  return "방문 시간을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.";
 };
 
 export const isScheduleConflictMessage = (
@@ -287,6 +393,89 @@ export const replaceWeatherNotificationAlternative = async ({
   return updatedTripPlace;
 };
 
+const isSameStoredPlanPlace = (
+  item: {
+    id?: string | number;
+    tripPlaceId?: string | number;
+    serverTripPlaceId?: string | number;
+  },
+  planId: string | number,
+) => {
+  return [
+    item.id,
+    item.tripPlaceId,
+    item.serverTripPlaceId,
+  ].some((id) => String(id) === String(planId));
+};
+
+export const updateStoredPlanASchedulePlaceTime = async ({
+  scheduleId,
+  planId,
+  visitTime,
+  endTime,
+  transportMode,
+}: {
+  scheduleId?: string;
+  planId?: string | number | null;
+  visitTime?: string | null;
+  endTime?: string | null;
+  transportMode?: "WALK" | "TRANSIT" | "CAR" | null;
+}) => {
+  if (!scheduleId || planId == null) {
+    return;
+  }
+
+  const hasTimeUpdate = Boolean(visitTime || endTime);
+  const hasTransportUpdate = Boolean(transportMode);
+
+  if (!hasTimeUpdate && !hasTransportUpdate) {
+    return;
+  }
+
+  const savedSchedule = await loadPlanASchedule(scheduleId);
+
+  if (!savedSchedule) {
+    return;
+  }
+
+  const now = new Date().toISOString();
+  let didUpdate = false;
+
+  const nextSchedule = {
+    ...savedSchedule,
+    updatedAt: now,
+    days: savedSchedule.days.map((day) => ({
+      ...day,
+      places: day.places.map((item) => {
+        if (!isSameStoredPlanPlace(item, planId)) {
+          return item;
+        }
+
+        didUpdate = true;
+
+        const nextVisitTime = visitTime ?? item.visitTime;
+        const nextEndTime = endTime ?? item.endTime;
+
+        return {
+          ...item,
+          visitTime: nextVisitTime,
+          endTime: nextEndTime,
+          time:
+            nextVisitTime && nextEndTime
+              ? `${nextVisitTime} - ${nextEndTime}`
+              : item.time,
+          transportMode: transportMode ?? item.transportMode,
+          updatedAt: now,
+        };
+      }),
+    })),
+  };
+
+  if (didUpdate) {
+    await savePlanASchedule(nextSchedule);
+  }
+};
+
 export const updateStoredPlanAAfterReplace = async ({
   scheduleId,
   currentPlanId,
@@ -330,13 +519,7 @@ export const updateStoredPlanAAfterReplace = async ({
     days: savedSchedule.days.map((day) => ({
       ...day,
       places: day.places.map((item) => {
-        const isTarget = [
-          item.id,
-          item.tripPlaceId,
-          item.serverTripPlaceId,
-        ].some((id) => String(id) === String(currentPlanId));
-
-        if (!isTarget) {
+        if (!isSameStoredPlanPlace(item, currentPlanId)) {
           return item;
         }
 
@@ -471,6 +654,7 @@ export const executeWeatherRecommendationReplace = async ({
   setSubmittingPlaceId,
   setSelectedPlaceId,
   onSuccess,
+  onError,
 }: {
   placeId: string | number;
   notificationId?: string | number;
@@ -485,6 +669,7 @@ export const executeWeatherRecommendationReplace = async ({
   setSubmittingPlaceId: (placeId: string | number | null) => void;
   setSelectedPlaceId: (placeId: string | number) => void;
   onSuccess: (updatedTripPlace: unknown) => void;
+  onError?: (message: string) => void;
 }) => {
   if (
     !validateWeatherReplaceInput({
@@ -520,7 +705,14 @@ export const executeWeatherRecommendationReplace = async ({
       () => onSuccess(updatedTripPlace),
     );
   } catch (error) {
-    showWeatherReplaceErrorToast(showToast, error);
+    const message =
+      getRecommendationReplaceErrorMessage(error);
+
+    if (onError) {
+      onError(message);
+    } else {
+      showWeatherReplaceErrorToast(showToast, error);
+    }
   } finally {
     setSubmittingPlaceId(null);
   }
@@ -636,10 +828,7 @@ export const executePlanRecommendationReplace = async ({
     const message =
       getRecommendationReplaceErrorMessage(error);
 
-    if (
-      isScheduleConflictMessage(message) &&
-      onScheduleConflict
-    ) {
+    if (onScheduleConflict) {
       onScheduleConflict(message);
     } else {
       showReplaceErrorToast(
