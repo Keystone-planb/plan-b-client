@@ -58,6 +58,19 @@ type Params = {
   ) => void;
 };
 
+type GapImpactParams = {
+  pendingPlace?: ImpactPlace | null;
+  beforePlanId?: string | number;
+  afterPlanId?: string | number;
+  initialTransportMode?: RecommendationTransportMode;
+  onChangePreviousTransportMode: (
+    mode: RecommendationTransportMode,
+  ) => void;
+  onChangeNextTransportMode: (
+    mode: RecommendationTransportMode,
+  ) => void;
+};
+
 export function useRecommendationImpact({
   pendingPlace,
   routeParams,
@@ -279,12 +292,28 @@ export function useRecommendationImpact({
     getRecommendationImpactMinutes(
       impactResult?.travelInOptions,
       previousImpactMode,
+      {
+        scheduleTimeValues: [
+          impactResult?.prevPlace?.newVisitTime,
+          impactResult?.prevPlace?.visitTime,
+          impactResult?.prevPlace?.newEndTime,
+          impactResult?.prevPlace?.endTime,
+        ],
+      },
     );
 
   const nextMinutes =
     getRecommendationImpactMinutes(
       impactResult?.travelOutOptions,
       nextImpactMode,
+      {
+        scheduleTimeValues: [
+          impactResult?.nextPlace?.newVisitTime,
+          impactResult?.nextPlace?.visitTime,
+          impactResult?.nextPlace?.newEndTime,
+          impactResult?.nextPlace?.endTime,
+        ],
+      },
     );
 
   const previousMoveTimeText =
@@ -321,6 +350,238 @@ export function useRecommendationImpact({
     previousMoveTimeText,
     nextMoveTimeText,
     nextTime,
+    changePreviousImpactMode,
+    changeNextImpactMode,
+    closeImpactPreview,
+  };
+}
+
+export function useGapRecommendationImpact({
+  pendingPlace,
+  beforePlanId,
+  afterPlanId,
+  initialTransportMode = "WALK",
+  onChangePreviousTransportMode,
+  onChangeNextTransportMode,
+}: GapImpactParams) {
+  const [previousImpactResult, setPreviousImpactResult] =
+    useState<AlternativeImpactResponse | null>(null);
+  const [nextImpactResult, setNextImpactResult] =
+    useState<AlternativeImpactResponse | null>(null);
+  const [previousImpactMode, setPreviousImpactMode] =
+    useState<RecommendationTransportMode>(initialTransportMode);
+  const [nextImpactMode, setNextImpactMode] =
+    useState<RecommendationTransportMode>(initialTransportMode);
+  const [impactLoading, setImpactLoading] =
+    useState(false);
+  const requestIdRef = useRef(0);
+
+  useEffect(() => {
+    setPreviousImpactMode(initialTransportMode);
+    setNextImpactMode(initialTransportMode);
+  }, [initialTransportMode]);
+
+  useEffect(() => {
+    if (!pendingPlace) {
+      requestIdRef.current += 1;
+      setPreviousImpactResult(null);
+      setNextImpactResult(null);
+      setImpactLoading(false);
+      return;
+    }
+
+    const newPlaceId = String(
+      pendingPlace.googlePlaceId ??
+        pendingPlace.placeId ??
+        "",
+    );
+
+    const latitude = Number(
+      pendingPlace.latitude,
+    );
+
+    const longitude = Number(
+      pendingPlace.longitude,
+    );
+
+    if (
+      !beforePlanId ||
+      !afterPlanId ||
+      !newPlaceId ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude)
+    ) {
+      requestIdRef.current += 1;
+      setPreviousImpactResult(null);
+      setNextImpactResult(null);
+      setImpactLoading(false);
+      return;
+    }
+
+    const requestId =
+      requestIdRef.current + 1;
+
+    requestIdRef.current = requestId;
+    setImpactLoading(true);
+
+    const requestImpactForPlan = async (
+      tripPlaceId: string | number,
+    ) => {
+      const cacheKey =
+        createRecommendationImpactCacheKey({
+          tripPlaceId,
+          newPlaceId,
+          latitude,
+          longitude,
+        });
+
+      const cachedResult =
+        getCachedRecommendationImpact(cacheKey);
+
+      if (cachedResult) {
+        return cachedResult;
+      }
+
+      const result =
+        await getAlternativeImpact(
+          tripPlaceId,
+          {
+            newPlaceId,
+            newPlaceName:
+              pendingPlace.name ?? "",
+            newLatitude: latitude,
+            newLongitude: longitude,
+          },
+        );
+
+      setCachedRecommendationImpact(
+        cacheKey,
+        result,
+      );
+
+      return result;
+    };
+
+    const requestBothImpacts = async () => {
+      try {
+        const [
+          nextLegResult,
+          previousLegResult,
+        ] = await Promise.all([
+          requestImpactForPlan(beforePlanId),
+          requestImpactForPlan(afterPlanId),
+        ]);
+
+        if (
+          requestId !== requestIdRef.current
+        ) {
+          return;
+        }
+
+        setNextImpactResult(
+          nextLegResult.calcStatus === "OK"
+            ? nextLegResult
+            : null,
+        );
+        setPreviousImpactResult(
+          previousLegResult.calcStatus === "OK"
+            ? previousLegResult
+            : null,
+        );
+      } catch {
+        if (
+          requestId !== requestIdRef.current
+        ) {
+          return;
+        }
+
+        setPreviousImpactResult(null);
+        setNextImpactResult(null);
+      } finally {
+        if (
+          requestId === requestIdRef.current
+        ) {
+          setImpactLoading(false);
+        }
+      }
+    };
+
+    void requestBothImpacts();
+  }, [
+    afterPlanId,
+    beforePlanId,
+    pendingPlace,
+  ]);
+
+  const changePreviousImpactMode = (
+    mode: RecommendationTransportMode,
+  ) => {
+    setPreviousImpactMode(mode);
+    onChangePreviousTransportMode(mode);
+  };
+
+  const changeNextImpactMode = (
+    mode: RecommendationTransportMode,
+  ) => {
+    setNextImpactMode(mode);
+    onChangeNextTransportMode(mode);
+  };
+
+  const previousMinutes =
+    getRecommendationImpactMinutes(
+      previousImpactResult?.travelInOptions,
+      previousImpactMode,
+      {
+        scheduleTimeValues: [
+          previousImpactResult?.prevPlace?.newVisitTime,
+          previousImpactResult?.prevPlace?.visitTime,
+          previousImpactResult?.prevPlace?.newEndTime,
+          previousImpactResult?.prevPlace?.endTime,
+        ],
+      },
+    );
+
+  const nextMinutes =
+    getRecommendationImpactMinutes(
+      nextImpactResult?.travelOutOptions,
+      nextImpactMode,
+      {
+        scheduleTimeValues: [
+          nextImpactResult?.nextPlace?.newVisitTime,
+          nextImpactResult?.nextPlace?.visitTime,
+          nextImpactResult?.nextPlace?.newEndTime,
+          nextImpactResult?.nextPlace?.endTime,
+        ],
+      },
+    );
+
+  const previousMoveTimeText =
+    getRecommendationImpactTimeText({
+      loading: impactLoading,
+      hasResult: Boolean(previousImpactResult),
+      minutes: previousMinutes,
+    });
+
+  const nextMoveTimeText =
+    getRecommendationImpactTimeText({
+      loading: impactLoading,
+      hasResult: Boolean(nextImpactResult),
+      minutes: nextMinutes,
+    });
+
+  const closeImpactPreview = () => {
+    requestIdRef.current += 1;
+    setPreviousImpactResult(null);
+    setNextImpactResult(null);
+    setImpactLoading(false);
+  };
+
+  return {
+    impactLoading,
+    previousImpactMode,
+    nextImpactMode,
+    previousMoveTimeText,
+    nextMoveTimeText,
     changePreviousImpactMode,
     changeNextImpactMode,
     closeImpactPreview,
