@@ -935,8 +935,16 @@ const handleCloseMemoSheet = () => {
 
     const hour =
       Number.isFinite(rawHour) ? Math.min(Math.max(rawHour, 0), 23) : 0;
+    const normalizedMinute =
+      Number.isFinite(rawMinute)
+        ? Math.round(rawMinute / 5) * 5
+        : 0;
+
     const minute =
-      Number.isFinite(rawMinute) ? Math.min(Math.max(rawMinute, 0), 55) : 0;
+      Math.min(
+        Math.max(normalizedMinute, 0),
+        55,
+      );
 
     return {
       hour,

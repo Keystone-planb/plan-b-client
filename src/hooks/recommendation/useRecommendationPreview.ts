@@ -334,15 +334,29 @@ export function useRecommendationPreview({
   };
 
   const decreasePreviewTimePickerMinute = () => {
-    setPreviewTimePickerMinute((current) =>
-      current <= 0 ? 59 : current - 1,
-    );
+    setPreviewTimePickerMinute((current) => {
+      if (current <= 0) {
+        setPreviewTimePickerHour(
+          (hour) => (hour <= 0 ? 23 : hour - 1),
+        );
+        return 55;
+      }
+
+      return current - 5;
+    });
   };
 
   const increasePreviewTimePickerMinute = () => {
-    setPreviewTimePickerMinute((current) =>
-      current >= 59 ? 0 : current + 1,
-    );
+    setPreviewTimePickerMinute((current) => {
+      if (current >= 55) {
+        setPreviewTimePickerHour(
+          (hour) => (hour >= 23 ? 0 : hour + 1),
+        );
+        return 0;
+      }
+
+      return current + 5;
+    });
   };
 
   const changePreviewTransportMode = (mode: RecommendationTransportMode) => {
