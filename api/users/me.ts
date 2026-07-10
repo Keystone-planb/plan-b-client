@@ -69,6 +69,17 @@ export const getMe = async (): Promise<MeResponse> => {
     }
 
     if (!isMeResponse(data)) {
+      if (__DEV__) {
+        console.warn("[users/me] invalid response shape:", {
+          reason: "missing-email-or-nickname",
+          rawType: Array.isArray(data) ? "array" : typeof data,
+          rawKeys:
+            data && typeof data === "object"
+              ? Object.keys(data as Record<string, unknown>)
+              : [],
+        });
+      }
+
       throw new Error("유저 정보 응답 형식이 올바르지 않습니다.");
     }
 
@@ -79,6 +90,14 @@ export const getMe = async (): Promise<MeResponse> => {
         | MeErrorResponse
         | string
         | undefined;
+
+      if (__DEV__) {
+        console.warn("[users/me] failed:", {
+          status: error.response?.status,
+          message: error.message,
+          code: error.code,
+        });
+      }
 
       if (!error.response && error.message === "Network Error") {
         throw new Error(

@@ -29,6 +29,7 @@ import {
   dismissNotification,
   getWeatherNotifications,
 } from "../../../api/notifications/notifications";
+import { getMe } from "../../../api/users/me";
 import type { WeatherNotification } from "../../types/notification";
 import {
   registerNotificationClickListener,
@@ -187,6 +188,35 @@ const getWeatherStatusEmoji = (notifications: WeatherNotification[]) => {
   if (weatherType === "STORM") return "⛈️";
 
   return "☁️";
+};
+
+const getWeatherNotificationUserId = async () => {
+  const storedUserId = await AsyncStorage.getItem("user_id");
+
+  try {
+    const me = await getMe();
+    const authUserId = me.user_id ?? me.userId ?? me.id;
+
+    if (authUserId !== undefined && authUserId !== null) {
+      const normalizedAuthUserId = String(authUserId);
+
+      if (storedUserId !== normalizedAuthUserId) {
+        await AsyncStorage.setItem("user_id", normalizedAuthUserId);
+      }
+
+      return {
+        requestUserId: normalizedAuthUserId,
+      };
+    }
+  } catch (error) {
+    if (__DEV__) {
+      console.warn("[weather-notifications] getMe failed:", error);
+    }
+  }
+
+  return {
+    requestUserId: storedUserId,
+  };
 };
 
 const getCurrentDayLabel = (startDate?: string, endDate?: string) => {
@@ -410,6 +440,72 @@ const isRecord = (value: unknown): value is Record<string, any> => {
   return Boolean(value) && typeof value === "object";
 };
 
+const getMainFiniteNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+const getMainCoordinate = (
+  source: unknown,
+  paths: string[],
+) => {
+  if (!isRecord(source)) {
+    return undefined;
+  }
+
+  for (const path of paths) {
+    const value = path.split(".").reduce<unknown>((current, key) => {
+      if (!isRecord(current)) {
+        return undefined;
+      }
+
+      return current[key];
+    }, source);
+    const coordinate = getMainFiniteNumber(value);
+
+    if (coordinate !== undefined) {
+      return coordinate;
+    }
+  }
+
+  return undefined;
+};
+
+const getMainCoordinates = (source: unknown) => ({
+  latitude: getMainCoordinate(source, [
+    "latitude",
+    "lat",
+    "place.latitude",
+    "place.lat",
+    "location.latitude",
+    "location.lat",
+    "coordinate.latitude",
+    "coordinate.lat",
+    "geometry.location.latitude",
+    "geometry.location.lat",
+  ]),
+  longitude: getMainCoordinate(source, [
+    "longitude",
+    "lng",
+    "place.longitude",
+    "place.lng",
+    "location.longitude",
+    "location.lng",
+    "coordinate.longitude",
+    "coordinate.lng",
+    "geometry.location.longitude",
+    "geometry.location.lng",
+  ]),
+});
+
 const getFirstServerPlaceFromSchedule = (schedule?: StoredSchedule) => {
   const days = Array.isArray(schedule?.days) ? schedule?.days : [];
 
@@ -426,13 +522,15 @@ const getFirstServerPlaceFromSchedule = (schedule?: StoredSchedule) => {
         continue;
       }
 
+      const coordinates = getMainCoordinates(place);
+
       return {
         tripPlaceId,
         googlePlaceId,
         name: place.name,
         category: place.category,
-        latitude: place.latitude,
-        longitude: place.longitude,
+        latitude: coordinates.latitude,
+        longitude: coordinates.longitude,
       };
     }
   }
@@ -591,15 +689,8 @@ const enrichDaysWithServerTripPlaceIds = async (
   tripId: number | string,
   localDays?: unknown[],
 ): Promise<unknown[]> => {
-  if (__DEV__) {
-    console.count("[Main] getTripDetail hydrateMainScheduleWithDetail");
-  }
-
   const detail = await getTripDetail(tripId);
   const serverItineraries = detail.itineraries ?? [];
-
-  if (__DEV__) {
-      }
 
   if (serverItineraries.length === 0) {
     return localDays ?? [];
@@ -644,8 +735,14 @@ const enrichDaysWithServerTripPlaceIds = async (
           serverPlace.visitTime ?? matchedLocalPlace?.visitTime ?? null;
         const endTime =
           serverPlace.endTime ?? matchedLocalPlace?.endTime ?? null;
+        const serverCoordinates = getMainCoordinates(serverPlace);
+        const localCoordinates = getMainCoordinates(matchedLocalPlace);
+        const latitude =
+          serverCoordinates.latitude ?? localCoordinates.latitude;
+        const longitude =
+          serverCoordinates.longitude ?? localCoordinates.longitude;
 
-        return {
+        const normalizedPlace = {
           ...(matchedLocalPlace ?? {}),
           id:
             matchedLocalPlace?.id ??
@@ -661,6 +758,13 @@ const enrichDaysWithServerTripPlaceIds = async (
             matchedLocalPlace?.placeId ??
             serverPlace.placeId,
           name: serverPlace.name ?? matchedLocalPlace?.name,
+          address:
+            serverPlace.address ??
+            matchedLocalPlace?.address,
+          latitude,
+          longitude,
+          lat: latitude,
+          lng: longitude,
           visitTime,
           endTime,
           time:
@@ -671,6 +775,8 @@ const enrichDaysWithServerTripPlaceIds = async (
           memo: serverPlace.memo ?? matchedLocalPlace?.memo ?? null,
           memos: matchedLocalPlace?.memos ?? [],
         };
+
+        return normalizedPlace;
       }),
     };
   });
@@ -716,9 +822,9 @@ export default function MainScreen({ navigation }: Props) {
     baseSchedules: StoredSchedule[] = schedules,
   ) => {
     try {
-      const storedUserId = await AsyncStorage.getItem("user_id");
+      const { requestUserId } = await getWeatherNotificationUserId();
 
-      if (!storedUserId) {
+      if (!requestUserId) {
         setNotifications([]);
         setActiveNotificationIndex(0);
         return;
@@ -726,28 +832,19 @@ export default function MainScreen({ navigation }: Props) {
 
       setNotificationsLoading(true);
 
-      if (__DEV__) {
-        console.count("[Main] getWeatherNotifications");
-      }
-
-      const serverNotifications = await getWeatherNotifications(storedUserId);
+      const serverNotifications = await getWeatherNotifications(requestUserId);
 
       if (serverNotifications.length > 0) {
-        if (__DEV__) {
-                  }
-
         setNotifications(serverNotifications);
         setActiveNotificationIndex(0);
         return;
       }
 
-      if (__DEV__) {
-              }
-
       setNotifications([]);
     } catch (error) {
       if (__DEV__) {
-              }
+        console.warn("[weather-notifications] load failed:", error);
+      }
       setNotifications([]);
     } finally {
       setNotificationsLoading(false);
