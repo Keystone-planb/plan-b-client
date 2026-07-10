@@ -13,7 +13,14 @@ type Props = {
   placeKey: string;
   gapBeforePlanId: string | number | undefined;
   gapAfterPlanId: string | number | undefined;
-  currentGapPlanPairs: { beforePlanId: any; afterPlanId: any }[];
+  currentGapPlanPairs: Array<{
+    beforePlanId: any;
+    afterPlanId: any;
+    beforePlanStartTime?: string | null;
+    beforePlanEndTime?: string | null;
+    afterPlanStartTime?: string | null;
+    afterPlanEndTime?: string | null;
+  }>;
   resolvedTripId?: string | number;
   scheduleId?: string;
   selectedDay: number;
@@ -156,7 +163,27 @@ export default function OngoingGapBetweenPlace({
           <GapRecommendationCard
             tripId={resolvedTripId ?? scheduleId}
             selectedDay={selectedDay}
-            allowedPlanPairs={currentGapPlanPairs}
+            allowedPlanPairs={
+              currentGapPlanPairs.map((pair) => ({
+                ...pair,
+                beforePlanStartTime:
+                  pair.beforePlanStartTime ??
+                  place.visitTime ??
+                  null,
+                beforePlanEndTime:
+                  pair.beforePlanEndTime ??
+                  place.endTime ??
+                  null,
+                afterPlanStartTime:
+                  pair.afterPlanStartTime ??
+                  nextPlace?.visitTime ??
+                  null,
+                afterPlanEndTime:
+                  pair.afterPlanEndTime ??
+                  nextPlace?.endTime ??
+                  null,
+              }))
+            }
             onVisibilityChange={
               setIsGapCardVisible
             }

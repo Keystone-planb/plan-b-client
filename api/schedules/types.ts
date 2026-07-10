@@ -189,7 +189,10 @@ export interface AlternativeImpactRequest {
 
 export interface AlternativeImpactOption {
   mode: AlternativeImpactTransportMode;
-  minutes: number;
+  minutes?: number | string | null;
+  durationMinutes?: number | string | null;
+  durationSeconds?: number | string | null;
+  durationMillis?: number | string | null;
   label: string;
 }
 
@@ -199,6 +202,7 @@ export interface AlternativeImpactPlace {
   visitTime: string | null;
   endTime: string | null;
   newVisitTime: string | null;
+  newEndTime?: string | null;
 }
 
 export interface AlternativeImpactResponse {

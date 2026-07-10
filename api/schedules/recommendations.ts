@@ -14,28 +14,107 @@ import {
   assertNotHtmlResponse,
 } from "./utils";
 
+type ApiRecord = Record<string, unknown>;
+
+const isRecord = (value: unknown): value is ApiRecord =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const toFiniteDurationNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value) && value >= 0) {
+    return value;
+  }
+
+  if (typeof value === "string" && /^\d+(?:\.\d+)?$/.test(value.trim())) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : null;
+  }
+
+  return null;
+};
+
+const isCompactClockDuration = (value: number) => {
+  if (!Number.isInteger(value)) {
+    return false;
+  }
+
+  return /^(?:[01]\d|2[0-3])[0-5]\d$/.test(String(value));
+};
+
+const normalizeImpactDurationMinutes = (value: unknown) => {
+  const numericValue = toFiniteDurationNumber(value);
+
+  if (numericValue == null) {
+    return null;
+  }
+
+  if (isCompactClockDuration(numericValue)) {
+    return null;
+  }
+
+  // Latest spec says `minutes` is minutes. Some prod responses currently send
+  // millisecond durations in that field; normalize that legacy shape here.
+  if (numericValue >= 1000) {
+    return Math.ceil(numericValue / 60000);
+  }
+
+  return Math.ceil(numericValue);
+};
+
+const normalizeImpactOption = (option: unknown) => {
+  if (!isRecord(option)) {
+    return option;
+  }
+
+  return {
+    ...option,
+    minutes: normalizeImpactDurationMinutes(option.minutes),
+  };
+};
+
+const normalizeAlternativeImpactResponse = (
+  value: unknown,
+): AlternativeImpactResponse => {
+  if (!isRecord(value)) {
+    return value as AlternativeImpactResponse;
+  }
+
+  return {
+    ...value,
+    travelInOptions: Array.isArray(value.travelInOptions)
+      ? value.travelInOptions.map(normalizeImpactOption)
+      : value.travelInOptions,
+    travelOutOptions: Array.isArray(value.travelOutOptions)
+      ? value.travelOutOptions.map(normalizeImpactOption)
+      : value.travelOutOptions,
+    travelInMin: normalizeImpactDurationMinutes(value.travelInMin),
+    travelOutMin: normalizeImpactDurationMinutes(value.travelOutMin),
+  } as AlternativeImpactResponse;
+};
+
 export const getAlternativeImpact = async (
   tripPlaceId: number | string,
   request: AlternativeImpactRequest,
 ): Promise<AlternativeImpactResponse> => {
   try {
-    console.log(
-      "[getAlternativeImpact] request:",
-      {
-        tripPlaceId,
-        url:
-          `/api/plans/${tripPlaceId}/alternatives/impact`,
-        selectedMode:
-          request.selectedMode,
-        hasCoordinates:
-          Number.isFinite(
-            request.newLatitude,
-          ) &&
-          Number.isFinite(
-            request.newLongitude,
-          ),
-      },
-    );
+    if (__DEV__) {
+      console.log(
+        "[getAlternativeImpact] request:",
+        {
+          tripPlaceId,
+          url:
+            `/api/plans/${tripPlaceId}/alternatives/impact`,
+          selectedMode:
+            request.selectedMode,
+          hasCoordinates:
+            Number.isFinite(
+              request.newLatitude,
+            ) &&
+            Number.isFinite(
+              request.newLongitude,
+            ),
+        },
+      );
+    }
 
     const response =
       await apiClient.post<unknown>(
@@ -48,19 +127,18 @@ export const getAlternativeImpact = async (
       "대안 장소 이동시간 계산",
     );
 
-    return response.data as AlternativeImpactResponse;
+    return normalizeAlternativeImpactResponse(response.data);
   } catch (error: any) {
-    console.log(
-      "[getAlternativeImpact] failed:",
-      {
-        tripPlaceId,
-        status:
-          error?.response?.status,
-        data:
-          error?.response?.data,
-        request,
-      },
-    );
+    if (__DEV__) {
+      console.log(
+        "[getAlternativeImpact] failed:",
+        {
+          tripPlaceId,
+          status:
+            error?.response?.status,
+        },
+      );
+    }
 
     throw error;
   }

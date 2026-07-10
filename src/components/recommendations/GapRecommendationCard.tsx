@@ -26,6 +26,10 @@ import { getPlanBPlaceDisplay } from "../common/PlanBPlaceName";
 type AllowedGapPlanPair = {
   beforePlanId?: number | string | null;
   afterPlanId?: number | string | null;
+  beforePlanStartTime?: string | null;
+  beforePlanEndTime?: string | null;
+  afterPlanStartTime?: string | null;
+  afterPlanEndTime?: string | null;
 };
 
 const EMPTY_ALLOWED_PLAN_PAIRS: AllowedGapPlanPair[] = [];
@@ -159,19 +163,40 @@ export default function GapRecommendationCard({
   ] = useState(false);
 
 
-  const allowedPairKeys = useMemo(() => {
-    return new Set(
-      allowedPlanPairs
-        .filter((pair) => pair.beforePlanId && pair.afterPlanId)
-        .map(
-          (pair) => `${String(pair.beforePlanId)}-${String(pair.afterPlanId)}`,
-        ),
-    );
+  const allowedPlanPairKey = useMemo(() => {
+    return allowedPlanPairs
+      .map((pair) => [
+        pair.beforePlanId,
+        pair.afterPlanId,
+        pair.beforePlanStartTime,
+        pair.beforePlanEndTime,
+        pair.afterPlanStartTime,
+        pair.afterPlanEndTime,
+      ].map((value) => String(value ?? "")).join(":"))
+      .sort()
+      .join("|");
   }, [allowedPlanPairs]);
 
-  const allowedPlanPairKey = useMemo(() => {
-    return Array.from(allowedPairKeys).join("|");
-  }, [allowedPairKeys]);
+  const allowedPairsByKey = useMemo(() => {
+    const map = new Map<string, AllowedGapPlanPair>();
+
+    allowedPlanPairs.forEach((pair) => {
+      if (!pair.beforePlanId || !pair.afterPlanId) {
+        return;
+      }
+
+      map.set(
+        `${String(pair.beforePlanId)}-${String(pair.afterPlanId)}`,
+        pair,
+      );
+    });
+
+    return map;
+  }, [allowedPlanPairKey]);
+
+  const allowedPairKeys = useMemo(() => {
+    return new Set(allowedPairsByKey.keys());
+  }, [allowedPairsByKey]);
 
   useEffect(() => {
     let mounted = true;
@@ -186,7 +211,19 @@ export default function GapRecommendationCard({
         nextGaps.length > 0,
       );
 
-      setExpandedGapKey(null);
+      setExpandedGapKey((currentKey) => {
+        if (!currentKey) {
+          return null;
+        }
+
+        return nextGaps.some(
+          (gap) =>
+            `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}` ===
+            currentKey,
+        )
+          ? currentKey
+          : null;
+      });
 
 
     };
@@ -205,11 +242,36 @@ export default function GapRecommendationCard({
       const serverGaps = await getCachedTripGaps(tripId);
 
 
-      const currentScreenGaps = serverGaps.filter((gap) => {
-        const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
-        const usableMinutes = gap.availableMinutes ?? gap.gapMinutes;
-        return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
-      });
+      const currentScreenGaps = serverGaps
+        .filter((gap) => {
+          const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+          const usableMinutes = gap.availableMinutes ?? gap.gapMinutes;
+          return allowedPairKeys.has(gapKey) && usableMinutes >= 60;
+        })
+        .map((gap) => {
+          const gapKey = `${String(gap.beforePlanId)}-${String(gap.afterPlanId)}`;
+          const localPair = allowedPairsByKey.get(gapKey);
+
+          return {
+            ...gap,
+            beforePlanStartTime:
+              gap.beforePlanStartTime ??
+              localPair?.beforePlanStartTime ??
+              undefined,
+            beforePlanEndTime:
+              gap.beforePlanEndTime ??
+              localPair?.beforePlanEndTime ??
+              "",
+            afterPlanStartTime:
+              gap.afterPlanStartTime ??
+              localPair?.afterPlanStartTime ??
+              "",
+            afterPlanEndTime:
+              gap.afterPlanEndTime ??
+              localPair?.afterPlanEndTime ??
+              undefined,
+          };
+        });
 
 
       applyGaps(currentScreenGaps);
@@ -223,7 +285,10 @@ export default function GapRecommendationCard({
     return () => {
       mounted = false;
     };
-  }, [tripId, allowedPlanPairKey]);
+  }, [
+    tripId,
+    allowedPlanPairKey,
+  ]);
 
   const handleRecommend = (
     gap: TripScheduleGap,
@@ -279,6 +344,8 @@ export default function GapRecommendationCard({
           gap.beforePlanId,
         beforePlanTitle:
           gap.beforePlanTitle,
+        beforePlanStartTime:
+          gap.beforePlanStartTime,
         beforePlanEndTime:
           gap.beforePlanEndTime,
 
@@ -288,6 +355,8 @@ export default function GapRecommendationCard({
           gap.afterPlanTitle,
         afterPlanStartTime:
           gap.afterPlanStartTime,
+        afterPlanEndTime:
+          gap.afterPlanEndTime,
 
         availableMinutes:
           gap.availableMinutes,
@@ -367,18 +436,32 @@ export default function GapRecommendationCard({
                         styles.expandedGapButton,
                     ]}
                     activeOpacity={0.85}
+                    hitSlop={{
+                      top: 8,
+                      bottom: 8,
+                      left: 4,
+                      right: 4,
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={
+                      isExpanded
+                        ? "빈 시간 추천 접기"
+                        : "빈 시간 추천 펼치기"
+                    }
                     onPress={() => {
-                      setExpandedGapKey((prev) =>
-                        prev === gapKey
-                          ? null
-                          : gapKey,
-                      );
+                      setExpandedGapKey((prev) => {
+                        const nextKey = prev === gapKey ? null : gapKey;
 
-                      setSelectedTransportMode(
-                        getSafeGapTransportMode(
-                          gap.transportMode,
-                        ),
-                      );
+                        if (nextKey) {
+                          setSelectedTransportMode(
+                            getSafeGapTransportMode(
+                              gap.transportMode,
+                            ),
+                          );
+                        }
+
+                        return nextKey;
+                      });
                     }}
                   >
                     <View style={styles.gapTextBox}>

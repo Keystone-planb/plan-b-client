@@ -29,11 +29,13 @@ export type GapRecommendationResultParams = {
 
   beforePlanId: string | number;
   beforePlanTitle: string;
+  beforePlanStartTime?: string;
   beforePlanEndTime?: string;
 
   afterPlanId: string | number;
   afterPlanTitle: string;
   afterPlanStartTime?: string;
+  afterPlanEndTime?: string;
 
   availableMinutes?: number;
   gapMinutes?: number;

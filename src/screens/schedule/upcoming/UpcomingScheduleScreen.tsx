@@ -1176,6 +1176,18 @@ const currentGapPlanPairs =
                               {
                                 beforePlanId: gapBeforePlanId,
                                 afterPlanId: gapAfterPlanId,
+                                beforePlanStartTime:
+                                  place.visitTime ??
+                                  null,
+                                beforePlanEndTime:
+                                  place.endTime ??
+                                  null,
+                                afterPlanStartTime:
+                                  nextPlaceForGap?.visitTime ??
+                                  null,
+                                afterPlanEndTime:
+                                  nextPlaceForGap?.endTime ??
+                                  null,
                               },
                             ]
                           : [];

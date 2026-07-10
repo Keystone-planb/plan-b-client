@@ -4,12 +4,14 @@ export type TripScheduleGap = {
   day?: number;
   beforePlanId: number;
   beforePlanTitle: string;
+  beforePlanStartTime?: string;
   beforePlanEndTime: string;
   beforePlaceLat: number;
   beforePlaceLng: number;
   afterPlanId: number;
   afterPlanTitle: string;
   afterPlanStartTime: string;
+  afterPlanEndTime?: string;
   afterPlaceLat: number;
   afterPlaceLng: number;
   gapMinutes: number;
