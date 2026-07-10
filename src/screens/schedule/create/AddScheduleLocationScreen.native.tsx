@@ -1415,8 +1415,11 @@ export default function AddScheduleLocationScreen({
           }
         }
 
-              } catch (serverError) {
-              }
+      } catch {
+        throw new Error(
+          "장소를 일정에 저장하지 못했습니다. 잠시 후 다시 시도해주세요.",
+        );
+      }
 
       navigateToPlanAWithPlaces({
         targetScheduleId: scheduleId,
@@ -2080,7 +2083,7 @@ export default function AddScheduleLocationScreen({
                 place={place}
                 isPreview={isPreview}
                 isSelected={isSelected}
-                isDetailLoading={isDetailLoading}
+                isDetailLoading={isDetailLoading || submitLoading}
                 isReviewLoading={isReviewLoading}
                 isFavorite={favoritePlaces.some(
                   (item) =>
