@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "";
+const amplitudeApiKey = process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? "";
 
 export default ({ config }) => ({
   ...config,
@@ -43,7 +44,9 @@ export default ({ config }) => ({
 
   extra: {
     ...(config.extra ?? {}),
+    amplitudeApiKey,
     eas: {
+      ...(config.extra?.eas ?? {}),
       projectId: "ae4365b2-a5ee-46b6-b12c-e4ef3fd10f7a",
     },
   },

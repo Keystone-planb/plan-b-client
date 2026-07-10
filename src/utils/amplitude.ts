@@ -8,15 +8,69 @@
  */
 
 import * as amplitude from "@amplitude/analytics-react-native";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 
-const amplitudeApiKey = process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? "";
+let amplitudeInitialized = false;
+let amplitudeMissingKeyWarned = false;
+let amplitudeInvalidKeyWarned = false;
+
+const isValidAmplitudeApiKey = (apiKey: string) => {
+  return (
+    /^[a-f0-9]{32}$/i.test(apiKey) &&
+    !apiKey.includes("=") &&
+    !apiKey.includes("EXPO_PUBLIC_")
+  );
+};
+
+const getAmplitudeApiKey = () => {
+  const publicEnvKey =
+    process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY?.trim();
+  const extraKey =
+    Constants.expoConfig?.extra?.amplitudeApiKey;
+
+  if (publicEnvKey) {
+    return publicEnvKey;
+  }
+
+  if (
+    typeof extraKey === "string" &&
+    extraKey.trim().length > 0
+  ) {
+    return extraKey.trim();
+  }
+
+  return "";
+};
 
 // ─── 초기화 ────────────────────────────────────────────────────────────────
 
 export const initAmplitude = () => {
+  if (amplitudeInitialized) {
+    return;
+  }
+
+  const amplitudeApiKey = getAmplitudeApiKey();
+
   if (!amplitudeApiKey) {
-    console.warn("[Amplitude] API key 없음 — 이벤트가 전송되지 않습니다.");
+    if (__DEV__ && !amplitudeMissingKeyWarned) {
+      console.warn(
+        "[Amplitude] EXPO_PUBLIC_AMPLITUDE_API_KEY가 설정되지 않았습니다.",
+      );
+      amplitudeMissingKeyWarned = true;
+    }
+
+    return;
+  }
+
+  if (!isValidAmplitudeApiKey(amplitudeApiKey)) {
+    if (__DEV__ && !amplitudeInvalidKeyWarned) {
+      console.warn(
+        "[Amplitude] API key 형식이 올바르지 않아 초기화를 건너뜁니다.",
+      );
+      amplitudeInvalidKeyWarned = true;
+    }
+
     return;
   }
 
@@ -24,11 +78,17 @@ export const initAmplitude = () => {
     minIdLength: 1,        // device_id / user_id 최소 길이 제한 해제 (짧은 숫자 ID 대응)
     logLevel: __DEV__ ? amplitude.Types.LogLevel.Warn : amplitude.Types.LogLevel.None,
   });
+
+  amplitudeInitialized = true;
 };
 
 // ─── 유저 식별 ─────────────────────────────────────────────────────────────
 
 export const setAmplitudeUser = (userId: string | number) => {
+  if (!amplitudeInitialized) {
+    return;
+  }
+
   // Amplitude 최소 5자 요구 → "user_" prefix로 보장
   const idStr = String(userId);
   const safeId = idStr.length >= 5 ? idStr : `user_${idStr}`;
@@ -36,6 +96,10 @@ export const setAmplitudeUser = (userId: string | number) => {
 };
 
 export const resetAmplitudeUser = () => {
+  if (!amplitudeInitialized) {
+    return;
+  }
+
   amplitude.reset();
 };
 
@@ -52,6 +116,17 @@ export const trackEvent = (
   eventName: string,
   properties?: Record<string, unknown>,
 ) => {
+  if (!amplitudeInitialized) {
+    if (__DEV__ && !amplitudeMissingKeyWarned) {
+      console.warn(
+        "[Amplitude] 초기화되지 않아 이벤트 전송을 건너뜁니다.",
+      );
+      amplitudeMissingKeyWarned = true;
+    }
+
+    return;
+  }
+
   amplitude.track(eventName, {
     ...getCommonProps(),
     ...properties,
