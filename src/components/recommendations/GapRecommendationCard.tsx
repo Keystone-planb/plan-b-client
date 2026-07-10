@@ -290,7 +290,7 @@ export default function GapRecommendationCard({
     allowedPlanPairKey,
   ]);
 
-  const handleRecommend = (
+  const navigateGapResult = (
     gap: TripScheduleGap,
   ) => {
     if (!tripId) {
@@ -376,6 +376,12 @@ export default function GapRecommendationCard({
         returnScreen,
       },
     );
+  };
+
+  const handleRecommend = (
+    gap: TripScheduleGap,
+  ) => {
+    navigateGapResult(gap);
   };
 
   const shouldHideCard =
