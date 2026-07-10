@@ -35,6 +35,7 @@ import {
 } from "../../../types/planA";
 import { TravelSchedule } from "../../../types/schedule";
 import { usePlanAPlaces } from "../../../hooks/usePlanAPlaces";
+import { requestLogout } from "../../../../api/auth/logout";
 import {
   addOneHourToDisplayTime,
   formatPickerTimeValue,
@@ -262,6 +263,7 @@ export default function PlanAScreen({ navigation, route }: Props) {
     handleSaveSchedule,
     handleUpdateTripName,
     loadingSchedule,
+    requiresRelogin,
     currentPlaces,
 
     memoDrafts,
@@ -304,6 +306,81 @@ export default function PlanAScreen({ navigation, route }: Props) {
     // refreshPlanAAt가 바뀌면(예: 날씨 대안 교체 직후) draft 캐시를 건너뛰고 서버 최신본을 다시 불러온다.
     reloadKey: route?.params?.refreshPlanAAt,
   });
+
+  const reloginAlertShownRef =
+    React.useRef(false);
+
+  const handleRelogin = async () => {
+    try {
+      await requestLogout();
+    } catch {
+      /*
+       * requestLogout은 서버 로그아웃 실패 시에도
+       * 로컬 인증 정보를 삭제한다.
+       */
+    }
+
+    navigation.reset({
+      index: 0,
+      routes: [
+        {
+          name: "Login",
+        },
+      ],
+    });
+  };
+
+  React.useEffect(() => {
+    if (!requiresRelogin) {
+      reloginAlertShownRef.current = false;
+      return;
+    }
+
+    if (reloginAlertShownRef.current) {
+      return;
+    }
+
+    reloginAlertShownRef.current = true;
+
+    Alert.alert(
+      "다시 로그인이 필요합니다",
+      "로그인 정보가 만료되어 일정을 불러오지 못했습니다.",
+      [
+        {
+          text: "이전 화면",
+          style: "cancel",
+          onPress: () => {
+            if (navigation.canGoBack()) {
+              navigation.goBack();
+              return;
+            }
+
+            navigation.reset({
+              index: 0,
+              routes: [
+                {
+                  name: "Main",
+                },
+              ],
+            });
+          },
+        },
+        {
+          text: "다시 로그인",
+          onPress: () => {
+            void handleRelogin();
+          },
+        },
+      ],
+      {
+        cancelable: false,
+      },
+    );
+  }, [
+    navigation,
+    requiresRelogin,
+  ]);
+
 
   const effectiveDayOptions = makeDayOptions(
     schedule.startDate,

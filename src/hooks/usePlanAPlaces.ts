@@ -32,6 +32,56 @@ import {
   toCreateTripRequest,
 } from "../utils/schedules/serverMapper";
 
+
+type ScheduleLoadErrorLike = {
+  message?: unknown;
+  response?: {
+    status?: unknown;
+  };
+  refreshStatus?: unknown;
+  refreshErrorCode?: unknown;
+};
+
+const isAuthenticationLoadError = (
+  error: unknown,
+): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+
+  const candidate =
+    error as ScheduleLoadErrorLike;
+
+  const responseStatus =
+    typeof candidate.response?.status === "number"
+      ? candidate.response.status
+      : undefined;
+
+  const refreshStatus =
+    typeof candidate.refreshStatus === "number"
+      ? candidate.refreshStatus
+      : undefined;
+
+  const message =
+    typeof candidate.message === "string"
+      ? candidate.message
+      : "";
+
+  return (
+    responseStatus === 401 ||
+    responseStatus === 403 ||
+    refreshStatus === 401 ||
+    refreshStatus === 403 ||
+    candidate.refreshErrorCode ===
+      "REFRESH_TOKEN_EXPIRED" ||
+    candidate.refreshErrorCode ===
+      "REFRESH_TOKEN_INVALID" ||
+    message.includes("로그인이 만료") ||
+    message.includes("토큰 재발급") ||
+    message.includes("다시 로그인")
+  );
+};
+
 type EditingMemoState = {
   placeId: string;
   memoId: string;
@@ -883,6 +933,8 @@ export function usePlanAPlaces({
 
   const [loadingSchedule, setLoadingSchedule] = useState(false);
   const [loadError, setLoadError] = useState("");
+  const [requiresRelogin, setRequiresRelogin] =
+    useState(false);
   const [hasLoadedSavedSchedule, setHasLoadedSavedSchedule] = useState(false);
   const [loadedSavedSchedule, setLoadedSavedSchedule] = useState(false);
 
@@ -943,6 +995,7 @@ export function usePlanAPlaces({
       try {
         setLoadingSchedule(true);
         setLoadError("");
+        setRequiresRelogin(false);
 
         const savedSchedule = scheduleId
           ? await loadPlanASchedule(scheduleId)
@@ -1026,7 +1079,31 @@ export function usePlanAPlaces({
               await savePlanASchedule(serverSchedule);
             }
           } catch (serverError) {
-                      }
+            if (
+              isAuthenticationLoadError(
+                serverError,
+              )
+            ) {
+              setRequiresRelogin(true);
+              setLoadError(
+                "로그인 정보가 만료되어 일정을 불러오지 못했습니다.",
+              );
+
+              /*
+               * 인증 복구 실패를 정상적인 빈 일정으로 처리하지 않는다.
+               * 바깥 catch에서 기존 캐시/화면 데이터를 유지하도록 전달한다.
+               */
+              throw serverError;
+            }
+
+            /*
+             * 인증 문제가 아닌 서버 오류라면
+             * 로컬 저장 일정 또는 기존 화면 데이터를 유지한다.
+             */
+            setLoadError(
+              "서버 일정을 불러오지 못해 저장된 일정으로 표시합니다.",
+            );
+          }
         }
 
         const nextSchedule = serverSchedule ?? fallbackSchedule;
@@ -1038,14 +1115,45 @@ export function usePlanAPlaces({
         loadedRouteKeyRef.current = routeKey;
         setHasLoadedSavedSchedule(true);
       } catch (error) {
-        
-        setLoadError("저장된 Plan.A 일정을 불러오지 못했습니다.");
-        scheduleRef.current = initialSchedule;
-        cacheDraftSchedule(initialSchedule);
-        setSchedule(initialSchedule);
-        setLoadedSavedSchedule(false);
+        const authenticationError =
+          isAuthenticationLoadError(error);
 
-        loadedRouteKeyRef.current = routeKey;
+        setRequiresRelogin(authenticationError);
+        setLoadError(
+          authenticationError
+            ? "로그인 정보가 만료되어 일정을 불러오지 못했습니다."
+            : "저장된 Plan.A 일정을 불러오지 못했습니다.",
+        );
+
+        /*
+         * 조회 실패 시 빈 initialSchedule을 캐시에 저장하거나
+         * 현재 화면의 기존 일정을 덮어쓰지 않는다.
+         */
+        const retainedSchedule =
+          getCachedDraftSchedule(scheduleId) ??
+          scheduleRef.current;
+
+        const retainedPlaceCount =
+          retainedSchedule.days.reduce(
+            (sum, day) =>
+              sum + day.places.length,
+            0,
+          );
+
+        if (retainedPlaceCount > 0) {
+          scheduleRef.current =
+            retainedSchedule;
+          setSchedule(retainedSchedule);
+        }
+
+        setLoadedSavedSchedule(
+          retainedPlaceCount > 0,
+        );
+
+        /*
+         * 재로그인 또는 재시도 후 같은 경로를 다시 조회할 수 있게 한다.
+         */
+        loadedRouteKeyRef.current = null;
         setHasLoadedSavedSchedule(true);
       } finally {
         setLoadingSchedule(false);
@@ -1980,6 +2088,7 @@ export function usePlanAPlaces({
     handleUpdateTripName,
 
     loadingSchedule,
+    requiresRelogin,
     loadError,
 
     placesByDay,
