@@ -10,6 +10,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { updatePlanSchedule } from "../../../../api/schedules/server";
 import { trackEvent, AMP } from "../../../utils/amplitude";
 import { useRecommendationToast } from "../../../hooks/recommendation/useRecommendationToast";
 import { useRecommendationReviewDetails } from "../../../hooks/recommendation/useRecommendationReviewDetails";
@@ -18,6 +19,7 @@ import { useRecommendationScheduleContext } from "../../../hooks/recommendation/
 import { useRecommendationPreview } from "../../../hooks/recommendation/useRecommendationPreview";
 import { useRecommendationImpact } from "../../../hooks/recommendation/useRecommendationImpact";
 import { useRecommendationReplaceFlow } from "../../../hooks/recommendation/useRecommendationReplaceFlow";
+import { updateStoredPlanASchedulePlaceTime } from "../../../hooks/recommendation/useRecommendationReplace";
 import RecommendationPlaceList from "../../../components/recommendation/RecommendationPlaceList";
 import RecommendationPreviewModal from "../../../components/recommendation/RecommendationPreviewModal";
 import RecommendationResultPlaceCard from "../../../components/recommendation/RecommendationResultPlaceCard";
@@ -39,6 +41,8 @@ export default function RecommendationResultScreen({
   const { whiteToast, showWhiteToast } = useRecommendationToast();
   const [pendingPlace, setPendingPlace] =
     useState<DisplayPlace | null>(null);
+  const [savedPreviewTimesAt, setSavedPreviewTimesAt] =
+    useState<number | null>(null);
 
   const {
     expandedPlaceId,
@@ -70,6 +74,7 @@ export default function RecommendationResultScreen({
   }, [params.placesJson]);
 
   const places = parsedPlaces;
+
   const shownPlaceIds = useMemo(() => {
     return places
       .map((place, index) => place.placeId ?? `place-${index}`)
@@ -122,6 +127,10 @@ export default function RecommendationResultScreen({
     previewTimePickerMinute,
     previewAppliedVisitTime,
     previewAppliedEndTime,
+    previewPreviousVisitTime,
+    previewPreviousEndTime,
+    previewNextVisitTime,
+    previewNextEndTime,
     draftPreviewVisitTime,
     draftPreviewEndTime,
     openPreviewTimePicker,
@@ -168,6 +177,32 @@ export default function RecommendationResultScreen({
         recommendation_type: params.recommendationType ?? "PLACE",
         source: isWeather ? "weather" : "manual",
       });
+    }
+
+    if (
+      savedPreviewTimesAt &&
+      (
+        params.returnScreen === "OngoingSchedule" ||
+        params.returnScreen === "UpcomingSchedule"
+      )
+    ) {
+      (navigation as any).navigate(
+        params.returnScreen,
+        {
+          scheduleId: params.scheduleId,
+          tripId: params.tripId,
+          serverTripId: params.serverTripId ?? params.tripId,
+          tripName: params.tripName,
+          startDate: params.startDate,
+          endDate: params.endDate,
+          location: params.location,
+          transportMode: params.transportMode,
+          transportLabel: params.transportLabel,
+          selectedDay: params.selectedDay ?? params.day,
+          refreshPlanAAt: savedPreviewTimesAt,
+        },
+      );
+      return;
     }
 
     if (navigation.canGoBack()) {
@@ -224,8 +259,13 @@ export default function RecommendationResultScreen({
     targetPlace,
     previousSchedulePlace:
       savedPreviousSchedulePlace,
+    nextSchedulePlace,
     previewVisitTime: previewAppliedVisitTime,
     previewEndTime: previewAppliedEndTime,
+    previewPreviousVisitTime,
+    previewPreviousEndTime,
+    previewNextVisitTime,
+    previewNextEndTime,
     previousImpactMode,
     nextImpactMode,
     showToast: showWhiteToast,
@@ -236,6 +276,124 @@ export default function RecommendationResultScreen({
     clearReplaceError();
     closePreviewTimePicker();
     closeImpactPreview();
+  };
+
+  const clearTimeRelatedErrors = () => {
+    clearReplaceError();
+  };
+
+  const getSchedulePlacePlanId = (place?: {
+    serverTripPlaceId?: string | number;
+    tripPlaceId?: string | number;
+    id?: string | number;
+  } | null) =>
+    place?.serverTripPlaceId ??
+    place?.tripPlaceId ??
+    place?.id;
+
+  const handleSavePreviewTime = async () => {
+    const target = previewData.previewScheduleTimeTarget;
+    const selectedTime = `${padPreviewTime(
+      previewTimePickerHour,
+    )}:${padPreviewTime(previewTimePickerMinute)}`;
+    const nextVisitTime =
+      previewTimePickerTarget === "visitTime"
+        ? selectedTime
+        : draftPreviewVisitTime;
+    const nextEndTime =
+      previewTimePickerTarget === "endTime"
+        ? selectedTime
+        : draftPreviewEndTime;
+    const saved = savePreviewTimePicker();
+
+    if (!saved) {
+      return false;
+    }
+
+    if (target === "alternative") {
+      return true;
+    }
+
+    const planId =
+      target === "previous"
+        ? getSchedulePlacePlanId(savedPreviousSchedulePlace)
+        : getSchedulePlacePlanId(nextSchedulePlace);
+
+    if (!planId) {
+      return true;
+    }
+
+    const payload: Record<string, unknown> = {};
+
+    if (nextVisitTime) {
+      payload.visitTime = nextVisitTime;
+    }
+
+    if (nextEndTime) {
+      payload.endTime = nextEndTime;
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return true;
+    }
+
+    try {
+      await updatePlanSchedule(planId, payload);
+      await updateStoredPlanASchedulePlaceTime({
+        scheduleId: params.scheduleId,
+        planId,
+        visitTime: nextVisitTime,
+        endTime: nextEndTime,
+        transportMode:
+          target === "previous"
+            ? previousImpactMode
+            : undefined,
+      });
+      setSavedPreviewTimesAt(Date.now());
+      return true;
+    } catch (error) {
+      clearReplaceError();
+      showWhiteToast(
+        "시간 저장 실패",
+        "방문 시간을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "error",
+      );
+      return false;
+    }
+  };
+
+  const handlePressTimeEdit = (
+    target: Parameters<typeof openPreviewTimePicker>[0],
+  ) => {
+    clearTimeRelatedErrors();
+    openPreviewTimePicker(target);
+  };
+
+  const handleSwitchTimeTarget = (
+    target: Parameters<typeof switchPreviewTimePickerTarget>[0],
+  ) => {
+    clearTimeRelatedErrors();
+    switchPreviewTimePickerTarget(target);
+  };
+
+  const handleDecreasePreviewHour = () => {
+    clearTimeRelatedErrors();
+    decreasePreviewTimePickerHour();
+  };
+
+  const handleIncreasePreviewHour = () => {
+    clearTimeRelatedErrors();
+    increasePreviewTimePickerHour();
+  };
+
+  const handleDecreasePreviewMinute = () => {
+    clearTimeRelatedErrors();
+    decreasePreviewTimePickerMinute();
+  };
+
+  const handleIncreasePreviewMinute = () => {
+    clearTimeRelatedErrors();
+    increasePreviewTimePickerMinute();
   };
 
   const title = params.title ?? "AI 대안 추천";
@@ -379,6 +537,7 @@ export default function RecommendationResultScreen({
         timePickerPreviewText={`${padPreviewTime(
           previewTimePickerHour,
         )}:${padPreviewTime(previewTimePickerMinute)}`}
+        timePickerErrorMessage={previewData.previewTimePickerErrorMessage}
         visitTimeText={
           draftPreviewVisitTime ??
           previewAppliedVisitTime ??
@@ -397,14 +556,14 @@ export default function RecommendationResultScreen({
         onChangeTransportMode={changePreviewTransportMode}
         onChangePreviousTransportMode={changePreviousImpactMode}
         onChangeNextTransportMode={changeNextImpactMode}
-        onPressTimeEdit={openPreviewTimePicker}
+        onPressTimeEdit={handlePressTimeEdit}
         onTimePickerClose={closePreviewTimePicker}
-        onSwitchTimeTarget={switchPreviewTimePickerTarget}
-        onDecreaseHour={decreasePreviewTimePickerHour}
-        onIncreaseHour={increasePreviewTimePickerHour}
-        onDecreaseMinute={decreasePreviewTimePickerMinute}
-        onIncreaseMinute={increasePreviewTimePickerMinute}
-        onSaveTime={savePreviewTimePicker}
+        onSwitchTimeTarget={handleSwitchTimeTarget}
+        onDecreaseHour={handleDecreasePreviewHour}
+        onIncreaseHour={handleIncreasePreviewHour}
+        onDecreaseMinute={handleDecreasePreviewMinute}
+        onIncreaseMinute={handleIncreasePreviewMinute}
+        onSaveTime={handleSavePreviewTime}
         onConfirm={() => {
           if (!pendingPlace || submittingPlaceId) {
             return;

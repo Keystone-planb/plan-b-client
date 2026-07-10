@@ -22,7 +22,9 @@ import {
 
 import {
   addTripLocation,
+  updatePlanSchedule,
 } from "../../../../api/schedules/server";
+import { updateStoredPlanASchedulePlaceTime } from "../../../hooks/recommendation/useRecommendationReplace";
 
 import {
   AMP,
@@ -204,10 +206,15 @@ export default function GapRecommendationResultScreen({
     changePreviewNextTransportMode,
     previewVisitTime,
     previewEndTime,
+    previewPreviousVisitTime,
+    previewPreviousEndTime,
+    previewNextVisitTime,
+    previewNextEndTime,
     draftPreviewVisitTime,
     draftPreviewEndTime,
     previewTimePickerVisible,
     previewTimePickerTarget,
+    previewScheduleTimeTarget,
     previewTimePickerPlaceName,
     previewTimePickerHour,
     previewTimePickerMinute,
@@ -273,6 +280,137 @@ export default function GapRecommendationResultScreen({
           params.day,
       },
     );
+  };
+
+  const clearTimeRelatedErrors = () => {
+    setSubmitErrorMessage("");
+  };
+
+  const handlePressTimeEdit = (
+    target: Parameters<typeof openPreviewTimePicker>[0],
+  ) => {
+    clearTimeRelatedErrors();
+    openPreviewTimePicker(target);
+  };
+
+  const handleSwitchTimeTarget = (
+    target: Parameters<typeof switchPreviewTimePickerTarget>[0],
+  ) => {
+    clearTimeRelatedErrors();
+    switchPreviewTimePickerTarget(target);
+  };
+
+  const handleDecreasePreviewHour = () => {
+    clearTimeRelatedErrors();
+    decreasePreviewTimePickerHour();
+  };
+
+  const handleIncreasePreviewHour = () => {
+    clearTimeRelatedErrors();
+    increasePreviewTimePickerHour();
+  };
+
+  const handleDecreasePreviewMinute = () => {
+    clearTimeRelatedErrors();
+    decreasePreviewTimePickerMinute();
+  };
+
+  const handleIncreasePreviewMinute = () => {
+    clearTimeRelatedErrors();
+    increasePreviewTimePickerMinute();
+  };
+
+  const saveGapBoundaryScheduleTimes = async ({
+    target,
+    visitTime,
+    endTime,
+  }: {
+    target: "previous" | "next";
+    visitTime?: string | null;
+    endTime?: string | null;
+  }) => {
+    const planId =
+      target === "previous"
+        ? params.beforePlanId
+        : params.afterPlanId;
+
+    if (!planId || (!visitTime && !endTime)) {
+      return;
+    }
+
+    const payload: Record<string, unknown> = {};
+
+    if (visitTime) {
+      payload.visitTime = visitTime;
+    }
+
+    if (endTime) {
+      payload.endTime = endTime;
+    }
+
+    await updatePlanSchedule(planId, payload);
+    await updateStoredPlanASchedulePlaceTime({
+      scheduleId: params.scheduleId,
+      planId,
+      visitTime,
+      endTime,
+      transportMode:
+        target === "previous"
+          ? previousImpactMode
+          : undefined,
+    });
+  };
+
+  const saveAllGapBoundaryScheduleTimes = async () => {
+    await saveGapBoundaryScheduleTimes({
+      target: "previous",
+      visitTime: previewPreviousVisitTime,
+      endTime: previewPreviousEndTime,
+    });
+
+    await saveGapBoundaryScheduleTimes({
+      target: "next",
+      visitTime: previewNextVisitTime,
+      endTime: previewNextEndTime,
+    });
+  };
+
+  const handleSavePreviewTime = async () => {
+    const target = previewScheduleTimeTarget;
+    const selectedTime = `${padPreviewTime(
+      previewTimePickerHour,
+    )}:${padPreviewTime(previewTimePickerMinute)}`;
+    const nextVisitTime =
+      previewTimePickerTarget === "visitTime"
+        ? selectedTime
+        : draftPreviewVisitTime;
+    const nextEndTime =
+      previewTimePickerTarget === "endTime"
+        ? selectedTime
+        : draftPreviewEndTime;
+    const saved = savePreviewTimePicker();
+
+    if (!saved) {
+      return false;
+    }
+
+    if (target !== "previous" && target !== "next") {
+      return true;
+    }
+
+    try {
+      await saveGapBoundaryScheduleTimes({
+        target,
+        visitTime: nextVisitTime,
+        endTime: nextEndTime,
+      });
+      return true;
+    } catch (error) {
+      setSubmitErrorMessage(
+        "방문 시간을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+      return false;
+    }
   };
 
   const handleToggleDetail =
@@ -382,6 +520,8 @@ export default function GapRecommendationResultScreen({
       setIsSubmitting(true);
 
       try {
+        await saveAllGapBoundaryScheduleTimes();
+
         const addLocationPayload = {
           place_id: String(
             googlePlaceId,
@@ -873,6 +1013,7 @@ export default function GapRecommendationResultScreen({
         timePickerPreviewText={`${String(previewTimePickerHour).padStart(2, "0")}:${String(
           previewTimePickerMinute,
         ).padStart(2, "0")}`}
+        timePickerErrorMessage={previewData.previewTimePickerErrorMessage}
         visitTimeText={
           draftPreviewVisitTime ??
           previewAppliedVisitTime ??
@@ -893,14 +1034,14 @@ export default function GapRecommendationResultScreen({
         onChangeTransportMode={changeNextImpactMode}
         onChangePreviousTransportMode={changePreviousImpactMode}
         onChangeNextTransportMode={changeNextImpactMode}
-        onPressTimeEdit={openPreviewTimePicker}
+        onPressTimeEdit={handlePressTimeEdit}
         onTimePickerClose={closePreviewTimePicker}
-        onSwitchTimeTarget={switchPreviewTimePickerTarget}
-        onDecreaseHour={decreasePreviewTimePickerHour}
-        onIncreaseHour={increasePreviewTimePickerHour}
-        onDecreaseMinute={decreasePreviewTimePickerMinute}
-        onIncreaseMinute={increasePreviewTimePickerMinute}
-        onSaveTime={savePreviewTimePicker}
+        onSwitchTimeTarget={handleSwitchTimeTarget}
+        onDecreaseHour={handleDecreasePreviewHour}
+        onIncreaseHour={handleIncreasePreviewHour}
+        onDecreaseMinute={handleDecreasePreviewMinute}
+        onIncreaseMinute={handleIncreasePreviewMinute}
+        onSaveTime={handleSavePreviewTime}
         confirmErrorMessage={submitErrorMessage}
         confirming={isSubmitting}
         confirmLabel="선택하기"
@@ -913,10 +1054,10 @@ export default function GapRecommendationResultScreen({
           void handleConfirmPlace(
             pendingSelection.place,
             pendingSelection.index,
-            previewVisitTime ??
+            previewAppliedVisitTime ??
               pendingSelection.place.suggestedVisitTime ??
               null,
-            previewEndTime ??
+            previewAppliedEndTime ??
               pendingSelection.place.suggestedEndTime ??
               null,
           );

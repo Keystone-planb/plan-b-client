@@ -101,6 +101,7 @@ export type RecommendationResultRootStackParamList = {
     refreshPlanAAt?: number;
     replacedTripPlaceId?: string | number;
     isEditMode?: boolean;
+    returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
   };
 
   OngoingSchedule: {
@@ -141,6 +142,7 @@ export type RecommendationResultRootStackParamList = {
     notificationId?: string | number;
     day?: number;
     selectedDay?: number;
+    returnScreen?: "OngoingSchedule" | "UpcomingSchedule";
     fromAIAnalysis?: boolean;
     hasError?: boolean;
     title?: string;

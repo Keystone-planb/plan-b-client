@@ -1,8 +1,4 @@
 import apiClient from "../client";
-import {
-  getApiErrorMessage,
-} from "../utils/apiErrorMessage";
-
 import type {
   AlternativeImpactRequest,
   AlternativeImpactResponse,
@@ -186,12 +182,7 @@ export const replacePlanPlace = async (
     );
 
     if (status !== 404) {
-      throw new Error(
-        getApiErrorMessage(
-          error,
-          "일정 시간 수정에 실패했습니다.",
-        ),
-      );
+      throw error;
     }
 
     console.log(

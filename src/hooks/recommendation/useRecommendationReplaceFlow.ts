@@ -19,6 +19,7 @@ import {
   executeWeatherRecommendationReplace,
   getCurrentPlanIdCandidates,
   getPreviewSchedulePayload,
+  updateStoredPlanASchedulePlaceTime,
   type ShowToast,
 } from "./useRecommendationReplace";
 
@@ -34,6 +35,48 @@ type TargetPlace =
     day?: number | string;
   };
 
+const getTimeMinutes = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+
+  const match = String(value).trim().match(/^(\d{1,2}):(\d{2})/);
+
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (
+    !Number.isInteger(hour) ||
+    !Number.isInteger(minute) ||
+    hour < 0 ||
+    hour > 23 ||
+    minute < 0 ||
+    minute > 59
+  ) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+};
+
+const hasInvalidPreviewTimeRange = (
+  visitTime?: string | null,
+  endTime?: string | null,
+) => {
+  const visitMinutes = getTimeMinutes(visitTime);
+  const endMinutes = getTimeMinutes(endTime);
+
+  if (visitMinutes === null || endMinutes === null) {
+    return false;
+  }
+
+  return visitMinutes >= endMinutes;
+};
+
 type Params = {
   navigation: Navigation;
   params: RouteParams;
@@ -43,8 +86,15 @@ type Params = {
   previousSchedulePlace:
     | RecommendationResultTodayPlace
     | null;
+  nextSchedulePlace:
+    | RecommendationResultTodayPlace
+    | null;
   previewVisitTime?: string | null;
   previewEndTime?: string | null;
+  previewPreviousVisitTime?: string | null;
+  previewPreviousEndTime?: string | null;
+  previewNextVisitTime?: string | null;
+  previewNextEndTime?: string | null;
   previousImpactMode: RecommendationTransportMode;
   nextImpactMode: RecommendationTransportMode;
   showToast: ShowToast;
@@ -57,8 +107,13 @@ export function useRecommendationReplaceFlow({
   shownPlaceIds,
   targetPlace,
   previousSchedulePlace,
+  nextSchedulePlace,
   previewVisitTime,
   previewEndTime,
+  previewPreviousVisitTime,
+  previewPreviousEndTime,
+  previewNextVisitTime,
+  previewNextEndTime,
   previousImpactMode,
   nextImpactMode,
   showToast,
@@ -111,6 +166,7 @@ export function useRecommendationReplaceFlow({
       day: replacedDay,
       selectedDay: replacedDay,
       isEditMode: true,
+      returnScreen: params.returnScreen,
       refreshPlanAAt: Date.now(),
     });
   };
@@ -132,21 +188,27 @@ export function useRecommendationReplaceFlow({
       selectedPlace: undefined,
       selectedPlaces: undefined,
       refreshPlanAAt: Date.now(),
+      returnScreen: params.returnScreen,
       replacedTripPlaceId:
         usedCurrentPlanId ?? undefined,
       isEditMode: true,
     });
   };
 
-  const savePreviousImpactTransportMode =
-    async (
-      selectedPlace:
-        RecommendationResultDisplayPlace,
-    ) => {
+  const getSchedulePlacePlanId = (
+    place?: RecommendationResultTodayPlace | null,
+  ) => {
+    return (
+      place?.serverTripPlaceId ??
+      place?.tripPlaceId ??
+      place?.id
+    );
+  };
+
+  const savePreviousScheduleAdjustments =
+    async () => {
       const previousPlanId =
-        previousSchedulePlace?.serverTripPlaceId ??
-        previousSchedulePlace?.tripPlaceId ??
-        previousSchedulePlace?.id;
+        getSchedulePlacePlanId(previousSchedulePlace);
 
       if (
         previousPlanId === undefined ||
@@ -156,17 +218,83 @@ export function useRecommendationReplaceFlow({
         return;
       }
 
-      
-      await updatePlanSchedule(previousPlanId, {
+      const payload: Record<string, unknown> = {
+        transportMode: previousImpactMode,
+      };
+
+      if (previewPreviousVisitTime) {
+        payload.visitTime = previewPreviousVisitTime;
+      }
+
+      if (previewPreviousEndTime) {
+        payload.endTime = previewPreviousEndTime;
+      }
+
+      await updatePlanSchedule(previousPlanId, payload);
+
+      await updateStoredPlanASchedulePlaceTime({
+        scheduleId: params.scheduleId,
+        planId: previousPlanId,
+        visitTime: previewPreviousVisitTime,
+        endTime: previewPreviousEndTime,
         transportMode: previousImpactMode,
       });
+    };
 
-          };
+  const saveNextScheduleAdjustments =
+    async () => {
+      if (!previewNextVisitTime && !previewNextEndTime) {
+        return;
+      }
+
+      const nextPlanId =
+        getSchedulePlacePlanId(nextSchedulePlace);
+
+      if (
+        nextPlanId === undefined ||
+        nextPlanId === null ||
+        String(nextPlanId).trim().length === 0
+      ) {
+        return;
+      }
+
+      const payload: Record<string, unknown> = {};
+
+      if (previewNextVisitTime) {
+        payload.visitTime = previewNextVisitTime;
+      }
+
+      if (previewNextEndTime) {
+        payload.endTime = previewNextEndTime;
+      }
+
+      await updatePlanSchedule(nextPlanId, payload);
+
+      await updateStoredPlanASchedulePlaceTime({
+        scheduleId: params.scheduleId,
+        planId: nextPlanId,
+        visitTime: previewNextVisitTime,
+        endTime: previewNextEndTime,
+      });
+    };
 
   const handleSelectPlace = async (
     place: RecommendationResultDisplayPlace,
   ) => {
     setReplaceErrorMessage("");
+
+    if (
+      hasInvalidPreviewTimeRange(
+        previewVisitTime,
+        previewEndTime,
+      )
+    ) {
+      setReplaceErrorMessage(
+        "종료 시간은 시작 시간보다 늦어야 합니다.",
+      );
+      return;
+    }
+
     const placeId =
       place.placeId ?? place.name;
 
@@ -205,6 +333,17 @@ export function useRecommendationReplaceFlow({
         "weather-notification" ||
       params.fromWeatherNotification;
 
+    try {
+      await savePreviousScheduleAdjustments();
+      await saveNextScheduleAdjustments();
+    } catch (error) {
+      setReplaceErrorMessage(
+        "일정 시간을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      );
+
+      return;
+    }
+
     if (isWeatherNotificationReplace) {
       await executeWeatherRecommendationReplace({
         placeId,
@@ -219,6 +358,7 @@ export function useRecommendationReplaceFlow({
         showToast,
         setSubmittingPlaceId,
         setSelectedPlaceId,
+        onError: setReplaceErrorMessage,
         onSuccess: (updatedTripPlace) =>
           moveToPlanAAfterWeatherReplace(
             updatedTripPlace as {
@@ -226,21 +366,6 @@ export function useRecommendationReplaceFlow({
             },
           ),
       });
-
-      return;
-    }
-
-    try {
-      await savePreviousImpactTransportMode(
-        place,
-      );
-    } catch (error) {
-      
-      showToast(
-        "이동수단 저장 실패",
-        "이전 일정과 대안 일정 사이의 이동수단을 저장하지 못했습니다.",
-        "error",
-      );
 
       return;
     }
