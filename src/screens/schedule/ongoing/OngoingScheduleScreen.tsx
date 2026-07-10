@@ -980,6 +980,11 @@ export default function OngoingScheduleScreen({ navigation, route }: Props) {
         place_id: String(placeId),
         name: place.name,
         category: place.category,
+        address: place.address ?? null,
+        latitude: place.latitude ?? null,
+        longitude: place.longitude ?? null,
+        lat: place.latitude ?? null,
+        lng: place.longitude ?? null,
         // 빈시간 추천 place 이벤트가 제안한 시각(이전 일정 종료~다음 일정 시작)을 그대로 사용
         visitTime: place.suggestedVisitTime ?? null,
         endTime: place.suggestedEndTime ?? null,
@@ -1456,9 +1461,10 @@ const localStyles = StyleSheet.create({
   },
 
   transportCompactIconColumn: {
-    height: 22,
+    minHeight: 32,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "visible",
   },
 
   transportCompactLine: {
