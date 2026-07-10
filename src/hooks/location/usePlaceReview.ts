@@ -1,6 +1,6 @@
 // src/hooks/location/usePlaceReview.ts
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Alert } from "react-native";
 import { trackEvent, AMP } from "../../utils/amplitude";
 
@@ -170,12 +170,52 @@ export function usePlaceReview<TPlace extends PlaceLike>({
   const reanalyzeMessageTimerRef = useRef<ReturnType<typeof setInterval> | null>(
     null,
   );
+  const activeReviewRequestPlaceIdRef = useRef<string | null>(null);
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      activeReviewRequestPlaceIdRef.current = null;
+
+      if (reanalyzeMessageTimerRef.current) {
+        clearInterval(reanalyzeMessageTimerRef.current);
+        reanalyzeMessageTimerRef.current = null;
+      }
+
+      if (__DEV__) {
+        console.log("[place-review] cleanup:", {
+          reason: "unmount",
+        });
+      }
+    };
+  }, []);
 
   const handleTogglePlaceReview = async (place: TPlace) => {
     const placeKey = getReviewPlaceKey(place);
 
-    
+    if (activeReviewRequestPlaceIdRef.current) {
+      if (__DEV__) {
+        console.log("[place-review] polling skipped:", {
+          reason: "request-in-flight",
+          requestedPlaceId: placeKey,
+          activePlaceId: activeReviewRequestPlaceIdRef.current,
+        });
+      }
+
+      return;
+    }
+
     if (reviewLoadingPlaceId || reanalyzeLoadingPlaceId === placeKey) {
+      if (__DEV__) {
+        console.log("[place-review] polling skipped:", {
+          reason: "loading-state-active",
+          requestedPlaceId: placeKey,
+          reviewLoadingPlaceId,
+          reanalyzeLoadingPlaceId,
+        });
+      }
+
       return;
     }
 
@@ -195,10 +235,12 @@ export function usePlaceReview<TPlace extends PlaceLike>({
 
     const detailLoadingStartedAt = Date.now();
 
-    const MAX_POLL_ATTEMPTS = 6;
-    const POLL_INTERVAL_MS = 2000;
+    const INITIAL_POLL_ATTEMPTS = 4;
+    const REANALYZE_POLL_ATTEMPTS = 3;
+    const POLL_INTERVAL_MS = 3000;
 
     try {
+      activeReviewRequestPlaceIdRef.current = placeKey;
       setReviewLoadingPlaceId(placeKey);
 
       let detail: unknown = null;
@@ -207,7 +249,19 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       let analysisCompleted = false;
       let analysisStatusCompleted = false;
 
-      for (let attempt = 0; attempt < MAX_POLL_ATTEMPTS; attempt += 1) {
+      for (
+        let attempt = 0;
+        attempt < INITIAL_POLL_ATTEMPTS;
+        attempt += 1
+      ) {
+        if (__DEV__) {
+          console.log("[place-review] polling start:", {
+            placeId: placeKey,
+            attempt: attempt + 1,
+            maxAttempts: INITIAL_POLL_ATTEMPTS,
+          });
+        }
+
         const [detailResult, summaryResult, analysisStatusResult] =
           await Promise.allSettled([
             getPlaceDetail(placeKey),
@@ -237,6 +291,17 @@ export function usePlaceReview<TPlace extends PlaceLike>({
           analysisCompleted = true;
           analysisStatusCompleted = analysisStatusCompleted || statusCompleted;
 
+          if (__DEV__) {
+            console.log("[place-review] polling complete:", {
+              placeId: placeKey,
+              reason:
+                statusCompleted ? "analysis-status-complete"
+                : hasTags ? "detail-tags-ready"
+                : "review-payload-ready",
+              attempt: attempt + 1,
+            });
+          }
+
           if (statusCompleted && !hasUsefulReview) {
             const [detailRefresh, summaryRefresh] = await Promise.allSettled([
               getPlaceDetail(placeKey),
@@ -252,7 +317,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
           break;
         }
 
-        if (attempt < MAX_POLL_ATTEMPTS - 1) {
+        if (attempt < INITIAL_POLL_ATTEMPTS - 1) {
           await wait(POLL_INTERVAL_MS);
         }
       }
@@ -274,7 +339,11 @@ export function usePlaceReview<TPlace extends PlaceLike>({
 
           await reanalyzePlace(placeKey);
 
-          for (let retry = 0; retry < MAX_POLL_ATTEMPTS; retry += 1) {
+          for (
+            let retry = 0;
+            retry < REANALYZE_POLL_ATTEMPTS;
+            retry += 1
+          ) {
             const [detailRetry, summaryRetry] = await Promise.allSettled([
               getPlaceDetail(placeKey),
               getPlaceSummary(placeKey),
@@ -291,7 +360,7 @@ export function usePlaceReview<TPlace extends PlaceLike>({
               break;
             }
 
-            if (retry < MAX_POLL_ATTEMPTS - 1) {
+            if (retry < REANALYZE_POLL_ATTEMPTS - 1) {
               await wait(POLL_INTERVAL_MS);
             }
           }
@@ -311,6 +380,14 @@ export function usePlaceReview<TPlace extends PlaceLike>({
       
       
       if (!analysisCompleted) {
+        if (__DEV__) {
+          console.log("[place-review] polling stopped:", {
+            placeId: placeKey,
+            reason: "max-attempts",
+            attempts: INITIAL_POLL_ATTEMPTS,
+          });
+        }
+
         const elapsed = Date.now() - detailLoadingStartedAt;
 
         if (elapsed < 1000) {
@@ -324,24 +401,26 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         return;
       }
 
-      setPlaceReviewMap((prev) => ({
-        ...prev,
-        [placeKey]: {
-          detail,
-          summary: isReviewEmptyAfterAnalysis(summary) ||
-            (analysisStatusCompleted && !usefulReviewReady)
-            ? {
-                ...(getReviewPayloadData(summary) as object),
-                analyzed: true,
-                aiSummary: "아직 리뷰 데이터가 없어요.",
-              }
-            : summary,
-          freshness,
-        },
-      }));
+      if (isMountedRef.current) {
+        setPlaceReviewMap((prev) => ({
+          ...prev,
+          [placeKey]: {
+            detail,
+            summary: isReviewEmptyAfterAnalysis(summary) ||
+              (analysisStatusCompleted && !usefulReviewReady)
+              ? {
+                  ...(getReviewPayloadData(summary) as object),
+                  analyzed: true,
+                  aiSummary: "아직 리뷰 데이터가 없어요.",
+                }
+              : summary,
+            freshness,
+          },
+        }));
 
-      setReviewLoadingPlaceId(null);
-      setExpandedPlaceId(placeKey);
+        setReviewLoadingPlaceId(null);
+        setExpandedPlaceId(placeKey);
+      }
     } catch (error) {
       
       const elapsed = Date.now() - detailLoadingStartedAt;
@@ -360,9 +439,21 @@ export function usePlaceReview<TPlace extends PlaceLike>({
         reanalyzeMessageTimerRef.current = null;
       }
 
-      setReanalyzeLoadingPlaceId(null);
-      setReanalyzeMessageIndex(0);
-      setReviewLoadingPlaceId(null);
+      if (activeReviewRequestPlaceIdRef.current === placeKey) {
+        activeReviewRequestPlaceIdRef.current = null;
+      }
+
+      if (__DEV__) {
+        console.log("[place-review] polling cleanup:", {
+          placeId: placeKey,
+        });
+      }
+
+      if (isMountedRef.current) {
+        setReanalyzeLoadingPlaceId(null);
+        setReanalyzeMessageIndex(0);
+        setReviewLoadingPlaceId(null);
+      }
     }
   };
 
