@@ -5,6 +5,13 @@ import RecommendationPlaceCard from "./RecommendationPlaceCard";
 import RecommendationTransportCard, {
   type RecommendationTransportMode,
 } from "./RecommendationTransportCard";
+import {
+  normalizeDisplayTime,
+  normalizeDisplayTimeRange,
+} from "../../utils/recommendation/recommendationFormatters";
+import type {
+  PreviewScheduleTimeTarget,
+} from "../../hooks/recommendation/useRecommendationPreview";
 
 type Props = {
   previousName: string;
@@ -38,7 +45,9 @@ type Props = {
   onChangeNextTransportMode?: (
     mode: RecommendationTransportMode,
   ) => void;
-  onPressTimeEdit: () => void;
+  onPressTimeEdit: (
+    target: PreviewScheduleTimeTarget,
+  ) => void;
 };
 
 const toMinutes = (value: string) => {
@@ -68,7 +77,7 @@ const formatTimeRange = (value: string) => {
     /^\s*(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})\s*$/,
   );
 
-  if (!match) return value;
+  if (!match) return normalizeDisplayTimeRange(value);
 
   const start = toMinutes(match[1]);
   const end = toMinutes(match[2]);
@@ -178,7 +187,9 @@ export default function RecommendationTimeline({
               placeName={previousName}
               address={previousAddress}
               showTimeEdit
-              onPressTimeEdit={onPressTimeEdit}
+              onPressTimeEdit={() =>
+                onPressTimeEdit("previous")
+              }
             />
           ) : (
             <EmptyScheduleRow type="previous" />
@@ -222,7 +233,9 @@ export default function RecommendationTimeline({
             address={alternativeAddress}
             originalPlaceName={originalPlaceName}
             showTimeEdit
-            onPressTimeEdit={onPressTimeEdit}
+            onPressTimeEdit={() =>
+              onPressTimeEdit("alternative")
+            }
           />
         </View>
       </View>
@@ -261,7 +274,9 @@ export default function RecommendationTimeline({
               placeName={nextName}
               address={nextAddress}
               showTimeEdit
-              onPressTimeEdit={onPressTimeEdit}
+              onPressTimeEdit={() =>
+                onPressTimeEdit("next")
+              }
             />
           ) : (
             <EmptyScheduleRow type="next" />

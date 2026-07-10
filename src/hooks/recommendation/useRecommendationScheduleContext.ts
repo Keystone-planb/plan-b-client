@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { loadPlanASchedule } from "../../api/schedules/planAStorage";
-import { getPreviewTimeText } from "../../utils/recommendation/recommendationFormatters";
+import {
+  getPreviewTimeText,
+  normalizeDisplayTime,
+} from "../../utils/recommendation/recommendationFormatters";
 
 import type {
   RecommendationResultRootStackParamList,
@@ -22,6 +25,17 @@ type Params = {
   targetPlace?: RecommendationResultTodayPlace;
   showToast: ShowToast;
 };
+
+type ScheduleDayLike = {
+  day?: number | string;
+  places?: RecommendationResultTodayPlace[];
+};
+
+type SchedulePlaceWithOrder =
+  RecommendationResultTodayPlace & {
+    order?: number | string;
+    visitOrder?: number | string;
+  };
 
 const normalizeSchedulePlace = (
   place?: RecommendationResultTodayPlace,
@@ -54,6 +68,85 @@ const getPlaceIds = (
     )
     .map(String);
 
+const getPlaceOrder = (
+  place: SchedulePlaceWithOrder,
+  index: number,
+) => {
+  const rawOrder =
+    place.visitOrder ??
+    place.order;
+
+  const order =
+    Number(rawOrder);
+
+  return Number.isFinite(order)
+    ? order
+    : index + 1;
+};
+
+const getPlaceTimeMinutes = (
+  place: RecommendationResultTodayPlace,
+) => {
+  const rawTime =
+    place.visitTime ??
+    place.time?.match(/\d{1,2}:\d{2}/)?.[0];
+
+  if (!rawTime) {
+    return null;
+  }
+
+  const match = normalizeDisplayTime(rawTime).match(
+    /^(\d{1,2}):(\d{2})/,
+  );
+
+  if (!match) {
+    return null;
+  }
+
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+
+  if (
+    !Number.isFinite(hour) ||
+    !Number.isFinite(minute)
+  ) {
+    return null;
+  }
+
+  return hour * 60 + minute;
+};
+
+const sortSchedulePlaces = (
+  places: RecommendationResultTodayPlace[],
+) =>
+  places
+    .map((place, index) => ({
+      place,
+      index,
+      order: getPlaceOrder(
+        place as SchedulePlaceWithOrder,
+        index,
+      ),
+      timeMinutes:
+        getPlaceTimeMinutes(place),
+    }))
+    .sort((a, b) => {
+      if (a.order !== b.order) {
+        return a.order - b.order;
+      }
+
+      if (
+        a.timeMinutes != null &&
+        b.timeMinutes != null &&
+        a.timeMinutes !== b.timeMinutes
+      ) {
+        return a.timeMinutes - b.timeMinutes;
+      }
+
+      return a.index - b.index;
+    })
+    .map(({ place }) => place);
+
 export function useRecommendationScheduleContext({
   params,
   targetPlace,
@@ -62,7 +155,9 @@ export function useRecommendationScheduleContext({
   const [
     previousSchedulePlace,
     setPreviousSchedulePlace,
-  ] = useState<RecommendationResultTodayPlace | null>(null);
+  ] = useState<RecommendationResultTodayPlace | null>(() =>
+    normalizeSchedulePlace(params.previousPlace),
+  );
 
   const [
     originalSchedulePlaceFromStorage,
@@ -72,7 +167,9 @@ export function useRecommendationScheduleContext({
   const [
     nextSchedulePlace,
     setNextSchedulePlace,
-  ] = useState<RecommendationResultTodayPlace | null>(null);
+  ] = useState<RecommendationResultTodayPlace | null>(() =>
+    normalizeSchedulePlace(params.nextPlace),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -92,6 +189,12 @@ export function useRecommendationScheduleContext({
           : undefined;
 
       if (!scheduleId || currentPlanId == null) {
+        setPreviousSchedulePlace(
+          normalizeSchedulePlace(params.previousPlace),
+        );
+        setNextSchedulePlace(
+          normalizeSchedulePlace(params.nextPlace),
+        );
         return;
       }
 
@@ -129,9 +232,36 @@ export function useRecommendationScheduleContext({
         const targetName = targetPlace?.name?.trim();
         const targetAddress = targetPlace?.address?.trim();
 
-        for (const day of savedSchedule?.days ?? []) {
+        const requestedDay =
+          Number(params.selectedDay ?? params.day);
+
+        const scheduleDays =
+          (savedSchedule?.days ?? []) as ScheduleDayLike[];
+
+        const candidateDays =
+          Number.isFinite(requestedDay) &&
+          requestedDay > 0
+            ? [
+                ...scheduleDays.filter(
+                  (day) =>
+                    Number(day.day) ===
+                    requestedDay,
+                ),
+                ...scheduleDays.filter(
+                  (day) =>
+                    Number(day.day) !==
+                    requestedDay,
+                ),
+              ]
+            : scheduleDays;
+
+        for (const day of candidateDays) {
           const dayPlaces =
-            day.places as RecommendationResultTodayPlace[];
+            sortSchedulePlaces(
+              Array.isArray(day.places)
+                ? day.places
+                : [],
+            );
 
           const matchedIndex = dayPlaces.findIndex(
             (place) => {
@@ -169,11 +299,20 @@ export function useRecommendationScheduleContext({
         }
 
         if (!matchedPlace) {
-          showToast(
-            "일정 정보 확인 필요",
-            "기존 일정 데이터를 찾지 못했습니다. 일정을 다시 불러온 뒤 시도해주세요.",
-            "error",
+          setPreviousSchedulePlace(
+            normalizeSchedulePlace(params.previousPlace),
           );
+          setNextSchedulePlace(
+            normalizeSchedulePlace(params.nextPlace),
+          );
+
+          if (!params.previousPlace && !params.nextPlace) {
+            showToast(
+              "일정 정보 확인 필요",
+              "기존 일정 데이터를 찾지 못했습니다. 일정을 다시 불러온 뒤 시도해주세요.",
+              "error",
+            );
+          }
           return;
         }
 
@@ -184,7 +323,9 @@ export function useRecommendationScheduleContext({
           matchedPlace.endTime ?? null;
 
         setPreviousSchedulePlace(
-          normalizeSchedulePlace(previousPlace),
+          normalizeSchedulePlace(
+            previousPlace ?? params.previousPlace,
+          ),
         );
 
         setOriginalSchedulePlaceFromStorage({
@@ -199,7 +340,9 @@ export function useRecommendationScheduleContext({
         });
 
         setNextSchedulePlace(
-          normalizeSchedulePlace(nextPlace),
+          normalizeSchedulePlace(
+            nextPlace ?? params.nextPlace,
+          ),
         );
       } catch {
         if (!cancelled) {
@@ -220,8 +363,12 @@ export function useRecommendationScheduleContext({
   }, [
     params.currentPlanId,
     params.scheduleId,
+    params.selectedDay,
     params.serverTripPlaceId,
     params.tripPlaceId,
+    params.day,
+    params.nextPlace,
+    params.previousPlace,
     targetPlace,
   ]);
 

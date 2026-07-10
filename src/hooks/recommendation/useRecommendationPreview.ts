@@ -2,8 +2,11 @@ import { useMemo, useState } from "react";
 
 import {
   getPreviewTimeMinutes,
+  getPreviewTimeParts,
   getPreviewTimeText,
   makePreviewTime,
+  normalizeDisplayTime,
+  normalizeDisplayTimeRange,
   splitPreviewTime,
 } from "../../utils/recommendation/recommendationFormatters";
 
@@ -17,6 +20,10 @@ type Params = {
 };
 
 type PreviewTimePickerTarget = "visitTime" | "endTime";
+export type PreviewScheduleTimeTarget =
+  | "previous"
+  | "alternative"
+  | "next";
 
 type UseRecommendationPreviewParams = {
   params: Params;
@@ -28,6 +35,10 @@ type UseRecommendationPreviewParams = {
   initialEndTime?: string | null;
   onTimeValidationError?: () => void;
 };
+
+const getPreviewPlaceTimeParts = (
+  place?: RecommendationPreviewPlace | null,
+) => getPreviewTimeParts(place);
 
 export function useRecommendationPreview({
   params,
@@ -49,6 +60,14 @@ export function useRecommendationPreview({
     useState<string | null>(null);
   const [previewEndTime, setPreviewEndTime] =
     useState<string | null>(null);
+  const [previewPreviousVisitTime, setPreviewPreviousVisitTime] =
+    useState<string | null>(null);
+  const [previewPreviousEndTime, setPreviewPreviousEndTime] =
+    useState<string | null>(null);
+  const [previewNextVisitTime, setPreviewNextVisitTime] =
+    useState<string | null>(null);
+  const [previewNextEndTime, setPreviewNextEndTime] =
+    useState<string | null>(null);
   const [draftPreviewVisitTime, setDraftPreviewVisitTime] =
     useState<string | null>(null);
   const [draftPreviewEndTime, setDraftPreviewEndTime] =
@@ -57,6 +76,8 @@ export function useRecommendationPreview({
     useState(false);
   const [previewTimePickerTarget, setPreviewTimePickerTarget] =
     useState<PreviewTimePickerTarget>("visitTime");
+  const [previewScheduleTimeTarget, setPreviewScheduleTimeTarget] =
+    useState<PreviewScheduleTimeTarget>("alternative");
   const [previewTimePickerHour, setPreviewTimePickerHour] = useState(0);
   const [previewTimePickerMinute, setPreviewTimePickerMinute] = useState(0);
 
@@ -90,20 +111,32 @@ export function useRecommendationPreview({
     [nextPlace?.address],
   );
 
-  const previewPreviousTime = useMemo(
-    () => getPreviewTimeText(previousPlace) || "시간 미정",
-    [previousPlace],
-  );
+  const previewPreviousTime = useMemo(() => {
+    const overrideTime = [
+      normalizeDisplayTime(previewPreviousVisitTime),
+      normalizeDisplayTime(previewPreviousEndTime),
+    ]
+      .filter(Boolean)
+      .join(" - ");
+
+    return overrideTime || getPreviewTimeText(previousPlace) || "시간 미정";
+  }, [previousPlace, previewPreviousEndTime, previewPreviousVisitTime]);
 
   const previewAlternativeTime = useMemo(
     () => getPreviewTimeText(alternativePlace) || "시간 미정",
     [alternativePlace],
   );
 
-  const previewNextTime = useMemo(
-    () => getPreviewTimeText(nextPlace) || "시간 미정",
-    [nextPlace],
-  );
+  const previewNextTime = useMemo(() => {
+    const overrideTime = [
+      normalizeDisplayTime(previewNextVisitTime),
+      normalizeDisplayTime(previewNextEndTime),
+    ]
+      .filter(Boolean)
+      .join(" - ");
+
+    return overrideTime || getPreviewTimeText(nextPlace) || "시간 미정";
+  }, [nextPlace, previewNextEndTime, previewNextVisitTime]);
 
   const previewAppliedVisitTime =
     previewVisitTime ?? initialVisitTime ?? alternativePlace?.visitTime ?? null;
@@ -112,9 +145,66 @@ export function useRecommendationPreview({
     previewEndTime ?? initialEndTime ?? alternativePlace?.endTime ?? null;
 
   const previewAppliedTimeText =
-    [previewAppliedVisitTime, previewAppliedEndTime].filter(Boolean).join(" - ") ||
+    [
+      normalizeDisplayTime(previewAppliedVisitTime),
+      normalizeDisplayTime(previewAppliedEndTime),
+    ].filter(Boolean).join(" - ") ||
     getPreviewTimeText(alternativePlace) ||
     "시간 미정";
+
+  const getTargetTimeValues = (
+    target: PreviewScheduleTimeTarget,
+  ) => {
+    if (target === "previous") {
+      const fallbackTimes =
+        getPreviewPlaceTimeParts(previousPlace);
+
+      return {
+        visitTime:
+          previewPreviousVisitTime ??
+          fallbackTimes.visitTime,
+        endTime:
+          previewPreviousEndTime ??
+          fallbackTimes.endTime,
+      };
+    }
+
+    if (target === "next") {
+      const fallbackTimes =
+        getPreviewPlaceTimeParts(nextPlace);
+
+      return {
+        visitTime:
+          previewNextVisitTime ??
+          fallbackTimes.visitTime,
+        endTime:
+          previewNextEndTime ??
+          fallbackTimes.endTime,
+      };
+    }
+
+    return {
+      visitTime: previewAppliedVisitTime,
+      endTime: previewAppliedEndTime,
+    };
+  };
+
+  const previewTimePickerPlaceName = useMemo(() => {
+    if (previewScheduleTimeTarget === "previous") {
+      return previousPlace?.name?.trim() || "이전 일정";
+    }
+
+    if (previewScheduleTimeTarget === "next") {
+      return nextPlace?.name?.trim() || "다음 일정";
+    }
+
+    return alternativePlace?.name?.trim() || "대안 장소";
+  }, [
+    alternativePlace?.name,
+    nextPlace?.name,
+    previousPlace?.name,
+    previewScheduleTimeTarget,
+  ]);
 
   const previewMoveTimeText = useMemo(() => {
     if (!params.moveTime || params.moveTime === "ANY") return "";
@@ -132,9 +222,14 @@ export function useRecommendationPreview({
   const getCurrentPickerTime = () =>
     makePreviewTime(previewTimePickerHour, previewTimePickerMinute);
 
-  const openPreviewTimePicker = () => {
-    const nextDraftVisitTime = previewAppliedVisitTime ?? null;
-    const nextDraftEndTime = previewAppliedEndTime ?? null;
+  const openPreviewTimePicker = (
+    target: PreviewScheduleTimeTarget = "alternative",
+  ) => {
+    setPreviewScheduleTimeTarget(target);
+
+    const targetTimes = getTargetTimeValues(target);
+    const nextDraftVisitTime = targetTimes.visitTime ?? null;
+    const nextDraftEndTime = targetTimes.endTime ?? null;
 
     setDraftPreviewVisitTime(nextDraftVisitTime);
     setDraftPreviewEndTime(nextDraftEndTime);
@@ -163,14 +258,17 @@ export function useRecommendationPreview({
     if (target !== "visitTime" && target !== "endTime") return;
 
     const currentPickerTime = getCurrentPickerTime();
+    const targetTimes = getTargetTimeValues(
+      previewScheduleTimeTarget,
+    );
     const nextDraftVisitTime =
       previewTimePickerTarget === "visitTime"
         ? currentPickerTime
-        : draftPreviewVisitTime ?? previewAppliedVisitTime ?? null;
+        : draftPreviewVisitTime ?? targetTimes.visitTime ?? null;
     const nextDraftEndTime =
       previewTimePickerTarget === "endTime"
         ? currentPickerTime
-        : draftPreviewEndTime ?? previewAppliedEndTime ?? null;
+        : draftPreviewEndTime ?? targetTimes.endTime ?? null;
 
     setDraftPreviewVisitTime(nextDraftVisitTime);
     setDraftPreviewEndTime(nextDraftEndTime);
@@ -185,14 +283,17 @@ export function useRecommendationPreview({
 
   const savePreviewTimePicker = () => {
     const currentPickerTime = getCurrentPickerTime();
+    const targetTimes = getTargetTimeValues(
+      previewScheduleTimeTarget,
+    );
     const nextVisitTime =
       previewTimePickerTarget === "visitTime"
         ? currentPickerTime
-        : draftPreviewVisitTime ?? previewAppliedVisitTime ?? null;
+        : draftPreviewVisitTime ?? targetTimes.visitTime ?? null;
     const nextEndTime =
       previewTimePickerTarget === "endTime"
         ? currentPickerTime
-        : draftPreviewEndTime ?? previewAppliedEndTime ?? null;
+        : draftPreviewEndTime ?? targetTimes.endTime ?? null;
 
     const nextVisitMinutes = getPreviewTimeMinutes(nextVisitTime);
     const nextEndMinutes = getPreviewTimeMinutes(nextEndTime);
@@ -208,8 +309,18 @@ export function useRecommendationPreview({
 
     setDraftPreviewVisitTime(nextVisitTime);
     setDraftPreviewEndTime(nextEndTime);
-    setPreviewVisitTime(nextVisitTime);
-    setPreviewEndTime(nextEndTime);
+
+    if (previewScheduleTimeTarget === "previous") {
+      setPreviewPreviousVisitTime(nextVisitTime);
+      setPreviewPreviousEndTime(nextEndTime);
+    } else if (previewScheduleTimeTarget === "next") {
+      setPreviewNextVisitTime(nextVisitTime);
+      setPreviewNextEndTime(nextEndTime);
+    } else {
+      setPreviewVisitTime(nextVisitTime);
+      setPreviewEndTime(nextEndTime);
+    }
+
     setPreviewTimePickerVisible(false);
     return true;
   };
@@ -263,6 +374,8 @@ export function useRecommendationPreview({
     draftPreviewEndTime,
     previewTimePickerVisible,
     previewTimePickerTarget,
+    previewScheduleTimeTarget,
+    previewTimePickerPlaceName,
     previewTimePickerHour,
     previewTimePickerMinute,
     previewAppliedVisitTime,

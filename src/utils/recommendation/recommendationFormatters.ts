@@ -3,30 +3,199 @@ export const toText = (value: unknown) => {
   return value.trim();
 };
 
-export const getPreviewTimeText = (
-  place?: {
-    time?: string | null;
-    visitTime?: string | null;
-    endTime?: string | null;
-  } | null,
-) => {
-  const directTime = place?.time?.trim();
+export const normalizeDisplayTime = (
+  value?: string | null,
+): string => {
+  const raw = String(value ?? "").trim();
 
-  if (directTime) {
-    return directTime;
+  if (!raw) {
+    return "";
   }
 
-  const visitTime = place?.visitTime?.trim();
-  const endTime = place?.endTime?.trim();
+  const colonTimeMatch = raw.match(
+    /(?:^|[Tt\s])(\d{1,2}):(\d{2})(?::?(\d{2}))?/,
+  );
 
-  return [visitTime, endTime].filter(Boolean).join(" - ");
+  if (colonTimeMatch) {
+    return `${colonTimeMatch[1].padStart(2, "0")}:${colonTimeMatch[2]}`;
+  }
+
+  const compactOnlyMatch = raw.match(
+    /^(\d{2})(\d{2})(\d{2})?$/,
+  );
+
+  if (compactOnlyMatch) {
+    return `${compactOnlyMatch[1]}:${compactOnlyMatch[2]}`;
+  }
+
+  const compactDateTimeMatch = raw.match(
+    /^\d{8}[Tt](\d{2})(\d{2})(\d{2})?$/,
+  );
+
+  if (compactDateTimeMatch) {
+    return `${compactDateTimeMatch[1]}:${compactDateTimeMatch[2]}`;
+  }
+
+  return raw;
+};
+
+export const normalizeDisplayTimeRange = (
+  value?: string | null,
+  endValue?: string | null,
+) => {
+  const hasExplicitEnd =
+    endValue !== undefined &&
+    endValue !== null &&
+    String(endValue).trim().length > 0;
+
+  if (hasExplicitEnd) {
+    const startTime = normalizeDisplayTime(value);
+    const endTime = normalizeDisplayTime(endValue);
+
+    if (startTime && endTime) {
+      return `${startTime} - ${endTime}`;
+    }
+
+    if (startTime || endTime) {
+      return startTime || endTime;
+    }
+  }
+
+  const raw = String(value ?? "").trim();
+
+  if (!raw) {
+    return "";
+  }
+
+  const parts = raw.split(/\s+-\s+/);
+
+  if (parts.length > 1) {
+    const normalizedParts = parts
+      .map((part) => normalizeDisplayTime(part))
+      .filter(Boolean);
+
+    if (normalizedParts.length > 0) {
+      return normalizedParts.join(" - ");
+    }
+  }
+
+  return normalizeDisplayTime(raw);
+};
+
+type PreviewTimeSource = {
+  time?: string | null;
+  visitTime?: string | null;
+  startTime?: string | null;
+  previousVisitTime?: string | null;
+  beforePlanStartTime?: string | null;
+  nextVisitTime?: string | null;
+  afterPlanStartTime?: string | null;
+  newVisitTime?: string | null;
+  endTime?: string | null;
+  previousEndTime?: string | null;
+  beforePlanEndTime?: string | null;
+  nextEndTime?: string | null;
+  afterPlanEndTime?: string | null;
+  newEndTime?: string | null;
+  finishTime?: string | null;
+  toTime?: string | null;
+};
+
+const pickFirstTimeValue = (
+  values: Array<string | null | undefined>,
+) => {
+  for (const value of values) {
+    const normalized = normalizeDisplayTime(value);
+
+    if (normalized) {
+      return normalized;
+    }
+  }
+
+  return "";
+};
+
+export const getPreviewTimeParts = (
+  place?: PreviewTimeSource | null,
+) => {
+  const visitTime = pickFirstTimeValue([
+    place?.visitTime,
+    place?.startTime,
+    place?.previousVisitTime,
+    place?.beforePlanStartTime,
+    place?.nextVisitTime,
+    place?.afterPlanStartTime,
+    place?.newVisitTime,
+  ]);
+
+  const endTime = pickFirstTimeValue([
+    place?.endTime,
+    place?.previousEndTime,
+    place?.beforePlanEndTime,
+    place?.nextEndTime,
+    place?.afterPlanEndTime,
+    place?.newEndTime,
+    place?.finishTime,
+    place?.toTime,
+  ]);
+
+  if (visitTime || endTime) {
+    return {
+      visitTime: visitTime || null,
+      endTime: endTime || null,
+    };
+  }
+
+  const normalizedRange = normalizeDisplayTimeRange(
+    place?.time,
+  );
+
+  if (normalizedRange) {
+    const [rangeVisitTime, rangeEndTime] =
+      normalizedRange.split(/\s*-\s*/);
+
+    return {
+      visitTime: rangeVisitTime || null,
+      endTime: rangeEndTime || null,
+    };
+  }
+
+  return {
+    visitTime: null,
+    endTime: null,
+  };
+};
+
+export const getPreviewTimeText = (
+  place?: PreviewTimeSource | null,
+) => {
+  const { visitTime, endTime } =
+    getPreviewTimeParts(place);
+
+  const visitEndTime =
+    normalizeDisplayTimeRange(
+      visitTime,
+      endTime,
+    );
+
+  if (visitEndTime) {
+    return visitEndTime;
+  }
+
+  const directTime = normalizeDisplayTimeRange(
+    place?.time,
+  );
+
+  return directTime;
 };
 
 export const padPreviewTime = (value: number) =>
   String(value).padStart(2, "0");
 
 export const splitPreviewTime = (value?: string | null) => {
-  const matched = String(value ?? "").match(/([01]?\d|2[0-3]):([0-5]\d)/);
+  const matched = normalizeDisplayTime(value).match(
+    /([01]?\d|2[0-3]):([0-5]\d)/,
+  );
 
   return {
     hour: matched ? Number(matched[1]) : 0,
@@ -38,7 +207,9 @@ export const makePreviewTime = (hour: number, minute: number) =>
   `${padPreviewTime(hour)}:${padPreviewTime(minute)}`;
 
 export const getPreviewTimeMinutes = (value?: string | null) => {
-  const matched = String(value ?? "").match(/([01]?\d|2[0-3]):([0-5]\d)/);
+  const matched = normalizeDisplayTime(value).match(
+    /([01]?\d|2[0-3]):([0-5]\d)/,
+  );
 
   if (!matched) {
     return null;

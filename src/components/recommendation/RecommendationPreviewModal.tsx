@@ -17,6 +17,13 @@ import RecommendationMap from "./RecommendationMap";
 import RecommendationTimeline from "./RecommendationTimeline";
 import WhiteToast from "./WhiteToast";
 import { useRecommendationToast } from "../../hooks/recommendation/useRecommendationToast";
+import {
+  normalizeDisplayTime,
+  normalizeDisplayTimeRange,
+} from "../../utils/recommendation/recommendationFormatters";
+import type {
+  PreviewScheduleTimeTarget,
+} from "../../hooks/recommendation/useRecommendationPreview";
 import type { RecommendationTransportMode } from "./RecommendationTransportCard";
 
 type PreviewPlace = {
@@ -71,7 +78,9 @@ type Props = {
   onChangeTransportMode: (mode: RecommendationTransportMode) => void;
   onChangePreviousTransportMode?: (mode: RecommendationTransportMode) => void;
   onChangeNextTransportMode?: (mode: RecommendationTransportMode) => void;
-  onPressTimeEdit: () => void;
+  onPressTimeEdit: (
+    target: PreviewScheduleTimeTarget,
+  ) => void;
   onTimePickerClose: () => void;
   onSwitchTimeTarget: (
     target:
@@ -136,6 +145,13 @@ export default function RecommendationPreviewModal({
   onSaveTime,
   onConfirm,
 }: Props) {
+  const displayVisitTimeText =
+    normalizeDisplayTime(visitTimeText) ||
+    visitTimeText;
+  const displayEndTimeText =
+    normalizeDisplayTime(endTimeText) ||
+    endTimeText;
+
   const insets = useSafeAreaInsets();
   const { height: windowHeight } = useWindowDimensions();
   const { whiteToast, showWhiteToast } =
@@ -190,8 +206,8 @@ export default function RecommendationPreviewModal({
               placeName={timePickerPlaceName}
               target={timePickerTarget}
               previewText={timePickerPreviewText}
-              visitTimeText={visitTimeText}
-              endTimeText={endTimeText}
+              visitTimeText={displayVisitTimeText}
+              endTimeText={displayEndTimeText}
               hourText={hourText}
               minuteText={minuteText}
               onClose={onTimePickerClose}
@@ -260,7 +276,10 @@ export default function RecommendationPreviewModal({
             previousTime={previousTime}
             previousAddress={previousAddress}
             alternativeName={alternativeName}
-            alternativeTime={alternativeTime}
+            alternativeTime={
+              normalizeDisplayTimeRange(alternativeTime) ||
+              alternativeTime
+            }
             alternativeAddress={alternativeAddress}
             originalPlaceName={originalPlaceName}
             nextName={nextName}
