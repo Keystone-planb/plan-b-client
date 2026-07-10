@@ -34,12 +34,13 @@ export const getPlanBPlaceDisplay = (name?: string | null) => {
     .trim();
 
   const bracketMatch = withoutSuffix.match(BRACKET_NAME_PATTERN);
+  const displayName =
+    bracketMatch?.[1]?.trim() ||
+    withoutSuffix ||
+    "이름 없는 장소";
 
   return {
-    displayName:
-      bracketMatch?.[1]?.trim() ||
-      withoutSuffix ||
-      "이름 없는 장소",
+    displayName,
     isPlanB: true,
   };
 };

@@ -2,7 +2,9 @@ import React, { forwardRef, useState } from "react";
 import { Image, StyleSheet, View, Text, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { getPlaceCategoryIcon } from "../../utils/placeCategoryIcon";
-import PlanBPlaceName from "../common/PlanBPlaceName";
+import PlanBPlaceName, {
+  getPlanBPlaceDisplay,
+} from "../common/PlanBPlaceName";
 
 
 const getMemoText = (memo: any) => {
@@ -22,6 +24,36 @@ const getMemoPreviewText = (place: any) => {
   if (visibleMemos.length === 1) return visibleMemos[0];
 
   return `${visibleMemos[0]} 외 ${visibleMemos.length - 1}개`;
+};
+
+const getDisplayPlaceNameCandidate = (value: any) => {
+  const rawName = String(value ?? "").trim();
+  if (!rawName) return "";
+
+  const { displayName } = getPlanBPlaceDisplay(rawName);
+  if (!displayName || displayName === "이름 없는 장소") return "";
+
+  return rawName;
+};
+
+const getOngoingDisplayPlaceName = (place: any, displayPlace: any) => {
+  const candidates = [
+    place?.name,
+    place?.placeName,
+    place?.title,
+    place?.googlePlaceName,
+    displayPlace?.name,
+    displayPlace?.placeName,
+    displayPlace?.title,
+    displayPlace?.googlePlaceName,
+  ];
+
+  for (const candidate of candidates) {
+    const displayName = getDisplayPlaceNameCandidate(candidate);
+    if (displayName) return displayName;
+  }
+
+  return "이름 없는 장소";
 };
 
 type Props = {
@@ -72,8 +104,10 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
         place?.isWeatherAlternative,
     );
 
-  const displayPlaceName =
-    String(place.name ?? "");
+  const displayPlaceName = getOngoingDisplayPlaceName(
+    place,
+    displayPlace,
+  );
 
   const placeNameLength =
     displayPlaceName.replace(
@@ -135,7 +169,7 @@ const OngoingPlaceCard = forwardRef<View, Props>(function OngoingPlaceCard(
               ) : null}
 
               <PlanBPlaceName
-                name={place.name}
+                name={displayPlaceName}
                 textStyle={[
                   styles.placeName,
                   localStyles.placeName,
