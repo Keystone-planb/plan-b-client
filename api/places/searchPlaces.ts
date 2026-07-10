@@ -20,6 +20,32 @@ type RawPlaceSearchResult = {
   lng?: number;
   latitude?: number;
   longitude?: number;
+  place?: {
+    lat?: number | string;
+    lng?: number | string;
+    latitude?: number | string;
+    longitude?: number | string;
+  };
+  location?: {
+    lat?: number | string;
+    lng?: number | string;
+    latitude?: number | string;
+    longitude?: number | string;
+  };
+  coordinate?: {
+    lat?: number | string;
+    lng?: number | string;
+    latitude?: number | string;
+    longitude?: number | string;
+  };
+  geometry?: {
+    location?: {
+      lat?: number | string;
+      lng?: number | string;
+      latitude?: number | string;
+      longitude?: number | string;
+    };
+  };
 };
 
 type AxiosLikeError = {
@@ -49,8 +75,43 @@ const assertNotHtmlResponse = (data: unknown, apiName: string) => {
   }
 };
 
+const toFiniteNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
 const normalizePlace = (place: RawPlaceSearchResult): PlaceSearchResult => {
   const rawPlaceId = place.placeId ?? place.googlePlaceId ?? place.id ?? "";
+  const latitude =
+    toFiniteNumber(place.latitude) ??
+    toFiniteNumber(place.lat) ??
+    toFiniteNumber(place.place?.latitude) ??
+    toFiniteNumber(place.place?.lat) ??
+    toFiniteNumber(place.location?.latitude) ??
+    toFiniteNumber(place.location?.lat) ??
+    toFiniteNumber(place.coordinate?.latitude) ??
+    toFiniteNumber(place.coordinate?.lat) ??
+    toFiniteNumber(place.geometry?.location?.latitude) ??
+    toFiniteNumber(place.geometry?.location?.lat);
+  const longitude =
+    toFiniteNumber(place.longitude) ??
+    toFiniteNumber(place.lng) ??
+    toFiniteNumber(place.place?.longitude) ??
+    toFiniteNumber(place.place?.lng) ??
+    toFiniteNumber(place.location?.longitude) ??
+    toFiniteNumber(place.location?.lng) ??
+    toFiniteNumber(place.coordinate?.longitude) ??
+    toFiniteNumber(place.coordinate?.lng) ??
+    toFiniteNumber(place.geometry?.location?.longitude) ??
+    toFiniteNumber(place.geometry?.location?.lng);
 
   return {
     placeId: String(rawPlaceId),
@@ -59,8 +120,8 @@ const normalizePlace = (place: RawPlaceSearchResult): PlaceSearchResult => {
     address: place.address ?? "",
     rating: place.rating,
     category: place.category,
-    latitude: place.latitude ?? place.lat,
-    longitude: place.longitude ?? place.lng,
+    latitude,
+    longitude,
   };
 };
 
@@ -204,9 +265,10 @@ const logPlaceApiError = ({
   url: string;
   extra?: Record<string, unknown>;
 }) => {
-  console.log(tag, {
+  if (!__DEV__) return;
+
+  console.warn(tag, {
     status: getAxiosErrorStatus(error),
-    data: getAxiosErrorData(error),
     code: getAxiosErrorCode(error),
     message: getAxiosErrorMessage(error),
     url,
@@ -228,20 +290,12 @@ export const searchPlaces = async (
     trimmedQuery,
   )}`;
 
-  console.log("[places/search] request url:", requestUrl);
-  console.log("[places/search] request query:", trimmedQuery);
-
   try {
     const response = await apiClient.get<PlaceSearchResponse>(path, {
       params: {
         query: trimmedQuery,
       },
       timeout: PLACE_API_TIMEOUT,
-    });
-
-    console.log("[places/search] response:", {
-      count: Array.isArray(response.data) ? response.data.length : undefined,
-      hasData: Boolean(response.data),
     });
 
     assertNotHtmlResponse(response.data, "장소 검색");
@@ -271,9 +325,11 @@ export const searchPlaces = async (
           getArrayValue(dataValue, "results") ??
           (Array.isArray(dataValue) ? dataValue : []);
 
-      return places
+      const normalizedPlaces = places
         .map((place) => normalizePlace(place as PlaceSearchResult))
         .filter((place) => place.placeId);
+
+      return normalizedPlaces;
   } catch (error) {
     logPlaceApiError({
       tag: "[places/search] failed:",
@@ -298,18 +354,9 @@ export const getPlaceDetail = async (
   const path = `/api/places/${encodedPlaceId}`;
   const requestUrl = getAxiosRequestUrl(path);
 
-  console.log("[places/detail] request url:", requestUrl);
-
   try {
     const response = await apiClient.get<PlaceDetail>(path, {
       timeout: PLACE_API_TIMEOUT,
-    });
-
-    console.log("[places/detail] response:", {
-      placeId: response.data?.placeId,
-      googlePlaceId: response.data?.googlePlaceId,
-      name: response.data?.name,
-      hasPhoto: Boolean(response.data?.photoUrl),
     });
 
     assertNotHtmlResponse(response.data, "장소 상세");
@@ -339,19 +386,9 @@ export const getPlaceSummary = async (
   const path = `/api/places/${encodedPlaceId}/summary`;
   const requestUrl = getAxiosRequestUrl(path);
 
-  console.log("[places/summary] request url:", requestUrl);
-
   try {
     const response = await apiClient.get<PlaceSummaryResponse>(path, {
       timeout: PLACE_API_TIMEOUT,
-    });
-
-    console.log("[places/summary] response:", {
-      placeId: response.data?.placeId,
-      hasReviewSummary: Boolean(response.data?.reviewSummary),
-      hasGoogleReview: Boolean(response.data?.googleReview),
-      hasNaverReview: Boolean(response.data?.naverReview),
-      hasInstaReview: Boolean(response.data?.instaReview),
     });
 
     assertNotHtmlResponse(response.data, "장소 AI 요약");
@@ -381,17 +418,9 @@ export const getPlaceFreshness = async (
   const path = `/api/places/${encodedPlaceId}/freshness`;
   const requestUrl = getAxiosRequestUrl(path);
 
-  console.log("[places/freshness] request url:", requestUrl);
-
   try {
     const response = await apiClient.get<PlaceFreshnessResponse>(path, {
       timeout: PLACE_API_TIMEOUT,
-    });
-
-    console.log("[places/freshness] response:", {
-      placeId: response.data?.placeId,
-      isFresh: response.data?.isFresh,
-      hasLastSyncedAt: Boolean(response.data?.lastSyncedAt),
     });
 
     assertNotHtmlResponse(response.data, "장소 정보 최신성");
@@ -430,26 +459,19 @@ export const getPlaceAnalysisStatus = async (
 ): Promise<PlaceAnalysisStatusResponse> => {
   const encodedPlaceId = encodeURIComponent(placeId);
   const path = `/api/places/${encodedPlaceId}/analysis-status`;
-  const requestUrl = `${API_CONFIG.BASE_URL}${path}`;
-
-  console.log("[places/analysis-status] request url:", requestUrl);
 
   try {
     const response = await apiClient.get<PlaceAnalysisStatusResponse>(path);
 
-    console.log("[places/analysis-status] response:", {
-      placeId,
-      data: response.data,
-    });
-
     return response.data;
   } catch (error: any) {
-    console.log("[places/analysis-status] failed:", {
-      placeId,
-      status: error?.response?.status,
-      data: error?.response?.data,
-      message: error?.message,
-    });
+    if (__DEV__) {
+      console.warn("[places/analysis-status] failed:", {
+        placeId,
+        status: error?.response?.status,
+        message: error?.message,
+      });
+    }
 
     return {};
   }

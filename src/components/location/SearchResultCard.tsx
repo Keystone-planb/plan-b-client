@@ -22,6 +22,7 @@ type Props = {
   isFavorite?: boolean;
   isFavoriteLoading?: boolean;
   onFavoritePress?: () => void;
+  isLoadingPlaceholder?: boolean;
 };
 
 export default function SearchResultCard({
@@ -37,6 +38,7 @@ export default function SearchResultCard({
   isFavorite = false,
   isFavoriteLoading = false,
   onFavoritePress,
+  isLoadingPlaceholder = false,
 }: Props) {
   if (isPreview) {
     return (
@@ -145,52 +147,54 @@ export default function SearchResultCard({
         </View>
       </TouchableOpacity>
 
-      <View style={styles.resultActionRow}>
-        <TouchableOpacity
-          style={styles.detailButton}
-          activeOpacity={0.8}
-          disabled={isReviewLoading}
-          onPress={onDetailPress}
-        >
-          {isReviewLoading ? (
-            <ActivityIndicator size="small" color="#2158E8" />
-          ) : (
-            <>
-              <Ionicons name="information-circle-outline" size={16} color="#2158E8" />
-              <Text style={styles.detailButtonText}>
-                상세 보기
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.selectPlaceButton,
-            isSelected && styles.selectPlaceButtonActive,
-          ]}
-          activeOpacity={0.85}
-          disabled={isDetailLoading}
-          onPress={onSelectPress}
-        >
-        {isDetailLoading ? (
-          <ActivityIndicator
-            size="small"
-            color={isSelected ? "#FFFFFF" : "#2158E8"}
-          />
-        ) : (
-          <Text
-            style={[
-              styles.selectPlaceButtonText,
-              isSelected &&
-                styles.selectPlaceButtonTextActive,
-            ]}
+      {isLoadingPlaceholder ? null : (
+        <View style={styles.resultActionRow}>
+          <TouchableOpacity
+            style={styles.detailButton}
+            activeOpacity={0.8}
+            disabled={isReviewLoading}
+            onPress={onDetailPress}
           >
-            {isSelected ? "선택 완료" : "이 장소 선택"}
-          </Text>
-        )}
-        </TouchableOpacity>
-      </View>
+            {isReviewLoading ? (
+              <ActivityIndicator size="small" color="#2158E8" />
+            ) : (
+              <>
+                <Ionicons name="information-circle-outline" size={16} color="#2158E8" />
+                <Text style={styles.detailButtonText}>
+                  상세 보기
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.selectPlaceButton,
+              isSelected && styles.selectPlaceButtonActive,
+            ]}
+            activeOpacity={0.85}
+            disabled={isDetailLoading}
+            onPress={onSelectPress}
+          >
+          {isDetailLoading ? (
+            <ActivityIndicator
+              size="small"
+              color={isSelected ? "#FFFFFF" : "#2158E8"}
+            />
+          ) : (
+            <Text
+              style={[
+                styles.selectPlaceButtonText,
+                isSelected &&
+                  styles.selectPlaceButtonTextActive,
+              ]}
+            >
+              {isSelected ? "선택 완료" : "이 장소 선택"}
+            </Text>
+          )}
+          </TouchableOpacity>
+        </View>
+      )}
 
       {isReviewLoading && (
         <View style={styles.reviewSkeletonPanel}>
@@ -209,15 +213,17 @@ export default function SearchResultCard({
               </Text>
             </View>
 
-            <TouchableOpacity
-              style={styles.reviewSkeletonCancelChip}
-              activeOpacity={0.8}
-              onPress={onCancelReviewLoading}
-            >
-              <Text style={styles.reviewSkeletonCancelText}>
-                취소
-              </Text>
-            </TouchableOpacity>
+            {onCancelReviewLoading ? (
+              <TouchableOpacity
+                style={styles.reviewSkeletonCancelChip}
+                activeOpacity={0.8}
+                onPress={onCancelReviewLoading}
+              >
+                <Text style={styles.reviewSkeletonCancelText}>
+                  취소
+                </Text>
+              </TouchableOpacity>
+            ) : null}
           </View>
 
           <View style={styles.reviewSkeletonSummaryCard}>

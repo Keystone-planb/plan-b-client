@@ -17,7 +17,6 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import MapView, { Marker, PROVIDER_GOOGLE } from "react-native-maps";
 import { Ionicons } from "@expo/vector-icons";
-import { getAnalyzedPlaceDetail } from "../../../../api/places/place";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   BookmarkApiError,
@@ -142,6 +141,96 @@ const MIN_VISIBLE_RESULT_SHEET_HEIGHT = 260;
 
 
 const REVIEW_TEXT_MAX_LENGTH = 80;
+
+const toFiniteNumber = (value: unknown) => {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  return undefined;
+};
+
+const getCoordinateValue = (
+  source: unknown,
+  paths: string[],
+) => {
+  if (!source || typeof source !== "object") {
+    return undefined;
+  }
+
+  for (const path of paths) {
+    const value = path.split(".").reduce<unknown>((current, key) => {
+      if (!current || typeof current !== "object") {
+        return undefined;
+      }
+
+      return (current as Record<string, unknown>)[key];
+    }, source);
+    const coordinate = toFiniteNumber(value);
+
+    if (coordinate !== undefined) {
+      return coordinate;
+    }
+  }
+
+  return undefined;
+};
+
+const getCoordinatesFromSource = (source: unknown) => ({
+  latitude: getCoordinateValue(source, [
+    "latitude",
+    "lat",
+    "place.latitude",
+    "place.lat",
+    "location.latitude",
+    "location.lat",
+    "coordinate.latitude",
+    "coordinate.lat",
+    "geometry.location.latitude",
+    "geometry.location.lat",
+    "data.latitude",
+    "data.lat",
+    "data.location.latitude",
+    "data.location.lat",
+    "data.geometry.location.latitude",
+    "data.geometry.location.lat",
+    "result.latitude",
+    "result.lat",
+    "result.location.latitude",
+    "result.location.lat",
+    "result.geometry.location.latitude",
+    "result.geometry.location.lat",
+  ]),
+  longitude: getCoordinateValue(source, [
+    "longitude",
+    "lng",
+    "place.longitude",
+    "place.lng",
+    "location.longitude",
+    "location.lng",
+    "coordinate.longitude",
+    "coordinate.lng",
+    "geometry.location.longitude",
+    "geometry.location.lng",
+    "data.longitude",
+    "data.lng",
+    "data.location.longitude",
+    "data.location.lng",
+    "data.geometry.location.longitude",
+    "data.geometry.location.lng",
+    "result.longitude",
+    "result.lng",
+    "result.location.longitude",
+    "result.location.lng",
+    "result.geometry.location.longitude",
+    "result.geometry.location.lng",
+  ]),
+});
 
 const getReviewPlaceKey = (place: PlaceSearchResult) => {
   const keySource = place.googlePlaceId ?? place.placeId;
@@ -333,6 +422,9 @@ export default function AddScheduleLocationScreen({
   const submitLockRef = useRef(false);
   const mapRef = useRef<MapView>(null);
   const keyboardVisibleRef = useRef(false);
+  const favoriteListRequestRef = useRef<Promise<void> | null>(null);
+  const favoriteListAutoRequestedRef = useRef(false);
+  const isMountedRef = useRef(true);
 
   const mapHeightWhenSheetCollapsed = useMemo(
     () => {
@@ -526,6 +618,13 @@ export default function AddScheduleLocationScreen({
       );
     };
   }, [mapSectionHeight]);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      favoriteListRequestRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     const showEvent =
@@ -738,65 +837,82 @@ export default function AddScheduleLocationScreen({
       "저장한 장소",
     category: bookmark.category ?? undefined,
     address: bookmark.address ?? "주소 정보 없음",
-    latitude:
-      typeof bookmark.lat === "number"
-        ? bookmark.lat
-        : undefined,
-    longitude:
-      typeof bookmark.lng === "number"
-        ? bookmark.lng
-        : undefined,
+    latitude: getCoordinatesFromSource(bookmark).latitude,
+    longitude: getCoordinatesFromSource(bookmark).longitude,
     createdAt: bookmark.createdAt,
   });
 
   const loadFavoritePlaces = async (
     showErrorAlert = false,
+    reason = "unspecified",
+    force = false,
   ) => {
-    try {
-      setFavoriteListLoading(true);
-
-      const bookmarks = await getBookmarks();
-      const normalizedBookmarks =
-        bookmarks.map(normalizeBookmarkPlace);
-
-      
-      setFavoritePlaces(normalizedBookmarks);
-      setFavoriteListLoaded(true);
-    } catch (error) {
-      
-      if (showErrorAlert) {
-        const message =
-          error instanceof BookmarkApiError &&
-          error.status === 401
-            ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
-            : "즐겨찾기 목록을 불러오지 못했습니다.";
-
-        Alert.alert(
-          "즐겨찾기 조회 실패",
-          message,
-        );
-      }
-    } finally {
-      setFavoriteListLoading(false);
+    if (!force && favoriteListAutoRequestedRef.current) {
+      return favoriteListRequestRef.current ?? Promise.resolve();
     }
+
+    if (favoriteListRequestRef.current) {
+      return favoriteListRequestRef.current;
+    }
+
+    favoriteListAutoRequestedRef.current = true;
+
+    const request = (async () => {
+      try {
+        setFavoriteListLoading(true);
+
+        const bookmarks = await getBookmarks();
+        const normalizedBookmarks =
+          bookmarks.map(normalizeBookmarkPlace);
+
+        if (!isMountedRef.current) {
+          return;
+        }
+
+        setFavoritePlaces(normalizedBookmarks);
+        setFavoriteListLoaded(true);
+      } catch (error) {
+        if (showErrorAlert) {
+          const message =
+            error instanceof BookmarkApiError &&
+            error.status === 401
+              ? "로그인이 만료되었습니다. 다시 로그인해 주세요."
+              : "즐겨찾기 목록을 불러오지 못했습니다.";
+
+          Alert.alert(
+            "즐겨찾기 조회 실패",
+            message,
+          );
+        }
+      } finally {
+        if (isMountedRef.current) {
+          setFavoriteListLoading(false);
+        }
+
+        favoriteListRequestRef.current = null;
+      }
+    })();
+
+    favoriteListRequestRef.current = request;
+    return request;
   };
 
   useEffect(() => {
-    if (!favoriteListLoaded && !favoriteListLoading) {
-      void loadFavoritePlaces();
-    }
-  }, [favoriteListLoaded, favoriteListLoading]);
+    void loadFavoritePlaces(false, "initial-mount");
+  }, []);
 
   useEffect(() => {
     const unsubscribe = navigation.addListener(
       "focus",
       () => {
-        void loadFavoritePlaces();
+        if (!favoriteListLoaded) {
+          void loadFavoritePlaces(false, "navigation-focus");
+        }
       },
     );
 
     return unsubscribe;
-  }, [navigation]);
+  }, [favoriteListLoaded, navigation]);
 
   const toggleFavoritePlace = async (
     place: PlaceSearchResult,
@@ -845,8 +961,9 @@ export default function AddScheduleLocationScreen({
         return;
       }
 
-      let latitude = place.latitude;
-      let longitude = place.longitude;
+      const initialCoordinates = getCoordinatesFromSource(place);
+      let latitude = initialCoordinates.latitude;
+      let longitude = initialCoordinates.longitude;
 
       if (
         typeof latitude !== "number" ||
@@ -854,16 +971,10 @@ export default function AddScheduleLocationScreen({
       ) {
         try {
           const detail = await getPlaceDetail(placeKey);
+          const detailCoordinates = getCoordinatesFromSource(detail);
 
-          latitude =
-            typeof detail.latitude === "number"
-              ? detail.latitude
-              : detail.lat;
-
-          longitude =
-            typeof detail.longitude === "number"
-              ? detail.longitude
-              : detail.lng;
+          latitude = detailCoordinates.latitude ?? latitude;
+          longitude = detailCoordinates.longitude ?? longitude;
         } catch (detailError) {
                   }
       }
@@ -902,7 +1013,7 @@ export default function AddScheduleLocationScreen({
         error instanceof BookmarkApiError &&
         error.status === 409
       ) {
-        await loadFavoritePlaces();
+        await loadFavoritePlaces(false, "bookmark-conflict-refresh", true);
 
         Alert.alert(
           "즐겨찾기",
@@ -915,7 +1026,7 @@ export default function AddScheduleLocationScreen({
         error instanceof BookmarkApiError &&
         error.status === 404
       ) {
-        await loadFavoritePlaces();
+        await loadFavoritePlaces(false, "bookmark-missing-refresh", true);
 
         Alert.alert(
           "즐겨찾기",
@@ -980,39 +1091,54 @@ export default function AddScheduleLocationScreen({
     handleSearch();
   };
 
-  const handlePlaceDetail = async (place: PlaceSearchResult) => {
+  const createSelectedPlaceWithCoordinates = async (
+    place: PlaceSearchResult,
+  ): Promise<SelectedPlace> => {
     const placeId = String(place.placeId);
     const googlePlaceIdSource = place.googlePlaceId ?? place.placeId;
+
     if (!googlePlaceIdSource) {
-      Alert.alert(
-        "상세 정보 조회 실패",
-        "장소 식별값이 없어 상세 정보를 불러올 수 없어요.",
-      );
-      return;
+      throw new Error("장소 식별값이 없습니다.");
     }
 
     const googlePlaceId = String(googlePlaceIdSource);
-    const hasSearchCoordinate =
-      typeof place.latitude === "number" && typeof place.longitude === "number";
+    const searchCoordinates = getCoordinatesFromSource(place);
+    let latitude = searchCoordinates.latitude;
+    let longitude = searchCoordinates.longitude;
+    let detail: unknown = null;
 
+    if (latitude === undefined || longitude === undefined) {
+      detail = await getPlaceDetail(googlePlaceId);
+      const detailCoordinates = getCoordinatesFromSource(detail);
+
+      latitude = detailCoordinates.latitude ?? latitude;
+      longitude = detailCoordinates.longitude ?? longitude;
+    }
+
+    if (latitude === undefined || longitude === undefined) {
+      throw new Error(
+        "장소 좌표를 확인하지 못해 일정에 추가할 수 없어요.",
+      );
+    }
+
+    return {
+      placeId,
+      googlePlaceId,
+      name: place.name,
+      address: place.address,
+      rating: place.rating,
+      category: place.category,
+      latitude,
+      longitude,
+    };
+  };
+
+  const handlePlaceDetail = async (place: PlaceSearchResult) => {
     try {
-      setDetailLoadingPlaceId(placeId);
+      setDetailLoadingPlaceId(String(place.placeId));
 
-      const detail =
-        hasSearchCoordinate ? null : (
-          await getAnalyzedPlaceDetail(googlePlaceId)
-        );
-
-      const nextPlace: SelectedPlace = {
-        placeId,
-        googlePlaceId,
-        name: place.name,
-        address: place.address,
-        rating: place.rating,
-        category: place.category,
-        latitude: detail?.lat ?? place.latitude,
-        longitude: detail?.lng ?? place.longitude,
-      };
+      const nextPlace =
+        await createSelectedPlaceWithCoordinates(place);
 
       toggleSelectedPlace(nextPlace);
       setKeyword(place.name);
@@ -1027,28 +1153,19 @@ export default function AddScheduleLocationScreen({
 
       reportPreferenceFeedback({
         userId: storedUserId,
-        placeId: googlePlaceId,
+        placeId: nextPlace.googlePlaceId ?? nextPlace.placeId,
         feedbackType: "SELECT",
         reason: "ADD_SCHEDULE_LOCATION_SELECT",
       }).catch((error) => {
         console.warn("[preferences/feedback] 호출 실패", error);
       });
     } catch (error) {
-      
-      const fallbackPlace: SelectedPlace = {
-        placeId,
-        googlePlaceId,
-        name: place.name,
-        address: place.address,
-        rating: place.rating,
-        category: place.category,
-        latitude: place.latitude,
-        longitude: place.longitude,
-      };
-
-      toggleSelectedPlace(fallbackPlace);
-      setKeyword(place.name);
-      moveMapToPlace(fallbackPlace);
+      Alert.alert(
+        "상세 정보 조회 실패",
+        error instanceof Error && error.message.trim()
+          ? error.message
+          : "장소 상세 정보를 불러오지 못했어요.",
+      );
     } finally {
       setDetailLoadingPlaceId(null);
     }
@@ -1186,8 +1303,27 @@ export default function AddScheduleLocationScreen({
       duplicatePlaceIds.add(key);
       return true;
     });
+
+    const placeWithoutCoordinates = filteredPlacesToSubmit.find((place) => {
+      return (
+        typeof place.latitude !== "number" ||
+        !Number.isFinite(place.latitude) ||
+        typeof place.longitude !== "number" ||
+        !Number.isFinite(place.longitude)
+      );
+    });
+
     if (placesToSubmit.length === 0) {
       submitLockRef.current = false;
+      return;
+    }
+
+    if (placeWithoutCoordinates) {
+      submitLockRef.current = false;
+      Alert.alert(
+        "장소 좌표 확인 실패",
+        `${placeWithoutCoordinates.name}의 좌표를 확인하지 못해 일정에 추가할 수 없어요.`,
+      );
       return;
     }
 
@@ -1250,6 +1386,11 @@ export default function AddScheduleLocationScreen({
                 place_id: place.googlePlaceId ?? place.placeId,
                 name: place.name,
                 category: place.category,
+                address: place.address ?? null,
+                latitude: place.latitude ?? null,
+                longitude: place.longitude ?? null,
+                lat: place.latitude ?? null,
+                lng: place.longitude ?? null,
                 visitTime: null,
                 endTime: null,
                 memo: null,
@@ -1811,7 +1952,7 @@ export default function AddScheduleLocationScreen({
               setActiveResultTab("favorites");
 
               if (!favoriteListLoaded && !favoriteListLoading) {
-                void loadFavoritePlaces(true);
+                void loadFavoritePlaces(true, "favorites-tab-first-open", true);
               }
             }}
           >
@@ -1865,16 +2006,20 @@ export default function AddScheduleLocationScreen({
           {activeResultTab === "favorites" &&
           favoriteListLoading &&
           favoritePlaces.length === 0 ? (
-            <View style={styles.favoriteEmptyCard}>
-              <ActivityIndicator
-                size="large"
-                color="#2F66F3"
-              />
-
-              <Text style={styles.favoriteEmptyTitle}>
-                즐겨찾기를 불러오는 중이에요
-              </Text>
-            </View>
+            <SearchResultCard
+              place={{
+                placeId: "favorites-loading",
+                name: "즐겨찾기",
+                address: "저장한 장소를 확인하고 있어요.",
+              }}
+              isPreview={false}
+              isSelected={false}
+              isDetailLoading={false}
+              isReviewLoading
+              isLoadingPlaceholder
+              onDetailPress={() => undefined}
+              onSelectPress={() => undefined}
+            />
           ) : null}
 
           {activeResultTab === "favorites" &&
@@ -1976,19 +2121,27 @@ export default function AddScheduleLocationScreen({
 
                   handleTogglePlaceReview(place);
                 }}
-                onSelectPress={() =>
-                  handleNext([
-                    {
-                      ...place,
-                      placeId: String(place.placeId),
-                      googlePlaceId: String(
-                        place.googlePlaceId ?? place.placeId,
-                      ),
-                      latitude: place.latitude ?? INITIAL_REGION.latitude,
-                      longitude: place.longitude ?? INITIAL_REGION.longitude,
-                    },
-                  ])
-                }
+                onSelectPress={() => {
+                  void (async () => {
+                    try {
+                      setDetailLoadingPlaceId(String(place.placeId));
+
+                      const nextPlace =
+                        await createSelectedPlaceWithCoordinates(place);
+
+                      await handleNext([nextPlace]);
+                    } catch (error) {
+                      Alert.alert(
+                        "장소 선택 실패",
+                        error instanceof Error && error.message.trim()
+                          ? error.message
+                          : "장소 좌표 정보를 확인하지 못했어요.",
+                      );
+                    } finally {
+                      setDetailLoadingPlaceId(null);
+                    }
+                  })();
+                }}
               />
             );
           })}

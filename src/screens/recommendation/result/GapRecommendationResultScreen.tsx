@@ -357,6 +357,21 @@ export default function GapRecommendationResultScreen({
           name: selectedPlace.name,
           category:
             selectedPlace.category,
+          address:
+            selectedPlace.address ??
+            null,
+          latitude:
+            selectedPlace.latitude ??
+            null,
+          longitude:
+            selectedPlace.longitude ??
+            null,
+          lat:
+            selectedPlace.latitude ??
+            null,
+          lng:
+            selectedPlace.longitude ??
+            null,
           visitTime:
             selectedVisitTime ??
             selectedPlace.suggestedVisitTime ??

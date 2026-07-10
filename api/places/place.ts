@@ -32,6 +32,26 @@ export type PlaceDetail = {
   lng?: number;
   latitude?: number;
   longitude?: number;
+  location?: {
+    latitude?: number | string;
+    longitude?: number | string;
+    lat?: number | string;
+    lng?: number | string;
+  };
+  coordinate?: {
+    latitude?: number | string;
+    longitude?: number | string;
+    lat?: number | string;
+    lng?: number | string;
+  };
+  geometry?: {
+    location?: {
+      latitude?: number | string;
+      longitude?: number | string;
+      lat?: number | string;
+      lng?: number | string;
+    };
+  };
   category?: string;
   space?: "INDOOR" | "OUTDOOR" | "MIX" | string;
   type?: string;

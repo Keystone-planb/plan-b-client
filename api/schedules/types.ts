@@ -57,6 +57,11 @@ export interface TripPlace {
   tripPlaceId: number;
   placeId: string;
   name: string;
+  address?: string | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
+  lat?: number | string | null;
+  lng?: number | string | null;
   visitTime?: string | null;
   endTime?: string | null;
   visitOrder?: number;
@@ -96,6 +101,11 @@ export interface AddTripLocationRequest {
   place_id: string;
   name: string;
   category?: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  lat?: number | null;
+  lng?: number | null;
   visitTime?: string | null;
   endTime?: string | null;
   memo?: string | null;
@@ -106,6 +116,11 @@ export interface AddTripLocationResponse {
   tripPlaceId: number;
   placeId: string;
   name: string;
+  address?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  lat?: number | null;
+  lng?: number | null;
   visitTime?: string | null;
   endTime?: string | null;
   visitOrder?: number;

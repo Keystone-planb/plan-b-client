@@ -93,14 +93,7 @@ export const deleteTrip = async (
 ): Promise<void> => {
   try {
     await apiClient.delete(`/api/trips/${tripId}`);
-  } catch (error: any) {
-    console.log("[deleteTrip] 실패 응답:", {
-      tripId,
-      status: error?.response?.status,
-      data: error?.response?.data,
-      message: error?.message,
-    });
-
+  } catch (error) {
     throw error;
   }
 };
@@ -121,7 +114,9 @@ export const addTripLocation = async (
     "일정 장소 추가",
   );
 
-  return response.data as AddTripLocationResponse;
+  const data = response.data as AddTripLocationResponse;
+
+  return data;
 };
 
 export const addLocationToTripDay = async ({
@@ -133,17 +128,6 @@ export const addLocationToTripDay = async ({
   day: number;
   payload: AddTripLocationRequest;
 }): Promise<AddTripLocationResponse> => {
-  console.log(
-    "[addLocationToTripDay] request:",
-    {
-      tripId,
-      day,
-      url:
-        `/api/trips/${tripId}/days/${day}/locations`,
-      payload,
-    },
-  );
-
   const response =
     await apiClient.post<unknown>(
       `/api/trips/${tripId}/days/${day}/locations`,
@@ -155,7 +139,9 @@ export const addLocationToTripDay = async ({
     "여행 장소 추가",
   );
 
-  return response.data as AddTripLocationResponse;
+  const data = response.data as AddTripLocationResponse;
+
+  return data;
 };
 
 export const getTripDay = async (
