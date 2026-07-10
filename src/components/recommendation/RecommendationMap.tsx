@@ -12,8 +12,8 @@ import MapView, {
 } from "react-native-maps";
 
 type Point = {
-  latitude?: number | null;
-  longitude?: number | null;
+  latitude?: number | string | null;
+  longitude?: number | string | null;
   name?: string | null;
 };
 
@@ -23,11 +23,33 @@ type Props = {
   next?: Point | null;
 };
 
-const isValidPoint = (point?: Point | null) =>
-  typeof point?.latitude === "number" &&
-  Number.isFinite(point.latitude) &&
-  typeof point?.longitude === "number" &&
-  Number.isFinite(point.longitude);
+const toCoordinateNumber = (value?: number | string | null) => {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value.trim());
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+};
+
+const getValidCoordinate = (point?: Point | null) => {
+  const latitude = toCoordinateNumber(point?.latitude);
+  const longitude = toCoordinateNumber(point?.longitude);
+
+  if (latitude === null || longitude === null) {
+    return null;
+  }
+
+  if (latitude === 0 && longitude === 0) {
+    return null;
+  }
+
+  return { latitude, longitude };
+};
 
 export default function RecommendationMap({
   previous,
@@ -50,13 +72,20 @@ export default function RecommendationMap({
       role: "existing" as const,
     },
   ]
-    .filter(({ point }) => isValidPoint(point))
-    .map(({ point, role }) => ({
-      latitude: point!.latitude as number,
-      longitude: point!.longitude as number,
-      name: point!.name,
-      role,
-    }));
+    .map(({ point, role }) => {
+      const coordinate = getValidCoordinate(point);
+
+      if (!coordinate) {
+        return null;
+      }
+
+      return {
+        ...coordinate,
+        name: point?.name,
+        role,
+      };
+    })
+    .filter((point): point is NonNullable<typeof point> => Boolean(point));
 
   const coordinates = points.map((point) => ({
     latitude: point.latitude,
