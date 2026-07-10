@@ -1,7 +1,9 @@
 import "dotenv/config";
 
-const googleMapsApiKey = process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "";
-const amplitudeApiKey = process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY ?? "";
+const googleMapsApiKey =
+  process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY?.trim() ?? "";
+const amplitudeApiKey =
+  process.env.EXPO_PUBLIC_AMPLITUDE_API_KEY?.trim() ?? "";
 
 export default ({ config }) => ({
   ...config,
@@ -11,13 +13,17 @@ export default ({ config }) => ({
   scheme: "planb",
 
   android: {
+    ...(config.android ?? {}),
     package: "com.planbtravel.app",
     adaptiveIcon: {
+      ...(config.android?.adaptiveIcon ?? {}),
       foregroundImage: "./assets/logo.png",
       backgroundColor: "#F3F4F6",
     },
     config: {
+      ...(config.android?.config ?? {}),
       googleMaps: {
+        ...(config.android?.config?.googleMaps ?? {}),
         apiKey: googleMapsApiKey,
       },
     },
